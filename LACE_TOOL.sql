@@ -93,7 +93,7 @@ WHERE
 ((
     PLM_PT_ACCT_TYPE = 'I'
     AND ADM_SOURCE NOT IN
-        ('RA',
+        (
         'RP'
         )
     )
@@ -109,7 +109,7 @@ WHERE
 ((
     PLM_PT_ACCT_TYPE = 'I'
     AND ADM_SOURCE NOT IN
-        ('RA',
+        (
         'RP'
         )
     )
