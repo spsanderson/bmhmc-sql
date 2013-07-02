@@ -1,3 +1,8 @@
+-- QUERY HAS BEEN DEPRECATED IN FAVOR OF THE MORE COMPACT PHYS_ALOS_V2
+
+
+
+
 -- THIS QUERY PULLS TOGETHER ON A USER SPECIFIED DATE RANGE THE LOS OF A PATIENT
 -- THE DRG LOS BENCH AS SPECIFIED BY MS-DRG AND CALCULATES THE DIFFERENCE OF THE 
 -- DRG BENCH LOS MINUS THE ACTUAL LOS --> (DRG LOS BENCH) - (ACTUAL LOS)
@@ -13,16 +18,12 @@ SET @ENDATE = '2013-05-31'
 
 SELECT DISTINCT vr.pt_id AS 'PT ID' 
 , pv.pract_rpt_name AS 'PHYSICIAN'
-, pv.spclty_desc AS 'SPECIALTY'
 , pv.med_staff_dept AS 'MED STAFF'
 , vr.rpt_name AS 'PT NAME'
 , vr.len_of_stay AS 'LOS'
 , vr.drg_std_days_stay AS 'DRG LOS BENCH'
 , (vr.len_of_stay - vr.drg_std_days_stay) AS 'LOS - DRG BENCH'
-, DATEPART(MM,vr.adm_date) AS 'ADM MONTH'
-, DATEPART(YY, VR.adm_date) AS 'ADM YEAR'
-, DATEPART(MM, VR.DSCH_DATE) AS 'DISC MONTH'
-, DATEPART(YY, VR.DSCH_DATE) AS 'DISC YEAR'
+
 
 FROM smsmir.vst_rpt vr
 LEFT OUTER JOIN smsmir.pyr_plan pp
@@ -31,6 +32,7 @@ JOIN smsdss.pract_dim_v pv
 ON vr.adm_pract_no = pv.src_pract_no
 
 WHERE vr.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+AND pv.spclty_desc NOT LIKE 'HOSPITALIST%'
 AND vr.vst_type_cd = 'I'
 AND pv.spclty_desc != 'NO DESCRIPTION'
 AND vr.drg_std_days_stay IS NOT NULL
