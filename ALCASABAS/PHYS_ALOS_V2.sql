@@ -38,8 +38,4 @@ GROUP BY pv.pract_rpt_name, pv.med_staff_dept, pv.spclty_desc
 ORDER BY pv.med_staff_dept, AVG(vr.len_of_stay - vr.drg_std_days_stay)DESC
 
 --#####################################################################
--- END REPORT.
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: MAY 20 2013
--- FOR : DR ALCASABAS, PHYLLIS HARTMANN
+
