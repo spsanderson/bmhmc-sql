@@ -39,8 +39,4 @@ AND PAPV.Pt_Acct_Pyr_Seq_No = 1
 ORDER BY PSVH.Svc_Date ASC
 
 --#####################################################################
--- END REPORT.
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: MAY 20 2013
--- FOR : BLOOD USE COMMITTEE / TRANSFUISON
+

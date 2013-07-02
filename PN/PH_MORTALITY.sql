@@ -79,8 +79,4 @@ AND PAV.Plm_Pt_Acct_Type = 'I'
 ORDER BY VR.adm_dtime
 
 --#####################################################################
--- END REPORT.
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: JUNE 6 2013
--- FOR : PHYLLIS HARTMANN
+

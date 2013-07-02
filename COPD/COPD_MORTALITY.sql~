@@ -1,4 +1,4 @@
--- COPD DATA ON MORTALITY, LOS FOR DRG 280, 281, 282
+-- COPD DATA ON MORTALITY, LOS FOR DRG 190, 191, 192
 -- REQUESTED BY PHYLLIS HARTMANN
 --#####################################################################
 -- VARIABLE DECLARATION AND INITIALIZATION
@@ -21,12 +21,12 @@ SELECT PAV.PtNo_Num AS 'VISIT ID'
     WHEN PP.bl_drg_soi_ind IS NULL
     THEN 0
     ELSE PP.bl_drg_soi_ind 
-  END AS 'SEVERITY'
+    END AS 'SEVERITY'
 , CASE 
     WHEN VR.mortality_cd IS NULL 
     THEN 0 
     ELSE VR.mortality_cd 
-  END AS 'MORTALITY'
+    END AS 'MORTALITY'
 , VR.drg_no AS 'DRG'
 , VR. drg_std_days_stay AS 'DRG LOS'
 , PAV.Days_Stay AS 'ACT LOS'
@@ -47,7 +47,7 @@ SELECT PAV.PtNo_Num AS 'VISIT ID'
     WHEN APV.src_adm_prio = 'X'
         THEN 'EMERGENT'
     ELSE APV.src_adm_prio
-  END AS 'ADMIT PRIO DESC'
+    END AS 'ADMIT PRIO DESC'
 , PMS.days_denied AS 'DAYS DENIED'
 , VR.adm_dtime AS 'ADMIT'
 , VR.dsch_dtime AS 'DISC'
@@ -72,11 +72,17 @@ ON PMS.adm_prio = APV.src_adm_prio
 -- FILTERS
 WHERE PDV.orgz_cd = 'S0X0'
 AND PAV.Adm_Date BETWEEN @SD AND @ED
-AND VR.drg_no IN (280, 281, 282)
+AND VR.drg_no IN (190, 191, 192)
 AND PP.pyr_seq_no = 0
 AND APV.orgz_cd = 'S0X0'
 AND PAV.Plm_Pt_Acct_Type = 'I'
 ORDER BY VR.adm_dtime
 
 --#####################################################################
-
+-- END REPORT.
+-- NAME: SANDERSON, STEVEN
+-- DEPT: PERFORMANCE IMPROVEMENT
+-- DATE: MAY 30 2013
+-- FOR : PHYLLIS HARTMANN
+-- THE AMOUNT OF CASES PRODUCED BY THIS QUERY WAS VALIDATED AGAINST
+-- THE CiM LIHN REPORTING WIZARD FOR '2012-01-01' TO '2012-03-31'

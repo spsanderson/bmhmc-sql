@@ -49,8 +49,4 @@ FROM smsdss.c_readmissions_v
 WHERE B_Adm_Date BETWEEN @STARTDATE AND @ENDATE
 
 --#####################################################################
--- END REPORT.
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: MAY 30 2013
--- FOR : PHYLLIS HARTMANN
+

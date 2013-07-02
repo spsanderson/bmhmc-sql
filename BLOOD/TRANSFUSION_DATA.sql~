@@ -55,4 +55,8 @@ AND DDV.DRG_VERS = 'MS-V25' <-- THIS IS HIGHLY RESTRICTIVE ON THE RESULT SET
 ORDER BY PAV.vst_end_dtime
 
 --#####################################################################
-
+-- END REPORT.
+-- NAME: SANDERSON, STEVEN
+-- DEPT: PERFORMANCE IMPROVEMENT
+-- DATE: MAY 20 2013
+-- FOR : BLOOD USE COMMITTEE / TRANSFUISON
