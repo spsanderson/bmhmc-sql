@@ -40,8 +40,4 @@ WHERE AFV.pt_type = 'E'
 AND AFV.adm_date BETWEEN @STARTDATE AND @ENDATE
 
 --#####################################################################
--- END REPORT
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: MAY 16 2013
--- FOR : DR SNEDIKER
+
