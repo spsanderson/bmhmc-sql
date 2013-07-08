@@ -43,8 +43,4 @@ AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
 AND B_Pt_No < 20000000
 
 --###########################################################################################################
--- END REPORT.
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: MAY 21 2013
--- FOR : PHYLLIS HARTMANN
+
