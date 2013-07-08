@@ -27,8 +27,4 @@ AND PDV.orgz_cd = 'S0X0'
 ORDER BY PDV.pract_rpt_name
 
 --#####################################################################
--- END REPORT.
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: JUNE 4 2013
--- FOR : PHYLLIS HARTMANN
+
