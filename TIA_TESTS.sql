@@ -32,7 +32,7 @@ JOIN smsmir.ord_sts_modf_mstr OSM
 ON SOS.hist_sts = OSM.ord_sts_modf_cd
 
 -- FILTER(S)
-WHERE Adm_Date BETWEEN @SD AND @ED
+WHERE PV.Adm_Date BETWEEN @SD AND @ED
 -- THE FOLLOWING GETS RID OF ORDERS THAT WERE DISCONTINUED
 AND SO.ord_no NOT IN (
 	SELECT SO.ord_no
