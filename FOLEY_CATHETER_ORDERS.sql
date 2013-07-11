@@ -1,5 +1,6 @@
 -- FOLEY CATHETER ORDERS
 
+
 DECLARE @SD DATETIME
 DECLARE @ED DATETIME
 SET @SD = '2013-06-01';
@@ -19,7 +20,7 @@ SELECT PV.PtNo_Num AS 'VISIT ID'
 , SO.svc_desc AS 'ORDER DESCRIPTION'
 , OSM.ord_sts AS 'ORDER STATUS'
 , SOS.prcs_dtime AS 'ORDER STATUS TIME'
-, DATEDIFF(HOUR,PV.vst_start_dtime,SOS.prcs_dtime) AS 'ADM TO ORDER STATUS IN HOURS'
+, DATEDIFF(DAY,PV.vst_start_dtime,SOS.prcs_dtime) AS 'ADM TO ORD STS IN DAYS'
 
 -- DB(S) USED
 FROM smsdss.BMH_PLM_PtAcct_V PV
@@ -32,9 +33,8 @@ ON SOS.hist_sts = OSM.ord_sts_modf_cd
 
 -- FILTER(S)
 WHERE PV.Adm_Date BETWEEN @SD AND @ED
-AND SO.svc_cd = 'PCO_REMFOLEY'
-OR SO.svc_cd IN (
-'PCO_INSRTFOLEY'
+AND SO.svc_cd IN ('PCO_REMFOLEY'
+,'PCO_INSRTFOLEY'
 ,'PCO_INSTFOLEY'
 ,'PCO_URIMETER'
 )
@@ -50,10 +50,12 @@ AND SO.ord_no NOT IN (
 	ON SOS.hist_sts = OSM.ord_sts_modf_cd
 	
 	WHERE OSM.ord_sts = 'DISCONTINUE'
-	AND SO.svc_cd = 'PCO_REMFOLEY'
-	OR SO.svc_cd IN (
-	'PCO_INSRTFOLEY'
+	AND SO.svc_cd IN ('PCO_REMFOLEY'
+	,'PCO_INSRTFOLEY'
 	,'PCO_INSTFOLEY'
 	,'PCO_URIMETER'
 	)
 )
+ORDER BY PV.PtNo_Num, SO.ord_no, SOS.prcs_dtime
+--#####################################################################
+-- END REPORT...[]...[]...[]
