@@ -20,7 +20,7 @@ SELECT PV.PtNo_Num AS 'VISIT ID'
 , SO.svc_desc AS 'ORDER DESCRIPTION'
 , OSM.ord_sts AS 'ORDER STATUS'
 , SOS.prcs_dtime AS 'ORDER STATUS TIME'
-, DATEDIFF(HOUR,PV.vst_start_dtime,SOS.prcs_dtime) AS 'ADM TO ORDER STATUS IN HOURS'
+, DATEDIFF(DAY,PV.vst_start_dtime,SOS.prcs_dtime) AS 'ADM TO ORD STS IN DAYS'
 
 -- DB(S) USED
 FROM smsdss.BMH_PLM_PtAcct_V PV
@@ -117,4 +117,4 @@ AND SO.svc_cd IN (
 )
 ORDER BY PV.PtNo_Num, SO.ord_no, SOS.prcs_dtime
 --#####################################################################
--- END REPORT...[]...[]...[]...?
+-- END REPORT...[]...[]...[]
