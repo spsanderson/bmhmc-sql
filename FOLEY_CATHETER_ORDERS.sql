@@ -1,6 +1,3 @@
--- FOLEY CATHETER ORDERS
-
-
 DECLARE @SD DATETIME
 DECLARE @ED DATETIME
 SET @SD = '2013-06-01';
@@ -17,7 +14,11 @@ SELECT PV.PtNo_Num AS 'VISIT ID'
 , SO.ord_no AS 'ORDER NUMBER'
 --, SO.ent_dtime AS 'ORDER ENTRY TIME'
 --, DATEDIFF(HOUR,PV.vst_start_dtime,SO.ent_dtime) AS 'ADM TO ENTRY HOURS'
-, SO.svc_desc AS 'ORDER DESCRIPTION'
+, CASE
+    WHEN SO.svc_desc = 'INSERT FOLEY CATHETER' THEN 'INSERT'
+    WHEN SO.svc_desc = 'INSERT INDWELLING URINARY CATHETER TO GRAVITY DRAINAGE' THEN 'INSERT'
+    WHEN SO.svc_desc = 'REMOVE INDWELLING URINARY CATHETER' THEN 'REMOVE'
+  END AS 'ORD DESC'
 , OSM.ord_sts AS 'ORDER STATUS'
 , SOS.prcs_dtime AS 'ORDER STATUS TIME'
 , DATEDIFF(DAY,PV.vst_start_dtime,SOS.prcs_dtime) AS 'ADM TO ORD STS IN DAYS'
@@ -57,5 +58,3 @@ AND SO.ord_no NOT IN (
 	)
 )
 ORDER BY PV.PtNo_Num, SO.ord_no, SOS.prcs_dtime
---#####################################################################
--- END REPORT...[]...[]...[]
