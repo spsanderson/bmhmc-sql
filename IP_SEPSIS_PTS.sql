@@ -56,7 +56,7 @@ AND PV.hosp_svc NOT IN (
 	,'EME'
 	)
 AND PV.Adm_Date BETWEEN @SD AND @ED
-AND (SO.svc_desc LIKE 'CBC WITH WBC DIFF%'         -- LAB
+AND (SO.svc_desc LIKE 'CBC WITH WBC DIFF%'     -- LAB
 	OR SO.svc_desc LIKE 'LACTIC ACID'          -- LAB
 	OR SO.svc_desc LIKE '%XRAY%'               -- XRAY
 	OR SO.svc_desc LIKE 'D5%'                  -- FLUID
