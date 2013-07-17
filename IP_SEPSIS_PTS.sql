@@ -1,6 +1,7 @@
+-- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD DATETIME
 DECLARE @ED DATETIME
-SET @SD = '2013-04-01';
+SET @SD = '2013-01-01';
 SET @ED = '2013-06-30';
 
 -- COLUMN SELECTION
@@ -28,8 +29,35 @@ DISTINCT PV.PtNo_Num AS 'VISIT ID'
 --, SO.ent_dtime AS 'ORDER ENTRY TIME'
 --, DATEDIFF(HOUR,PV.vst_start_dtime,SO.ent_dtime) AS 'ADM TO ENTRY HOURS'
 , SO.svc_cd AS 'SVC CD'
-, SO.svc_desc AS 'ORD DESC'
-, OSM.ord_sts AS 'ORD STS'
+, CASE 
+    WHEN SO.svc_desc LIKE 'CBC WITH WBC DIFF%'
+    THEN 'WBC ORDER'
+    WHEN SO.svc_desc LIKE 'LACTIC ACID'
+    THEN 'LACTATE ORDER'
+    WHEN SO.svc_desc LIKE '%XRAY%'
+    THEN 'XRAY ORDER'
+    WHEN SO.svc_desc LIKE 'SODIUM CHLORIDE%'
+    OR SO.svc_desc LIKE 'SODIUM BICARB%'
+    OR SO.svc_desc LIKE 'DEXTROSE%'
+    OR SO.svc_desc LIKE 'D5%'
+	THEN 'FLUID ORDER'
+    WHEN SO.svc_desc LIKE 'CIPRO%'
+	OR SO.svc_desc LIKE 'VANCO%'
+	OR SO.svc_desc LIKE 'CEFEPIME%'
+	OR SO.svc_desc LIKE 'LEVAQU%'
+	OR SO.svc_desc LIKE 'ZITHROM%'
+	OR SO.svc_desc LIKE 'CEFTRIA%'
+	OR SO.svc_desc LIKE 'ZOSYN%'
+	THEN 'ANTIBITOIC ORDER'
+  END AS 'ORDER DESCRIPTION'
+, CASE
+    WHEN OSM.ord_sts = 'ACTIVE' THEN '1 - ACTIVE'
+    WHEN OSM.ord_sts = 'IN PROGRESS' THEN '2 - IN PROGRESS'
+    WHEN OSM.ord_sts = 'COMPLETE' THEN '3 - COMPLETE'
+    WHEN OSM.ord_sts = 'CANCEL' THEN '4 - CANCEL'
+    WHEN OSM.ord_sts = 'DISCONTINUE' THEN '5 - DISCONTINUE'
+    WHEN OSM.ord_sts = 'SUSPEND' THEN '6 - SUSPEND'
+  END AS 'ORDER STATUS'
 , SOS.prcs_dtime AS 'ORD STS TIME'
 -- NEGATIVE HRS INDICATES THAT TEST WAS ORDERED PRE-ADMIT SENT OVER BY
 -- ED
@@ -61,6 +89,7 @@ AND (SO.svc_desc LIKE 'CBC WITH WBC DIFF%'     -- LAB
 	OR SO.svc_desc LIKE '%XRAY%'               -- XRAY
 	OR SO.svc_desc LIKE 'D5%'                  -- FLUID
 	OR SO.svc_desc LIKE 'SODIUM CHLORIDE%'     -- FLUID
+	OR SO.svc_desc LIKE 'SODIUM BICARB%'       -- FLUID
 	OR SO.svc_desc LIKE 'DEXTROSE%'            -- FLUID
 	OR SO.svc_desc LIKE 'CIPRO%'               -- AB
 	OR SO.svc_desc LIKE 'VANCO%'               -- AB
