@@ -1,6 +1,3 @@
--- THIS QUERY WILL GET DATE ON WEATHER OR NOT TESTING FOR TIA PTS
--- IS BEING DONE IN A TIMELY FASHION OR NOT
---#####################################################################
 DECLARE @SD DATETIME
 DECLARE @ED DATETIME
 SET @SD = '2013-06-01';
@@ -18,7 +15,14 @@ SELECT PV.PtNo_Num AS 'VISIT ID'
 --, SO.ent_dtime AS 'ORDER ENTRY TIME'
 --, DATEDIFF(HOUR,PV.vst_start_dtime,SO.ent_dtime) AS 'ADM TO ENTRY HOURS'
 , SO.svc_desc AS 'ORDER DESCRIPTION'
-, OSM.ord_sts AS 'ORDER STATUS'
+, CASE
+    WHEN OSM.ord_sts = 'ACTIVE' THEN '1 - ACTIVE'
+    WHEN OSM.ord_sts = 'IN PROGRESS' THEN '2 - IN PROGRESS'
+    WHEN OSM.ord_sts = 'COMPLETE' THEN '3 - COMPLETE'
+    WHEN OSM.ord_sts = 'CANCEL' THEN '4 - CANCEL'
+    WHEN OSM.ord_sts = 'DISCONTINUE' THEN '5 - DISCONTINUE'
+    WHEN OSM.ord_sts = 'SUSPEND' THEN '6 - SUSPEND'
+  END AS 'ORDER STATUS'
 , SOS.prcs_dtime AS 'ORDER STATUS TIME'
 , DATEDIFF(DAY,PV.vst_start_dtime,SOS.prcs_dtime) AS 'ADM TO ORD STS IN DAYS'
 
@@ -45,76 +49,19 @@ AND SO.ord_no NOT IN (
 	JOIN smsmir.ord_sts_modf_mstr OSM
 	ON SOS.hist_sts = OSM.ord_sts_modf_cd
 	
-	WHERE OSM.ord_sts = 'DISCONTINUE'
+	WHERE OSM.ord_sts IN (
+		'DISCONTINUE'
+		,'CANCEL'
+		)
 	AND pv.drg_no IN (067,068,069)
-	AND SO.svc_cd IN (
-	'00424283'
-	,'00700104'
-	,'00720045'
-	,'00720060'
-	,'00720011'
-	,'00720052'
-	,'00700096'
-	,'00720037'
-	,'00714006'
-	,'00700500'
-	,'01710078'
-	,'01710094'
-	,'01710110'
-	,'01404201'
-	,'01404151'
-	,'01330935'
-	,'01330968'
-	,'CAT9999GDT'
-	,'0109994R'
-	,'01330000'
-	,'01330208'
-	,'01330927'
-	,'01301654'
-	,'01307008'
-	,'01330109'
-	,'01330919'
-	,'01320001'
-	,'01330257'
-	,'01330307'
-	,'01330943'
-	,'01330950'
-	)
+	AND (SO.svc_desc LIKE 'CAROTID%'
+	    OR SO.svc_desc LIKE 'ECHO%'
+	    OR SO.svc_desc LIKE '%WITHOUT CONTRAST'
+	    )
 )
 AND pv.drg_no IN (067,068,069)
-AND SO.svc_cd IN (
-'00424283'
-,'00700104'
-,'00720045'
-,'00720060'
-,'00720011'
-,'00720052'
-,'00700096'
-,'00720037'
-,'00714006'
-,'00700500'
-,'01710078'
-,'01710094'
-,'01710110'
-,'01404201'
-,'01404151'
-,'01330935'
-,'01330968'
-,'CAT9999GDT'
-,'0109994R'
-,'01330000'
-,'01330208'
-,'01330927'
-,'01301654'
-,'01307008'
-,'01330109'
-,'01330919'
-,'01320001'
-,'01330257'
-,'01330307'
-,'01330943'
-,'01330950'
-)
+AND (SO.svc_desc LIKE 'CAROTID%'
+    OR SO.svc_desc LIKE 'ECHO%'
+    OR SO.svc_desc LIKE '%WITHOUT CONTRAST'
+    )
 ORDER BY PV.PtNo_Num, SO.ord_no, SOS.prcs_dtime
---#####################################################################
--- END REPORT...[]...[]...[]
