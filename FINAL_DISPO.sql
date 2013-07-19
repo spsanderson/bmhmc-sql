@@ -1,4 +1,4 @@
-SELECT PtNo_Num,dsch_disp
+SELECT MED_REC_NO, PtNo_Num, dsch_disp
 
 FROM smsdss.BMH_PLM_PtAcct_V
 
