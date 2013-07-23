@@ -66,6 +66,8 @@ WITH [SX FLAG] AS (
 		ON SO.ord_no = SOS.ord_no
 		JOIN smsmir.ord_sts_modf_mstr OSM
 		ON SOS.hist_sts = OSM.ord_sts_modf_cd
+		JOIN smsdss.pract_dim_v PDV
+	    ON SO.pty_cd = PDV.src_pract_no
 		
 		WHERE OSM.ord_sts = 'DISCONTINUE'
 		AND SO.svc_cd IN ('PCO_REMFOLEY'
