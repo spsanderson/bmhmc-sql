@@ -1,12 +1,11 @@
 -- COPD DATA ON READMISSIONS FOR DRG 280, 281, 282
--- REQUESTED BY PHYLLIS HARTMANN
 --#####################################################################
 
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
-SET @STARTDATE = '2013-05-31';
-SET @ENDATE = '2013-05-31';
+SET @STARTDATE = '2013-06-01';
+SET @ENDATE = '2013-06-30';
 
 -- COLUMN SELECTION
 -- INITIAL VISIT
@@ -47,6 +46,12 @@ FROM smsdss.c_readmissions_v
 -- FILTERS
 --WHERE B_Drg_No IN (280, 281, 282)
 WHERE B_Adm_Date BETWEEN @STARTDATE AND @ENDATE
+AND adm_src_desc != 'SCHEDULED ADMISSION'
+AND pt_no < 20000000
+AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
+AND B_Pt_No < 20000000
+ORDER BY B_Adm_Date
+
 
 --#####################################################################
-
+-- END REPORT.
