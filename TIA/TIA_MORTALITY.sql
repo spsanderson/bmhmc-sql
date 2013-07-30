@@ -1,4 +1,4 @@
--- TIA DATA ON MORTALITY, LOS FOR DRG 069
+-- COPD DATA ON MORTALITY, LOS FOR DRG 069
 
 --#####################################################################
 -- VARIABLE DECLARATION AND INITIALIZATION
@@ -72,7 +72,7 @@ ON PMS.adm_prio = APV.src_adm_prio
 -- FILTERS
 WHERE PDV.orgz_cd = 'S0X0'
 AND PAV.Adm_Date BETWEEN @SD AND @ED
-AND VR.drg_no IN (069)
+AND VR.drg_no IN (067,068,069)
 AND PP.pyr_seq_no = 0
 AND APV.orgz_cd = 'S0X0'
 AND PAV.Plm_Pt_Acct_Type = 'I'
