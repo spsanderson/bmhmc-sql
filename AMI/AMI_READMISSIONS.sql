@@ -1,4 +1,5 @@
 -- COPD DATA ON READMISSIONS FOR DRG 280, 281, 282
+
 --#####################################################################
 
 DECLARE @STARTDATE DATETIME
@@ -50,7 +51,6 @@ AND adm_src_desc != 'SCHEDULED ADMISSION'
 AND pt_no < 20000000
 AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
 AND B_Pt_No < 20000000
-ORDER BY B_Adm_Date
 
 
 --#####################################################################
