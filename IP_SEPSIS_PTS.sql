@@ -48,6 +48,7 @@ DISTINCT PV.PtNo_Num AS 'VISIT ID'
 	OR SO.svc_desc LIKE 'ZITHROM%'
 	OR SO.svc_desc LIKE 'CEFTRIA%'
 	OR SO.svc_desc LIKE 'ZOSYN%'
+	OR SO.svc_desc LIKE 'ROCEF'
 	THEN 'ANTIBITOIC ORDER'
   END AS 'ORDER DESCRIPTION'
 , CASE
@@ -98,6 +99,7 @@ AND (SO.svc_desc LIKE 'CBC WITH WBC DIFF%'     -- LAB
 	OR SO.svc_desc LIKE 'ZITHROM%'             -- AB
 	OR SO.svc_desc LIKE 'CEFTRIA%'             -- AB
 	OR SO.svc_desc LIKE 'ZOSYN%'               -- AB
+	OR SO.svc_desc LIKE 'ROCEF%'               -- AB
 	)
 
 
