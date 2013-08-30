@@ -6,8 +6,8 @@
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
-SET @STARTDATE = '2013-06-08';
-SET @ENDATE = '2013-06-14';
+SET @STARTDATE = '2013-07-28';
+SET @ENDATE = '2013-08-10';
 
 -- COLUMN SELECTION
 SELECT PAV.PtNo_Num AS 'PAV PTNO_NUM'
@@ -33,10 +33,10 @@ WHERE PSVH.Svc_Cd IN (
 )
 -- '04151619' and '04151627' for PLATELETS
 AND DRGM.DRGVers = 'MS-V25'
-AND PAV.pt_type not in ('R', 'E')
+AND PAV.pt_type NOT IN ('R', 'E')
 AND PAV.Dsch_Date BETWEEN @STARTDATE AND @ENDATE
 AND PAPV.Pt_Acct_Pyr_Seq_No = 1
 ORDER BY PSVH.Svc_Date ASC
 
 --#####################################################################
-
+-- END REPORT.

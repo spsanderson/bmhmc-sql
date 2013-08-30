@@ -1,5 +1,4 @@
--- COPD DATA ON READMISSIONS FOR DRG 069
-
+-- TIA DATA ON READMISSIONS FOR DRG 069
 --#####################################################################
 
 DECLARE @STARTDATE DATETIME

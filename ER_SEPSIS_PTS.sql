@@ -40,4 +40,4 @@ WHERE AFV.pt_type = 'E'
 AND AFV.adm_date BETWEEN @STARTDATE AND @ENDATE
 
 --#####################################################################
-
+-- END REPORT

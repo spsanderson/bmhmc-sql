@@ -1,5 +1,4 @@
 -- COPD DATA ON READMISSIONS FOR DRG 190, 191, 192
-
 --#####################################################################
 
 DECLARE @STARTDATE DATETIME

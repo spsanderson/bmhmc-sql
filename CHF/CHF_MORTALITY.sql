@@ -1,12 +1,11 @@
 -- COPD DATA ON MORTALITY, LOS FOR DRG 291, 292, 293
--- REQUESTED BY PHYLLIS HARTMANN
 --#####################################################################
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD DATETIME
 DECLARE @ED DATETIME
 
-SET @SD = '2013-05-01';
-SET @ED = '2013-05-31';
+SET @SD = '2013-07-01';
+SET @ED = '2013-07-31';
 
 --COLUMN SELECTION
 SELECT PAV.PtNo_Num AS 'VISIT ID'
@@ -80,7 +79,3 @@ ORDER BY VR.adm_dtime
 
 --#####################################################################
 -- END REPORT.
--- NAME: SANDERSON, STEVEN
--- DEPT: PERFORMANCE IMPROVEMENT
--- DATE: JUNE 5 2013
--- FOR : PHYLLIS HARTMANN

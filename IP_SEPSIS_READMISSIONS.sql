@@ -1,5 +1,7 @@
 -- THIS QUERY IS GOING TO GET INFORMATION ON SEPSIS PATIENTS FOR THE 
--- SEPSIS MEASURES 
+-- SEPSIS MEASURES THAT ARE CURRENTLY BEING TRACKED. THIS QUERY MAY
+-- BE EDITED FROM TIME TO TIME TO KEEP UP WITH THE MOST CURRENT LEGAL
+-- BENCHMARKS
 --#####################################################################
 
 -- VARIABLE DECLARATION AND INITIALIZATION
@@ -66,4 +68,4 @@ AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
 AND B_Pt_No < 20000000
 
 --#####################################################################
-
+-- END REPORT.

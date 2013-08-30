@@ -1,5 +1,4 @@
 -- READMISSIONS DATA FOR THE LAST 12 MONTHS MAY 1 2012 THROUGH APRIL 30 2013
--- REQUESTED BY PHYLLIS HARTMANN
 --##########################################################################################################
 -- COLUMN SELECTION
 -- INITIAL ENCOUNTERS
@@ -36,11 +35,11 @@ B_Pt_No AS 'READMIT ENCOUNTER'
 FROM smsdss.c_readmissions_v
 
 -- FILTERS USED
-WHERE B_Adm_Date BETWEEN '2013-05-01' AND '2013-05-31'
+WHERE B_Adm_Date BETWEEN '2013-06-01' AND '2013-06-30'
 AND adm_src_desc != 'SCHEDULED ADMISSION'
 AND pt_no < 20000000
 AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
 AND B_Pt_No < 20000000
 
 --###########################################################################################################
-
+-- END REPORT.

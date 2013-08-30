@@ -1,5 +1,4 @@
 -- CHF DATA ON READMISSIONS, LOS FOR DRG 291, 292, 293
-
 --#####################################################################
 
 DECLARE @STARTDATE DATETIME

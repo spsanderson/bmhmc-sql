@@ -67,8 +67,8 @@ DISTINCT PV.PtNo_Num AS 'VISIT ID'
 FROM smsdss.BMH_PLM_PtAcct_Clasf_Dx_V PDV
 JOIN smsdss.BMH_PLM_PtAcct_V PV
 ON PDV.PtNo_Num = PV.PtNo_Num
-JOIN smsdss.dx_cd_dim_v DX
-ON PV.prin_dx_cd = DX.dx_cd
+--JOIN smsdss.dx_cd_dim_v DX
+--ON PV.prin_dx_cd = DX.dx_cd
 JOIN smsmir.sr_ord SO
 ON PV.PtNo_Num = SO.episode_no
 JOIN smsmir.sr_ord_sts_hist SOS
@@ -111,8 +111,8 @@ AND SO.ord_no NOT IN (
 	FROM smsdss.BMH_PLM_PtAcct_Clasf_Dx_V PDV
 	JOIN smsdss.BMH_PLM_PtAcct_V PV
 	ON PDV.PtNo_Num = PV.PtNo_Num
-	JOIN smsdss.dx_cd_dim_v DX
-	ON PV.prin_dx_cd = DX.dx_cd
+	--JOIN smsdss.dx_cd_dim_v DX
+	--ON PV.prin_dx_cd = DX.dx_cd
 	JOIN smsmir.sr_ord SO
 	ON PV.PtNo_Num = SO.episode_no
 	JOIN smsmir.sr_ord_sts_hist SOS

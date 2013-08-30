@@ -1,8 +1,6 @@
 -- THIS QUERY PULLS TOGETHER ON A USER SPECIFIED DATE RANGE THE LOS OF A PATIENT
 -- THE DRG LOS BENCH AS SPECIFIED BY MS-DRG AND CALCULATES THE DIFFERENCE OF THE 
 -- DRG BENCH LOS MINUS THE ACTUAL LOS --> (DRG LOS BENCH) - (ACTUAL LOS)
--- THIS INFORMATION WAS ASKED FOR BY DR. ALCASABAS, IT ONLY INCLUDES A LIST OF
--- DOCTORS WHO ARE EITHER INTERNAL MED, FAMILY MED, HOSPITALIST OR SURGEON
 --#####################################################################
 
 DECLARE @STARTDATE DATETIME
@@ -38,4 +36,4 @@ GROUP BY pv.pract_rpt_name, pv.med_staff_dept, pv.spclty_desc
 ORDER BY pv.med_staff_dept, AVG(vr.len_of_stay - vr.drg_std_days_stay)DESC
 
 --#####################################################################
-
+-- END REPORT.
