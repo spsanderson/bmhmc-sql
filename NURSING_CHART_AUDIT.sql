@@ -6,8 +6,8 @@
 --###################################################################//
 
 -- VARIABLE DECLARATION AND INITIALIZATION
-DECLARE @SD DATETIME = '2013-08-01';
-DECLARE @ED DATETIME = '2013-08-01';
+DECLARE @SD DATETIME = '2013-08-28';
+DECLARE @ED DATETIME = '2013-08-28';
 
 -- THIS CREATES A TABLE WHERE ALL THE DESIRED VISIT ID NUMBERS WILL GO
 -- THIS TABLE IS A UNIQUE CLUSTER
@@ -70,7 +70,7 @@ WITH OBS
 			MAX(CASE
 				  WHEN form_usage = 'Admission'
 				  AND obsv_cd_ext_name = 'Acceptable level of pain'
-				  THEN 1
+				  THEN dsply_val
 				END) AS [ACCPT PAIN LVL IDENT],
 			MAX(CASE
 				  WHEN form_usage = 'Admission'
@@ -159,14 +159,6 @@ WITH OBS
 				  THEN 1
 				END) AS [EDU ASSMNT DONE],
 			MAX(CASE
-				  WHEN form_usage = 'Medication Reconciliation'
-				  AND obsv_cd_ext_name IN (
-				  'Meds Brought from Home?',
-				  'On Medication?'
-				  )
-				  THEN 1
-				END) AS [MED HOME LIST],
-			MAX(CASE
 				  WHEN form_usage = 'Care Management_New'
 				  AND dsply_val is not null
 				  THEN 1
@@ -187,8 +179,8 @@ WITH OBS
 		 -- FILTER(S) USED
          WHERE form_usage IN (
 							 'Admission',
-							 'Medication Reconciliation',
-							 'Care Management_New'
+							 'Care Management_New',
+							 'Post Falls Assessment'
 							 )
          GROUP BY episode_no)
 --+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
@@ -206,6 +198,7 @@ SELECT #T1.VISIT_ID AS [VISIT ID]
 , QOC.adv_dir_ind AS [ADV DIRECTIVE]
 , QOC.pn_immun AS [PN IMM IND]
 , QOC.flu_immun AS [FLU IMM IND]
+, QOC.home_meds_chtd_ind AS [HOME MEDS CHARTED IND]
 , ISNULL(OBS.[ADMIT ASSESSMENT DONE], 0) AS [ADMIT ASSESSMENT DONE]
 , ISNULL(OBS.[ADMIT CONSENT SIGNED?], 0) AS [ADMIT CONSENT SIGNED?]
 , ISNULL(OBS.[PT BELONGINGS ADDRESSED], 0) AS [PT BELONGINGS ADDRESSED]
@@ -221,7 +214,6 @@ SELECT #T1.VISIT_ID AS [VISIT ID]
 , ISNULL(OBS.[FUNCTIONAL SCREEN], 0) AS [FUNCTIONAL SCREEN]
 , ISNULL(OBS.[PERSONAL HABITS ADDRESSED], 0) AS [PERSONAL HABITS ADDRESSED]
 , ISNULL(OBS.[EDU ASSMNT DONE], 0) AS [EDU ASSMNT DONE]
-, ISNULL(OBS.[MED HOME LIST], 0) AS [MED HOME LIST]
 , ISNULL(OBS.[ANTICIPATED DC PLAN], 0) AS [ANTICIPATED DC PLAN]
 , ISNULL(OBS.[FALL ASSESSMENT], 0) AS [FALL ASSESSMENT]
 
