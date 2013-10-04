@@ -4,8 +4,8 @@
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
-SET @SD = '2013-09-16';
-SET @ED = '2013-09-17';
+SET @SD = '2013-10-01';
+SET @ED = '2013-10-02';
 
 --###################################################################//
 -- COLUMN SELECTION
@@ -21,8 +21,8 @@ SELECT PAV.PtNo_Num AS [VISIT ID]
 , SO.ord_no AS [ORDER NUMBER]
 , OSM.ord_sts AS [ORDER STATUS]
 , SOS.prcs_dtime AS [ORDER STATUS TIME]
-
-
+, OBS.dsply_val AS ENDOCRINE
+  
 -- DB(S) USED
 FROM SMSDSS.BMH_PLM_PTACCT_V PAV
 JOIN smsmir.sr_ord SO
@@ -31,10 +31,10 @@ JOIN smsmir.sr_ord_sts_hist SOS
 ON SO.ord_no = SOS.ord_no
 JOIN smsmir.ord_sts_modf_mstr OSM
 ON SOS.hist_sts = OSM.ord_sts_modf_cd
-
+JOIN smsmir.obsv OBS
+ON SO.episode_no = OBS.episode_no
 
 -- FILTER(S)
---WHERE SO.ord_sts_prcs_dtime BETWEEN @SD AND @ED
 WHERE SOS.prcs_dtime BETWEEN @SD AND @ED
 AND Plm_Pt_Acct_Type = 'I'
 AND PAV.Dsch_Date IS NULL
@@ -70,3 +70,5 @@ AND SO.ord_no NOT IN (
 	, 'CANCEL'
 	) 
 )
+AND OBS.form_usage = 'ADMISSION'
+AND OBS.obsv_cd_ext_name = 'ENDOCRINE'

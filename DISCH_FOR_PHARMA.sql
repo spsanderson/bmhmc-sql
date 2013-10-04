@@ -1,10 +1,12 @@
 SELECT dsch_date
-, vst_id
+, acct_no
+, vst_med_rec_no
 , dsch_disp
 , ward_cd
 , DATEPART(MONTH, dsch_date) AS [MONTH]
 , DATEPART(YEAR, dsch_date) AS [YEAR]
 
 FROM smsmir.vst_rpt
-WHERE dsch_date = '2013-08-26'
+WHERE dsch_date = '2013-09-30'
+AND ward_cd IS NOT NULL
 ORDER BY dsch_date ASC
