@@ -52,12 +52,20 @@ FROM
 	, ADMISSION_DATE	
 	
 	FROM dbo.visit_view
+	/* FROM MODIFICATION starts here, join ctc_visit._fk_visit
+	on visit_view.visit_id */
+	JOIN ctc_visit 
+	ON dbo.visit_view.visit_id = ctc_visit._fk_visit
+	/* FROM MODIFICATION ends here */
 
-	WHERE discharged is null
-	AND patient_type = 'I'
-	AND institution_no is null
+	WHERE /* FILTER MODIFICATION starts here*/ 
+	ctc_visit.s_cpm_patient_status = 'IA'
 	AND v_changed_on > @D-1
-	AND bill_no < 20000000
+	--discharged IS NULL
+	--AND patient_type = 'I'
+	--AND institution_no IS NULL
+	--AND bill_no < 20000000
+	/* FILTER MODIFICATION ends here */
 	) A
 
 --SELECT * FROM @T1
@@ -412,3 +420,10 @@ SELECT VISIT_ID
 FROM X
 WHERE RN = 1
 AND ([LACE DAYS SCORE]+[LACE ACUTE IP SCORE]+[LACE ER SCORE]+[LACE COMORBID SCORE]) >= 9
+
+/* Change log: 
+2013-10-31 9:07am
+Made minor change to the first from clause in table @T1 in order 
+to get rid of inactive patients, this prevents them from crossing
+over. They would never make it to the report anyway but this cleans
+them out before the results are sent */
