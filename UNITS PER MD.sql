@@ -3,24 +3,25 @@ DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
 -- DATA STARTS AT 2011-11-01
-SET @STARTDATE = '2013-11-17';
+SET @STARTDATE = '2011-01-01';
 SET @ENDATE = '2013-11-30';
 
 -- COLUMN SELECTION
 SELECT PAV.Med_Rec_No AS 'MED REC NO'
 , PAV.PtNo_Num AS 'ENCOUNTER NUM'
 , PAV.Pt_Name AS 'PT NAME'
-, PAV.vst_start_dtime AS 'ADMIT DATE TIME'
+, PAV.Adm_Date AS 'ADMIT DATE TIME'
 , DATEPART(MM, PAV.vst_start_dtime) AS 'ADM MONTH'
 , DATEPART(DD, PAV.vst_start_dtime) AS 'ADM DAY'
 , DATEPART(YY, PAV.vst_start_dtime) AS 'ADM YR'
-, PAV.vst_end_dtime AS 'DISC DATE TIME'
+, PAV.Dsch_Date AS 'DISC DATE TIME'
 , DATEPART(MM, PAV.vst_end_dtime) AS 'DISC MONTH'
 , DATEPART(DD, PAV.vst_end_dtime) AS 'DISC DAY'
 , DATEPART(YY, PAV.vst_end_dtime) AS 'DISC YR'
 , DATEPART(HH, PAV.vst_start_dtime) AS 'ADMIT HR'
 , DATEPART(HH, PAV.vst_end_dtime) AS 'DISC HR'
 , DATEDIFF(DD,PAV.vst_start_dtime, PAV.vst_end_dtime) AS 'LOS'
+, SO.ord_no AS 'ORDER NUMBER'
 , SO.svc_desc AS 'SERVICE DESC'
 , PAV.drg_no AS 'DRG NUMBER'
 , DDV.std_drg_name_modf AS 'DRG DESC'
@@ -48,7 +49,7 @@ WHERE SO.svc_cd IN (
 'XFUSEPLATELETS',
 'XFUSEBLDPRD'
 )
-AND PAV.vst_end_dtime BETWEEN @STARTDATE AND @ENDATE
+AND PAV.Dsch_Date BETWEEN @STARTDATE AND @ENDATE
 AND DDV.DRG_VERS = 'MS-V25' 
 AND SO.ord_no NOT IN (
 	SELECT SO.ord_no
