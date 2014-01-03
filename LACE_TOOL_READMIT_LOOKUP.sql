@@ -6,6 +6,6 @@ SELECT B_Episode_No AS [VISIT ID]
 
 FROM smsdss.c_readmissions_v
 
-WHERE B_Adm_Date BETWEEN '2011-12-01' AND '2013-01-31'
+WHERE B_Adm_Date BETWEEN '2012-12-01' AND '2014-01-31'
 AND B_Adm_Src_Desc != 'Scheduled Admission'
 AND B_Episode_No < '20000000'
