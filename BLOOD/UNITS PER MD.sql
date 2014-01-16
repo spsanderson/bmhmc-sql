@@ -32,24 +32,43 @@ SELECT PAV.Med_Rec_No AS 'MED REC NO'
 , PAV.Adm_Source AS 'ADMIT SOURCE'
 , PAV.dsch_disp AS 'PT DISPO' -- ADDED
 , SO.desc_as_written AS [AS WRITTEN]
-, CASE
-	WHEN SUBSTRING(SO.DESC_AS_WRITTEN, 
-	CHARINDEX('UNIT', SO.DESC_AS_WRITTEN)-2,1) NOT IN (
-		'1','2','3','4','5','6','7','8','9','10','11'
-	)
-		THEN ''
-	ELSE SUBSTRING(SO.DESC_AS_WRITTEN, 
-	CHARINDEX('UNIT', SO.DESC_AS_WRITTEN)-2,1)
-  END AS [UNITS]
-, CASE 
-	WHEN SUBSTRING(SO.DESC_AS_WRITTEN, 
-	CHARINDEX('ROUTINE', SO.DESC_AS_WRITTEN)-2,1) NOT IN (
-		'1','2','3','4','5','6','7','8','9','10','11'
-	)
-		THEN ''
-	ELSE SUBSTRING(SO.DESC_AS_WRITTEN, 
-	CHARINDEX('ROUTINE', SO.DESC_AS_WRITTEN)-2,2)
-  END AS [ROUTINE]
+,(CAST
+	(ISNULL
+		(REPLACE
+			(REPLACE
+				(REPLACE
+					(CASE 
+						WHEN PATINDEX('%[0-9]UNIT%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9]UNIT%',so.desc_as_written)-1,2) 
+						WHEN PATINDEX('%[0-9] UNIT%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9] UNIT%',so.desc_as_written)-1,2)
+						WHEN PATINDEX('%[0-9]ROUTINE%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9]ROUTINE%',so.desc_as_written)-1,2)
+						WHEN PATINDEX('%[0-9] ROUTINE%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9] ROUTINE%',so.desc_as_written)-1,2)
+						WHEN PATINDEX('%[0-9]STAT%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9]STAT%',so.desc_as_written)-1,2)
+						WHEN PATINDEX('%[0-9] STAT%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9] STAT%',so.desc_as_written)-1,2)
+						WHEN PATINDEX('%[0-9]TODAY%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9]TODAY%',so.desc_as_written)-1,2)
+						WHEN PATINDEX('%[0-9] TODAY%',so.desc_as_written) > 0 
+							THEN SUBSTRING(so.desc_as_written,
+								 PATINDEX('%[0-9] TODAY%',so.desc_as_written)-1,2) 
+					END,
+				'S',''),
+			'T',''),
+		'U','')
+	, 0)
+AS INT)
+) AS [UNITS]
 
 -- DB(S) USED
 FROM smsmir.sr_ord SO
@@ -77,10 +96,14 @@ AND SO.ord_no NOT IN (
 	JOIN smsmir.ord_sts_modf_mstr OSM
 	ON SOS.hist_sts = OSM.ord_sts_modf_cd
 	
-	WHERE OSM.ord_sts IN ('CANCEL', 'DISCONTINUE')
-	AND SO.svc_cd IN ('XFUSERBC'
-	, 'XFUSEPLATELETS'
-	, 'XFUSEBLODPRD'
+	WHERE OSM.ord_sts IN (
+		'CANCEL'
+		, 'DISCONTINUE'
+	)
+	AND SO.svc_cd IN (
+		'XFUSERBC'
+		, 'XFUSEPLATELETS'
+		, 'XFUSEBLODPRD'
 	)
 )
-ORDER BY PAV.PtNo_Num
+ORDER BY PAV.Med_Rec_No
