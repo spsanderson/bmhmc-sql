@@ -28,7 +28,7 @@ FROM (
 	AND drg_no IN (        -- DRG'S OF INTEREST
 		'190','191','192'  -- COPD
 		,'291','292','293' -- CHF
-		,'193','194','195' -- PN
+		,'287','313'       -- CHEST PAIN
 	)
 ) A
 
