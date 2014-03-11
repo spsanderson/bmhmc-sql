@@ -105,7 +105,8 @@ SET @ED = '2014-01-31';
       ) 
 	  AND MED_REC_NO = R.B_Med_Rec_No
   )
-  AND B_Dsch_Date BETWEEN @SD AND @ED
+  AND B_Dsch_Date >= @SD 
+  AND B_Dsch_Date < @ED
   AND B_Adm_Src_Desc != 'Scheduled Admission'
   AND B_Pt_No < '20000000'
 )
