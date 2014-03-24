@@ -4,8 +4,8 @@
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
-SET @SD = '2013-10-01';
-SET @ED = '2013-10-02';
+SET @SD = '2014-03-23';
+SET @ED = '2014-03-24';
 
 --###################################################################//
 -- COLUMN SELECTION
@@ -35,7 +35,8 @@ JOIN smsmir.obsv OBS
 ON SO.episode_no = OBS.episode_no
 
 -- FILTER(S)
-WHERE SOS.prcs_dtime BETWEEN @SD AND @ED
+WHERE SOS.prcs_dtime >= @SD 
+AND SOS.prcs_dtime < @ED
 AND Plm_Pt_Acct_Type = 'I'
 AND PAV.Dsch_Date IS NULL
 AND SO.prim_gnrc_drug_name IN (
