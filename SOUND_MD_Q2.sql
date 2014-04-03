@@ -3,14 +3,12 @@ GO
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
-SET @SD = '2012-07-01';
-SET @ED = '2013-06-30';
+SET @SD = '2014-01-01';
+SET @ED = '2014-01-31';
 
 /*
 -----------------------------------------------------------------------
-THIS QUERY WILL GET ALL THE FRONT END INFORMATION REQUIRED FOR HOSIM
-AND INSERT IT INTO A TABLE THAT WILL GET MATCHED UP WITH THE DISCHARGE
-ORDERS TABLE FOR DISCHARGE DIAGNOSIS INFORMATION
+THIS QUERY WILL GET ALL THE DISCHARGE DIAGNOSIS INFORMATION
 -----------------------------------------------------------------------
 START OF QUERY 1
 -----------------------------------------------------------------------

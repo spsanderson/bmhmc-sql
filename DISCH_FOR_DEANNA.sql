@@ -1,7 +1,7 @@
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
-SET @SD = '2014-01-01';
-SET @ED = '2014-02-28';
+SET @SD = '2014-03-01';
+SET @ED = '2014-04-01';
 
 SELECT DISTINCT VR.acct_no AS [VISIT ID]
 , VR.vst_med_rec_no MRN
@@ -20,7 +20,8 @@ ON VR.acct_no = PV.PtNo_Num
 JOIN smsdss.pract_dim_v PDV
 ON PV.Atn_Dr_No = PDV.src_pract_no
 
-WHERE VR.dsch_date BETWEEN @SD AND @ED
+WHERE VR.dsch_date >= @SD 
+AND VR.dsch_date < @ED
 AND ward_cd IS NOT NULL
 AND PDV.med_staff_dept = 'Family Practice'
 AND PDV.orgz_cd = 'S0X0'
