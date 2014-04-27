@@ -12,9 +12,10 @@ FROM smsmir.vst_rpt vr
 JOIN smsdss.pract_dim_v pv
 ON vr.adm_pract_no = pv.src_pract_no
 
-WHERE vr.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+WHERE vr.adm_dtime >= @STARTDATE 
+AND vr.adm_dtime < @ENDATE
 AND pract_rpt_name in (
-list of persons
+
 )
 group by pv.pract_rpt_name
 , vr.pt_id

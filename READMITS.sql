@@ -43,11 +43,8 @@ B_Pt_No AS [READMIT ENCOUNTER]
 FROM smsdss.c_readmissions_v
 
 -- FILTERS USED
-WHERE B_Adm_Date BETWEEN '2013-12-01' AND '2013-12-31'
+WHERE B_Adm_Date BETWEEN '2014-02-01' AND '2014-02-28'
 AND adm_src_desc != 'SCHEDULED ADMISSION'
 AND pt_no < 20000000
 AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
 AND B_Pt_No < 20000000
-
---######################################################################
-

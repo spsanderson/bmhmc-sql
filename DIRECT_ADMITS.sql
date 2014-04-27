@@ -1,7 +1,3 @@
--- THIS REPORT GETS A LIST OF THE DIRECT ADMITS TO THE HOSPITAL BY
--- PHYSICIAN FOR EXPORT TO EXCEL TO GET COUNTS AND OTHER PIVOT DATA
---#####################################################################
-
 -- COLUMN SELECTION
 SELECT PDV.pract_rpt_name AS 'MD NAME'
 , PAV.drg_no AS 'DRG'
@@ -26,5 +22,3 @@ AND PDV.pract_rpt_name != 'TESTCPOE DOCTOR'
 AND PDV.orgz_cd = 'S0X0'
 ORDER BY PDV.pract_rpt_name
 
---#####################################################################
--- END REPORT.

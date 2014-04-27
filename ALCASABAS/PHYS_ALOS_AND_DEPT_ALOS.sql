@@ -1,7 +1,7 @@
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
-SET @STARTDATE = '2013-06-01'
-SET @ENDATE = '2013-06-30'
+SET @STARTDATE = '2014-02-01'
+SET @ENDATE = '2014-02-28'
 
 SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
 , pv.med_staff_dept AS 'MED STAFF'
@@ -13,7 +13,7 @@ SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
     COUNT(DISTINCT v.PT_ID) 
     FROM smsdss.pract_dim_v p
     JOIN smsmir.vst_rpt v
-    on v.adm_pract_no = p.src_pract_no
+    ON v.adm_pract_no = p.src_pract_no
     WHERE pv.med_staff_dept = p.med_staff_dept
     AND v.adm_dtime BETWEEN @STARTDATE AND @ENDATE
     AND v.vst_type_cd = 'I'

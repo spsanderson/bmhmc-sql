@@ -1,13 +1,6 @@
--- THIS REPORT WILL PERFORM AN ADMISSION ASSESSMENT FOR NURSING QUALITY
--- MANAGEMENT. IT WILL LOOK FOR ACCOUNT NUMBERS ON A DATE OR DATE RANGE
--- GIVEN BY A USER AND COLLECT THOSE VISIT ID(S) AND PERFORM THE 
--- NECESSARY AUDIT TO SEE IF ALL QUESTIONS WHERE ANSWERED. 1 = YES AND
--- 0 = NO
---###################################################################//
-
 -- VARIABLE DECLARATION AND INITIALIZATION
-DECLARE @SD DATETIME = '2013-08-28';
-DECLARE @ED DATETIME = '2013-08-28';
+DECLARE @SD DATETIME = '2013-12-01';
+DECLARE @ED DATETIME = '2013-12-01';
 
 -- THIS CREATES A TABLE WHERE ALL THE DESIRED VISIT ID NUMBERS WILL GO
 -- THIS TABLE IS A UNIQUE CLUSTER
@@ -182,7 +175,8 @@ WITH OBS
 							 'Care Management_New',
 							 'Post Falls Assessment'
 							 )
-         GROUP BY episode_no)
+         GROUP BY episode_no
+		 )
 --+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 --+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 

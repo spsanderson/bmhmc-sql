@@ -1,11 +1,9 @@
--- COPD DATA ON MORTALITY, LOS FOR DRG 190, 191, 192
---#####################################################################
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD DATETIME
 DECLARE @ED DATETIME
 
-SET @SD = '2013-07-01';
-SET @ED = '2013-07-31';
+SET @SD = '2014-01-01';
+SET @ED = '2014-01-31';
 
 --COLUMN SELECTION
 SELECT PAV.PtNo_Num AS 'VISIT ID'
@@ -76,6 +74,3 @@ AND PP.pyr_seq_no = 0
 AND APV.orgz_cd = 'S0X0'
 AND PAV.Plm_Pt_Acct_Type = 'I'
 ORDER BY VR.adm_dtime
-
---#####################################################################
--- END REPORT.

@@ -13,7 +13,7 @@ JOIN SMSDSS.PYR_DIM_V PDV
 ON PAV.PYR1_CO_PLAN_CD = PDV.SRC_PYR_CD
 
 -- FILTERS
-WHERE DRG_NO IN (069)                         -- TIA
+WHERE DRG_NO IN (069)                       -- TIA
 --WHERE DRG_NO IN (061,062,063,064,065,066)   -- STROKE
 --WHERE DRG_NO IN (177,178)                   -- RESPITORY
 --WHERE DRG_NO IN (193,194)                   -- PN

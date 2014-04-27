@@ -1,33 +1,22 @@
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD DATETIME
 DECLARE @ED DATETIME
-SET @SD = '2013-01-01';
-SET @ED = '2013-01-31';
+SET @SD = '2014-01-01';
+SET @ED = '2014-01-31';
 
 -- COLUMN SELECTION
 SELECT 
 DISTINCT PV.PtNo_Num AS [VISIT ID]
 , PV.Med_Rec_No AS [MRN]
+, PV.Pt_Name AS NAME
+, PV.Pt_Age AS AGE
 , PV.vst_start_dtime AS [ADMIT]
 , PV.vst_end_dtime AS [DISC]
-, PV.Days_Stay AS [LOS]
 , PV.dsch_disp AS [DISPO]
-, CASE
-    WHEN PV.dsch_disp IN (
-    'C1A','C1N','C1Z','C2A','C2N','C2Z','C3A','C3N',
-    'C3Z','C4A','C4N','C4Z','C7A','C7N','C7Z','C8A',
-    'C8N','C8Z','D1A','D1N','D1Z','D2A','D2N','D2Z',
-    'D3A','D3N','D3Z','D4A','D4N','D4Z','D7A','D7N',
-    'D7Z','D8A','D8N','D8Z'
-    )
-    THEN 1
-    ELSE 0
-  END AS MORTALITY
+, M.MORTALITY
 , PV.pt_type AS [PT TYPE]
 , PV.hosp_svc AS [HOSP SVC]
 , SO.ord_no AS [ORDER NUMBER]
---, SO.ent_dtime AS [ORDER ENTRY TIME]
---, DATEDIFF(HOUR,PV.vst_start_dtime,SO.ent_dtime) AS [ADM TO ENTRY HOURS]
 , SO.svc_cd AS [SVC CD]
 , X.[ORD DESC]
 , Y.[ORDER STATUS]
@@ -40,8 +29,6 @@ DISTINCT PV.PtNo_Num AS [VISIT ID]
 FROM smsdss.BMH_PLM_PtAcct_Clasf_Dx_V PDV
 JOIN smsdss.BMH_PLM_PtAcct_V PV
 ON PDV.PtNo_Num = PV.PtNo_Num
---JOIN smsdss.dx_cd_dim_v DX
---ON PV.prin_dx_cd = DX.dx_cd
 JOIN smsmir.sr_ord SO
 ON PV.PtNo_Num = SO.episode_no
 JOIN smsmir.sr_ord_sts_hist SOS
@@ -49,6 +36,22 @@ ON SO.ord_no = SOS.ord_no
 JOIN smsmir.ord_sts_modf_mstr OSM
 ON SOS.hist_sts = OSM.ord_sts_modf_cd
 
+-- CROSS APPLY FOR MORTALITY
+CROSS APPLY (
+SELECT
+	CASE
+		WHEN PV.dsch_disp IN (
+		'C1A','C1N','C1Z','C2A','C2N','C2Z','C3A','C3N',
+		'C3Z','C4A','C4N','C4Z','C7A','C7N','C7Z','C8A',
+		'C8N','C8Z','D1A','D1N','D1Z','D2A','D2N','D2Z',
+		'D3A','D3N','D3Z','D4A','D4N','D4Z','D7A','D7N',
+		'D7Z','D8A','D8N','D8Z'
+		)
+		THEN 1
+		ELSE 0
+	END AS MORTALITY
+) M
+	
 -- CROSS APPLY FOR THE ORDER NAMES
 CROSS APPLY (
 SELECT
@@ -94,7 +97,7 @@ AND PV.hosp_svc NOT IN (
 	,'DMS'
 	,'EME'
 	)
-AND PV.Adm_Date BETWEEN @SD AND @ED
+AND PV.Dsch_Date BETWEEN @SD AND @ED
 AND (SO.svc_desc LIKE 'CBC WITH WBC DIFF%'     -- LAB
 	OR SO.svc_desc LIKE 'LACTIC ACID'          -- LAB
 	OR SO.svc_desc LIKE '%XRAY%'               -- XRAY

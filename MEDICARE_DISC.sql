@@ -2,7 +2,7 @@ select *
 
 from smsdss.BMH_PLM_PtAcct_V
 
-where Dsch_DTime between '2013-06-01' and '2013-06-30'
+where Dsch_DTime between '2014-02-01' and '2014-02-28'
 AND Plm_Pt_Acct_Type = 'I'
 AND Plm_Pt_Acct_Type != 'P'
 and Pyr1_Co_Plan_Cd in (
@@ -13,5 +13,5 @@ and Pyr1_Co_Plan_Cd in (
 'E07','E08','E10','E11','E12','E13','E16','E17','E18','E19',
 'E21','E27','E28','E36','I01','I02','I03','I04','I05','I06',
 'I07','I08','I09','I10','Z28','Z29','Z79','Z80','Z91','Z92',
-'Z95','Z98','Z99'
+'Z95','Z98','Z99','A14'
 ) -- <-- medicare

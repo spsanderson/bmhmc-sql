@@ -1,6 +1,4 @@
 -- QUERY HAS BEEN DEPRECATED IN FAVOR OF THE MORE COMPACT PHYS_ALOS_V2
---#####################################################################
-
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
@@ -35,6 +33,3 @@ AND pv.med_staff_dept IN (
 'SURGERY'
 )
 ORDER BY pv.pract_rpt_name
-
---#####################################################################
--- END REPORT.

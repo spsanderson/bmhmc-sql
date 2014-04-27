@@ -61,7 +61,7 @@ FROM
 	FROM SMSDSS.BMH_PLM_PTACCT_V
 	--WHERE DSCH_DATE BETWEEN @SD AND @ED
 	WHERE PtNo_Num IN (
-	
+
 						)
 	AND Plm_Pt_Acct_Type = 'I'
 )A

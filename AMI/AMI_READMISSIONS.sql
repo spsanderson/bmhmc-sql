@@ -1,11 +1,8 @@
--- COPD DATA ON READMISSIONS FOR DRG 280, 281, 282
---#####################################################################
-
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
-SET @STARTDATE = '2013-07-01';
-SET @ENDATE = '2013-07-31';
+SET @STARTDATE = '2014-01-01';
+SET @ENDATE = '2014-01-31';
 
 -- COLUMN SELECTION
 -- INITIAL VISIT
@@ -50,7 +47,3 @@ AND adm_src_desc != 'SCHEDULED ADMISSION'
 AND pt_no < 20000000
 AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
 AND B_Pt_No < 20000000
-
-
---#####################################################################
--- END REPORT.

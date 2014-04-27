@@ -1,13 +1,9 @@
--- TRANSFUSION DATA INCLUDES THE FOLLOWING SERVICE CODES:
--- '04161253','04161022 ARE USED TO DENOTE RBC'S. 
---#####################################################################
-
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
-SET @STARTDATE = '2013-07-28';
-SET @ENDATE = '2013-08-10';
+SET @STARTDATE = '2014-03-01';
+SET @ENDATE = '2014-03-31';
 
 -- COLUMN SELECTION
 SELECT PAV.PtNo_Num AS 'PAV PTNO_NUM'
@@ -37,6 +33,3 @@ AND PAV.pt_type not in ('R', 'E')
 AND PAV.Dsch_Date BETWEEN @STARTDATE AND @ENDATE
 AND PAPV.Pt_Acct_Pyr_Seq_No = 1
 ORDER BY PSVH.Svc_Date ASC
-
---#####################################################################
--- END REPORT.

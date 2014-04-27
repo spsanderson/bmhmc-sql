@@ -29,5 +29,3 @@ ON AFV.acct_no = LAB.pt_adm_no
 -- FILTERS
 WHERE AFV.pt_type = 'E'
 AND AFV.adm_date BETWEEN @STARTDATE AND @ENDATE
-
---#####################################################################
