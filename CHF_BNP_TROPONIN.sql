@@ -13,10 +13,12 @@ SET @BNP   = '00408500';
 SET @TROP  = '00408492';
 
 /*
+#######################################################################
 
 THE FIRST QUERY IS GOING TO CALCULATE THE PATIENTS LACE SCORE THAT
 WILL BE PULLED IN AT THE FINAL QUERY
 
+#######################################################################
 */
  
 DECLARE @T1 TABLE (
@@ -30,7 +32,6 @@ DECLARE @T1 TABLE (
 	, ARRIVAL             DATETIME
 )
 
--- @T1 RECORD INSERTIONS
 INSERT INTO @T1
 SELECT
 A.PtNo_Num
@@ -73,18 +74,21 @@ FROM
 
 --SELECT * FROM @T1
 
-----------------------------------------------------------------------]
--- ER VISITS QUERY: THIS QUERY WILL GET A COUNT OF THE AMOUNT OF TIMES
--- AN INDIVIDUAL HAS COME TO THE ER BASED UPON THE CURRENT VISIT ID --]
+/*
+#######################################################################
 
--- @CNT TABLE DECLARATION ############################################]
+ER VISITS QUERY: THIS QUERY WILL GET A COUNT OF THE AMOUNT OF TIMES
+AN INDIVIDUAL HAS COME TO THE ER BASED UPON THE CURRENT VISIT ID
+
+#######################################################################
+*/
+
 DECLARE @CNT TABLE (
 	MRN           VARCHAR(100)
 	, VISIT_ID    VARCHAR(100)
 	, VISIT_DATE  DATETIME
 	, VISIT_COUNT INT
 )
---####################################################################]
 
 INSERT INTO @CNT
 SELECT
@@ -143,10 +147,12 @@ GROUP BY A.MRN, A.VISIT_ID, A.VISIT_DATE
 --SELECT * FROM @CNT
 
 /*
+#######################################################################
 
 CO-MORBIDITY QUERY: THIS ONE QILL GO THROUGH A LIST OF CODES AND
 SCORE THE PATIENTS PROSPECTIVE VISIT ACCORDINGLY.
 
+#######################################################################
 */
 
 DECLARE @CM TABLE (
@@ -160,7 +166,6 @@ DECLARE @CM TABLE (
 	, [CC GRP FIVE SCORE]  VARCHAR(20)
 	, [CC LACE SCORE]      INT
 )
---####################################################################]
 
 INSERT INTO @CM
 SELECT
@@ -173,40 +178,26 @@ C.PtNo_Num
 , C.PRIN_DX_CD_4
 , C.PRIN_DX_CD_5
 , CASE
-    WHEN (C.PRIN_DX_CD_1 + 
-          C.PRIN_DX_CD_2 + 
-          C.PRIN_DX_CD_3 + 
-          C.PRIN_DX_CD_4 + 
+    WHEN (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 + 
+          C.PRIN_DX_CD_3 + C.PRIN_DX_CD_4 + 
           C.PRIN_DX_CD_5) = 0 THEN 0
-    WHEN (C.PRIN_DX_CD_1 + 
-          C.PRIN_DX_CD_2 + 
-          C.PRIN_DX_CD_3 + 
-          C.PRIN_DX_CD_4 + 
+    WHEN (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 + 
+          C.PRIN_DX_CD_3 + C.PRIN_DX_CD_4 + 
           C.PRIN_DX_CD_5) = 1 THEN 1
-    WHEN (C.PRIN_DX_CD_1 + 
-          C.PRIN_DX_CD_2 + 
-          C.PRIN_DX_CD_3 + 
-          C.PRIN_DX_CD_4 + 
+    WHEN (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 + 
+          C.PRIN_DX_CD_3 + C.PRIN_DX_CD_4 + 
           C.PRIN_DX_CD_5) = 2 THEN 2
-    WHEN (C.PRIN_DX_CD_1 + 
-          C.PRIN_DX_CD_2 + 
-          C.PRIN_DX_CD_3 + 
-          C.PRIN_DX_CD_4 + 
+    WHEN (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 + 
+          C.PRIN_DX_CD_3 + C.PRIN_DX_CD_4 + 
           C.PRIN_DX_CD_5) = 3 THEN 3
-    WHEN (C.PRIN_DX_CD_1 + 
-          C.PRIN_DX_CD_2 + 
-          C.PRIN_DX_CD_3 + 
-          C.PRIN_DX_CD_4 + 
+    WHEN (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 + 
+          C.PRIN_DX_CD_3 + C.PRIN_DX_CD_4 + 
           C.PRIN_DX_CD_5) = 4 THEN 4
-    WHEN (C.PRIN_DX_CD_1 + 
-          C.PRIN_DX_CD_2 + 
-          C.PRIN_DX_CD_3 + 
-          C.PRIN_DX_CD_4 + 
+    WHEN (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 + 
+          C.PRIN_DX_CD_3 + C.PRIN_DX_CD_4 + 
           C.PRIN_DX_CD_5) = 5 THEN 5
-    WHEN (C.PRIN_DX_CD_1 + 
-          C.PRIN_DX_CD_2 + 
-          C.PRIN_DX_CD_3 + 
-          C.PRIN_DX_CD_4 + 
+    WHEN (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 + 
+          C.PRIN_DX_CD_3 + C.PRIN_DX_CD_4 + 
           C.PRIN_DX_CD_5) >= 6 THEN 6
   END AS CC_LACE_SCORE
 
@@ -444,11 +435,14 @@ ORDER BY (C.PRIN_DX_CD_1 + C.PRIN_DX_CD_2 +
 --SELECT * FROM @CM
 
 /*
+#######################################################################
 
 PUTTING IT ALL TOGETHER
 @LACE_MSTR TABLE DECLARATION
 
+#######################################################################
 */
+
 DECLARE @LACE_MSTR TABLE (
 	MRN                     VARCHAR(200)
 	,ENCOUNTER              VARCHAR(200)
@@ -459,7 +453,7 @@ DECLARE @LACE_MSTR TABLE (
 	, [LACE ER SCORE]       INT
 	, [LACE COMORBID SCORE] INT
 )
---####################################################################]
+
 INSERT INTO @LACE_MSTR
 SELECT
 Q1.MRN
@@ -500,15 +494,20 @@ FROM
 
 
 /*
+#######################################################################
 
-end of lace score query
+END OF LACE SCORE QUERY -- NOW GET DESIRED VISIT ID NUMBERS BY CHIEF
+COMPLAINT
 
+#######################################################################
 */
+
 DECLARE @T2 TABLE (
-	VISIT   VARCHAR(20)
-	, MRN   VARCHAR(20)
-	, ADMIT DATE
-	, VISIT_DX VARCHAR(20)
+	VISIT         VARCHAR(20)
+	, MRN         VARCHAR(20)
+	, ADMIT       DATE
+	, DISCHARGE   DATE
+	, VISIT_COMP  VARCHAR(200)
 )
 
 INSERT INTO @T2
@@ -516,40 +515,38 @@ SELECT
 A.PtNo_Num
 , A.Med_Rec_No
 , A.Adm_Date
-, A.Code
+, A.Dsch_Date
+, A.PatientReasonForSeekingHC
 
 FROM (
 	SELECT PAV.PtNo_Num
 	, PAV.Med_Rec_No
 	, PAV.Adm_Date
-	, D.Code
-	, ROW_NUMBER() OVER (
-		PARTITION BY D.OBJECTID ORDER BY D.OBJECTID ASC
-		) AS ROWNUMBER_1
-	, ROW_NUMBER() OVER (
-		PARTITION BY PAV.PTNO_NUM ORDER BY PAV.PTNO_NUM
-		) AS PTNOROWNUM
+	, PAV.Dsch_Date
+	, PV.PatientReasonForSeekingHC 
 
-	FROM smsmir.mir_sc_PatientVisit          PV
-		LEFT JOIN smsmir.mir_sc_Diagnosis    D
-		ON PV.RecordId = D.RecordId
-		LEFT JOIN smsdss.BMH_PLM_PtAcct_V    PAV
+	FROM smsmir.mir_sc_PatientVisit            PV
+		LEFT JOIN smsdss.BMH_PLM_PtAcct_V      PAV
 		ON PV.PatientAccountID = PAV.PtNo_Num
 
-	WHERE D.Type = 1
-		AND PAV.Adm_Date >= @START
+	WHERE PAV.Adm_Date >= @START
 		AND PAV.Adm_Date < @END
 		AND PAV.PtNo_Num < '20000000'
 		AND PAV.Plm_Pt_Acct_Type = 'I'
+		AND PAV.Dsch_Date IS NULL
+		AND PV.PatientReasonForSeekingHC LIKE '%CHF%'
 )A
-WHERE ROWNUMBER_1 = 1
-AND PTNOROWNUM = 1
 
 --SELECT * FROM @T2
 
-/* 
-BNP RESULTS
+/*
+#######################################################################
+
+FIRST BNP RESULT
+
+#######################################################################
 */
+
 DECLARE @T3 TABLE (
 	VISIT              VARCHAR(20)
 	, [BNP ORDER #]    VARCHAR(20)
@@ -585,14 +582,19 @@ WHERE ROWNUMBER_2 = 1
 --SELECT * FROM @T3
 
 /*
-TROPONIN RESULTS
+#######################################################################
+
+FIRST TROPONIN TEST RESULT
+
+#######################################################################
 */
+
 DECLARE @T4 TABLE (
-	VISIT                VARCHAR(20)
-	, [TROPONIN ORDER #] VARCHAR(20)
-	, [ORDER NAME]       VARCHAR(100)
-	, VALUE              VARCHAR(150)
-	, [VALUE DATE]       DATETIME
+	VISIT                 VARCHAR(20)
+	, [TROPONIN ORDER #1] VARCHAR(20)
+	, [ORDER NAME]        VARCHAR(100)
+	, VALUE               VARCHAR(150)
+	, [VALUE DATE]        DATETIME
 )
 
 INSERT INTO @T4
@@ -621,32 +623,112 @@ WHERE ROWNUMBER_3 = 1
 
 --SELECT * FROM @T4
 
-SELECT T2.VISIT
+/*
+#######################################################################
+
+SECOND TROPONIN TEST RESULT
+
+#######################################################################
+*/
+
+DECLARE @T5 TABLE (
+	VISIT                 VARCHAR(20)
+	, [TROPONIN ORDER #2] VARCHAR(20)
+	, [ORDER NAME]        VARCHAR(100)
+	, VALUE               VARCHAR(150)
+	, [VALUE DATE]        DATETIME
+)
+
+INSERT INTO @T5
+SELECT
+D.episode_no
+, D.ord_seq_no
+, D.obsv_cd_ext_name
+, D.dsply_val
+, d.obsv_cre_dtime
+
+FROM (
+	SELECT episode_no
+	, ord_seq_no
+	, obsv_cd_ext_name
+	, dsply_val
+	, obsv_cre_dtime
+	, ROW_NUMBER() OVER (
+		PARTITION BY EPISODE_NO ORDER BY ORD_SEQ_NO ASC
+		) AS ROWNUMBER_4
+
+	FROM smsmir.sr_obsv
+
+	WHERE obsv_cd = @TROP
+)D
+WHERE ROWNUMBER_4 = 2
+
+/*
+#######################################################################
+
+GET THE LAST KNOWN LOCATION OF THE PATIENT
+
+#######################################################################
+*/
+
+DECLARE @LOC TABLE (
+	VISIT             VARCHAR(20)
+	, [LAST LOCATION] VARCHAR(10)
+	, [CENUS DATE]    DATE
+	, ROW             INT
+)
+
+INSERT INTO @LOC
+SELECT
+L.pt_id
+, L.nurs_sta
+, L.cen_date
+, L.ROWNUM
+
+FROM(
+	SELECT SUBSTRING(pt_id, 5, 9) AS pt_id
+	, nurs_sta
+	, cen_date
+	, ROW_NUMBER() OVER (
+		PARTITION BY PT_ID ORDER BY CEN_DATE DESC
+		) AS ROWNUM
+
+	FROM smsdss.dly_cen_occ_fct
+)L
+WHERE ROWNUM = 1
+--SELECT * FROM @LOC
+
+/*
+#######################################################################
+
+PULL EVERY THING TOGETHER
+
+#######################################################################
+*/
+
+SELECT LM.NAME
+, T2.VISIT
 , T2.MRN
 , T2.ADMIT
-, ISNULL(T3.[BNP ORDER #], 'None')          AS [BNP ORDER #]
-, ISNULL(T3.[VALUE DATE], '1800-01-01')     AS [VALLUE DATE]
 , ISNULL(T3.VALUE, 'None')                  AS [BNP VALUE]
-, ISNULL(T4.[TROPONIN ORDER #], 'None')     AS [TROPONIN ORDER #]
-, ISNULL(T4.[VALUE DATE], '1800-01-01')     AS [VALUE DATE]
-, ISNULL(SUBSTRING(T4.VALUE, 1, 6), 'None') AS [TROPONIN VALUE]
+, ISNULL(SUBSTRING(T4.VALUE, 1, 6), 'None') AS [TROPONIN VALUE 1]
+, ISNULL(SUBSTRING(T5.VALUE, 1, 6), 'None') AS [TROPONIN VALUE 2]
 , ISNULL((LM.[LACE ACUTE IP SCORE] 
         + LM.[LACE COMORBID SCORE]
 		+ LM.[LACE DAYS SCORE] 
 		+ LM.[LACE ER SCORE]), '')          AS [LACE SCORE]
+, LOC.[LAST LOCATION]                       AS [LAST KNOWN LOCATION]
 
-FROM @T2 T2
-	LEFT JOIN @T3 T3
+FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
+	LEFT JOIN @T3 T3           -- GETS FIRST BNP LAB VAL
 	ON T2.VISIT = T3.VISIT
-	LEFT JOIN @T4 T4
+	LEFT JOIN @T4 T4           -- GETS FIRST TROPONIN VAL
 	ON T2.VISIT = T4.VISIT
-	LEFT JOIN @LACE_MSTR LM
+	LEFT JOIN @T5 T5           -- GETS SECOND TROPONIN VAL
+	ON T2.VISIT = T5.VISIT
+	LEFT JOIN @LOC LOC         -- GET THE LAST KNOWN LOCATION
+	ON T2.VISIT = LOC.VISIT    
+	LEFT JOIN @LACE_MSTR LM    -- GETS VISIT LACE SCORE
 	ON T2.VISIT = LM.ENCOUNTER
-	
-WHERE T2.VISIT_DX IN (
-	'428', '428.0', '428.1', '428.2',
-	'428.20', '428.21', '428.22', '428.23',
-	'428.3', '428.30', '428.31', '428.32', '428.33',
-	'428.4', '428.40', '428.41', '428.42', '428.43',
-	'428.9'
-)
+
+ORDER BY LOC.[LAST LOCATION], T2.ADMIT ASC
