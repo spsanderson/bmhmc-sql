@@ -3,12 +3,12 @@ DECLARE @ENDATE    DATETIME;
 SET @STARTDATE =   '2014-03-01';
 SET @ENDATE =      '2014-04-01';
 
-SELECT DISTINCT pv.pract_rpt_name            AS 'PHYSICIAN'
-, pv.med_staff_dept                          AS 'MED STAFF'
-, COUNT(DISTINCT vr.pt_id)                   AS '# PTS'
-, AVG(vr.len_of_stay)                        AS 'MD ALOS'
-, AVG(vr.drg_std_days_stay)                  AS 'MD ALOS BENCH'
-, AVG(vr.len_of_stay - vr.drg_std_days_stay) AS 'AVG OPP'
+SELECT DISTINCT pv.pract_rpt_name            AS [PHYSICIAN]
+, pv.med_staff_dept                          AS [MED STAFF]
+, COUNT(DISTINCT vr.pt_id)                   AS [# PTS]
+, AVG(vr.len_of_stay)                        AS [MD ALOS]
+, AVG(vr.drg_std_days_stay)                  AS [MD ALOS BENCH]
+, AVG(vr.len_of_stay - vr.drg_std_days_stay) AS [AVG OPP]
 , (SELECT
     COUNT(DISTINCT v.PT_ID) 
     FROM smsdss.pract_dim_v p
