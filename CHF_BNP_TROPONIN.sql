@@ -1,16 +1,16 @@
 -- VARIABLE DECLARATION AND INITIALIZATION
-SET ANSI_NULLS OFF
-GO
+DECLARE @START    DATE;
+DECLARE @END      DATE;
+DECLARE @BNP      VARCHAR(16);
+DECLARE @TROP     VARCHAR(16);
+DECLARE @LIHNTYPE VARCHAR(50);
 
-DECLARE @START DATE;
-DECLARE @END   DATE;
-DECLARE @BNP   VARCHAR(16);
-DECLARE @TROP  VARCHAR(16);
-
-SET @START = '2014-04-01';
-SET @END   = '2014-05-01';
-SET @BNP   = '00408500';
-SET @TROP  = '00408492';
+SET @START    = '2014-04-01';
+--SET @END      = '2014-05-01';
+SET @END      = GETDATE();
+SET @LIHNTYPE = 'A_LIHN TYPE';
+SET @BNP      = '00408500';
+SET @TROP     = '00408492';
 
 /*
 #######################################################################
@@ -416,8 +416,6 @@ FROM (
 	  
 	  WHERE Adm_Date >= @START 
 	  AND Adm_Date < @END
-
-
 )C
 
 GROUP BY C.PtNo_Num
@@ -486,9 +484,9 @@ FROM
 		
 	FROM
 	@T1 T1
-		LEFT OUTER JOIN @CNT CNT
+		LEFT OUTER JOIN @CNT                  CNT
 		ON T1.ENCOUNTER_ID = CNT.VISIT_ID
-		JOIN @CM CM
+		JOIN @CM                              CM
 		ON CM.ENCOUNTER_ID = T1.ENCOUNTER_ID
 )Q1
 
@@ -505,6 +503,7 @@ COMPLAINT
 DECLARE @T2 TABLE (
 	VISIT         VARCHAR(20)
 	, MRN         VARCHAR(20)
+	, NAME        VARCHAR(20)
 	, ADMIT       DATE
 	, DISCHARGE   DATE
 	, VISIT_COMP  VARCHAR(200)
@@ -514,6 +513,7 @@ INSERT INTO @T2
 SELECT
 A.PtNo_Num
 , A.Med_Rec_No
+, A.Pt_Name
 , A.Adm_Date
 , A.Dsch_Date
 , A.PatientReasonForSeekingHC
@@ -521,6 +521,7 @@ A.PtNo_Num
 FROM (
 	SELECT PAV.PtNo_Num
 	, PAV.Med_Rec_No
+	, PAV.Pt_Name
 	, PAV.Adm_Date
 	, PAV.Dsch_Date
 	, PV.PatientReasonForSeekingHC 
@@ -531,7 +532,7 @@ FROM (
 
 	WHERE PAV.Adm_Date >= @START
 		AND PAV.Adm_Date < @END
-		AND PAV.PtNo_Num < '20000000'
+	    AND PAV.PtNo_Num < '20000000' --TEST
 		AND PAV.Plm_Pt_Acct_Type = 'I'
 		AND PAV.Dsch_Date IS NULL
 		AND PV.PatientReasonForSeekingHC LIKE '%CHF%'
@@ -571,15 +572,55 @@ FROM (
 	, obsv_cre_dtime
 	, ROW_NUMBER() OVER (
 		PARTITION BY EPISODE_NO ORDER BY ORD_SEQ_NO ASC
+		) AS ROWNUMBER_1
+	
+	FROM smsmir.sr_obsv
+	
+	WHERE obsv_cd = @BNP
+)B
+WHERE ROWNUMBER_1 = 1
+
+--SELECT * FROM @T3
+
+/*
+#######################################################################
+
+SECOND BNP RESULT
+
+#######################################################################
+*/
+
+DECLARE @T7 TABLE (
+	VISIT              VARCHAR(20)
+	, [BNP ORDER #]    VARCHAR(20)
+	, [ORDER NAME]     VARCHAR(100)
+	, VALUE            VARCHAR(150)
+	, [VALUE DATE]     DATETIME
+)
+
+INSERT INTO @T7
+SELECT
+B.episode_no
+, B.ord_seq_no
+, B.obsv_cd_ext_name
+, B.dsply_val
+, B.obsv_cre_dtime
+
+FROM (
+	SELECT episode_no
+	, ord_seq_no
+	, obsv_cd_ext_name
+	, dsply_val
+	, obsv_cre_dtime
+	, ROW_NUMBER() OVER (
+		PARTITION BY EPISODE_NO ORDER BY ORD_SEQ_NO ASC
 		) AS ROWNUMBER_2
 	
 	FROM smsmir.sr_obsv
 	
 	WHERE obsv_cd = @BNP
 )B
-WHERE ROWNUMBER_2 = 1
-
---SELECT * FROM @T3
+WHERE ROWNUMBER_2 = 2
 
 /*
 #######################################################################
@@ -701,18 +742,100 @@ WHERE ROWNUM = 1
 /*
 #######################################################################
 
+GET THE LIHN GUIELINE TYPE OF THE PATIENT
+
+#######################################################################
+*/
+
+DECLARE @T6 TABLE (
+VISIT         VARCHAR(20)
+, [LIHN TYPE] VARCHAR(500)
+, RN          INT
+)
+
+INSERT INTO @T6
+SELECT
+E.episode_no
+, E.dsply_val
+, E.RN
+
+FROM (
+	SELECT OBS.episode_no
+	, OBS.dsply_val
+	, RN = ROW_NUMBER() OVER (PARTITION BY OBS.EPISODE_NO
+							  ORDER BY OBS.VAL_MODF ASC)
+
+	FROM smsmir.sr_obsv                   OBS
+		JOIN smsdss.BMH_PLM_PtAcct_V      PAV
+		ON OBS.episode_no = PAV.PtNo_Num
+
+	WHERE obsv_cd_ext_name = @LIHNTYPE
+		AND form_usage = 'Shift Assessment'
+		AND Dsch_Date IS NULL
+		AND PAV.Plm_Pt_Acct_Type = 'I'
+		AND PAV.PtNo_Num < '20000000'
+)E
+WHERE RN = 1
+
+/*
+#######################################################################
+
+GET THE ADMITTING DOCTOR NAME
+
+#######################################################################
+*/
+
+DECLARE @ADMDOC TABLE(
+[ADMITTING DOCTOR] VARCHAR(50)
+, VISIT            VARCHAR(20)
+)
+
+INSERT INTO @ADMDOC
+SELECT
+F.pract_rpt_name
+, F.PtNo_Num
+
+FROM (
+	SELECT DVF.adm_pract_no
+	, PDV.src_pract_no
+	, PDV.pract_rpt_name
+	, DVF.acct_no
+	, PAV.PtNo_Num
+
+	FROM smsdss.dly_vst_fct_v                  DVF -- GET ADMITTING
+		JOIN smsdss.pract_dim_v                PDV -- GET ADMITTING NAME
+		ON DVF.adm_pract_no = pdv.src_pract_no
+		JOIN smsdss.BMH_PLM_PtAcct_V           PAV -- GET ACCT # ON DATE
+		ON DVF.acct_no = pav.Pt_No
+
+	WHERE PDV.orgz_cd = 's0x0'
+		AND pdv.pract_rpt_name NOT IN ('?', 'Doctor Unassigned'
+			, 'TEST DOCTOR X')
+		AND PAV.Plm_Pt_Acct_Type = 'I'
+		AND PAV.PtNo_Num < '20000000'
+		AND PAV.Dsch_Date IS NULL
+		AND PAV.dsch_disp IS NULL
+		AND PAV.Days_Stay <> 0
+)F
+
+/*
+#######################################################################
+
 PULL EVERY THING TOGETHER
 
 #######################################################################
 */
 
-SELECT LM.NAME
+SELECT T2.NAME
+, T6.[LIHN TYPE]
+, ADMMD.[ADMITTING DOCTOR]
 , T2.VISIT
 , T2.MRN
 , T2.ADMIT
-, ISNULL(T3.VALUE, 'None')                  AS [BNP VALUE]
-, ISNULL(SUBSTRING(T4.VALUE, 1, 6), 'None') AS [TROPONIN VALUE 1]
-, ISNULL(SUBSTRING(T5.VALUE, 1, 6), 'None') AS [TROPONIN VALUE 2]
+, ISNULL(T3.VALUE, 'None')                  AS [BNP 1]
+, ISNULL(T7.VALUE, 'None')                  AS [BNP 2]
+, ISNULL(SUBSTRING(T4.VALUE, 1, 6), 'None') AS [TROPONIN 1]
+, ISNULL(SUBSTRING(T5.VALUE, 1, 6), 'None') AS [TROPONIN 2]
 , ISNULL((LM.[LACE ACUTE IP SCORE] 
         + LM.[LACE COMORBID SCORE]
 		+ LM.[LACE DAYS SCORE] 
@@ -722,6 +845,8 @@ SELECT LM.NAME
 FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
 	LEFT JOIN @T3 T3           -- GETS FIRST BNP LAB VAL
 	ON T2.VISIT = T3.VISIT
+	LEFT JOIN @T7 T7           -- GETS SECOND BNP LAB VAL
+	ON T2.VISIT = T7.VISIT
 	LEFT JOIN @T4 T4           -- GETS FIRST TROPONIN VAL
 	ON T2.VISIT = T4.VISIT
 	LEFT JOIN @T5 T5           -- GETS SECOND TROPONIN VAL
@@ -730,5 +855,11 @@ FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
 	ON T2.VISIT = LOC.VISIT    
 	LEFT JOIN @LACE_MSTR LM    -- GETS VISIT LACE SCORE
 	ON T2.VISIT = LM.ENCOUNTER
+	LEFT JOIN @T6 T6           -- GETS LIHN TYPE
+	ON T2.VISIT = T6.VISIT
+	JOIN @ADMDOC ADMMD         -- GETS ADMITTING DOCTOR
+	ON T2.VISIT = ADMMD.VISIT     
 
-ORDER BY LOC.[LAST LOCATION], T2.ADMIT ASC
+WHERE ADMMD.[ADMITTING DOCTOR] IS NOT NULL
+
+ORDER BY T6.[LIHN TYPE], LOC.[LAST LOCATION], T2.ADMIT ASC

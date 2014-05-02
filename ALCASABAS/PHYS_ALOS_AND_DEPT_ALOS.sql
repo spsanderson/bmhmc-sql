@@ -1,13 +1,13 @@
-DECLARE @STARTDATE DATETIME
-DECLARE @ENDATE DATETIME
-SET @STARTDATE = '2014-02-01'
-SET @ENDATE = '2014-02-28'
+DECLARE @STARTDATE DATETIME;
+DECLARE @ENDATE    DATETIME;
+SET @STARTDATE =   '2014-03-01';
+SET @ENDATE =      '2014-04-01';
 
-SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
-, pv.med_staff_dept AS 'MED STAFF'
-, COUNT(DISTINCT vr.pt_id) AS '# PTS'
-, AVG(vr.len_of_stay) AS 'MD ALOS'
-, AVG(vr.drg_std_days_stay) AS 'MD ALOS BENCH'
+SELECT DISTINCT pv.pract_rpt_name            AS 'PHYSICIAN'
+, pv.med_staff_dept                          AS 'MED STAFF'
+, COUNT(DISTINCT vr.pt_id)                   AS '# PTS'
+, AVG(vr.len_of_stay)                        AS 'MD ALOS'
+, AVG(vr.drg_std_days_stay)                  AS 'MD ALOS BENCH'
 , AVG(vr.len_of_stay - vr.drg_std_days_stay) AS 'AVG OPP'
 , (SELECT
     COUNT(DISTINCT v.PT_ID) 
@@ -15,7 +15,8 @@ SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
     JOIN smsmir.vst_rpt v
     ON v.adm_pract_no = p.src_pract_no
     WHERE pv.med_staff_dept = p.med_staff_dept
-    AND v.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+    AND v.adm_dtime >= @STARTDATE 
+    AND v.adm_dtime < @ENDATE
     AND v.vst_type_cd = 'I'
     AND p.spclty_desc != 'NO DESCRIPTION'
     AND p.spclty_desc NOT LIKE 'HOSPITALIST%'
@@ -34,7 +35,8 @@ SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
 	JOIN smsdss.pract_dim_v p
 	ON v.adm_pract_no = p.src_pract_no
 	WHERE pv.med_staff_dept = p.med_staff_dept
-    AND v.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+    AND v.adm_dtime >= @STARTDATE 
+    AND v.adm_dtime < @ENDATE
     AND v.vst_type_cd = 'I'
     AND p.spclty_desc != 'NO DESCRIPTION'
     AND p.spclty_desc NOT LIKE 'HOSPITALIST%'
@@ -53,7 +55,8 @@ SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
 	JOIN smsdss.pract_dim_v p
 	ON v.adm_pract_no = p.src_pract_no
 	WHERE pv.med_staff_dept = p.med_staff_dept
-	AND v.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+    AND v.adm_dtime >= @STARTDATE 
+    AND v.adm_dtime < @ENDATE
     AND v.vst_type_cd = 'I'
     AND p.spclty_desc != 'NO DESCRIPTION'
     AND p.spclty_desc NOT LIKE 'HOSPITALIST%'
@@ -72,7 +75,8 @@ SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
 	JOIN smsdss.pract_dim_v p
 	ON v.adm_pract_no = p.src_pract_no
 	WHERE pv.med_staff_dept = p.med_staff_dept
-	AND v.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+    AND v.adm_dtime >= @STARTDATE 
+    AND v.adm_dtime < @ENDATE
     AND v.vst_type_cd = 'I'
     AND p.spclty_desc != 'NO DESCRIPTION'
     AND p.spclty_desc NOT LIKE 'HOSPITALIST%'
@@ -90,7 +94,8 @@ FROM smsmir.vst_rpt vr
 JOIN smsdss.pract_dim_v pv
 ON vr.adm_pract_no = pv.src_pract_no
 
-WHERE vr.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+WHERE vr.adm_dtime >= @STARTDATE 
+AND vr.adm_dtime < @ENDATE
 AND vr.vst_type_cd = 'I'
 AND pv.spclty_desc != 'NO DESCRIPTION'
 AND pv.spclty_desc NOT LIKE 'HOSPITALIST%'
