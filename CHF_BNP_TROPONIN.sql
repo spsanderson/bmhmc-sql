@@ -839,8 +839,10 @@ SELECT T2.NAME
 , ISNULL((LM.[LACE ACUTE IP SCORE] 
         + LM.[LACE COMORBID SCORE]
 		+ LM.[LACE DAYS SCORE] 
-		+ LM.[LACE ER SCORE]), '')          AS [LACE SCORE]
-, LOC.[LAST LOCATION]                       AS [LAST KNOWN LOCATION]
+		+ LM.[LACE ER SCORE]), '')          AS [LACE]
+, LOC.[LAST LOCATION]                       AS [LAST LOCATION]
+, ISNULL(DISCH.[ORDER STATUS], 
+		'No Disc Order')                    AS [DISCHARGE ORDER]
 
 FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
 	LEFT JOIN @T3 T3           -- GETS FIRST BNP LAB VAL
@@ -858,7 +860,52 @@ FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
 	LEFT JOIN @T6 T6           -- GETS LIHN TYPE
 	ON T2.VISIT = T6.VISIT
 	JOIN @ADMDOC ADMMD         -- GETS ADMITTING DOCTOR
-	ON T2.VISIT = ADMMD.VISIT     
+	ON T2.VISIT = ADMMD.VISIT
+	/* GETTING LAST DISCHARGE ORDER */
+	LEFT JOIN (
+				SELECT *
+
+				FROM (
+					SELECT SO.episode_no
+					, SO.ord_no
+					, CAST(SO.ent_dtime AS DATE) AS [DATE]
+					, CAST(SO.ent_dtime AS TIME) AS [TIME]
+					, X.[ORDER STATUS]
+					, ROW_NUMBER() OVER(
+										PARTITION BY SOS.ORD_NO
+										ORDER BY SOS.intrn_seq_no DESC
+										) AS ROWNUM
+					FROM smsmir.sr_ord          SO
+					JOIN smsmir.sr_ord_sts_hist SOS
+					ON SO.ord_no = SOS.ord_no
+					JOIN smsmir.ord_sts_modf_mstr OSM
+					ON SOS.hist_sts = OSM.ord_sts_modf_cd
+					
+					CROSS APPLY (
+						SELECT
+							CASE
+								WHEN OSM.ord_sts = 'ACTIVE'      
+								THEN '1 - ACTIVE'
+								WHEN OSM.ord_sts = 'IN PROGRESS' 
+								THEN '2 - IN PROGRESS'
+								WHEN OSM.ord_sts = 'COMPLETE'    
+								THEN '3 - COMPLETE'
+								WHEN OSM.ord_sts = 'CANCEL'      
+								THEN '4 - CANCEL'
+								WHEN OSM.ord_sts = 'DISCONTINUE' 
+								THEN '5 - DISCONTINUE'
+							END AS [ORDER STATUS]
+							) X
+					
+					WHERE SO.svc_desc = 'DISCHARGE TO'
+					AND SO.episode_no < '20000000'
+				) SRC
+
+				WHERE SRC.ROWNUM = 1
+			) DISCH
+	/*END OF TEST TO GET DISCHARGE ORDER*/
+	ON T2.VISIT = DISCH.episode_no
+
 
 WHERE ADMMD.[ADMITTING DOCTOR] IS NOT NULL
 
