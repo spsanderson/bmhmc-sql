@@ -1,0 +1,32 @@
+DECLARE @LOC TABLE (
+	VISIT           VARCHAR(20)
+	, [LAST LOC]    VARCHAR(10)
+	, [CENSUS DATE] DATE
+	, ROW           INT
+)
+
+INSERT INTO @LOC
+SELECT
+L.PT_NO
+, L.BED_DEF
+, L.CEN_DATE
+, L.ROWNUM
+
+FROM(
+	SELECT pt_no
+	, bed_def
+	, cen_date
+	, ROW_NUMBER() OVER (
+		PARTITION BY PT_NO ORDER BY CEN_DATE DESC
+		)AS ROWNUM
+
+	FROM smsdss.pms_cen_fct_v
+	
+	WHERE pt_no IN (
+	-- PAST VISIT ID'S BELOW THIS COMMENT
+
+	)
+)L
+WHERE ROWNUM = 1
+
+SELECT * FROM @LOC
