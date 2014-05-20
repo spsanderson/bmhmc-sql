@@ -713,30 +713,31 @@ GET THE LAST KNOWN LOCATION OF THE PATIENT
 */
 
 DECLARE @LOC TABLE (
-	VISIT             VARCHAR(20)
-	, [LAST LOCATION] VARCHAR(10)
-	, [CENUS DATE]    DATE
-	, ROW             INT
+	VISIT           VARCHAR(20)
+	, [LAST LOC]    VARCHAR(10)
+	, [CENSUS DATE] DATE
+	, ROW           INT
 )
 
 INSERT INTO @LOC
 SELECT
-L.pt_id
-, L.nurs_sta
-, L.cen_date
+L.PT_NO
+, L.BED_DEF
+, L.CEN_DATE
 , L.ROWNUM
 
 FROM(
-	SELECT SUBSTRING(pt_id, 5, 9) AS pt_id
-	, nurs_sta
+	SELECT pt_no
+	, bed_def
 	, cen_date
 	, ROW_NUMBER() OVER (
-		PARTITION BY PT_ID ORDER BY CEN_DATE DESC
-		) AS ROWNUM
+		PARTITION BY PT_NO ORDER BY CEN_DATE DESC
+		)AS ROWNUM
 
-	FROM smsdss.dly_cen_occ_fct
+	FROM smsdss.pms_cen_fct_v
 )L
 WHERE ROWNUM = 1
+
 --SELECT * FROM @LOC
 
 /*
@@ -840,7 +841,7 @@ SELECT T2.NAME
         + LM.[LACE COMORBID SCORE]
 		+ LM.[LACE DAYS SCORE] 
 		+ LM.[LACE ER SCORE]), '')          AS [LACE]
-, LOC.[LAST LOCATION]                       AS [LAST LOCATION]
+, LOC.[LAST LOC]                            AS [LAST LOCATION]
 , ISNULL(DISCH.[ORDER STATUS], 
 		'No Disc Order')                    AS [DISCHARGE ORDER]
 
@@ -909,4 +910,4 @@ FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
 
 WHERE ADMMD.[ADMITTING DOCTOR] IS NOT NULL
 
-ORDER BY T6.[LIHN TYPE], LOC.[LAST LOCATION], T2.ADMIT ASC
+ORDER BY T6.[LIHN TYPE], LOC.[LAST LOC], T2.ADMIT ASC
