@@ -503,10 +503,10 @@ COMPLAINT
 DECLARE @T2 TABLE (
 	VISIT         VARCHAR(20)
 	, MRN         VARCHAR(20)
-	, NAME        VARCHAR(20)
+	, NAME        VARCHAR(200)
 	, ADMIT       DATE
 	, DISCHARGE   DATE
-	, VISIT_COMP  VARCHAR(200)
+	, VISIT_COMP  VARCHAR(500)
 )
 
 INSERT INTO @T2
@@ -535,7 +535,10 @@ FROM (
 	    AND PAV.PtNo_Num < '20000000' --TEST
 		AND PAV.Plm_Pt_Acct_Type = 'I'
 		AND PAV.Dsch_Date IS NULL
-		AND PV.PatientReasonForSeekingHC LIKE '%CHF%'
+		AND (
+			PV.PatientReasonForSeekingHC LIKE '%CHF%'
+			OR PV.PatientReasonForSeekingHC LIKE '%heart failure%'
+			)
 )A
 
 --SELECT * FROM @T2
@@ -822,6 +825,103 @@ FROM (
 /*
 #######################################################################
 
+GET THE READMISSION FLAG
+
+#######################################################################
+*/
+DECLARE @RA TABLE (
+	VISIT_ID   VARCHAR(20)
+	, FLAG     VARCHAR(20)
+	, SRC_DESC VARCHAR(50)
+)
+
+INSERT INTO @RA
+SELECT
+G.B_Episode_No
+, G.FLAG
+
+FROM (
+	SELECT B_Episode_No
+	, 1 AS FLAG
+	
+	FROM smsdss.c_readmissions_v
+	
+	WHERE B_Episode_No < '20000000'
+		AND B_Adm_Date >= @START
+		AND B_Adm_Src_Desc != 'Scheduled Admission'
+)G
+
+/*
+#######################################################################
+
+GET THE LATEST DISCHARGE ORDER STATUS
+
+#######################################################################
+*/
+DECLARE @DISCH TABLE (
+VISIT            VARCHAR(20)
+, ORD_NO         VARCHAR(20)
+, [ORDER DATE]   DATE
+, [ORDER TIME]   TIME
+, SEQ_NUM        VARCHAR(20)
+, [ORDER STATUS] VARCHAR(20)
+, ROWNUM         VARCHAR(5)
+)
+
+INSERT INTO @DISCH
+SELECT
+SRC.episode_no
+, SRC.ord_no
+, SRC.DATE
+, SRC.TIME
+, SRC.intrn_seq_no
+, SRC.[ORDER STATUS]
+, SRC.ROWNUM
+
+FROM (
+	SELECT SO.episode_no
+	, SO.ord_no
+	, CAST(SO.ent_dtime AS DATE) AS [DATE]
+	, CAST(SO.ent_dtime AS TIME) AS [TIME]
+	, SOS.intrn_seq_no
+	, X.[ORDER STATUS]
+	, ROW_NUMBER() OVER(
+						PARTITION BY SO.EPISODE_NO
+						ORDER BY SO.ORD_NO DESC
+						) AS ROWNUM
+	FROM smsmir.sr_ord          SO
+	JOIN smsmir.sr_ord_sts_hist SOS
+	ON SO.ord_no = SOS.ord_no
+	JOIN smsmir.ord_sts_modf_mstr OSM
+	ON SOS.hist_sts = OSM.ord_sts_modf_cd
+	
+	CROSS APPLY (
+		SELECT
+			CASE
+				WHEN OSM.ord_sts = 'ACTIVE'      
+				THEN '1 - ACTIVE'
+				WHEN OSM.ord_sts = 'IN PROGRESS' 
+				THEN '2 - IN PROGRESS'
+				WHEN OSM.ord_sts = 'COMPLETE'    
+				THEN '3 - COMPLETE'
+				WHEN OSM.ord_sts = 'CANCEL'      
+				THEN '4 - CANCEL'
+				WHEN OSM.ord_sts = 'DISCONTINUE' 
+				THEN '5 - DISCONTINUE'
+			END AS [ORDER STATUS]
+			) X
+	
+	WHERE SO.svc_desc = 'DISCHARGE TO'
+	AND SO.episode_no < '20000000'
+)SRC
+
+--SELECT * 
+--FROM @DISCH
+WHERE ROWNUM = 1
+
+/*
+#######################################################################
+
 PULL EVERY THING TOGETHER
 
 #######################################################################
@@ -829,9 +929,9 @@ PULL EVERY THING TOGETHER
 
 SELECT T2.NAME
 , T6.[LIHN TYPE]
-, ADMMD.[ADMITTING DOCTOR]
+, ADMMD.[ADMITTING DOCTOR]                  AS [ADM MD]
 , T2.VISIT
-, T2.MRN
+--, T2.MRN
 , T2.ADMIT
 , ISNULL(T3.VALUE, 'None')                  AS [BNP 1]
 , ISNULL(T7.VALUE, 'None')                  AS [BNP 2]
@@ -841,9 +941,10 @@ SELECT T2.NAME
         + LM.[LACE COMORBID SCORE]
 		+ LM.[LACE DAYS SCORE] 
 		+ LM.[LACE ER SCORE]), '')          AS [LACE]
-, LOC.[LAST LOC]                            AS [LAST LOCATION]
+, LOC.[LAST LOC]                            AS [LAST LOC]
 , ISNULL(DISCH.[ORDER STATUS], 
-		'No Disc Order')                    AS [DISCHARGE ORDER]
+		'None')                             AS [DISC ORDER]
+, ISNULL(RA.FLAG, 0)                        AS [30DAY RA]
 
 FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
 	LEFT JOIN @T3 T3           -- GETS FIRST BNP LAB VAL
@@ -860,54 +961,16 @@ FROM @T2 T2                    -- GETS DESIRED ACCT NO AND MRN
 	ON T2.VISIT = LM.ENCOUNTER
 	LEFT JOIN @T6 T6           -- GETS LIHN TYPE
 	ON T2.VISIT = T6.VISIT
-	JOIN @ADMDOC ADMMD         -- GETS ADMITTING DOCTOR
+	LEFT JOIN @ADMDOC ADMMD    -- GETS ADMITTING DOCTOR
 	ON T2.VISIT = ADMMD.VISIT
-	/* GETTING LAST DISCHARGE ORDER */
-	LEFT JOIN (
-				SELECT *
-
-				FROM (
-					SELECT SO.episode_no
-					, SO.ord_no
-					, CAST(SO.ent_dtime AS DATE) AS [DATE]
-					, CAST(SO.ent_dtime AS TIME) AS [TIME]
-					, X.[ORDER STATUS]
-					, ROW_NUMBER() OVER(
-										PARTITION BY SOS.ORD_NO
-										ORDER BY SOS.intrn_seq_no DESC
-										) AS ROWNUM
-					FROM smsmir.sr_ord          SO
-					JOIN smsmir.sr_ord_sts_hist SOS
-					ON SO.ord_no = SOS.ord_no
-					JOIN smsmir.ord_sts_modf_mstr OSM
-					ON SOS.hist_sts = OSM.ord_sts_modf_cd
-					
-					CROSS APPLY (
-						SELECT
-							CASE
-								WHEN OSM.ord_sts = 'ACTIVE'      
-								THEN '1 - ACTIVE'
-								WHEN OSM.ord_sts = 'IN PROGRESS' 
-								THEN '2 - IN PROGRESS'
-								WHEN OSM.ord_sts = 'COMPLETE'    
-								THEN '3 - COMPLETE'
-								WHEN OSM.ord_sts = 'CANCEL'      
-								THEN '4 - CANCEL'
-								WHEN OSM.ord_sts = 'DISCONTINUE' 
-								THEN '5 - DISCONTINUE'
-							END AS [ORDER STATUS]
-							) X
-					
-					WHERE SO.svc_desc = 'DISCHARGE TO'
-					AND SO.episode_no < '20000000'
-				) SRC
-
-				WHERE SRC.ROWNUM = 1
-			) DISCH
-	/*END OF TEST TO GET DISCHARGE ORDER*/
-	ON T2.VISIT = DISCH.episode_no
+	LEFT JOIN @DISCH DISCH     -- GETS LAST STATUS OF LAST DISC ORDER
+	ON T2.VISIT = DISCH.VISIT
+	LEFT JOIN @RA RA           -- GETTING THE 30 DAY READMIT FLAG
+	ON T2.VISIT = RA.VISIT_ID
 
 
 WHERE ADMMD.[ADMITTING DOCTOR] IS NOT NULL
 
-ORDER BY T6.[LIHN TYPE], LOC.[LAST LOC], T2.ADMIT ASC
+ORDER BY T6.[LIHN TYPE]
+, LOC.[LAST LOC]
+, T2.ADMIT ASC

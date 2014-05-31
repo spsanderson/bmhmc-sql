@@ -4,22 +4,19 @@ DECLARE @END   DATE;
 
 SET @START = '2014-04-01'
 SET @END   = '2014-05-01'
-
+-----------------------------------------
 /*
 #######################################################################
 
-NOW CREATE A TABLE TO GET THE PATIENTS OF INTEREST ONLY, WE WILL THEN
-CREATE ANOTHER TABLE TO GET THE ORDERS AND TIMES THAT WE ARE INTERESTED
-IN
+GET THOS OF INTEREST
 
 #######################################################################
 */
-
 DECLARE @T1 TABLE(
 	VISIT        VARCHAR(20)
 	, MRN        VARCHAR(20)
 	, NAME       VARCHAR(50)
-	, ADMIT      DATE
+	, StartDtime datetime
 	, DRG        VARCHAR(10)
 	, [DRG DESC] VARCHAR(100)
 )
@@ -29,7 +26,7 @@ SELECT
 A.PtNo_Num
 , A.Med_Rec_No
 , A.Pt_Name
-, A.Adm_Date
+, A.vst_start_dtime
 , A.drg_no
 , A.drg_no_cd_desc
 
@@ -37,7 +34,7 @@ FROM (
 	SELECT PAV.PtNo_Num
 	, PAV.Med_Rec_No
 	, PAV.Pt_Name
-	, PAV.Adm_Date
+	, PAV.vst_start_dtime
 	, PAV.drg_no
 	, DDV.drg_no_cd_desc
 
@@ -51,84 +48,39 @@ FROM (
 		AND DDV.drg_vers = 'MS-V25'
 )A
 
---SELECT * FROM @T1
-
 /*
 #######################################################################
 
-GET ORDERS FOR CT W/O CONTRAST HEAD AREA
+END OF QUERY 1, NOW GET THE ORDERS OF INTEREST
 
 #######################################################################
 */
 
-DECLARE @T2 TABLE(
-	VISIT                    VARCHAR(20)
-	, ORDER#                 VARCHAR(20)
-	, [DESCRIPTION]          VARCHAR(150)
-	, [ORDERING PARTY]       VARCHAR(50)
-	, [ORDER ENTRY DTIME]    DATETIME
-	, [ORDER COMPLETE DTIME] DATETIME
+DECLARE @ORDENT TABLE (
+	VISIT             VARCHAR(20)
+	, [ORDER #]       VARCHAR(20)
+	, SVC_DESC        VARCHAR(100)
+	, ORD_PTY         VARCHAR(50)
+	, ENT_DTIME       DATETIME
+	, SIGN_ON         VARCHAR(25)
+	, [STATUS TIME]   DATETIME 
+	, [PRIM STATUS]   VARCHAR(20)
+	, [ORDER STATUS]  VARCHAR(40)
+	, [STATUS ROWNUM] VARCHAR(3)
+	, ACKNOWLEDGED    DATETIME
 )
 
-INSERT INTO @T2
-SELECT
-B.episode_no
-, B.ord_no
-, B.svc_desc
-, B.pty_name
-, B.ent_dtime
-, B.ord_sts_prcs_dtime
+INSERT INTO @ORDENT
+SELECT *
 
-FROM(
+FROM (
 	SELECT SO.episode_no
 	, SO.ord_no
 	, SO.svc_desc
 	, SO.pty_name
 	, SO.ent_dtime
-	, SO.ord_sts_prcs_dtime
-
-	FROM smsmir.sr_ord  SO
-
-	WHERE SO.svc_cd IN ('01304104', '01331453', '01331479'
-						, '01304658', '01304468' , '01304765')
-		AND SO.episode_no < '20000000'
-		AND SO.ent_dtime >= DATEADD(D, -180, @START)
-)B
-
---SELECT * FROM @T2
-
-/*
-#######################################################################
-
-GET THE STATUS AND STATUS TIME FOR RAD ORDERS
-
-#######################################################################
-*/
-DECLARE @T3 TABLE (
-	VISIT             VARCHAR(20)
-	, [ORDER #]       VARCHAR(20)
-	, [STATUS TIME]   DATETIME 
-	, [DEPT ID]       VARCHAR(20)
-	, [PRIM STATUS]   VARCHAR(20)
-	, [ORDER STATUS]  VARCHAR(40)
-	, [STATUS ROWNUM] VARCHAR(3)
-)
-
-INSERT INTO @T3
-SELECT
-C.episode_no
-, C.ord_no
-, C.prcs_dtime
-, C.signon_id
-, C.ord_sts
-, C.ord_sts_modf
-, C.RN
-
-FROM(
-	SELECT SO.episode_no
-	, SO.ord_no
-	, SOS.prcs_dtime
 	, SOS.signon_id
+	, SOS.prcs_dtime
 	, OSM.ord_sts
 	, OSM.ord_sts_modf
 	, ROW_NUMBER() OVER (
@@ -140,6 +92,7 @@ FROM(
 						, SOS.DEPT_OBJ_ID  DESC
 						,OSM.ID_COL        DESC
 						) RN
+	, SO.ord_sts_prcs_dtime
 
 	FROM smsmir.sr_ord                     AS SO
 		JOIN smsmir.sr_ord_sts_hist        AS SOS
@@ -147,50 +100,50 @@ FROM(
 		JOIN smsmir.ord_sts_modf_mstr      AS OSM
 		ON SOS.hist_no = OSM.ord_sts_cd
 
-	--WHERE SO.EPISODE_NO IN ('14120141', '14120448')
-	WHERE SOS.signon_id = 'RAD'
-		AND SO.svc_cd IN ('01304104', '01331453', '01331479'
-						, '01304658', '01304468' , '01304765')
+	WHERE SO.svc_cd IN (
+		'00600015', '00700096', '00700104', '00700500', '00714006',
+		'00720011', '00720037', '00720045', '00720052', '00720060', 
+		'01404151', '01404201', '01710078', '01710094', '01710110', 
+		'02300804', '02300820', '02300846', '02300861', '02350809',
+		'02350825', '02350841', '01304104', '01331453', '01331479', 
+		'01304658', '01304468' , '01304765'
+		)
 		AND SO.episode_no < '20000000'
 		AND SO.ent_dtime >= DATEADD(D, -180, @START)
-)C
+)AA
 
+SELECT	A.VISIT
+, A.StartDtime
+, B.[ORDER #]
+, B.SVC_DESC
+, B.ORD_PTY
+--, B.SIGN_ON
+, B.ENT_DTIME                       AS [ORDER ENTRY]
+--, B.[STATUS TIME]                   AS [ACTIVE]
+, C.SIGN_ON                         AS [DEPT/NAME]
+, C.[STATUS TIME]                   AS [IN PROGRESS]
+, D.SIGN_ON                         AS [DEPT/NAME]
+, D.[STATUS TIME]                   AS COMPLETE
+, D.ACKNOWLEDGED
+, DATEDIFF(HOUR
+			, A.StartDtime
+			, B.ENT_DTIME)          AS [ORD HRS AFTER ADMIT]
 
-/*
-#######################################################################
+FROM @T1                         A
+	LEFT JOIN @ORDENT            B
+	ON A.VISIT = B.VISIT
+	LEFT JOIN @ORDENT            C
+	ON B.[ORDER #] = C.[ORDER #]
+	LEFT JOIN @ORDENT            D
+	ON B.[ORDER #] = D.[ORDER #]
 
-BRING IT ALL TOGETHER AND GET THE TIME FROM ARRIVAL TO ORDER ENTRY
-AND TIME FROM ORDER ENTRY TO ORDER COMPLETION TIME.
+WHERE B.[STATUS ROWNUM] = 1
+	AND C.[STATUS ROWNUM] = 1
+	AND D.[STATUS ROWNUM] = 1
+	AND B.[PRIM STATUS] = 'Active'
+	AND C.[PRIM STATUS] = 'In Progress'
+	AND D.[PRIM STATUS] = 'Complete'
 
-THE ORDER COMPLETION TIME IS WHEN THE ORDER WAS ACKNOWLEDGED BY SOMEONE
-IN THE SOARIAN SYSTEM
-
-#######################################################################
-*/
-
-SELECT T1.VISIT
-, T1.NAME
-, T1.ADMIT
-, T1.[DRG DESC]
-, T2.ORDER#
-, T2.DESCRIPTION
-, T2.[ORDER ENTRY DTIME]
---, T3.[DEPT ID]
---, T3B.[PRIM STATUS]
-, T3B.[STATUS TIME]         AS [IN-PROG BY RAD]
---, T3.[PRIM STATUS]
-, T3.[STATUS TIME]          AS [COMPLETE BY RAD]
-, T2.[ORDER COMPLETE DTIME] AS [ACKNOWLEDGED AT]
-
-FROM @T1                    AS T1
-	LEFT JOIN @T2           AS T2
-	ON T1.VISIT = T2.VISIT
-	LEFT JOIN @T3           AS T3
-	ON T2.ORDER# = T3.[ORDER #]
-	LEFT JOIN @T3           AS T3B
-	ON T3.[ORDER #] = T3B.[ORDER #]
-
-WHERE T3.[STATUS ROWNUM]    = 1
-	AND T3B.[STATUS ROWNUM] = 1
-	AND T3.[PRIM STATUS]    = 'COMPLETE'
-	AND T3B.[PRIM STATUS]   = 'IN PROGRESS'
+ORDER BY A.VISIT  ASC
+, B.[ORDER #]     ASC
+, B.[STATUS TIME] ASC
