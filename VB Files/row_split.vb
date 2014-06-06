@@ -1,26 +1,11 @@
 Sub row_split()
-    Dim NumRows As Integer
-    Dim StartPoint As String
-
-Beginning:
-
-    NumRows = ActiveCell.Offset(1).Value - ActiveCell.Value - 1
-    StartPoint = ActiveCell.Address
-
-    If ActiveCell.Value = "" Then
-      Exit Sub
-    End If
-
-    If (NumRows < 1) Then
-      Range(StartPoint).Offset(1).Select
-      GoTo Beginning
-    End If
-
-    Rows(ActiveCell.Offset(1).Row & ":" & ActiveCell.Offset(1).Row).Select
-    Selection.Insert
-
-    Range(StartPoint).Offset(2).Select
+    ''//Select last row in worksheet
+    Selection.End(xlDown).Select
     
-    GoTo Beginning
-
+    Do Until ActiveCell.Row = 1
+      ''//Insert Blank Row
+      ActiveCell.EntireRow.Insert shift:=xlDown
+      ''//Move up one row
+      ActiveCell.Offset(-1, 0).Select
+    Loop
 End Sub
