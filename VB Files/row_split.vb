@@ -2,7 +2,7 @@ Sub row_split()
     ''//Select last row in worksheet
     Selection.End(xlDown).Select
     
-    Do Until ActiveCell.Row = 1
+    Do Until ActiveCell.Row = 2
       ''//Insert Blank Row
       ActiveCell.EntireRow.Insert shift:=xlDown
       ''//Move up one row
