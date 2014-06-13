@@ -13,7 +13,7 @@ JOIN smsdss.svc_cd_dim_v DV
 ON SVC.Svc_Cd = DV.svc_cd
 
 -- FILTERS
-WHERE SVC.Svc_Date >= '2013-01-01'
+WHERE SVC.Svc_Date >= '2014-01-01'
 AND SVC.Pt_Type = 'E'
 
 -- WE DO NOT WANT PATIENTS WHO HAVE RECIEVED SOME SORT OF BLOOD WORK

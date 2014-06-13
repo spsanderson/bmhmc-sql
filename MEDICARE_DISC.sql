@@ -2,7 +2,7 @@ select *
 
 from smsdss.BMH_PLM_PtAcct_V
 
-where Dsch_DTime between '2014-02-01' and '2014-02-28'
+where Dsch_DTime between '2014-04-01' and '2014-04-30'
 AND Plm_Pt_Acct_Type = 'I'
 AND Plm_Pt_Acct_Type != 'P'
 and Pyr1_Co_Plan_Cd in (

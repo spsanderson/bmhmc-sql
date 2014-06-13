@@ -13,8 +13,8 @@ DECLARE @CP_2 INT;
 DECLARE @CP_3 INT;
 DECLARE @SCT VARCHAR(10);
 
-SET @SD = '2014-02-01';
-SET @ED = '2014-03-01';
+SET @SD = '2014-04-01';
+SET @ED = '2014-05-01';
 SET @CP_1 = 1;
 SET @CP_2 = 2;
 SET @CP_3 = 3;
@@ -32,28 +32,28 @@ START OF QUERY 1
 */
 -- TABLE DECLARATION
 DECLARE @T1 TABLE (
-	Acct_No                      VARCHAR(200)
-	, /*NEW*/Med_Rec_No          VARCHAR(20)	
+	Acct_No                      VARCHAR (200)
+	, /*NEW*/Med_Rec_No          VARCHAR (20)	
 	, /*NEW*/Date_Of_Birth       DATETIME
-	, /*NEW*/Gender              VARCHAR(10)
-	, FinancialClass_Code        VARCHAR(10)
-	, FinancialClass_Defin       VARCHAR(200)
+	, /*NEW*/Gender              VARCHAR (10)
+	, FinancialClass_Code        VARCHAR (10)
+	, FinancialClass_Defin       VARCHAR (200)
 	, Admiss_Date                DATE
 	, Admiss_Time                TIME
-	, Admit_From_Code            VARCHAR(200)
-	, Admit_From_Defin           VARCHAR(200)
+	, Admit_From_Code            VARCHAR (200)
+	, Admit_From_Defin           VARCHAR (200)
 	, Discharge_Date             DATE
 	, Discharge_Time             TIME
-	, /*NEW*/Admitting_Phys      VARCHAR(200)
-	, /*NEW*/Attending_Phys      VARCHAR(200)
+	, /*NEW*/Admitting_Phys      VARCHAR (200)
+	, /*NEW*/Attending_Phys      VARCHAR (200)
 	/*Discharging_Phys - can't get*/
-	, DC_Dispo_Code              VARCHAR(10)
+	, DC_Dispo_Code              VARCHAR (10)
 	, DC_Dispo_Defin             VARCHAR (200)
-	, [MS DRG]                   VARCHAR(200)
-	, MSDRG_Descript             VARCHAR(200)
-	, LOS                        VARCHAR(20)
+	, [MS DRG]                   VARCHAR (200)
+	, MSDRG_Descript             VARCHAR (200)
+	, LOS                        VARCHAR (20)
 	, [ADMIT PATIENT STATUS]     VARCHAR (10)
-	, [DISCHARGE PATIENT STATUS] VARCHAR(10)
+	, [DISCHARGE PATIENT STATUS] VARCHAR (10)
 	, [DISCHARGE UNIT]           VARCHAR (200) -- NOT NEEDED FOR FINAL QUERY JUST BASELINE
 )
 -- WHAT GETS INSERTED INTO @T1
@@ -169,7 +169,7 @@ THIS WILL GET THE ICD9 INFORMATION
 */
 DECLARE @ICD9_1 TABLE (
 PtNo_Num VARCHAR(20)
-, ICD_1 VARCHAR(10)
+, ICD_1  VARCHAR(10)
 )
 
 INSERT INTO @ICD9_1
@@ -192,7 +192,7 @@ FROM (
 -----------------------------------------------------------------------
 DECLARE @ICD9_2 TABLE (
 PtNo_Num VARCHAR(20)
-, ICD_2 VARCHAR(10)
+, ICD_2  VARCHAR(10)
 )
 
 INSERT INTO @ICD9_2
@@ -215,7 +215,7 @@ FROM (
 -----------------------------------------------------------------------
 DECLARE @ICD9_3 TABLE (
 PtNo_Num VARCHAR(20)
-, ICD_3 VARCHAR(10)
+, ICD_3  VARCHAR(10)
 )
 
 INSERT INTO @ICD9_3
@@ -283,10 +283,10 @@ GET DISCHARGE ORDER DATE AND TIME
 
 -- @T2 DECLARATION
 DECLARE @T2 TABLE (
-	[ENCOUNTER ID] VARCHAR(200)
+	[ENCOUNTER ID]   VARCHAR(200)
 	, [ORDER NUMBER] VARCHAR(200)
-	, [ORDER DATE] DATE
-	, [ORDER TIME] TIME
+	, [ORDER DATE]   DATE
+	, [ORDER TIME]   TIME
 )
 
 -- WHAT GETS INSERTED INTO @T2
@@ -324,7 +324,7 @@ HAS ICU VISIT Y/N
 */
 
 DECLARE @T3 TABLE (
-	[ENCOUNTER 3] VARCHAR(200)
+	[ENCOUNTER 3]     VARCHAR(200)
 	, [HAS ICU VISIT] VARCHAR(10)
 )
 -- WHAT GETS INSERTED INTO @T3
@@ -369,26 +369,26 @@ T1.Med_Rec_No
 , T1.FinancialClass_Defin
 , T1.Admiss_Date
 , T1.Admiss_Time
-, T1.Admit_From_Code AS Admiss_From_Code
-, T1.Admit_From_Defin AS Admiss_From_Defin
+, T1.Admit_From_Code            AS Admiss_From_Code
+, T1.Admit_From_Defin           AS Admiss_From_Defin
 , T1.Discharge_Date
 , T1.Discharge_Time
 , T1.Admitting_Phys
 , T1.Attending_Phys
-, T2.[ORDER DATE] AS DC_Order_Date
-, T2.[ORDER TIME] AS DC_Order_Time
+, T2.[ORDER DATE]               AS DC_Order_Date
+, T2.[ORDER TIME]               AS DC_Order_Time
 , T1.DC_Dispo_Code
 , T1.DC_Dispo_Defin
-, T1.[DISCHARGE UNIT] AS Discharge_Unit
-, T1.[MS DRG] AS MSDRG_Code
+--, T1.[DISCHARGE UNIT] AS Discharge_Unit
+, T1.[MS DRG]                   AS MSDRG_Code
 , T1.MSDRG_Descript
-, ICD9F.ICD9_1 AS ICD_1
-, ICD9F.ICD9_2 AS ICD_2
-, ICD9F.ICD9_3 AS ICD_3
-, T1.LOS AS LengthofStay
-, T1.[ADMIT PATIENT STATUS] AS PtStatus_Admiss
+, ICD9F.ICD9_1                  AS ICD_1
+, ICD9F.ICD9_2                  AS ICD_2
+, ICD9F.ICD9_3                  AS ICD_3
+, T1.LOS                        AS LengthofStay
+, T1.[ADMIT PATIENT STATUS]     AS PtStatus_Admiss
 , T1.[DISCHARGE PATIENT STATUS] AS PtStatus_Discharge
-, T3.[HAS ICU VISIT] AS ICU_Stay
+--, T3.[HAS ICU VISIT] AS ICU_Stay
 
 FROM @T1 T1
 	LEFT OUTER JOIN @ICD9F ICD9F

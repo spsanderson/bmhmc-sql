@@ -1,7 +1,7 @@
 DECLARE @STARTDATE DATETIME;
 DECLARE @ENDATE    DATETIME;
-SET @STARTDATE =   '2014-03-01';
-SET @ENDATE =      '2014-04-01';
+SET @STARTDATE =   '2014-04-01';
+SET @ENDATE =      '2014-05-01';
 
 SELECT pv.med_staff_dept                     AS [MED STAFF DEPT]
 , COUNT(PV.MED_STAFF_DEPT)                   AS [# PTS]

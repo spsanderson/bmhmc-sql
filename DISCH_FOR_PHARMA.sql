@@ -7,6 +7,6 @@ SELECT dsch_date
 , DATEPART(YEAR, dsch_date) AS [YEAR]
 
 FROM smsmir.vst_rpt
-WHERE dsch_date = '2014-04-17'
+WHERE dsch_date = '2014-06-12'
 AND ward_cd IS NOT NULL
 ORDER BY dsch_date ASC

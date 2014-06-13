@@ -1,3 +1,5 @@
+--#####################################################################
+
 -- COLUMN SELECTION
 SELECT PDV.pract_rpt_name AS 'MD NAME'
 , PAV.drg_no AS 'DRG'
@@ -22,3 +24,4 @@ AND PDV.pract_rpt_name != 'TESTCPOE DOCTOR'
 AND PDV.orgz_cd = 'S0X0'
 ORDER BY PDV.pract_rpt_name
 
+--#####################################################################
