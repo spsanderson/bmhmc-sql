@@ -1,3 +1,12 @@
+/*
+########################################################################
+
+THIS QUERY WILL OBTAIN THOSE EVENTS THAT ARE NOT NON-EVENTS, THAT IS TO
+SAY THAT ALL NON-EVENT PROCEDURE CODE ACCOUNTS ARE KICKED OUT
+
+########################################################################
+*/
+
 DECLARE @NONEVENTPROC TABLE (
 ID INT NOT NULL PRIMARY KEY,
 [CPT CODE] VARCHAR(5)
