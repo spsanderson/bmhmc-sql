@@ -12,7 +12,7 @@ THE DAISY CHAIN COUNT AND THE COUNT OF CHAINS
 
 -- CREATE A TABLE WHERE INITIAL ENCOUNTERS WILL BE STORED IN ORDER TO 
 -- QUERY LATER ON
-CREATE TABLE dbo.EVENTS (
+DECLARE @EVENTS TABLE (
     -- Every visit gets an eventID, think of it as another unique key
 	  EVENTID   INT IDENTITY(1,1) PRIMARY KEY
 	, EVENTDATE DATE        -- Admit Date
@@ -20,7 +20,7 @@ CREATE TABLE dbo.EVENTS (
 	, VISIT     VARCHAR(20) -- Encounter / Visit ID
 	, DSCH      DATE        -- 
 );
-GO
+
 -- THIS COMMON TABLE EXPRESSION IS USED TO POPULATE THE EVENTS TABLE
 WITH CTE AS (
 	SELECT Adm_Date -- Date of admission
@@ -32,11 +32,11 @@ WITH CTE AS (
 
 	WHERE Plm_Pt_Acct_Type = 'I' -- Only want inpatients
 	AND PtNo_Num < '20000000'    -- Only want inpatients
-	AND Dsch_Date >= '2014-01-01'
-	AND Dsch_Date < '2014-02-01'
+	--AND Dsch_Date >= '2004-01-01'
+	--AND Dsch_Date < GETDATE()
 )
 -- INSERTING THE COMMON TABLE EXPRESSION RESULTS INTO THE EVENTS TABLE
-INSERT INTO dbo.EVENTS
+INSERT INTO @EVENTS
 SELECT C1.Adm_Date
 , C1.Med_Rec_No
 , C1.PtNo_Num
@@ -69,7 +69,7 @@ SELECT crt.EVENTID
 					, CRT.EVENTID
 					) AS EventNum
 
-FROM dbo.EVENTS crt
+FROM @EVENTS crt
 WHERE crt.PERSONID IS NOT NULL -- We don't want NULL Encounter ID's
 ;
 
@@ -126,12 +126,10 @@ SELECT x.EventID                        AS [EVENT ID]
 , CAST(V.ReadmittedDT AS DATE)          AS [READMIT DATE]
 , DATEDIFF(DAY, x.DSCH, V.ReadmittedDT) AS [INTERIM]
 
-FROM CountingSequentialEvents x
-LEFT JOIN smsdss.vReadmits    V
+FROM CountingSequentialEvents    x
+LEFT MERGE JOIN smsdss.vReadmits V
 ON x.VISIT = V.PtNo_Num
 
 ORDER BY x.PersonID, x.EventDate
 
 OPTION (MAXRECURSION 1000);
-
-DROP TABLE DBO.EVENTS
