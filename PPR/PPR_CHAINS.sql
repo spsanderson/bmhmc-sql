@@ -25,7 +25,7 @@ DECLARE @EVENTS TABLE (
 WITH CTE AS (
 	SELECT Adm_Date -- Date of admission
 	, Med_Rec_No    -- MRN
-	, PtNo_Num      -- Encounter / Visit ID
+	, Pt_No         -- Encounter / Visit ID --PTNO_NUM CHANGE BACK TO
 	, Dsch_Date     -- Discharge Date
 
 	FROM smsdss.BMH_PLM_PTACCT_V -- Your table here
@@ -39,7 +39,7 @@ WITH CTE AS (
 INSERT INTO @EVENTS
 SELECT C1.Adm_Date
 , C1.Med_Rec_No
-, C1.PtNo_Num
+, C1.Pt_No --
 , C1.Dsch_Date
 
 FROM CTE C1
@@ -119,17 +119,50 @@ SELECT x.EventID                        AS [EVENT ID]
 , x.PersonID                            AS [MRN]
 , x.VISIT                               AS [VISIT ID]
 , x.DSCH                                AS [DISCHARGE DATE]
+, A.drg_no                              AS [INITIAL APR-DRG]
+, CASE
+	WHEN GE.[APR-DRG] IS NULL
+	THEN 0
+	ELSE 1
+  END                                   AS [INITIAL EXCLUSION FLAG]
+, B.dsch_disp                           AS [INITIAL DISPO]
 , x.GroupEventNum                       AS [CHAIN LEN]
 , x.GroupNum                            AS [CHAIN NUMBER]
 , x.EventNum                            AS [30 DAY RA COUNT]
 , V.NextVisitID                         AS [READMIT VISIT ID]
+, C.drg_no                              AS [READMIT APR-DRG]
+, CASE
+	WHEN GE2.[APR-DRG] IS NULL
+	THEN 0
+	ELSE 1
+  END                                   AS [RA EXCLUSION FLAG]
+, D.dsch_disp                           AS [READMIT DISPO]
 , CAST(V.ReadmittedDT AS DATE)          AS [READMIT DATE]
 , DATEDIFF(DAY, x.DSCH, V.ReadmittedDT) AS [INTERIM]
 
-FROM CountingSequentialEvents    x
-LEFT MERGE JOIN smsdss.vReadmits V
-ON x.VISIT = V.PtNo_Num
+FROM CountingSequentialEvents        x
+	LEFT MERGE JOIN smsdss.vReadmits V
+	ON x.VISIT = V.Pt_No 
+	LEFT OUTER JOIN smsmir.mir_drg   A  -- Gets APR-DRG OF INITIAL VISIT
+	ON x.VISIT = A.pt_id
+	LEFT OUTER JOIN smsmir.mir_vst   B  -- Gets Discharge Dispo OF INITIAL VISIT
+	ON A.pt_id = B.pt_id
+	LEFT OUTER JOIN smsmir.mir_drg   C  -- GET APR-DRG OF READMIT VISIT
+	ON V.NextVisitID = C.pt_id
+	LEFT OUTER JOIN smsmir.mir_vst   D  -- GETS DISCHARGE DISPO OF READMIT VISIT
+	ON C.pt_id = D.pt_id
+	-- GET THE GLOBALLY EXCLUDED APR-DRGS SO THAT WE CAN FILTER
+	-- INITIAL APR-DRG EXCLUSION
+	LEFT OUTER JOIN smsdss.c_ppr_apr_drg_global_exclusions GE
+	ON A.drg_no = GE.[APR-DRG]
+	-- READMIT APR-DRG EXCLUSION
+	LEFT OUTER JOIN smsdss.c_ppr_apr_drg_global_exclusions GE2
+	ON C.drg_no = GE2.[APR-DRG]
+
+-- THIS LIMITS THE DRG TYPE, IT ALSO DROPS MANY RECORDS FROM THE FINAL RESULT SET
+WHERE A.drg_type = '3'
+AND C.drg_type = '3'
 
 ORDER BY x.PersonID, x.EventDate
 
-OPTION (MAXRECURSION 1000);
+OPTION (MAXRECURSION 1000); -- Max events a person can have
