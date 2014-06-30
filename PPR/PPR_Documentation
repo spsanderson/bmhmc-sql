@@ -452,7 +452,8 @@ The filtering on the APR-DRG and the discharge disposition is not done with the 
 ## Next Steps ##
 1. Create update-able indexed tables from smsdss.vReadmits
 2. Create update-able indexed table from PPR_CHAINS query
-3. Write non-event procedures table just like globally excluded drg table
+3. Create indexed table for non-event procedures
+4. Write non-event procedures table just like globally excluded drg table
  
     
     
