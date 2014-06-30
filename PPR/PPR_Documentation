@@ -133,7 +133,7 @@ All of the above queries will help in identifying those admissions/discharges th
 ----------
 
 
-## Creating a Readmits View for Chains ##
+## Creating a Readmits View for Chains ## (This is done)
 In order to see what admission is the readmit id number, we create a view that then gets `LEFT OUTER JOIN`'ed onto a recursive `CTE` that will in one row, show the initial encounter and the readmission encounter. This view is created as follows:
 
     /*
@@ -186,11 +186,13 @@ In order to see what admission is the readmit id number, we create a view that t
 
 Now that the view is created we can use the Recursive Common Table Expression to get the readmission daisy chain length, chain counts and discharge dispositions along with assigned APR-DRG numbers.
 
+1. We will want to change this view most likely to an indexed table that uses a stored procedure to update it every day, this is for speed, since the view will not have to load in order to get results for the query.
+
 
 ----------
 
 
-## PPR Daisy Chains - Recursive CTE ##
+## PPR Daisy Chains - Recursive CTE ## (This is done)
 We want to know how many times someone was a 30 day readmit, along with how many times someone was a 30 day readmit inside of a daisy chain, and how many times they were in a daisy chain. This query will not filter out any of the exclusionary details but the views and filters can be put inplace to do so.
 
     /*
@@ -362,8 +364,7 @@ We want to know how many times someone was a 30 day readmit, along with how many
     
     OPTION (MAXRECURSION 1000); -- Max events a person can have
     
-
-
+1. We may to turn this into either a view or an update-able indexed table for future phase use.
 
 The above query will get the following information:
 
