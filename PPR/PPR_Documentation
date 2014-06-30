@@ -77,7 +77,7 @@ Create the Readmissions View (This is done)
     WHERE c1.Adm_Date <> c2.Adm_Date
     AND c1.r+1 = c2.r
 
-GO
+    GO
 
 First the code of the globally-excluded APR-DRGS (This is done)
 
