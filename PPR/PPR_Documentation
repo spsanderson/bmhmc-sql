@@ -162,6 +162,7 @@ The query is done but an indexed table needs to be made
     AND CODE.proc_cd <> 'CONSULT'
     
 Finally we need a method of identifying those discharges that are acceptable: (This is done)
+Need to make an indexed table from this just like non-events and globally excluded
 
     /*
     #######################################################################
