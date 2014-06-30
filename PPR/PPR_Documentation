@@ -422,7 +422,6 @@ We want to know how many times someone was a 30 day readmit, along with how many
     -- THIS LIMITS THE DRG TYPE, IT ALSO DROPS MANY RECORDS FROM THE FINAL RESULT SET
     WHERE A.drg_type = '3'
     AND C.drg_type = '3'
-    --AND x.PersonID = '343476'
     
     ORDER BY x.PersonID, x.EventDate
     
