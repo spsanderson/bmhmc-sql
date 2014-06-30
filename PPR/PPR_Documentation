@@ -191,7 +191,9 @@ All of the above queries will help in identifying those admissions/discharges th
 
 
 ## Creating a Readmits View for Chains 
-(This is done)
+(This is done) 
+Need to now make it an update-able indexed table
+
 In order to see what admission is the readmit id number, we create a view that then gets `LEFT OUTER JOIN`'ed onto a recursive `CTE` that will in one row, show the initial encounter and the readmission encounter. This view is created as follows:
 
     /*
@@ -243,8 +245,6 @@ In order to see what admission is the readmit id number, we create a view that t
 
 
 Now that the view is created we can use the Recursive Common Table Expression to get the readmission daisy chain length, chain counts and discharge dispositions along with assigned APR-DRG numbers.
-
-1. We will want to change this view most likely to an indexed table that uses a stored procedure to update it every day, this is for speed, since the view will not have to load in order to get results for the query.
 
 
 ----------
