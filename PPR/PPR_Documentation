@@ -79,7 +79,7 @@ Create the Readmissions View (This is done)
 
     GO
 
-First the code of the globally-excluded APR-DRGS (This is done)
+Code of the globally-excluded APR-DRGS (This is done)
 
     /*
     VARIABLE DECLARATION AND INITIALIZATION
