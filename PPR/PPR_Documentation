@@ -26,6 +26,7 @@ This phase deals with identifying those visits that are Globally-excluded admiss
 To do this we have created a table that lists globally-excluded APR-DRG's and Non-event DRG's, this table is not yet fully complete as non-event procedure codes are still missing from it, rather there is a query that creates a temp table of excluded procedure codes.
 
 Create the Readmissions View (This is done)
+Need to make it a table
 
     USE [SMSPHDSSS0X0]
     GO
@@ -80,6 +81,7 @@ Create the Readmissions View (This is done)
     GO
 
 Code of the globally-excluded APR-DRGS (This is done)
+This is already an indexed table
 
     /*
     VARIABLE DECLARATION AND INITIALIZATION
@@ -125,6 +127,7 @@ Code of the globally-excluded APR-DRGS (This is done)
     ;
     
 Now the code for excluded procedure codes: (This needs to be done)
+The query is done but an indexed table needs to be made
 
     /*
     ########################################################################
@@ -187,7 +190,8 @@ All of the above queries will help in identifying those admissions/discharges th
 ----------
 
 
-## Creating a Readmits View for Chains ## (This is done)
+## Creating a Readmits View for Chains 
+(This is done)
 In order to see what admission is the readmit id number, we create a view that then gets `LEFT OUTER JOIN`'ed onto a recursive `CTE` that will in one row, show the initial encounter and the readmission encounter. This view is created as follows:
 
     /*
