@@ -387,6 +387,10 @@ The above query will get the following information:
  17. Interim - (How many days between addmisions, NULL allowable)
 
 The filtering on the APR-DRG and the discharge disposition is not done with the above query as we want to turn that itself into either an indexed table or a view that can have logic applied to it for performance purposes.
+
+## Next Steps ##
+1. Create update-able indexed tables from views that will update daily
+2. Write non-event procedures table just like globally excluded drg table
  
     
     
