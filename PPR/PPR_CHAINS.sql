@@ -129,7 +129,7 @@ SELECT x.EventID                        AS [EVENT ID]
 , x.GroupEventNum                       AS [CHAIN LEN]
 , x.GroupNum                            AS [CHAIN NUMBER]
 , x.EventNum                            AS [30 DAY RA COUNT]
-, V.NextVisitID                         AS [READMIT VISIT ID]
+, V.READMIT                             AS [READMIT VISIT ID]
 , C.drg_no                              AS [READMIT APR-DRG]
 , CASE
 	WHEN GE2.[APR-DRG] IS NULL
@@ -137,18 +137,18 @@ SELECT x.EventID                        AS [EVENT ID]
 	ELSE 1
   END                                   AS [RA EXCLUSION FLAG]
 , D.dsch_disp                           AS [READMIT DISPO]
-, CAST(V.ReadmittedDT AS DATE)          AS [READMIT DATE]
-, DATEDIFF(DAY, x.DSCH, V.ReadmittedDT) AS [INTERIM]
+, CAST(V.[READMIT DATE] AS DATE)        AS [READMIT DATE]
+, V.INTERIM
 
 FROM CountingSequentialEvents        x
 	LEFT MERGE JOIN smsdss.vReadmits V
-	ON x.VISIT = V.Pt_No 
+	ON x.VISIT = V.[INDEX] 
 	LEFT OUTER JOIN smsmir.mir_drg   A  -- Gets APR-DRG OF INITIAL VISIT
 	ON x.VISIT = A.pt_id
 	LEFT OUTER JOIN smsmir.mir_vst   B  -- Gets Discharge Dispo OF INITIAL VISIT
 	ON A.pt_id = B.pt_id
 	LEFT OUTER JOIN smsmir.mir_drg   C  -- GET APR-DRG OF READMIT VISIT
-	ON V.NextVisitID = C.pt_id
+	ON V.READMIT = C.pt_id
 	LEFT OUTER JOIN smsmir.mir_vst   D  -- GETS DISCHARGE DISPO OF READMIT VISIT
 	ON C.pt_id = D.pt_id
 	-- GET THE GLOBALLY EXCLUDED APR-DRGS SO THAT WE CAN FILTER

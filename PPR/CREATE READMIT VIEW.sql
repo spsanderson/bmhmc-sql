@@ -1,45 +1,51 @@
-/*
-########################################################################
-
-CREATE A READMISSIONS VIEW TABLE THAT WILL GET USED TO CALCULATE
-CHAIN LENGTH AND CHAIN COUNTS
-
-########################################################################
-*/
 USE [SMSPHDSSS0X0]
 GO
 
 /****** 
 
-Object:  View [smsdss].[vReadmits] Script Date: 06/24/2014 10:55:12 
+Object:  View [smsdss].[vReadmits]    Script Date: 06/30/2014 12:15:07 
 
 ******/
-ALTER VIEW [smsdss].[vReadmits]
-AS
-SELECT T.Pt_No
-, T.Med_Rec_No
-, MIN(R.Adm_Date) ReadmittedDT
-, MIN(R.[Pt_NO]) NextVisitID
-, SUM(CASE
-		WHEN R.Adm_Date <= DATEADD(D, 30, ISNULL(T.Dsch_Date, R.Adm_Date))
-		THEN 1
-		ELSE 0
-		END
-	  ) READMITNEXT30
 
-FROM smsdss.BMH_PLM_PtAcct_V      T
-LEFT JOIN smsdss.BMH_PLM_PtAcct_V R
-ON T.Med_Rec_No = R.Med_Rec_No
-AND T.Pt_No < R.Pt_No
-AND R.Plm_Pt_Acct_Type = 'I'
-AND R.Pt_No < '20000000'
-
-WHERE T.Plm_Pt_Acct_Type = 'I'
-AND T.Pt_No < '20000000'
-
-GROUP BY T.Pt_No, T.Med_Rec_No
-
-
+SET ANSI_NULLS ON
 GO
 
+SET QUOTED_IDENTIFIER ON
+GO
 
+ALTER VIEW [smsdss].[vReadmits]
+AS
+WITH cte AS (
+  SELECT Pt_No
+  	, Med_Rec_No
+	, Dsch_Date
+	, Adm_Date
+	, ROW_NUMBER() OVER (
+	                     PARTITION BY MED_REC_NO 
+	                     ORDER BY ADM_DATE
+	                     ) AS r
+	                     
+  FROM smsdss.BMH_PLM_PtAcct_V
+  
+  WHERE Plm_Pt_Acct_Type = 'I'
+  AND PtNo_Num < '20000000' 
+  )
+SELECT
+c1.Pt_No                                   AS [INDEX]
+, c2.Pt_No                                 AS [READMIT]
+, c1.Med_Rec_No                            AS [MRN]
+, c1.Dsch_Date                             AS [INITIAL DISCHARGE]
+, c2.Adm_Date                              AS [READMIT DATE]
+, DATEDIFF(DAY, c1.Dsch_Date, c2.Adm_Date) AS INTERIM
+, ROW_NUMBER() OVER (
+				    PARTITION BY C1.MED_REC_NO 
+				    ORDER BY C1.PT_NO
+				    ) AS [30D RA COUNT]
+
+FROM cte c1
+INNER JOIN cte c2 ON c1.Med_Rec_No = c2.Med_Rec_No
+
+WHERE c1.Adm_Date <> c2.Adm_Date
+AND c1.r+1 = c2.r
+
+GO
