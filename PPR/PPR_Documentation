@@ -10,6 +10,12 @@ Readmissions, specifically readmissions to a facility within 30 days is a measur
 
 This document lists the code and the meaning of it and is meant to be a working document of sorts.
 
+There are three (3) Phases of the potentially preventable classification system, those being:
+
+1. Phase 1 - Identify Excluded Admissions and Non-events
+2. Phase 2 - Determine Preliminary Classification of Renaming Admissions
+3. Phase 3 - Identify PPRs and Determine Final Classification of Admissions
+
 
 ----------
 
@@ -19,7 +25,63 @@ This phase deals with identifying those visits that are Globally-excluded admiss
 
 To do this we have created a table that lists globally-excluded APR-DRG's and Non-event DRG's, this table is not yet fully complete as non-event procedure codes are still missing from it, rather there is a query that creates a temp table of excluded procedure codes.
 
-First the code of the globally-excluded APR-DRGS
+Create the Readmissions View (This is done)
+Need to make it a table
+
+    USE [SMSPHDSSS0X0]
+    GO
+    
+    /****** 
+    
+    Object:  View [smsdss].[vReadmits]    Script Date: 06/30/2014 12:15:07 
+    
+    ******/
+    
+    SET ANSI_NULLS ON
+    GO
+    
+    SET QUOTED_IDENTIFIER ON
+    GO
+    
+    ALTER VIEW [smsdss].[vReadmits]
+    AS
+    WITH cte AS (
+      SELECT Pt_No
+      	, Med_Rec_No
+    	, Dsch_Date
+    	, Adm_Date
+    	, ROW_NUMBER() OVER (
+    	                     PARTITION BY MED_REC_NO 
+    	                     ORDER BY ADM_DATE
+    	                     ) AS r
+    	                     
+      FROM smsdss.BMH_PLM_PtAcct_V
+      
+      WHERE Plm_Pt_Acct_Type = 'I'
+      AND PtNo_Num < '20000000' 
+      )
+    SELECT
+    c1.Pt_No                                   AS [INDEX]
+    , c2.Pt_No                                 AS [READMIT]
+    , c1.Med_Rec_No                            AS [MRN]
+    , c1.Dsch_Date                             AS [INITIAL DISCHARGE]
+    , c2.Adm_Date                              AS [READMIT DATE]
+    , DATEDIFF(DAY, c1.Dsch_Date, c2.Adm_Date) AS INTERIM
+    , ROW_NUMBER() OVER (
+    				    PARTITION BY C1.MED_REC_NO 
+    				    ORDER BY C1.PT_NO
+    				    ) AS [30D RA COUNT]
+    
+    FROM cte c1
+    INNER JOIN cte c2 ON c1.Med_Rec_No = c2.Med_Rec_No
+    
+    WHERE c1.Adm_Date <> c2.Adm_Date
+    AND c1.r+1 = c2.r
+
+    GO
+
+Code of the globally-excluded APR-DRGS (This is done)
+This is already an indexed table
 
     /*
     VARIABLE DECLARATION AND INITIALIZATION
@@ -64,12 +126,8 @@ First the code of the globally-excluded APR-DRGS
     (71,'860'),(72,'862'),(73,'863')
     ;
     
-
-
-
-
-
-Now the code for excluded procedure codes:
+Now the code for excluded procedure codes: (This needs to be done)
+The query is done but an indexed table needs to be made
 
     /*
     ########################################################################
@@ -103,11 +161,8 @@ Now the code for excluded procedure codes:
     AND NOCD.[CPT CODE] IS NULL
     AND CODE.proc_cd <> 'CONSULT'
     
-
-
-
-
-Finally we need a method of identifying those discharges that are acceptable:
+Finally we need a method of identifying those discharges that are acceptable: (This is done)
+Need to make an indexed table from this just like non-events and globally excluded
 
     /*
     #######################################################################
@@ -130,17 +185,16 @@ Finally we need a method of identifying those discharges that are acceptable:
     AND Plm_Pt_Acct_Type = @PT_ACCT_TYPE
     AND PtNo_Num < @VISIT_ID
     
-    
-
-
-
 All of the above queries will help in identifying those admissions/discharges that are ok to use in determining if a readmission was a potentially preventable one. The logic will get applied in later queries.
 
 
 ----------
 
 
-## Creating a Readmits View for Chains ##
+## Creating a Readmits View for Chains 
+(This is done) 
+Need to now make it an update-able indexed table
+
 In order to see what admission is the readmit id number, we create a view that then gets `LEFT OUTER JOIN`'ed onto a recursive `CTE` that will in one row, show the initial encounter and the readmission encounter. This view is created as follows:
 
     /*
@@ -197,7 +251,11 @@ Now that the view is created we can use the Recursive Common Table Expression to
 ----------
 
 
-## PPR Daisy Chains - Recursive CTE ##
+## PPR Daisy Chains - Recursive CTE
+
+(This is done)
+Need to make this an indexed update-able table
+
 We want to know how many times someone was a 30 day readmit, along with how many times someone was a 30 day readmit inside of a daisy chain, and how many times they were in a daisy chain. This query will not filter out any of the exclusionary details but the views and filters can be put inplace to do so.
 
     /*
@@ -331,26 +389,26 @@ We want to know how many times someone was a 30 day readmit, along with how many
     , x.GroupEventNum                       AS [CHAIN LEN]
     , x.GroupNum                            AS [CHAIN NUMBER]
     , x.EventNum                            AS [30 DAY RA COUNT]
-    , V.NextVisitID                         AS [READMIT VISIT ID]
+    , V.READMIT                             AS [READMIT VISIT ID]
     , C.drg_no                              AS [READMIT APR-DRG]
     , CASE
-        WHEN GE2.[APR-DRG] IS NULL
-        THEN 1
-        ELSE 0
+    	WHEN GE2.[APR-DRG] IS NULL
+    	THEN 0
+    	ELSE 1
       END                                   AS [RA EXCLUSION FLAG]
     , D.dsch_disp                           AS [READMIT DISPO]
-    , CAST(V.ReadmittedDT AS DATE)          AS [READMIT DATE]
-    , DATEDIFF(DAY, x.DSCH, V.ReadmittedDT) AS [INTERIM]
+    , CAST(V.[READMIT DATE] AS DATE)        AS [READMIT DATE]
+    , V.INTERIM
     
     FROM CountingSequentialEvents        x
     	LEFT MERGE JOIN smsdss.vReadmits V
-    	ON x.VISIT = V.Pt_No 
+    	ON x.VISIT = V.[INDEX] 
     	LEFT OUTER JOIN smsmir.mir_drg   A  -- Gets APR-DRG OF INITIAL VISIT
     	ON x.VISIT = A.pt_id
     	LEFT OUTER JOIN smsmir.mir_vst   B  -- Gets Discharge Dispo OF INITIAL VISIT
     	ON A.pt_id = B.pt_id
     	LEFT OUTER JOIN smsmir.mir_drg   C  -- GET APR-DRG OF READMIT VISIT
-    	ON V.NextVisitID = C.pt_id
+    	ON V.READMIT = C.pt_id
     	LEFT OUTER JOIN smsmir.mir_vst   D  -- GETS DISCHARGE DISPO OF READMIT VISIT
     	ON C.pt_id = D.pt_id
     	-- GET THE GLOBALLY EXCLUDED APR-DRGS SO THAT WE CAN FILTER
@@ -367,10 +425,7 @@ We want to know how many times someone was a 30 day readmit, along with how many
     
     ORDER BY x.PersonID, x.EventDate
     
-    OPTION (MAXRECURSION 1000); -- Max events a person can have
-    
-
-
+1. We may to turn this into either a view or an update-able indexed table for future phase use.
 
 The above query will get the following information:
 
@@ -393,6 +448,12 @@ The above query will get the following information:
  17. Interim - (How many days between addmisions, NULL allowable)
 
 The filtering on the APR-DRG and the discharge disposition is not done with the above query as we want to turn that itself into either an indexed table or a view that can have logic applied to it for performance purposes.
+
+## Next Steps ##
+1. Create update-able indexed tables from smsdss.vReadmits
+2. Create update-able indexed table from PPR_CHAINS query
+3. Create indexed table for non-event procedures
+4. Write non-event procedures table just like globally excluded drg table
  
     
     
