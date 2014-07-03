@@ -3,7 +3,7 @@
 
 > Written with [StackEdit](https://stackedit.io/).
 
-Last updated on June 27th 2014 by Steven Sanderson
+Last updated on 7-03-2014 by Steven Sanderson
 
 ## Idea ##
 Readmissions, specifically readmissions to a facility within 30 days is a measure set forth by The Centers for Medicare and Medicaid CMS as a metric of outcome quality. The idea is that if treated appropriately the first time a subsequent visit would be unnecessary. This can be a bit cumbersome as there are events that might not be clinically related to the initial visit, which is where looking at Potentially Preventable Readmissions is more appropriate. This then allows an institution to see if they are really providing quality care by limiting the amount of potentially preventable readmissions, those that are clinically related to the initial visit in some fashion.
