@@ -125,7 +125,15 @@ SELECT x.EventID                        AS [EVENT ID]
 	THEN 0
 	ELSE 1
   END                                   AS [INITIAL EXCLUSION FLAG]
+-- GOOD DISCHARGE CODES ARE FLAGGED AS A 1
 , B.dsch_disp                           AS [INITIAL DISPO]
+, CASE
+	WHEN B.dsch_disp NOT IN (
+	'AHR', 'ATW'
+	)
+	THEN 0
+	ELSE 1
+  END                                   AS [INITIAL DISPO FLAG]
 , x.GroupEventNum                       AS [CHAIN LEN]
 , x.GroupNum                            AS [CHAIN NUMBER]
 , x.EventNum                            AS [30 DAY RA COUNT]
@@ -136,7 +144,15 @@ SELECT x.EventID                        AS [EVENT ID]
 	THEN 0
 	ELSE 1
   END                                   AS [RA EXCLUSION FLAG]
+-- GOOD READMIT DISCHARGE CODES ARE FLAGGED AS A 1
 , D.dsch_disp                           AS [READMIT DISPO]
+, CASE
+	WHEN D.dsch_disp NOT IN (
+	'AHR','ATW'
+	)
+	THEN 0
+	ELSE 1
+  END                                   AS [READMIT DISPO FLAG]
 , CAST(V.[READMIT DATE] AS DATE)        AS [READMIT DATE]
 , V.INTERIM
 
@@ -162,6 +178,7 @@ FROM CountingSequentialEvents        x
 -- THIS LIMITS THE DRG TYPE, IT ALSO DROPS MANY RECORDS FROM THE FINAL RESULT SET
 WHERE A.drg_type = '3'
 AND C.drg_type = '3'
+AND V.[READMIT SOURCE DESC] != 'Scheduled Admission'
 
 ORDER BY x.PersonID, x.EventDate
 

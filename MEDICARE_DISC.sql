@@ -1,11 +1,16 @@
-select *
+SELECT PtNo_Num
+, Dsch_Date
+, DATEPART(MONTH, Dsch_Date) AS [DSCH MONTH]
+, DATEPART(YEAR, DSCH_DATE) AS [DSCH YEAR]
 
 from smsdss.BMH_PLM_PtAcct_V
 
-where Dsch_DTime between '2014-04-01' and '2014-04-30'
+where Dsch_DTime >= '2014-05-01' 
+AND DSCH_DTIME < '2014-06-01'
 AND Plm_Pt_Acct_Type = 'I'
 AND Plm_Pt_Acct_Type != 'P'
-and Pyr1_Co_Plan_Cd in (
+AND PtNo_Num < '20000000'
+AND Pyr1_Co_Plan_Cd in (
 'A00','A01','A02','A03','A04','A05','A06','A07','A08','A09',
 'A10','A11','A12','A13','A50','A51','A52','A53','A59','A65',
 'A70','A76','A77','A78','A79','A90','A91','A92','A93','A94',

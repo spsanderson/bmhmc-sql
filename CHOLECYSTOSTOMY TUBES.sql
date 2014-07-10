@@ -1,17 +1,16 @@
 SELECT A.pt_id
-, C.rpt_name
+, C.rpt_name AS Patient
 , C.med_rec_no
 , C.birth_dtime
 , A.proc_cd
 , B.clasf_desc
 , A.proc_eff_dtime
 , A.resp_pty_cd
-, D.pract_rpt_name
+, D.pract_rpt_name AS Performing
 , E.prim_pyr_cd
 , F.pyr_name
 , G.Atn_Dr_No
-, H.pract_rpt_name
-
+, H.pract_rpt_name AS Attending
 
 FROM smsmir.mir_sproc				        A
 	LEFT OUTER JOIN smsmir.mir_clasf_mstr   B
