@@ -5,7 +5,7 @@ SELECT Ucase("''" & [unique personal identifier] & "'';") AS unique_personal_ide
 , [race]
 , "''" & [ethnicity] & "'';" AS _ethnicity
 , "''" & [payer] & "'';" AS _payer
-, "''" & [insurance number] & "'';" AS insurance_number
+, Ucase("''" & [insurance number] & "'';") AS insurance_number
 , "''" & [medical record number] & "'';" AS medical_record_number
 , "''" & [facility identifier] & "'';" AS facility_identifier
 , "''" & [admission datetime] & "'';" AS admission_datetime
