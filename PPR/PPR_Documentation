@@ -201,7 +201,7 @@ All of the above queries will help in identifying those admissions/discharges th
 (This is done)
 Need to make this an indexed update-able table
 
-We want to know how many times someone was a 30 day readmit, along with how many times someone was a 30 day readmit inside of a daisy chain, and how many times they were in a daisy chain. This query will not filter out any of the exclusionary details but the views and filters can be put inplace to do so.
+We want to know how many times someone was a 30 day readmit, along with how many times someone was a 30 day readmit inside of a daisy chain, and how many times they were in a daisy chain. This query will not filter out any of the exclusionary details but the views and filters can be put in place to do so.
 
     /*
     #######################################################################
@@ -330,7 +330,15 @@ We want to know how many times someone was a 30 day readmit, along with how many
     	THEN 0
     	ELSE 1
       END                                   AS [INITIAL EXCLUSION FLAG]
+    -- GOOD DISCHARGE CODES ARE FLAGGED AS A 1
     , B.dsch_disp                           AS [INITIAL DISPO]
+    , CASE
+    	WHEN B.dsch_disp NOT IN (
+    	'AHR', 'ATW'
+    	)
+    	THEN 0
+    	ELSE 1
+      END                                   AS [INITIAL DISPO FLAG]
     , x.GroupEventNum                       AS [CHAIN LEN]
     , x.GroupNum                            AS [CHAIN NUMBER]
     , x.EventNum                            AS [30 DAY RA COUNT]
@@ -341,7 +349,15 @@ We want to know how many times someone was a 30 day readmit, along with how many
     	THEN 0
     	ELSE 1
       END                                   AS [RA EXCLUSION FLAG]
+    -- GOOD READMIT DISCHARGE CODES ARE FLAGGED AS A 1
     , D.dsch_disp                           AS [READMIT DISPO]
+    , CASE
+    	WHEN D.dsch_disp NOT IN (
+    	'AHR','ATW'
+    	)
+    	THEN 0
+    	ELSE 1
+      END                                   AS [READMIT DISPO FLAG]
     , CAST(V.[READMIT DATE] AS DATE)        AS [READMIT DATE]
     , V.INTERIM
     
@@ -370,6 +386,8 @@ We want to know how many times someone was a 30 day readmit, along with how many
     AND V.[READMIT SOURCE DESC] != 'Scheduled Admission'
     
     ORDER BY x.PersonID, x.EventDate
+    
+    OPTION (MAXRECURSION 1000); -- Max events a person can have
     
 1. We may to turn this into either a view or an update-able indexed table for future phase use.
 
