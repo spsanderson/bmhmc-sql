@@ -168,30 +168,32 @@ Now the code for excluded procedure codes: (This needs to be done)
     AND NOCD.[CPT CODE] IS NULL
     AND CODE.proc_cd <> 'CONSULT'
     
-Finally we need a method of identifying those discharges that are acceptable: (This is done)
-Need to make an indexed table from this just like non-events and globally excluded
+~~Finally we need a method of identifying those discharges that are acceptable: ~(This is done)
+~Need to make an indexed table from this just like non-events and globally excluded~~
 
-    /*
-    #######################################################################
-    
-    DISCHARGES THAT ARE OK
-    
-    #######################################################################
-    */
-    DECLARE @PT_ACCT_TYPE     VARCHAR;
-    DECLARE @VISIT_ID         VARCHAR(8);
-    
-    SET @PT_ACCT_TYPE     = 'I';
-    SET @VISIT_ID         = '20000000';
-    
-    SELECT *
-    
-    FROM smsdss.BMH_PLM_PtAcct_V
-    
-    WHERE dsch_disp IN ('AHR', 'ATW')
-    AND Plm_Pt_Acct_Type = @PT_ACCT_TYPE
-    AND PtNo_Num < @VISIT_ID
-    
+(The below was put inside of the `PPR_Chains.sql`)
+
+~~/*
+~#######################################################################
+~
+~DISCHARGES THAT ARE OK
+~
+~#######################################################################
+~*/
+~DECLARE @PT_ACCT_TYPE     VARCHAR;
+~DECLARE @VISIT_ID         VARCHAR(8);
+~
+~SET @PT_ACCT_TYPE     = 'I';
+~SET @VISIT_ID         = '20000000';
+~
+~SELECT *
+~
+~FROM smsdss.BMH_PLM_PtAcct_V
+~
+~WHERE dsch_disp IN ('AHR', 'ATW')
+~AND Plm_Pt_Acct_Type = @PT_ACCT_TYPE
+~AND PtNo_Num < @VISIT_ID~~
+
 All of the above queries will help in identifying those admissions/discharges that are ok to use in determining if a readmission was a potentially preventable one. The logic will get applied in later queries.
 
 
