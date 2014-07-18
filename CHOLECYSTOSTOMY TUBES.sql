@@ -32,5 +32,6 @@ FROM smsmir.mir_sproc				        A
 
 WHERE A.proc_cd='51.01'
 AND A.pt_id BETWEEN '000010000000' AND '000099999999'
+AND H.iss_orgz_cd = 'S0X0'
 
 ORDER BY A.proc_eff_dtime ASC

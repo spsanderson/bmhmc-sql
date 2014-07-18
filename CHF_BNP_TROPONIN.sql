@@ -836,18 +836,18 @@ DECLARE @RA TABLE (
 
 INSERT INTO @RA
 SELECT
-G.B_Episode_No
+G.READMIT
 , G.FLAG
 
 FROM (
-	SELECT B_Episode_No
+	SELECT R.READMIT
 	, 1 AS FLAG
 	
-	FROM smsdss.c_readmissions_v
-	
-	WHERE B_Episode_No < '20000000'
-		AND B_Adm_Date >= @START
-		AND B_Adm_Src_Desc != 'Scheduled Admission'
+	FROM smsdss.vReadmits R
+		
+	WHERE R.READMIT < '20000000'
+		AND R.[READMIT SOURCE DESC] != 'Scheduled Admission'
+		AND R.INTERIM <= 30
 )G
 
 /*
