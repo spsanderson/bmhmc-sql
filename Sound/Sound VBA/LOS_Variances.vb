@@ -43,3 +43,15 @@ wksConditionAlos.PivotTables("z_score_tbl").PivotFields("PHYS NAME").CurrentPage
 Sheets("Report Page").Activate
 
 End Sub
+------------------------------------------------------------------------
+Sub Quit_Application()
+
+Dim Msg As String
+    
+    Msg = "Congratulations! You now know Steve's the bomb!"
+    MsgBox Msg, vbExclamation, "Well Done!"
+    
+    Application.SaveWorkspace
+    Application.Quit
+
+End Sub
