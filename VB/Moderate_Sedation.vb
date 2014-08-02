@@ -5,7 +5,7 @@ Private Sub cmdCloseForm_Click()
     Unload Me
 
 End Sub
-
+''--
 Private Sub cmdOpenEditRecord_Click()
 
     Unload Me
@@ -15,7 +15,7 @@ Private Sub cmdOpenEditRecord_Click()
     frmEditRecord.Show
     
 End Sub
-
+''--
 Sub UserForm_Initialize()
 
     ' empty out the text boxes
@@ -27,12 +27,14 @@ Sub UserForm_Initialize()
     txtNotes = ""
     cboMDStatus = ""
     txtMDIDNumber = ""
+    cboPrivileged = ""
+    cboCredentialed = ""
     
     txtFirstName.SetFocus
 
 
 End Sub
-
+''--
 Private Sub cmdSaveRecord_Click()
 
 '' variables
@@ -41,6 +43,9 @@ Dim emptyRow As Long
 '' worksheets
 Dim wksData As Worksheet
 Dim wksInputData As Worksheet
+
+' Turn screen updating off
+Application.ScreenUpdating = False
 
 '' set values of worksheets
 Set wksData = Sheets("Data")
@@ -62,20 +67,9 @@ Set wksInputData = Sheets("Input Data")
     Cells(emptyRow, 7).Value = txtNotes.Value
     Cells(emptyRow, 8).Value = dtpDatePassedTest.Value
     Cells(emptyRow, 9).Value = dtpDateOfPrivileges.Value
-    
-    ' leave column J empty Privileges column number 10 - Are they privileged?
-    'If Cells(emptyRow, 9).Value = "" Then
-    '    Cells(emptyRow, 10).Value = "No"
-    'ElseIf Cells(emptyRow, 9).Value <> "" Then
-    '    Cells(emptyRow, 10).Value = "Yes"
-    'End If
-    
+    Cells(emptyRow, 10).Value = cboPrivileged.Value
+    Cells(emptyRow, 12).Value = cboCredentialed.Value
     Cells(emptyRow, 11).Value = dtpDateOfCredentialing.Value
-    
-    ' leave column L emptry Certification column number 12 - do they have certification?
-    'if
-    'elseif
-    'endif
     
     ' Date privileges expire
     Cells(emptyRow, 13).Value = DateAdd("yyyy", 4, dtpDateOfPrivileges)
@@ -101,13 +95,22 @@ Set wksInputData = Sheets("Input Data")
     
     Call UserForm_Initialize
 
+' Turn screen updating back on
+Application.ScreenUpdating = True
+
+
 End Sub
--------------------------------------------------------------------------
+
+------------------------------------------------------------------------
 Option Explicit
 
 Private Sub cmdCloseForm_Click()
 
     Unload Me
+
+End Sub
+
+Private Sub cmdEditRecord_Click()
 
 End Sub
 
@@ -136,9 +139,11 @@ Private Sub cmdSearch_Click()
     
     '' this is the workseet where data lives
     wksData.Activate
-
     
     If txtLastNameSearch.Value = "" And txtMD_ID.Value = "" Then
+        Application.ScreenUpdating = False
+        Sheets("Input Data").Activate
+        Application.ScreenUpdating = True
         Msg = "Congratulations you failed to enter search criteria"
         MsgBox Msg, vbCritical, "Good Job"
     End If
@@ -159,3 +164,107 @@ Private Sub cmdSearch_Click()
     End If
 
 End Sub
+
+-------------------------------------------------------------------------
+Option Explicit
+
+Sub mDaysTillExpired()
+    
+    Dim vDaysTillExpire As Integer
+    
+    Application.ScreenUpdating = False
+    
+    Sheets("Data").Activate
+    Range("O2").Select
+    
+    ' This loop will get the days until Privileges Expire
+    Do
+        vDaysTillExpire = ActiveCell.Select
+        ActiveCell.FormulaR1C1 = "=RC[-2] - TODAY()"
+        ActiveCell.Offset(1, 0).Select
+    Loop Until ActiveCell.Value = ""
+    
+    Range("O:O").NumberFormat = "0"
+    
+    ' This loop will get the days until Credentials Expire
+    Range("P2").Select
+    
+    Do
+        vDaysTillExpire = ActiveCell.Select
+        ActiveCell.FormulaR1C1 = "=RC[-2] - TODAY()"
+        ActiveCell.Offset(1, 0).Select
+    Loop Until ActiveCell.Value = ""
+    
+    Range("P:P").NumberFormat = "0"
+    
+    Sheets("Input Data").Activate
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "All the days till expiration have finished calculating"
+
+End Sub
+
+------------------------------------------------------------------------
+
+Option Explicit
+
+Sub mExpiring()
+
+Dim vDays As Integer
+
+' Turn off screen updating
+Application.ScreenUpdating = False
+
+' Clear data on the Expiring Page
+Sheets("Expiring").Activate
+Range("A2").Select
+Range(Selection, Selection.End(xlToRight)).Select
+Range(Selection, Selection.End(xlDown)).Select
+Selection.ClearContents
+Range("A2").Select
+
+
+' Go to the data page to run the Do Loop
+Sheets("Data").Activate
+
+' This is where to start
+Range("O2").Select
+
+' This is the loop for expiring privileges
+Do
+    vDays = ActiveCell.Value
+        
+    If vDays < 90 Then
+        ActiveCell.Offset(0, -14).Activate
+        Range(ActiveCell, ActiveCell.End(xlToRight)).Copy
+        Worksheets("Expiring").Activate
+        ActiveCell.PasteSpecial
+        ActiveCell.Offset(1, 0).Select
+        Sheets("Data").Activate
+        ActiveCell.Offset(0, 14).Select
+    End If
+    
+    Application.CutCopyMode = False
+    ActiveCell.Offset(1, 0).Select
+            
+Loop Until ActiveCell.Value = ""
+
+Sheets("Expiring").Activate
+
+Application.ScreenUpdating = True
+
+' Small finish message
+MsgBox "Here is a list of all those who have privileges expiring in 90 days or less."
+
+End Sub
+
+------------------------------------------------------------------------
+Sub mQuitApplication()
+
+    Application.quit
+
+End Sub
+
+
+
