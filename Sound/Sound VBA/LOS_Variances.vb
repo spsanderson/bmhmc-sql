@@ -91,6 +91,39 @@ Sub AMA_Rate_Report()
     Sheets("AMA Trending Rate").Activate
 End Sub
 ------------------------------------------------------------------------
+Sub Consult_Report()
+
+    Dim vPhysConsult     As String    'the doctor in question
+    Dim wksConsultParams As Worksheet 'the params worksheet
+    Dim wksConsultPivots As Worksheet 'the consult pivot data worksheet
+    
+    Set wksConsultParams = Sheets("params")
+    Set wksConsultPivots = Sheets("consult pivot data")
+    
+    vPhysConsult = wksConsultParams.Range("D26")
+    
+    'set pivot table information to get order counts
+    wksConsultPivots.PivotTables("Consult_Order_Count").PivotFields("Doctor Ordering Consult").CurrentPage = _
+        vPhysConsult
+    'set pivot table information to get patient counts
+    wksConsultPivots.PivotTables("Consult_Patient_Count").PivotFields("Doctor Ordering Consult").CurrentPage = _
+        vPhysConsult
+        
+    'go to pivot data page
+    Sheets("Consult Report").Activate
+
+End Sub
+------------------------------------------------------------------------
+Sub Back_To_Params_Page()
+
+    Dim wksParamsPage As Worksheet
+    
+    Set wksParamsPage = Sheets("params")
+    
+    wksParamsPage.Activate
+
+End Sub
+
 Sub Quit_Application()
 
     Dim Msg As String
