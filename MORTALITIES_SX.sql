@@ -47,7 +47,8 @@ WITH [SX FLAG] AS (
 		,'D1Z','D2A','D2N','D2Z','D3A','D3N','D3Z','D4A','D4N','D4Z'
 		,'D7A','D7N','D7Z','D8A','D8N','D8Z'
 	)
-	AND Dsch_Date BETWEEN @SD AND @ED
+	AND Dsch_Date >= @SD 
+	AND Dsch_Date < @ED
 	AND Plm_Pt_Acct_Type = 'I'
 	AND PtNo_Num < '20000000'
 )
