@@ -295,6 +295,14 @@ SELECT
 	  END                                   AS [Senior Citizen Flag]
 	, LIHN.[LIHN Service Line]
 	, ICUV.[ICU Flag]
+	, DATEPART(WEEKDAY, IP.[ADM DATE TIME])  AS [Adm DOW]
+	, DATEPART(MONTH, IP.[ADM DATE TIME])    AS [Adm Month]
+	, DATEPART(YEAR, IP.[ADM DATE TIME])     AS [Adm Year]
+	, DATEPART(HOUR, IP.[ADM DATE TIME])     AS [Adm Hour]
+	, DATEPART(WEEKDAY, IP.[Dsch Date Time]) AS [Dsch DOW]
+	, DATEPART(MONTH, IP.[DSCH DATE TIME])   AS [Dsch Month]
+	, DATEPART(YEAR, IP.[DSCH DATE TIME])    AS [Dsch Year]
+	, DATEPART(HOUR, IP.[DSCH DATE TIME])    AS [Dsch Hour]
 
 FROM @INIT_POP IP
 	LEFT MERGE JOIN @PLYPHARM                     PP
