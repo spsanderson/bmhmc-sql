@@ -1,3 +1,9 @@
+DECLARE @START DATE;
+DECLARE @END   DATE;
+
+SET @START = '01/01/2014';
+SET @END   = '06/01/2014';
+
 SELECT 
 	d.user_pyr1_cat
 	, d.fc
@@ -51,8 +57,8 @@ FROM smsmir.mir_sproc                    AS A
 
 WHERE a.resp_pty_cd IN ()
 	AND a.proc_cd_prio IN ('01','1')
-	AND a.proc_eff_dtime >= '01/01/2014' 
-	AND A.proc_eff_dtime < '07/01/2014'
+	AND a.proc_eff_dtime >= @START
+	AND A.proc_eff_dtime < @END
 	AND a.proc_cd_schm NOT IN ('!')
 	AND a.pt_id BETWEEN '000010000000' AND '000099999999'
 	AND d.tot_chg_amt >0
@@ -103,8 +109,8 @@ FROM smsdss.BMH_PLM_PtAcct_V             AS f
 WHERE f.pt_type IN (
 	'T','U','O','B','I','J','M','P','Q','S','W','Y'
 	)
-	AND f.adm_date >= '01/01/2014' 
-	AND F.ADM_DATE < '07/01/2014'
+	AND f.adm_date >= @START 
+	AND F.ADM_DATE < @END
 	AND f.tot_chg_amt > 0
 	AND h.src_sys_id='#PASS0X0'
 	AND i.src_sys_id='#PASS0X0'
@@ -123,8 +129,8 @@ WHERE f.pt_type IN (
 			WHERE a.resp_pty_cd IN ()
 
 				AND a.proc_cd_prio IN ('01','1')
-				AND a.proc_eff_dtime >= '01/01/2014' 
-				AND A.proc_eff_dtime < '07/01/2014'
+				AND a.proc_eff_dtime >= @START 
+				AND A.proc_eff_dtime < @END
 				AND a.proc_cd_schm NOT IN ('!')
 				AND a.pt_id BETWEEN '000010000000' AND '000099999999'
 				AND d.tot_chg_amt >0
