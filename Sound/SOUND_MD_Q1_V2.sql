@@ -12,13 +12,15 @@ DECLARE @CP_1 INT;
 DECLARE @CP_2 INT;
 DECLARE @CP_3 INT;
 DECLARE @SCT VARCHAR(10);
+DECLARE @CDSCHM VARCHAR(10);
 
-SET @SD = '2014-04-01';
-SET @ED = '2014-05-01';
+SET @SD = '2015-01-01';
+SET @ED = '2015-09-30';
 SET @CP_1 = 1;
 SET @CP_2 = 2;
 SET @CP_3 = 3;
 SET @SCT = 'DF';
+SET @CDSCHM = 9;
 
 /*
 -----------------------------------------------------------------------
@@ -115,12 +117,10 @@ FROM (
 	FROM smsdss.BMH_PLM_PtAcct_V              PAV
 	     JOIN smsdss.pract_dim_v              PDV
 	     ON PAV.Adm_Dr_No = PDV.src_pract_no
-	     
 	     /*GET SECOND DR NAME*/
 	     JOIN smsdss.pract_dim_v              PDVB
 	     ON PAV.Atn_Dr_No = PDVB.src_pract_no
 	     /*END*/
-	     
 	     JOIN smsdss.pyr_dim                  PD
 	     ON PAV.Pyr1_Co_Plan_Cd = PD.pyr_cd
 	     JOIN smsmir.vst_rpt                  VR
@@ -185,6 +185,7 @@ FROM (
 
 	WHERE ClasfPrio = @CP_1
 	AND SortClasfType = @SCT
+	AND ClasfSch = @CDSCHM
 ) B
 
 --SELECT * FROM @ICD9_1
@@ -208,6 +209,7 @@ FROM (
 
 	WHERE ClasfPrio = @CP_2
 	AND SortClasfType = @SCT
+	AND ClasfSch = @CDSCHM
 ) C
 
 --SELECT * FROM @ICD9_2
@@ -231,6 +233,7 @@ FROM (
 
 	WHERE ClasfPrio = @CP_3
 	AND SortClasfType = @SCT
+	AND ClasfSch = @CDSCHM
 ) D
 
 --SELECT * FROM @ICD9_3
@@ -323,7 +326,7 @@ HAS ICU VISIT Y/N
 #######################################################################
 */
 
-DECLARE @T3 TABLE (
+/*DECLARE @T3 TABLE (
 	[ENCOUNTER 3]     VARCHAR(200)
 	, [HAS ICU VISIT] VARCHAR(10)
 )
@@ -350,7 +353,45 @@ FROM (
 	ON PVFV.pms_vst_key = TXFR.pms_vst_key
 
 WHERE PVFV.vst_end_date BETWEEN @SD AND @ED
-) C
+) C*/
+
+/*
+#######################################################################
+DOES THE PATIENT HAVE OBSERVATION TIME?
+#######################################################################
+*/
+-- T4 DECLARATION
+DECLARE @T4 TABLE (
+	[MRN]        VARCHAR (200)
+	, [VST STRT] DATETIME
+	, [REG TIME] DATETIME
+	, [SVC]      VARCHAR (5)
+)
+
+-- WHAT GETS INSERTED INTO @T4
+INSERT INTO @T4
+SELECT
+D.Med_Rec_No
+, D.vst_start_dtime
+, D.Reg_Dtime
+, D.hosp_svc
+
+-- WHERE IT ALL COMES FROM
+FROM (
+	SELECT PAV2.MED_REC_NO
+	, PAV2.vst_start_dtime
+	, ER2.Reg_Dtime
+	, ER2.hosp_svc
+	
+	FROM 
+	smsdss.BMH_PLM_PtAcct_V      PAV2
+	LEFT OUTER JOIN
+	smsdss.c_er_tracking         ER2
+	ON PAV2.Med_Rec_No = ER2.med_rec_no
+		AND PAV2.vst_start_dtime = ER2.Reg_Dtime
+	
+	WHERE ER2.hosp_svc = 'OBV'
+) D
 
 /*
 #######################################################################
@@ -389,11 +430,36 @@ T1.Med_Rec_No
 , T1.[ADMIT PATIENT STATUS]     AS PtStatus_Admiss
 , T1.[DISCHARGE PATIENT STATUS] AS PtStatus_Discharge
 --, T3.[HAS ICU VISIT] AS ICU_Stay
+, CASE
+	WHEN T4.SVC IS NULL
+	THEN 'NO OBS'
+	ELSE T4.SVC
+  END                           AS Observation_Status
+
 
 FROM @T1 T1
 	LEFT OUTER JOIN @ICD9F ICD9F
 	ON T1.Acct_No = ICD9F.PTNO_NUM
 	LEFT OUTER JOIN @T2 T2
 	ON T1.Acct_No = T2.[ENCOUNTER ID]
+	/*
 	LEFT OUTER JOIN @T3 T3
 	ON T1.Acct_No = T3.[ENCOUNTER 3]
+	*/
+	LEFT OUTER JOIN @T4 T4
+	ON T1.Med_Rec_No = T4.MRN
+	
+/* 
+CHANGE LOG
+
+10-08-2015 - Steven Sanderson
+Change note ** - Added a new variable [ DECLARE @CDSCHM VARCHAR(10); ]
+setting it equal to 9 in order to get just the ICD-9 code for the patient.
+Will reach out to Sound to see if they also want the ICD-10 codes sent
+to them.
+
+10-09-2015 - Steven Sanderson
+Change note ** - Added in a select statement into table 1 @T1 that will
+show if the patint had any observation time before they were admitted
+into the hospital.
+*/
