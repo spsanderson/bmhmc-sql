@@ -48,7 +48,7 @@ DECLARE @T1 TABLE (
 	, Discharge_Time             TIME
 	, /*NEW*/Admitting_Phys      VARCHAR (200)
 	, /*NEW*/Attending_Phys      VARCHAR (200)
-	/*Discharging_Phys - can't get*/
+	/*Discharging_Phys - cant get*/
 	, DC_Dispo_Code              VARCHAR (10)
 	, DC_Dispo_Defin             VARCHAR (200)
 	, [MS DRG]                   VARCHAR (200)
@@ -103,7 +103,7 @@ FROM (
 	, CAST(PAV.Dsch_DTime AS TIME)      AS [DISCHARGE TIME]
 	, /*NEW*/PDV.pract_rpt_name         AS [ADMITTING DR]
 	, /*NEW*/PDVB.pract_rpt_name        AS [ATTENDING DR]
-	/*Discharging_Phys - can't get*/
+	/*Discharging_Phys - cant get*/
 	, PAV.drg_no                        AS [MS DRG]
 	, /*NEW*/DRG.drg_name_modf          AS [DRG NAME]
 	, PAV.Days_Stay                     AS [LOS]
