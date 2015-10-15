@@ -48,7 +48,7 @@ DECLARE @T1 TABLE (
 	, Discharge_Time             TIME
 	, /*NEW*/Admitting_Phys      VARCHAR (200)
 	, /*NEW*/Attending_Phys      VARCHAR (200)
-	/*Discharging_Phys - cant get*/
+	/*Discharging_Phys - can't get*/
 	, DC_Dispo_Code              VARCHAR (10)
 	, DC_Dispo_Defin             VARCHAR (200)
 	, [MS DRG]                   VARCHAR (200)
@@ -103,7 +103,7 @@ FROM (
 	, CAST(PAV.Dsch_DTime AS TIME)      AS [DISCHARGE TIME]
 	, /*NEW*/PDV.pract_rpt_name         AS [ADMITTING DR]
 	, /*NEW*/PDVB.pract_rpt_name        AS [ATTENDING DR]
-	/*Discharging_Phys - cant get*/
+	/*Discharging_Phys - can't get*/
 	, PAV.drg_no                        AS [MS DRG]
 	, /*NEW*/DRG.drg_name_modf          AS [DRG NAME]
 	, PAV.Days_Stay                     AS [LOS]
@@ -362,35 +362,28 @@ DOES THE PATIENT HAVE OBSERVATION TIME?
 */
 -- T4 DECLARATION
 DECLARE @T4 TABLE (
-	[MRN]        VARCHAR (200)
-	, [VST STRT] DATETIME
-	, [REG TIME] DATETIME
-	, [SVC]      VARCHAR (5)
+	[PT ID]    VARCHAR(20)
+	, [OBV CD] VARCHAR(10)
 )
 
 -- WHAT GETS INSERTED INTO @T4
 INSERT INTO @T4
 SELECT
-D.Med_Rec_No
-, D.vst_start_dtime
-, D.Reg_Dtime
-, D.hosp_svc
+D.PtNo_Num
+, D.Obv_Svc_Cd
 
 -- WHERE IT ALL COMES FROM
 FROM (
-	SELECT PAV2.MED_REC_NO
-	, PAV2.vst_start_dtime
-	, ER2.Reg_Dtime
-	, ER2.hosp_svc
+	SELECT PAV2.PtNo_Num
+	, OBV.Obv_Svc_Cd
 	
 	FROM 
 	smsdss.BMH_PLM_PtAcct_V      PAV2
 	LEFT OUTER JOIN
-	smsdss.c_er_tracking         ER2
-	ON PAV2.Med_Rec_No = ER2.med_rec_no
-		AND PAV2.vst_start_dtime = ER2.Reg_Dtime
+	smsdss.c_obv_Comb_1          OBV
+	ON PAV2.PtNo_Num = OBV.pt_id
 	
-	WHERE ER2.hosp_svc = 'OBV'
+	WHERE OBV.pt_id < 20000000
 ) D
 
 /*
@@ -431,9 +424,11 @@ T1.Med_Rec_No
 , T1.[DISCHARGE PATIENT STATUS] AS PtStatus_Discharge
 --, T3.[HAS ICU VISIT] AS ICU_Stay
 , CASE
-	WHEN T4.SVC IS NULL
-	THEN 'NO OBS'
-	ELSE T4.SVC
+	WHEN T4.[OBV CD] IS NULL
+		THEN 'NO OBS'
+	WHEN T4.[OBV CD] = 'ADT11'
+		THEN 'OBS'
+	ELSE NULL
   END                           AS Observation_Status
 
 
@@ -447,7 +442,7 @@ FROM @T1 T1
 	ON T1.Acct_No = T3.[ENCOUNTER 3]
 	*/
 	LEFT OUTER JOIN @T4 T4
-	ON T1.Med_Rec_No = T4.MRN
+	ON T1.Acct_No = T4.[PT ID]
 	
 /* 
 CHANGE LOG
@@ -462,4 +457,7 @@ to them.
 Change note ** - Added in a select statement into table 1 @T1 that will
 show if the patint had any observation time before they were admitted
 into the hospital.
+
+10-12-2015 - Steven Sanderson
+Change note ** - Using smsdss.c_obv_Combo_1 instead of smsdss.c_er_tracking
 */
