@@ -80,6 +80,7 @@ WHERE (
 		)
 AND B.hosp_svc != 'PSY'
 AND INTERIM < 31
+AND E.[ICD_CD_SCHM] = '9'
 
 GROUP BY R.[INDEX]
 , b.Pt_Name
