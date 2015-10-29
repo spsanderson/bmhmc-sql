@@ -57,7 +57,7 @@ DECLARE @T2 TABLE (
 INSERT INTO @T2
 SELECT *
 FROM (
-	select E.LIHN_Svc_Line AS [Readmit LIHN Service Line]
+	SELECT E.LIHN_Svc_Line AS [Readmit LIHN Service Line]
 	, e.LIHN_Svc_Line      AS [# Of Readmits to Service Line]
 	, YEAR(b.dsch_date)    AS [Readmit Discharge Year]
 
@@ -77,6 +77,7 @@ FROM (
 	AND E.LIHN_Svc_Line IS NOT NULL
 	AND E.[ICD_CD_SCHM] = @ICD
 	AND R.INTERIM < 31
+	AND R.[READMIT SOUCE DESC] != 'Scheduled Admission'
 ) AS B
 
 PIVOT (
@@ -89,15 +90,35 @@ PIVOT (
 -- join the tables together
 SELECT T1.[Service Line]
 , T1.[Admits 2014]               AS [Admits 2014]
-, T2.[Readmits 2014]             AS [Readmits 2014]
-, Round((CAST(T2.[Readmits 2014] AS FLOAT))
+, CASE
+	WHEN T2.[Readmits 2014] IS NULL 
+	THEN '0'
+	ELSE T2.[Readmits 2014]
+  END                            AS [Readmits 2014]
+, CASE
+	WHEN T1.[Admits 2014] = 0
+	THEN 0
+	WHEN T2.[Readmits 2014] IS NULL
+	THEN 0
+	ELSE ROUND((CAST(T2.[Readmits 2014] AS FLOAT))
 	/
-  (T1.[Admits 2014]),2) * 100    AS [Readmit % 2014]
+   (T1.[Admits 2014]),2)    
+  END                            AS [Readmit % 2014]
 , T1.[Admits 2015]               AS [Admits 2015]
-, T2.[Readmits 2015]             AS [Readmits 2015]
-, ROUND((CAST(T2.[Readmits 2015] AS FLOAT))
+, CASE
+	WHEN T2.[Readmits 2015] IS NULL
+	THEN 0
+	ELSE T2.[Readmits 2015]      
+  END                            AS [Readmits 2015]
+, CASE
+	WHEN T1.[Admits 2015] = 0
+	THEN 0
+	WHEN T2.[Readmits 2015] IS NULL
+	THEN 0
+	ELSE  ROUND((CAST(T2.[Readmits 2015] AS FLOAT))
 	/
-  (T1.[Admits 2015]), 2) * 100   AS [Readmit % 2015]
+   (T1.[Admits 2015]), 2)   
+  END AS [Readmit % 2015]
 
 FROM @T1 T1
 LEFT JOIN @T2 T2

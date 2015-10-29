@@ -79,8 +79,14 @@ WHERE (
 		B.Adm_Date >= @SD2 AND B.Adm_Date < @ED2
 		)
 AND B.hosp_svc != 'PSY'
+AND R.[READMIT SOURCE DESC] != 'Scheduled Admission'
 AND INTERIM < 31
 AND E.[ICD_CD_SCHM] = '9'
+AND (
+	E.PROC_CD_SCHM = '9'
+	OR
+	E.PROC_CD_SCHM IS NULL
+	)
 
 GROUP BY R.[INDEX]
 , b.Pt_Name
