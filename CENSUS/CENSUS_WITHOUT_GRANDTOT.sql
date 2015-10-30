@@ -7,7 +7,8 @@ SET @MONTH = 5;
 SET @YEAR = 2013;
 
 -- COLUMN SELECTION
-SELECT DISTINCT nurs_sta, COUNT(NURS_STA)AS '# PTS'
+SELECT DISTINCT nurs_sta
+, COUNT(NURS_STA)AS [# PTS]
 
 FROM smsdss.dly_cen_occ_fct
 
