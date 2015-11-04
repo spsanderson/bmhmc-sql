@@ -10,7 +10,7 @@ SET @ED2 = '2015-09-01 00:00:00.000';
 
 SELECT R.[INDEX]
 , R.[READMIT]
-, ''                AS [Readmission ED MD]
+, H.EDMD            AS [Readmission ED MD]
 , R.[READMIT SOURCE DESC]
 , R.[MRN]
 , R.[INITIAL DISCHARGE]
@@ -48,8 +48,8 @@ LEFT OUTER JOIN smsmir.mir_drg                AS f
 ON R.[INDEX]=CAST(f.pt_id AS INT) and f.drg_type='1'
 LEFT OUTER JOIN smsmir.mir_drg_mstr           AS g
 ON f.drg_no=g.drg_no AND f.drg_schm=g.drg_schm
---LEFT OUTER JOIN smsdss.c_wellsoft_rpt_v h
---ON [READMIT]=h.Account
+LEFT OUTER JOIN smsdss.c_wellsoft_rpt_v       AS h
+ON [READMIT]=h.Account
 LEFT JOIN smsdss.BMH_UserTwoFact_V            AS jj
 ON R.[READMIT] = jj.PtNo_Num and jj.UserDataKey='25'
 
