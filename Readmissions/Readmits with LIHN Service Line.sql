@@ -29,29 +29,28 @@ SELECT R.[INDEX]
 , F.drg_no          AS [MS-DRG_NO]
 , G.drg_name        AS [Medicare DRG Description]
 
---, B.Pt_Name
---, B.Pt_Age
---, B.Pt_Zip_Cd
---, R.[30D RA COUNT]
---, jj.UserDataText
-
 FROM smsdss.vReadmits                         AS R
 LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v       AS b
 ON R.[INDEX] = b.ptno_num
 LEFT OUTER JOIN smsdss.dsch_disp_mstr         AS c
-ON b.dsch_disp=c.dsch_disp and c.src_sys_id='#PMSNTX0'
+ON b.dsch_disp=c.dsch_disp 
+	and c.src_sys_id='#PMSNTX0'
 LEFT OUTER JOIN smsmir.mir_pract_mstr         AS d
-ON b.Atn_Dr_No=d.pract_no AND d.src_sys_id='#PMSNTX0'
+ON b.Atn_Dr_No=d.pract_no 
+	AND d.src_sys_id='#PMSNTX0'
 LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS e
 ON R.[INDEX]=CAST(e.pt_id AS INT) 
 LEFT OUTER JOIN smsmir.mir_drg                AS f
-ON R.[INDEX]=CAST(f.pt_id AS INT) and f.drg_type='1'
+ON R.[INDEX]=CAST(f.pt_id AS INT) 
+	and f.drg_type='1'
 LEFT OUTER JOIN smsmir.mir_drg_mstr           AS g
-ON f.drg_no=g.drg_no AND f.drg_schm=g.drg_schm
+ON f.drg_no=g.drg_no 
+	AND f.drg_schm=g.drg_schm
 LEFT OUTER JOIN smsdss.c_wellsoft_rpt_v       AS h
 ON [READMIT]=h.Account
 LEFT JOIN smsdss.BMH_UserTwoFact_V            AS jj
-ON R.[READMIT] = jj.PtNo_Num and jj.UserDataKey='25'
+ON R.[READMIT] = jj.PtNo_Num 
+	and jj.UserDataKey='25'
 
 /*
 ***********************************************************************
@@ -112,6 +111,7 @@ GROUP BY R.[INDEX]
 , e.LIHN_Svc_Line
 , f.drg_no
 , g.drg_name
+, h.edmd
 , jj.userdatatext
 
 ORDER BY R.[INDEX]

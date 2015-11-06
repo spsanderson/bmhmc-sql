@@ -2,7 +2,7 @@ DECLARE @sd DATETIME;
 DECLARE @ed DATETIME;
 
 SET @sd = '2014-01-01';
-SET @ed = '2015-09-01';
+SET @ed = '2015-10-01';
 
 DECLARE @denials_write_offs TABLE (
 	pk INT IDENTITY(1, 1) PRIMARY KEY
@@ -35,17 +35,17 @@ FROM (
 --SELECT * FROM @denials_write_offs
 ----------------------------------------------------------------------------------
 SELECT *
-INTO TmpTbl
+INTO TmpDenialsTbl
 FROM smsdss.c_Softmed_Denials_Detail_v;
 
-ALTER TABLE TmpTbl
+ALTER TABLE TmpDenialsTbl
 ADD PK INT IDENTITY(1,1) PRIMARY KEY;
 
 SELECT visit_attend_phys
 , Attend_Dr
 , attend_dr_no
 , Attend_Spclty
-, CAST(TmpTbl.bill_no AS INT) AS bill_no
+, CAST(TmpDenialsTbl.bill_no AS INT) AS bill_no
 , last_name
 , first_name
 , rvw_date
@@ -92,26 +92,26 @@ SELECT visit_attend_phys
 , Adm_Dx
 , d.denials
 
-FROM TmpTbl
+FROM TmpDenialsTbl
 LEFT OUTER JOIN @denials_write_offs d
-ON TmpTbl.bill_no = d.pt_id
+ON TmpDenialsTbl.bill_no = d.pt_id
 
 WHERE (
-	TmpTbl.patient_type = 'I' 
-	AND TmpTbl.discharged >= @SD
-	AND TmpTbl.discharged < @ED
+	TmpDenialsTbl.patient_type = 'I' 
+	AND TmpDenialsTbl.discharged >= @SD
+	AND TmpDenialsTbl.discharged < @ED
 	)
 OR (
-	TmpTbl.patient_type IN ('E','O') 
-	AND TmpTbl.admission_date >= @SD 
-	AND TmpTbl.admission_date < @ED
+	TmpDenialsTbl.patient_type IN ('E','O') 
+	AND TmpDenialsTbl.admission_date >= @SD 
+	AND TmpDenialsTbl.admission_date < @ED
 	)
 
 GROUP BY visit_attend_phys
 , Attend_Dr
 , attend_dr_no
 , Attend_Spclty
-, TmpTbl.bill_no
+, TmpDenialsTbl.bill_no
 , last_name
 , first_name
 , rvw_date
@@ -160,4 +160,4 @@ GROUP BY visit_attend_phys
 ;
 
 -- Drop the temp TABLE
-DROP TABLE TmpTbl;
+DROP TABLE TmpDenialsTbl;
