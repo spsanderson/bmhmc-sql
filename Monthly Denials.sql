@@ -6,8 +6,8 @@ SET @ed = '2015-10-01';
 
 DECLARE @denials_write_offs TABLE (
 	pk INT IDENTITY(1, 1) PRIMARY KEY
-	, pt_id               VARCHAR(MAX)
-	, bill_no             VARCHAR(MAX)
+	, pt_id               INT
+	, bill_no             INT
 	, denials             FLOAT
 )
 INSERT INTO @denials_write_offs
@@ -16,8 +16,8 @@ SELECT a.pt_id
 , a.denials_woffs
 
 FROM (
-	SELECT pt_id
-	, bill_no
+	SELECT CAST(pt_id AS INT) AS pt_id
+	, CAST(bill_no AS INT) AS bill_no
 	, SUM(tot_pay_adj_amt) AS denials_woffs
 
 	FROM smsmir.mir_pay
@@ -45,6 +45,7 @@ SELECT visit_attend_phys
 , Attend_Dr
 , attend_dr_no
 , Attend_Spclty
+, C.ED_MD
 , CAST(TmpDenialsTbl.bill_no AS INT) AS bill_no
 , last_name
 , first_name
@@ -95,6 +96,8 @@ SELECT visit_attend_phys
 FROM TmpDenialsTbl
 LEFT OUTER JOIN @denials_write_offs d
 ON TmpDenialsTbl.bill_no = d.pt_id
+LEFT OUTER JOIN smsdss.c_Wellsoft_Rpt_tbl c
+ON C.Account = D.bill_no
 
 WHERE (
 	TmpDenialsTbl.patient_type = 'I' 
@@ -111,6 +114,7 @@ GROUP BY visit_attend_phys
 , Attend_Dr
 , attend_dr_no
 , Attend_Spclty
+, C.ED_MD
 , TmpDenialsTbl.bill_no
 , last_name
 , first_name
