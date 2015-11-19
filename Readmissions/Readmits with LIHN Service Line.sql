@@ -4,13 +4,13 @@ DECLARE @SD2 DATETIME;
 DECLARE @ED2 DATETIME;
 
 SET @SD1 = '2014-01-01 00:00:00.000';
-SET @ED1 = '2015-01-01 00:00:00.000';
+SET @ED1 = '2015-09-01 00:00:00.000';
 SET @SD2 = '2015-01-01 00:00:00.000';
 SET @ED2 = '2015-09-01 00:00:00.000';
 
 SELECT R.[INDEX]
 , R.[READMIT]
-, H.EDMD            AS [Readmission ED MD]
+, H.ED_MD            AS [Readmission ED MD]
 , R.[READMIT SOURCE DESC]
 , R.[MRN]
 , R.[INITIAL DISCHARGE]
@@ -46,7 +46,7 @@ ON R.[INDEX]=CAST(f.pt_id AS INT)
 LEFT OUTER JOIN smsmir.mir_drg_mstr           AS g
 ON f.drg_no=g.drg_no 
 	AND f.drg_schm=g.drg_schm
-LEFT OUTER JOIN smsdss.c_wellsoft_rpt_v       AS h
+LEFT OUTER JOIN smsdss.c_Wellsoft_Rpt_tbl     AS h
 ON [READMIT]=h.Account
 LEFT JOIN smsdss.BMH_UserTwoFact_V            AS jj
 ON R.[READMIT] = jj.PtNo_Num 
@@ -111,7 +111,8 @@ GROUP BY R.[INDEX]
 , e.LIHN_Svc_Line
 , f.drg_no
 , g.drg_name
-, h.edmd
+, h.ED_MD
 , jj.userdatatext
 
 ORDER BY R.[INDEX]
+
