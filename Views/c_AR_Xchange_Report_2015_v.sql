@@ -258,7 +258,7 @@ ON c.prin_dx_cd = dd.dx_cd
 	AND c.prin_dx_cd_schm = dd.dx_cd_schm
 
 -- Filters ------------------------------------------------------------
---WHERE b.from_file_ind IN ('4H', '6H') 
-WHERE b.resp_cd IS NULL 
+WHERE b.from_file_ind IN ('4H', '6H') 
+AND b.resp_cd IS NULL 
 AND b.bd_wo_dtime > '12/31/2014' 
 AND b.tot_bal_amt > 0 

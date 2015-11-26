@@ -156,7 +156,7 @@ FROM
 			OR (b.hosp_Svc='OBV')
 			) 
 		AND b.dsch_dtime >= @SD 
-		AND b.dsch_dtime <= @ED
+		AND b.dsch_dtime < @ED
 		AND PDV.src_spclty_cd = 'HOSIM'
 		AND PDVB.src_spclty_cd = 'HOSIM'
 		AND PDV.orgz_cd = 'S0X0'

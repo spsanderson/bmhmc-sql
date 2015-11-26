@@ -6,9 +6,9 @@ DECLARE @ICD VARCHAR(2);
 
 -- DISCHARGE DATES USED
 SET @SD1 = '2014-01-01';
-SET @ED1 = '2014-09-01';
+SET @ED1 = '2014-10-01';
 SET @SD2 = '2015-01-01';
-SET @ED2 = '2015-09-01';
+SET @ED2 = '2015-10-01';
 SET @ICD = '9';
 
 -- Getting admissions volume by service line
@@ -38,6 +38,7 @@ FROM (
 		)
 	AND LIHN.LIHN_Svc_Line IS NOT NULL
 	AND LIHN.[ICD_CD_SCHM] = @ICD
+	AND PAV.hosp_svc != 'PSY'
 ) AS A
 
 PIVOT (
@@ -78,6 +79,7 @@ FROM (
 	AND E.[ICD_CD_SCHM] = @ICD
 	AND R.INTERIM < 31
 	AND R.[READMIT SOUCE DESC] != 'Scheduled Admission'
+	AND b.hosp_svc != 'PSY'
 ) AS B
 
 PIVOT (

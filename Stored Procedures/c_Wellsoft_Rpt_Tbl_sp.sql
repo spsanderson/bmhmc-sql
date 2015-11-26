@@ -41,7 +41,7 @@ BEGIN
 	--)
 
 	SELECT Patient
-	,Account
+	,CAST(Account AS INT) Account
 	,MR#
 	,Diagnosis
 	,ICD9

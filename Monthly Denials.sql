@@ -31,11 +31,13 @@ FROM (
 	GROUP BY pt_id
 	, bill_no
 ) A
+
+SELECT * FROM @denials_write_offs
 -----------------------------------------------------------------------
 DECLARE @USERTBL TABLE (
-	LOGIN_ID VARCHAR(MAX)
+	LOGIN_ID    VARCHAR(MAX)
 	, END_DTIME DATETIME
-	, USERNAME VARCHAR(MAX)
+	, USERNAME  VARCHAR(MAX)
 	, RN INT
 )
 
@@ -49,6 +51,7 @@ FROM (
 
 	FROM SMSMIR.mir_user_mstr
 ) C
+
 -----------------------------------------------------------------------
 DECLARE @EDTBL TABLE (
 	ACCOUNT INT
@@ -63,6 +66,8 @@ FROM (
 	
 	FROM SMSDSS.c_Wellsoft_Rpt_tbl
 ) Z
+
+SELECT * FROM @EDTBL
 -----------------------------------------------------------------------
 DECLARE @TmpDenialsTbl TABLE (
 	PK INT IDENTITY(1, 1)         PRIMARY KEY
@@ -174,6 +179,8 @@ FROM (
 
 	FROM smsdss.c_Softmed_Denials_Detail_v
 ) B
+
+SELECT * FROM @TmpDenialsTbl
 -----------------------------------------------------------------------
 
 SELECT a.BILL_NO as tmbptbl_bill_no
@@ -243,14 +250,15 @@ ON A.CERM_RVWR_ID = F.login_id
 	AND F.RN = 1
 
 WHERE (
+		(
 	A.patient_type = 'I' 
 	AND A.discharged >= @SD
 	AND A.discharged < @ED
-	)
-OR (
+		)
+	OR
+	   (
 	A.patient_type IN ('E','O') 
 	AND A.discharged >= @SD 
 	AND A.discharged < @ED
+		)
 	)
-
---WHERE A.BILL_NO = '14308316'
