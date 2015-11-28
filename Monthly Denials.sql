@@ -1,7 +1,7 @@
 DECLARE @sd DATETIME;
 DECLARE @ed DATETIME;
 
-SET @sd = '2014-01-01';
+SET @sd = '2013-01-01';
 SET @ed = '2015-10-01';
 
 DECLARE @denials_write_offs TABLE (
@@ -32,7 +32,7 @@ FROM (
 	, bill_no
 ) A
 
-SELECT * FROM @denials_write_offs
+--SELECT * FROM @denials_write_offs
 -----------------------------------------------------------------------
 DECLARE @USERTBL TABLE (
 	LOGIN_ID    VARCHAR(MAX)
@@ -67,7 +67,7 @@ FROM (
 	FROM SMSDSS.c_Wellsoft_Rpt_tbl
 ) Z
 
-SELECT * FROM @EDTBL
+--SELECT * FROM @EDTBL
 -----------------------------------------------------------------------
 DECLARE @TmpDenialsTbl TABLE (
 	PK INT IDENTITY(1, 1)         PRIMARY KEY
@@ -180,7 +180,7 @@ FROM (
 	FROM smsdss.c_Softmed_Denials_Detail_v
 ) B
 
-SELECT * FROM @TmpDenialsTbl
+--SELECT * FROM @TmpDenialsTbl
 -----------------------------------------------------------------------
 
 SELECT a.BILL_NO as tmbptbl_bill_no
@@ -244,7 +244,7 @@ FROM @TmpDenialsTbl                       A
 LEFT OUTER JOIN @denials_write_offs       D
 ON A.bill_no = d.pt_id
 LEFT OUTER JOIN @EDTBL                    C
-ON C.Account = D.bill_no
+ON A.bill_no = C.Account
 LEFT OUTER JOIN @USERTBL                  F
 ON A.CERM_RVWR_ID = F.login_id
 	AND F.RN = 1

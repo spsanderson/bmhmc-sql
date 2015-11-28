@@ -43,10 +43,6 @@ AND A.pt_id IN (
 
 /*
 =======================================================================
-Author: Steven P Sanderson II
-Department: Revenue Cycle
-Date: 11/24/2015
-=======================================================================
 Description:
 
 DSRIP MAX Series for COPD patients.
@@ -61,8 +57,6 @@ DECLARE @INIT_POP TABLE (
 	, [Prin Dx Code]      VARCHAR(6)
 	, [Prin Dx Desc]      VARCHAR(MAX)
 	, [MRN]               INT
-	, [Inpatient Count]   INT
-	, [Direct Admits]     INT
 );
 
 WITH CTE AS (
@@ -82,25 +76,6 @@ WITH CTE AS (
 	, B.prin_dx_cd
 	, C.clasf_desc AS 'Prin_Dx_Desc'
 	, B.Med_Rec_No
-	, CASE
-		WHEN A.pt_id < '000020000000'
-			AND B.Adm_Source NOT IN ('RA', 'RP')
-			THEN ROW_NUMBER() OVER(
-									PARTITION BY B.Med_Rec_No
-									ORDER BY B.PtNo_Num
-								)
-		ELSE 0
-	  END AS [Inpatient Admits From ER]
-	, CASE
-		WHEN A.pt_id < '000020000000'
-			AND B.Adm_Source IN ('RA', 'RP')
-			THEN ROW_NUMBER() OVER(
-									PARTITION BY B.MED_REC_NO
-									ORDER BY B.PTNO_nUM
-								)
-		ELSE 0
-	  END AS [Direct Admits]
-		
 
 	FROM smsmir.mir_dx_grp                  A
 	LEFT OUTER JOIN smsdss.BMH_PLM_PtAcct_V B
@@ -236,9 +211,9 @@ FROM CTE3
 -----------------------------------------------------------------------
 DECLARE @COPD_ED_STAGING TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
-	, [Encounter Number] INT
-	, [MRN]              INT
-	, [Visit Count]      INT
+	, [Encounter Number]  INT
+	, [MRN]               INT
+	, [Visit Count]       INT
 );
 
 WITH CTE4 AS (
@@ -296,10 +271,10 @@ a patient has where COPD is not listed.
 */
 DECLARE @ER_VISIT_COUNT_TMP TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
-	, MRN            VARCHAR(MAX)
-	, VISIT_ID       VARCHAR(MAX)
-	, VISIT_DATE     DATETIME
-	, ED_VISIT_COUNT INT
+	, MRN                 INT
+	, VISIT_ID            VARCHAR(MAX)
+	, VISIT_DATE          DATETIME
+	, ED_VISIT_COUNT      INT
 )
 
 INSERT INTO @ER_VISIT_COUNT_TMP
@@ -330,10 +305,6 @@ FROM
 	AND vst_start_dtime < '2015-10-01'
 )A
 
---GROUP BY MRN, VISIT_ID, VISIT_DATE
---ORDER BY MRN
---, VISIT_DATE
-
 DECLARE @ER_TOT_CNT TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
 	, [Visit ID] INT
@@ -360,6 +331,51 @@ FROM (
 
 /*
 =======================================================================
+Get the following counts for the time period
+Readmits
+Direct Admits
+Admits from ER
+*/
+DECLARE @READMITS_CNT_TMP TABLE (
+	PK INT IDENTITY(1, 1) PRIMARY KEY
+	, MRN                 INT
+	, [Admit_Count]       INT
+	, RN                  INT
+)
+
+INSERT INTO @READMITS_CNT_TMP
+SELECT A.*
+FROM (
+	SELECT RA.[MRN]
+	, RA.[30D RA COUNT]
+	, RN = ROW_NUMBER() OVER(PARTITION BY MRN ORDER BY [30D RA COUNT] DESC)
+
+	FROM smsdss.vReadmits RA
+) A
+
+--SELECT * FROM @READMITS_CNT_TMP
+--WHERE RN = 1
+
+DECLARE @RA_CNT TABLE(
+	PK INT IDENTITY(1, 1) PRIMARY KEY
+	, MRN                 INT
+	, RA_COUNT            INT
+)
+
+INSERT INTO @RA_CNT
+SELECT *
+FROM (
+	SELECT R.MRN
+	, R.[Admit_Count]
+
+	FROM @READMITS_CNT_TMP R
+	WHERE R.RN = 1
+) B
+
+--SELECT * FROM @RA_CNT
+
+/*
+=======================================================================
 This will join the tables together
 =======================================================================
 */
@@ -379,8 +395,7 @@ SELECT IP.[Encounter Number]
    CED.[ED COPD Visit Count]
   )                       AS [Non COPD ER Visits]
 , ERTOT.[Total Count]     AS [Total ER Visits]
-, IP.[Inpatient Count]
-, IP.[Direct Admits]
+, RA.RA_COUNT             AS [Total 30 Day Readmit Count]
 
 FROM @INIT_POP            AS IP
 LEFT JOIN @READMIT_POP    AS RP
@@ -389,6 +404,8 @@ LEFT JOIN @COPD_ED        AS CED
 ON IP.[MRN] = CED.[MRN]
 LEFT JOIN @ER_TOT_CNT     AS ERTOT
 ON IP.[MRN] = ERTOT.[MRN]
+LEFT JOIN @RA_CNT         AS RA
+ON IP.MRN = RA.MRN
 
 ORDER BY IP.[MRN]
 , IP.[Encounter Number]

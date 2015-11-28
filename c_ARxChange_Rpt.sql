@@ -57,8 +57,8 @@ DECLARE @tmptblarx1 TABLE (
 	, GuarantorHouseholdSize         VARCHAR(MAX)
 	, tot_bal_amt                    VARCHAR(MAX)
 	, tot_chg_amt                    VARCHAR(MAX)
-	, vst_start_dtime                VARCHAR(MAX)
-	, vst_end_dtime                  VARCHAR(MAX)
+	, vst_start_dtime                DATETIME
+	, vst_end_dtime                  DATETIME
 	, len_of_stay                    VARCHAR(MAX)
 	, Last_Pt_Pymt                   VARCHAR(MAX)
 	, Last_Pymt_Amount               VARCHAR(MAX)
@@ -416,10 +416,10 @@ SELECT 'Brookhaven Memorial Hospital' AS [FacilityName]
 , b.INS2_Plan_Type
 
 -- Billing Information ------------------------------------------------
-, CONVERT(VARCHAR(10), a.vst_start_dtime, 101)  AS [DateOfService]
-, CONVERT(VARCHAR(10), a.vst_start_dtime, 101)  AS [DateOfAdmission]
-, CONVERT(VARCHAR(10), a.vst_start_dtime, 101)  AS [DateOfTreatment]
-, CONVERT(VARCHAR(10), a.vst_end_dtime, 101)    AS [Discharge_Date]
+, CONVERT(VARCHAR, a.vst_start_dtime, 101)  AS [DateOfService]
+, CONVERT(VARCHAR, a.vst_start_dtime, 101)  AS [DateOfAdmission]
+, CONVERT(VARCHAR, a.vst_start_dtime, 101)  AS [DateOfTreatment]
+, CONVERT(VARCHAR, a.vst_end_dtime, 101)    AS [Discharge_Date]
 , a.len_of_stay                                 AS [length_of_Stay_in_Days]
 , ''                                            AS [Date_Billed] -- need this
 , ''			                                AS [Amount_Charged]-- not needed
@@ -427,7 +427,7 @@ SELECT 'Brookhaven Memorial Hospital' AS [FacilityName]
 , a.tot_bal_amt                                 AS [Total_Amount_Due]
 , ''                                            AS [Patient_Responsibility_Amount]-- not needed
 , ''                                            AS [Patient_Amount_of_Payments_Received]-- not needed
-, CONVERT(VARCHAR(10), a.Last_Pt_Pymt, 101)     AS [Date_of_Last_Patient_Paymnt]
+, CONVERT(VARCHAR, a.Last_Pt_Pymt, 101)     AS [Date_of_Last_Patient_Paymnt]
 , ''                                            AS [Total_Amount_Due_from_Patient]-- not needed
 , ''                                            AS [Self_Pay_Adjustment_Amount]-- not needed
 , ''                                            AS [Account_Status]-- not needed
@@ -437,7 +437,7 @@ SELECT 'Brookhaven Memorial Hospital' AS [FacilityName]
 , ''                                            AS [TotalLateFees]-- not needed
 , ''                                            AS [TotalInsurancePayments]-- not needed
 , ''                                            AS [APR]-- not needed
-, CONVERT(VARCHAR(10), a.Last_Pt_Pymt, 101)     AS [LastPaymentDate]
+, CONVERT(VARCHAR, a.Last_Pt_Pymt, 101)     AS [LastPaymentDate]
 , a.Last_Pymt_Amount                            AS [LastPaymentAmount]
 , ''                                            AS [Amount_Charge_Off] -- not needed
 , ''                                            AS [Date_Account_Closed] -- not needed
