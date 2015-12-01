@@ -24,7 +24,7 @@ SELECT DISTINCT SO.episode_no
 			, 'Today', '')
 		,'Stat','')
 	,'In Am','')
-)								AS [CONSULTANT CONTACTED]
+)									AS [CONSULTANT CONTACTED]
 , PAV.drg_no
 , (
    CAST(DATEPART(YEAR, PAV.Dsch_Date) 
@@ -40,21 +40,21 @@ SELECT DISTINCT SO.episode_no
 
 
 -- WHERE IT COMES FROM
-FROM smsmir.sr_ord                      SO
-	JOIN smsdss.BMH_PLM_PtAcct_V        PAV
-	ON SO.episode_no = PAV.PtNo_Num
-	JOIN smsdss.pract_dim_v             PDV
-	ON PAV.Atn_Dr_No = PDV.src_pract_no
+FROM smsmir.sr_ord                  SO
+LEFT MERGE JOIN smsdss.BMH_PLM_PtAcct_V        PAV
+ON SO.episode_no = PAV.PtNo_Num
+LEFT MERGE JOIN smsdss.pract_dim_v             PDV
+ON PAV.Atn_Dr_No = PDV.src_pract_no
 
 -- FILTER(S)
 WHERE PAV.Dsch_Date >= @SD
-	AND PAV.Dsch_Date < @ED
-	AND PAV.Plm_Pt_Acct_Type = 'I'
-	AND PAV.PtNo_Num < '20000000'
-	AND PDV.orgz_cd = 'S0X0'
-	--AND PDV.spclty_cd != 'HOSIM'
-	AND svc_cd = 'Consult: Doctor'
-	AND SO.signon_id != 'HSF_JS'
+AND PAV.Dsch_Date < @ED
+AND PAV.Plm_Pt_Acct_Type = 'I'
+AND PAV.PtNo_Num < '20000000'
+AND PDV.orgz_cd = 'S0X0'
+--AND PDV.spclty_cd != 'HOSIM'
+AND svc_cd = 'Consult: Doctor'
+AND SO.signon_id != 'HSF_JS'								
 
 
 ------------------------------------------------------------------------
