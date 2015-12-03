@@ -10,6 +10,7 @@ GO
 
 CREATE VIEW [smsdss].[c_LIHN_Svc_Lines_Rpt_ICD10_v]
 AS
+
 SELECT     
 a.pt_id
 , b.vst_end_dtime AS Dsch_Date
@@ -53,37 +54,26 @@ a.pt_id
 				) 
 			)
 		OR (
-		a.drg_no IN ('234')
-		AND Diag01 NOT IN ('I339','I330','I011','I020','I400','I312',
-			'I38','I469','I511','I512','I7100','I7102','I7101','I7103',
-			'I7772','I7771','I670','I2542','I7773','I7779',
-			'I749','I7410','I7409','I7411','I663', 'N280','I745','I240',
-			'I76','I748','I744','R079', 'R0789', 'I209', 'R071', 'R0781', 
-			'R072','S2690XA','S2600XA','S2601XA','S26020A','S26002A',
-			'S26021A','S2609XA','S2610XA','S2611XA','S2612XA','S2619XA',
-			'S2691XA', 'S2699XA'
+		a.drg_no IN ('234', '235', '236')
+		AND Diag01 NOT IN (
+			'S2699XA',	 'S2699XA',	'I2542',	'S2609XA',	'R0789',
+			'S2691XA',	 'R0789',	'I240',		'S26021A',	'R0781',
+			'S2690XA',	 'R0781',	'I209',		'S26020A',	'R072',
+			'S2619XA',	 'R071',	'I020',		'S2601XA',	'R071',
+			'S2612XA',	 'N280',	'I011',		'S2600XA',	'I7779',
+			'S2611XA',	 'I2542',	'I010',		'S26002A',	'I7773',
+			'S2610XA',	 'I209',	'I2609',	'R079',		'I7772',
+			'I7771',	 'I744',	'I7102',	'I512',		'I330',
+			'I76',		 'I7411',	'I7101',	'I511',		'I312',
+			'I749',		 'I7410',	'I7100',	'I469',		'I309',
+			'I748',		 'I7409',	'I670',		'I400',		'I308',
+			'I745',		 'I7103',	'I663',		'I38',		'I300',
+			'I339'
 			)
 		AND (Diag01 NOT BETWEEN 'T80' AND 'T88.9')
 		)
-		THEN 'CABG w Cath' 
+		THEN 'CABG' 
 		
-	WHEN a.drg_no IN ('235', '236') 
-		AND (NOT 
-				(Diag01 IN ('I2542','I2609','I309','I020','I308','I300',
-				'I010','I339','I330','I011','I020','I400','I312','I38',
-				'I469','I511','I512','I7100','I7102','I7101','I7103',
-				'I7772','I7771','I670','I2542','I7773','I7779','I749',
-				'I7410','I7409','I7411','I663', 'N280','I745','I240',
-				'I76','I748','I744','R079','R0789','I209','R071','R0781',
-				'R072','S2690XA','S2600XA','S2601XA','S26020A','S26002A',
-				'S26021A','S2609XA','S2610XA','S2611XA','S2612XA',
-				'S2619XA','S2691XA','S2699XA'
-					)
-				) 
-			)
-		AND (Diag01 NOT BETWEEN 'T80' AND 'T88.9' )
-		THEN 'CABG w/o Cath' 
-				
 	WHEN a.drg_no IN ('250', '251', '249', '247', '248', '246') 
 		AND Proc01 IN ('02704DZ', '02714DZ', '02724DZ', '02734DZ', '027044Z', 
 						'027144DZ', '027244Z', '027344Z'
@@ -93,7 +83,7 @@ a.pt_id
 	WHEN a.drg_no IN ('280', '281', '282', '283', '284', '285') 
 		AND (Diag01 IN ('I2109', 'I2119', 'I2111', 'I2129', 'I2129', 'I222',
 			'I213', 'I213', 'I2109', 'I2119', 'I2102', 'I2121', 'I2101', 
-			'I2121', 'I2111'
+			'I2121', 'I2111', 'I214'
 				)
 			)
 		THEN 'MI' 
@@ -171,8 +161,9 @@ a.pt_id
 	WHEN a.drg_no IN ('881') 
 		OR (
 			a.drg_no IN ('885') 
-			AND Diag01 IN ('F329','F320','F321','F322','F324','F325',
-							'F339','F330','F331','F332','F3341','F3340'
+			AND Diag01 IN (
+				'F329','F320','F321','F322','F324','F325',
+				'F339','F330','F331','F332','F3341','F3340'
 						)
 			) 
 		THEN 'Psychoses-Major Depression' 
@@ -182,14 +173,15 @@ a.pt_id
 						'F319','F3111','F3112','F3113','F3173','F3174',
 						'F319','F3131','F3132','F314','F3175','F3176',
 						'F3160','F3161','F3162','F3163','F3177','F3178',
-						'F319','F319','F309','F329','F3189','F39'
+						'F319','F319','F309','F329','F3189','F39', 'F3181',
+						'F3130'
 					) 
 		THEN 'Psychoses/Bipolar Affective Disorders'
 		
 	WHEN a.drg_no IN ('885') 
 		AND (
 			Diag01 IN ('F2089','F302','F323','F333','F312','F315',
-			'F3164','F22','F29','F24','F28'
+			'F3164','F22','F29','F24','F28', 'F250', 'F200'
 				) 
 			) 
 		THEN 'Psychoses/Schizophrenia' 
@@ -287,9 +279,9 @@ END AS LIHN_Svc_Line
 , a.proc_cd_schm
 
 FROM smsdss.c_LIHN_Svc_Lines_1_ICD10_v      AS a 
-LEFT OUTER JOIN smsmir.mir_vst        		AS b 
+LEFT OUTER JOIN smsmir.mir_vst				AS b 
 ON a.pt_id = b.pt_id 
-LEFT OUTER JOIN smsmir.mir_pract_mstr 		AS c 
+LEFT OUTER JOIN smsmir.mir_pract_mstr		AS c 
 ON b.prim_pract_no = c.pract_no 
 	AND c.src_sys_id = '#PASS0X0'
 	
