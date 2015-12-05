@@ -330,10 +330,13 @@ FROM (
 	, cerm_rvwr_id
 
 	FROM smsdss.c_Softmed_Denials_Detail_v
+	LEFT OUTER JOIN smsdss.BMH_PLM_PTACCT_V
+	ON smsdss.c_Softmed_Denials_Detail_v.bill_no = smsdss.BMH_PLM_PtAcct_V.PtNo_Num
 
 	WHERE patient_type = 'I'
 	AND discharged >= @SD
 	AND discharged < @ED
+	AND Adm_Source NOT IN ('RA', 'RP', 'TH', 'TV')
 ) I
 
 --SELECT * FROM @TmpDenialsTbl

@@ -1,3 +1,5 @@
+-- THIS REPORT GETS A LIST OF THE DIRECT ADMITS TO THE HOSPITAL BY
+-- PHYSICIAN FOR EXPORT TO EXCEL TO GET COUNTS AND OTHER PIVOT DATA
 --#####################################################################
 
 -- COLUMN SELECTION
@@ -17,7 +19,7 @@ ON PAV.prin_dx_cd = DDV.dx_cd
 
 -- FILTERS
 WHERE PAV.Adm_Date BETWEEN '2012-01-01' AND '2012-12-31'
-AND PAV.Adm_Source IN ('RA', 'RP')
+AND PAV.Adm_Source IN ('RA', 'RP', 'TH', 'TV')
 AND PAV.Plm_Pt_Acct_Type = 'I'
 AND PDV.pract_rpt_name != 'TEST DOCTOR X'
 AND PDV.pract_rpt_name != 'TESTCPOE DOCTOR'
@@ -25,3 +27,8 @@ AND PDV.orgz_cd = 'S0X0'
 ORDER BY PDV.pract_rpt_name
 
 --#####################################################################
+-- END REPORT.
+-- NAME: SANDERSON, STEVEN
+-- DEPT: PERFORMANCE IMPROVEMENT
+-- DATE: JUNE 4 2013
+-- FOR : PHYLLIS HARTMANN
