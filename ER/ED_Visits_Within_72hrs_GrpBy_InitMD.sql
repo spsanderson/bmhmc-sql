@@ -8,11 +8,7 @@ WITH CTE AS (
 	, ChiefComplaint
 	, Diagnosis
 	, ICD9
-	, CAST (
-		LEFT(arrival, 4) + '-' + RIGHT(LEFT(arrival, 6), 2) +
-		'-' + RIGHT(LEFT(arrival, 8), 2) + ' ' +
-		LEFT(RIGHT(arrival, 4), 2) +':' + RIGHT(arrival, 2)
-		AS DATETIME) AS [Arrival Datetime]
+	, Arrival as [Arrival Datetime]
 	, ED_MD
 	, Disposition
 

@@ -20,7 +20,7 @@ BEGIN
 
 	SELECT ROW_NUMBER() OVER(ORDER BY ARRIVAL) ID
 	, Patient
-	, CAST(dbo.c_udf_AlphaNumericChars(Account) AS INT)                 AS [Account]
+	, CAST(dbo.c_udf_AlphaNumericChars(Account) AS INT)                    AS [Account] 
 	, CAST(dbo.c_udf_AlphaNumericChars(MR#) AS INT)                        AS [MR#]
 	, Diagnosis
 	, ICD9
@@ -28,17 +28,65 @@ BEGIN
 	, Disposition
 	, AdmittingDxTranscribed
 	, AxisIPrimaryDx
-	, CAST(dbo.c_udf_AlphaNumericChars(AgeDOB) AS VARCHAR)                 AS [AgeDOB]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AgeDOB), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AgeDOB), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AgeDOB), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AgeDOB), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AgeDOB), 11, 2) + ':00',
+	  120)                                                                 AS [AgeDOB]
 	, sex
 	, age
-	, CAST(dbo.c_udf_AlphaNumericChars(EDRecordSentToEDM) AS VARCHAR)      AS [EDRecordSentToEDM]
-	, CAST(dbo.c_udf_AlphaNumericChars(TimeRNSignature) AS VARCHAR)        AS [TimeRNSignature]
-	, CAST(dbo.c_udf_AlphaNumericChars(timemdsignature) AS VARCHAR)        AS [timemdsignature]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(EDRecordSentToEDM), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(EDRecordSentToEDM), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(EDRecordSentToEDM), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(EDRecordSentToEDM), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(EDRecordSentToEDM), 11, 2) + ':00',
+	  120)                                                                 AS [EDRecordSentToEDM]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeRNSignature), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeRNSignature), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeRNSignature), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeRNSignature), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeRNSignature), 11, 2) + ':00',
+	  120)                                                                 AS [TimeRNSignature]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 11, 2) + ':00',
+	  120)                                                                 AS [timemdsignature]
 	, RNSgntr
-	, CAST(dbo.c_udf_AlphaNumericChars(Triage_End) AS VARCHAR)             AS [Triage_End]
-	, Triage_Start
-	, CAST(dbo.c_udf_AlphaNumericChars(AddedToAdmissionsTrack) AS VARCHAR) AS [AddedToADMissionsTrack]
-	, CAST(dbo.c_udf_AlphaNumericChars(Admit_Cnrfm_String) AS VARCHAR)     AS [Admit_Confirm]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_End), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_End), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_End), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_End), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_End), 11, 2) + ':00',
+	  120)                                                                 AS [Triage_End]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_Start), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_Start), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_Start), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_Start), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_Start), 11, 2) + ':00',
+	  120)                                                                 AS [Triage_Start]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AddedToADMissionsTrack), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AddedToADMissionsTrack), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AddedToADMissionsTrack), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AddedToADMissionsTrack), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AddedToADMissionsTrack), 11, 2) + ':00',
+	  120)                                                                 AS [AddedToADMissionsTrack]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Admit_Cnrfm_String), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Admit_Cnrfm_String), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Admit_Cnrfm_String), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Admit_Cnrfm_String), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Admit_Cnrfm_String), 11, 2) + ':00',
+	  120)                                                                 AS [Admit_Confirm]
 	, AdmittingMD
 	, AreaOfCare
 	, ED_MD
@@ -46,7 +94,13 @@ BEGIN
 	, Specialty
 	, AccessProceduresED
 	, MDSgntr
-	, CAST(dbo.c_udf_AlphaNumericChars(Arrival) AS VARCHAR)                AS [Arrival]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Arrival), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Arrival), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Arrival), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Arrival), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Arrival), 11, 2) + ':00',
+	  120)                                                                 AS [Arrival]
 	, ChiefComplaint
 	, ReferMD
 	
@@ -54,7 +108,7 @@ BEGIN
 
 	FROM smsdss.c_Wellsoft_Rpt_tbl_tmp
 
-	WHERE LEN(Arrival) < 13
+	WHERE LEN(Arrival) = 12
 	AND LEN(Account) = 8
 
 END

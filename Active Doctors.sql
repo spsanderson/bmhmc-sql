@@ -1,7 +1,7 @@
 DECLARE @PHYS_3M TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
-	, NAME VARCHAR(40)
-	, NPI INT
+	, NAME                VARCHAR(40)
+	, NPI                 INT
 )
 
 INSERT INTO @PHYS_3M
@@ -18,9 +18,9 @@ FROM (
 
 DECLARE @PHYS_DSS TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
-	, NAME VARCHAR(50)
-	, NPI INT
-	, ID_NUM INT
+	, NAME                VARCHAR(50)
+	, NPI                 INT
+	, ID_NUM              VARCHAR(15)
 )
 
 INSERT INTO @PHYS_DSS
