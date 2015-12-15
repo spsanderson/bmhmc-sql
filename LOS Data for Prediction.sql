@@ -203,42 +203,64 @@ ID INT IDENTITY(1, 1)  PRIMARY KEY
  PULL IT ALL TOGETHER HERE 
  ####################################################################### 
  */ 
- SELECT  
- IP.* 
- , ISNULL(PP.[Med List Type], 'No HML') AS [Home Med List] 
- , CASE 
+SELECT  
+IP.ID
+, IP.[Vist ID]
+, IP.Pt_Sex
+, IP.Pt_Race
+, IP.Pt_Age
+, IP.Pt_Zip_Cd
+, IP.dsch_disp
+, DSCH_DESC_LONG.[Long Discharge Description]
+, DSCH_DESC_SHORT.[Short Discharge Description]
+, IP.hosp_svc
+, IP.[Adm Date Time]
+, DATEPART(WEEKDAY, IP.[ADM DATE TIME]) AS [Adm DOW] 
+, DATEPART(MONTH, IP.[ADM DATE TIME])   AS [Adm Month] 
+, DATEPART(YEAR, IP.[ADM DATE TIME])    AS [Adm Year] 
+, DATEPART(HOUR, IP.[ADM DATE TIME])    AS [Adm Hour] 
+, IP.[Dsch Date Time]
+, DATEPART(WEEKDAY, IP.[Dsch Date Time])AS [Dsch DOW] 
+, IP.[Discharge Month]
+, IP.[Discharge Year]
+, DATEPART(HOUR, IP.[DSCH DATE TIME])   AS [Dsch Hour] 
+, IP.drg_no
+, IP.drg_cost_weight
+, CASE 
+	WHEN IP.drg_cost_weight < 1 THEN 0 
+	WHEN IP.drg_cost_weight >= 1 
+	 AND IP.drg_cost_weight < 2 THEN 1 
+	WHEN IP.drg_cost_weight >= 2 
+	 AND IP.drg_cost_weight < 3 THEN 2 
+	WHEN IP.drg_cost_weight >= 3 
+	 AND IP.drg_cost_weight < 4 THEN 3 
+	WHEN IP.drg_cost_weight >= 4 THEN 4 
+  END                                   AS [DRG Weight Bin]
+, ISNULL(PP.[Med List Type], 'No HML')  AS [Home Med List] 
+, CASE 
 	WHEN PP.[Home Med Count] IS NULL 
 	THEN 0 
 	ELSE PP.[Home Med Count]
-   END                                  AS [Home Med Count] 
- , CASE
+   END                                   AS [Home Med Count] 
+, CASE
 	WHEN PP.[Home Med Count] >= 6
 	THEN 1
 	ELSE 0
-  END                                   AS [Poly Pharmacy Flag]
- , CASE 
-	 WHEN IP.drg_cost_weight < 1 THEN 0 
-	 WHEN IP.drg_cost_weight >= 1 
-	 AND IP.drg_cost_weight < 2 THEN 1 
-	 WHEN IP.drg_cost_weight >= 2 
-	 AND IP.drg_cost_weight < 3 THEN 2 
-	 WHEN IP.drg_cost_weight >= 3 
-	 AND IP.drg_cost_weight < 4 THEN 3 
-	 WHEN IP.drg_cost_weight >= 4 THEN 4 
-   END                                   AS [DRG Weight Bin] 
- , ROUND( 
- CONVERT(FLOAT,VR.drg_std_days_stay) 
- , 1)                                    AS [DRG Std Days Stay] 
- , ROUND( 
-	 CONVERT( 
-		 FLOAT,DATEDIFF( 
-		 HOUR,  
-		 IP.[Adm Date Time],  
-		 IP.[Dsch Date Time] 
-		 )/24.0 
+  END                                    AS [Poly Pharmacy Flag]
+, IP.[Days Stay]
+, ROUND( 
+	CONVERT(FLOAT,VR.drg_std_days_stay) 
+, 1)                                    AS [DRG Std Days Stay] 
+, ROUND( 
+	CONVERT( 
+		FLOAT,DATEDIFF( 
+		HOUR,  
+		IP.[Adm Date Time],  
+		IP.[Dsch Date Time] 
+		)/24.0 
 	 ) 
- , 1)                                    AS [True Days Stay] 
- , ROUND( 
+, 1)                                    AS [True Days Stay] 
+, ROUND( 
 	( 
 	ROUND( 
 		CONVERT( 
@@ -252,31 +274,147 @@ ID INT IDENTITY(1, 1)  PRIMARY KEY
 	)  
 	- 
 	VR.drg_std_days_stay  
- ,1)                                     AS [DRG Opportunity] 
- , CASE 
+,1)                                     AS [DRG Opportunity] 
+, CASE 
 	   WHEN IP.Pt_Age >= 65 THEN 1 
 	   ELSE 0 
    END                                   AS [Senior Citizen Flag] 
- , LIHN.[LIHN Service Line] 
- , ICUV.[ICU Flag] 
- , DATEPART(WEEKDAY, IP.[ADM DATE TIME]) AS [Adm DOW] 
- , DATEPART(MONTH, IP.[ADM DATE TIME])   AS [Adm Month] 
- , DATEPART(YEAR, IP.[ADM DATE TIME])    AS [Adm Year] 
- , DATEPART(HOUR, IP.[ADM DATE TIME])    AS [Adm Hour] 
- , DATEPART(WEEKDAY, IP.[Dsch Date Time])AS [Dsch DOW] 
- , DATEPART(HOUR, IP.[DSCH DATE TIME])   AS [Dsch Hour] 
+, IP.[Hospitalist Flag]
+, IP.[Readmitted in 30?]
+, LIHN.[LIHN Service Line] 
+, ICUV.[ICU Flag]
+, LACE.ModfLACEVal
+, CASE
+	WHEN LACE.ModfLACEVal >= 9 THEN 1
+	ELSE 0
+  END AS [High Risk Readmit]
+
+FROM @INIT_POP IP 
+	LEFT MERGE JOIN @PLYPHARM PP 
+	ON IP.[Vist ID] = PP.[Visit ID] 
+	LEFT MERGE JOIN smsmir.vst_rpt VR 
+	ON IP.[Vist ID] = SUBSTRING(PT_ID, PATINDEX('%[^0]%', pt_id), 9) 
+	LEFT MERGE JOIN @LIHNSVCLINE LIHN 
+	ON IP.[Vist ID] = LIHN.[Visit ID] 
+	LEFT MERGE JOIN @ICUVISIT ICUV 
+	ON IP.[Vist ID] = ICUV.[Visit ID]
+	-- GET LACE SCORE
+	LEFT MERGE JOIN smsdss.ModfLACEFctV AS LACE
+	ON IP.[Vist ID] = RIGHT(LACE.PtId,8)
+
+CROSS APPLY (
+	SELECT 
+		CASE
+			WHEN IP.[dsch_disp] = 'AHB' THEN 'Drug/Alcohol Rehab Non-Hospital Facility'
+			WHEN IP.[dsch_disp] = 'AHI' THEN 'Hospice at Hospice Facility, SNF or Inpatient Facility'
+			WHEN IP.[dsch_disp] = 'AHR' THEN 'Home, Home with Public Health Nurse, Adult Home, Assisted Living'
+			WHEN IP.[dsch_disp] = 'AMA' THEN 'Left Against Medical Advice, Elopement'
+			WHEN IP.[dsch_disp] = 'ATB' THEN 'Correctional Institution'
+			WHEN IP.[dsch_disp] = 'ATE' THEN 'SNF -Sub Acute'
+			WHEN IP.[dsch_disp] = 'ATF' THEN 'Specialty Hospital ( i.e Sloan, Schneiders)'
+			WHEN IP.[dsch_disp] = 'ATH' THEN 'Hospital - Med/Surg (i.e Stony Brook)'
+			WHEN IP.[dsch_disp] = 'ATL' THEN 'SNF - Long Term'
+			WHEN IP.[dsch_disp] = 'ATN' THEN 'Hospital - VA'
+			WHEN IP.[dsch_disp] = 'ATP' THEN 'Hospital - Psych or Drug/Alcohol (i.e BMH 1EAST, South Oaks)'
+			WHEN IP.[dsch_disp] = 'ATT' THEN 'Hospice at Home, Adult Home, Assisted Living'
+			WHEN IP.[dsch_disp] = 'ATW' THEN 'Home, Adult Home, Assisted Living with Homecare'
+			WHEN IP.[dsch_disp] = 'ATX' THEN 'Hospital - Acute Rehab ( I.e. St. Charles, Southside)'
+			WHEN IP.[dsch_disp] = 'C1A' THEN 'Postoperative Death, Autopsy'
+			WHEN IP.[dsch_disp] = 'C1N' THEN 'Postoperative Death, No Autopsy'
+			WHEN IP.[dsch_disp] = 'C1Z' THEN 'Postoperative Death, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'C2A' THEN 'Surgical Death within 48hrs Post Surgery, Autopsy'
+			WHEN IP.[dsch_disp] = 'C2N' THEN 'Surgical Death within 48hrs Post Surgery, No Autopsy'
+			WHEN IP.[dsch_disp] = 'C2Z' THEN 'Surgical Death within 48hrs Post Surgery, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'C3A' THEN 'Surgical Death within 3-10 days Post Surgery, Autopsy'
+			WHEN IP.[dsch_disp] = 'C3N' THEN 'Surgical Death within 3-10 days Post Surgery, No Autopsy'
+			WHEN IP.[dsch_disp] = 'C3Z' THEN 'Surgical Death within 3-10 days Post Surgery, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'C4A' THEN 'Died in O.R, Autopsy'
+			WHEN IP.[dsch_disp] = 'C4N' THEN 'Died in O.R, No Autopsy'
+			WHEN IP.[dsch_disp] = 'C4Z' THEN 'Died in O.R., Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'C7A' THEN 'Other Death, Autopsy'
+			WHEN IP.[dsch_disp] = 'C7N' THEN 'Other Death, No Autopsy'
+			WHEN IP.[dsch_disp] = 'C7Z' THEN 'Other Death, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'C8A' THEN 'Nonsurgical Death within 48hrs of Admission, Autopsy'
+			WHEN IP.[dsch_disp] = 'C8N' THEN 'Nonsurgical Death within 48hrs of Admission, No Autopsy'
+			WHEN IP.[dsch_disp] = 'C8Z' THEN 'Nonsurgical Death within 48hrs of Admission, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'D1A' THEN 'Postoperative Death, Autopsy'
+			WHEN IP.[dsch_disp] = 'D1N' THEN 'Postoperative Death, No Autopsy'
+			WHEN IP.[dsch_disp] = 'D1Z' THEN 'Postoperative Death, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'D2A' THEN 'Surgical Death within 48hrs Post Surgery, Autopsy'
+			WHEN IP.[dsch_disp] = 'D2N' THEN 'Surgical Death within 48hrs Post Surgery, No Autopsy'
+			WHEN IP.[dsch_disp] = 'D2Z' THEN 'Surgical Death within 48hrs Post Surgery, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'D3A' THEN 'Surgical Death within 3-10 days Post Surgery, Autopsy'
+			WHEN IP.[dsch_disp] = 'D3N' THEN 'Surgical Death within 3-10 days Post Surgery, No Autopsy'
+			WHEN IP.[dsch_disp] = 'D3Z' THEN 'Surgical Death within 3-10 days Post Surgery, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'D4A' THEN 'Died in O.R, Autopsy'
+			WHEN IP.[dsch_disp] = 'D4N' THEN 'Died in O.R, No Autopsy'
+			WHEN IP.[dsch_disp] = 'D4Z' THEN 'Died in O.R., Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'D7A' THEN 'Other Death, Autopsy'
+			WHEN IP.[dsch_disp] = 'D7N' THEN 'Other Death, No Autopsy'
+			WHEN IP.[dsch_disp] = 'D7Z' THEN 'Other Death, Autopsy Unknown'
+			WHEN IP.[dsch_disp] = 'D8A' THEN 'Nonsurgical Death within 48hrs of Admission, Autopsy'
+			WHEN IP.[dsch_disp] = 'D8N' THEN 'Nonsurgical Death within 48hrs of Admission, No Autopsy'
+			WHEN IP.[dsch_disp] = 'D8Z' THEN 'Nonsurgical Death within 48hrs of Admission, Autopsy Unknown'
+		END AS 'Long Discharge Description'
+) DSCH_DESC_LONG
+
+CROSS APPLY(
+	SELECT
+		CASE
+			WHEN IP.[dsch_disp] = 'AHB' THEN 'Drug/Alcohol Rehab Non-Hospital Facility'
+			WHEN IP.[dsch_disp] = 'AHI' THEN 'Hospice at Hospice Facility, SNF or Inpatient Facility'
+			WHEN IP.[dsch_disp] = 'AHR' THEN 'Home, Home with Public Health Nurse, Adult Home, Assisted Living'
+			WHEN IP.[dsch_disp] = 'AMA' THEN 'Left Against Medical Advice, Elopement'
+			WHEN IP.[dsch_disp] = 'ATB' THEN 'Correctional Institution'
+			WHEN IP.[dsch_disp] = 'ATE' THEN 'SNF -Sub Acute'
+			WHEN IP.[dsch_disp] = 'ATF' THEN 'Specialty Hospital ( i.e Sloan, Schneiders)'
+			WHEN IP.[dsch_disp] = 'ATH' THEN 'Hospital - Med/Surg (i.e Stony Brook)'
+			WHEN IP.[dsch_disp] = 'ATL' THEN 'SNF - Long Term'
+			WHEN IP.[dsch_disp] = 'ATN' THEN 'Hospital - VA'
+			WHEN IP.[dsch_disp] = 'ATP' THEN 'Hospital - Psych or Drug/Alcohol (i.e BMH 1EAST, South Oaks)'
+			WHEN IP.[dsch_disp] = 'ATT' THEN 'Hospice at Home, Adult Home, Assisted Living'
+			WHEN IP.[dsch_disp] = 'ATW' THEN 'Home, Adult Home, Assisted Living with Homecare'
+			WHEN IP.[dsch_disp] = 'ATX' THEN 'Hospital - Acute Rehab ( I.e. St. Charles, Southside)'
+			WHEN IP.[dsch_disp] = 'C1A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C1N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C1Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C2A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C2N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C2Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C3A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C3N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C3Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C4A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C4N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C4Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C7A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C7N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C7Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C8A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C8N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'C8Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D1A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D1N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D1Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D2A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D2N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D2Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D3A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D3N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D3Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D4A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D4N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D4Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D7A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D7N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D7Z' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D8A' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D8N' THEN 'Death'
+			WHEN IP.[dsch_disp] = 'D8Z' THEN 'Death'
+		END AS 'Short Discharge Description'
+) DSCH_DESC_SHORT
+
+WHERE IP.drg_cost_weight IS NOT NULL 
+	AND ICUV.[ICU Flag] IS NOT NULL 
   
- FROM @INIT_POP IP 
-	 LEFT MERGE JOIN @PLYPHARM PP 
-	 ON IP.[Vist ID] = PP.[Visit ID] 
-	 LEFT MERGE JOIN smsmir.vst_rpt VR 
-	 ON IP.[Vist ID] = SUBSTRING(PT_ID, PATINDEX('%[^0]%', pt_id), 9) 
-	 LEFT MERGE JOIN @LIHNSVCLINE LIHN 
-	 ON IP.[Vist ID] = LIHN.[Visit ID] 
-	 LEFT MERGE JOIN @ICUVISIT ICUV 
-	 ON IP.[Vist ID] = ICUV.[Visit ID] 
-  
- WHERE IP.drg_cost_weight IS NOT NULL 
-	 AND ICUV.[ICU Flag] IS NOT NULL 
-  
- ORDER BY IP.[Dsch Date Time] ASC 
+ORDER BY IP.[Dsch Date Time] ASC 

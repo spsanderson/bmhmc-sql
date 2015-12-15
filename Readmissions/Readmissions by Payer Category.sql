@@ -4,9 +4,9 @@ DECLARE @SD2 DATETIME;
 DECLARE @ED2 DATETIME;
 
 SET @SD1 = '01-01-2014';
-SET @ED1 = '09-01-2014';
+SET @ED1 = '11-01-2014';
 SET @SD2 = '01-01-2015';
-SET @ED2 = '09-01-2015';
+SET @ED2 = '11-01-2015';
 
 -- 2014 Readmits ------------------------------------------------------
 SELECT *
@@ -28,8 +28,8 @@ FROM(
 	FROM smsdss.vReadmits                         AS A
 	JOIN smsdss.BMH_PLM_PtAcct_V                  AS B
 	ON A.[INDEX] = B.PtNo_Num
-	LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
-	ON A.[INDEX]=CAST(e.pt_id AS INT)
+	--LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
+	--ON A.[INDEX]=CAST(e.pt_id AS INT)
 
 	WHERE B.Adm_Date >= @SD1 AND B.Adm_Date < @ED1
 	AND A.INTERIM < 31
@@ -37,12 +37,12 @@ FROM(
 	AND B.hosp_svc != 'PSY'
 	AND B.tot_chg_amt > '0'
 	AND B.Plm_Pt_Acct_Type='I'
-	AND E.[ICD_CD_SCHM] = '9'
-	AND (
-		E.PROC_CD_SCHM = '9'
-		OR
-		E.PROC_CD_SCHM IS NULL
-		)
+	--AND E.[ICD_CD_SCHM] = '9'
+	--AND (
+	--	E.PROC_CD_SCHM = '9'
+	--	OR
+	--	E.PROC_CD_SCHM IS NULL
+	--	)
 ) A
 
 PIVOT(
@@ -73,8 +73,8 @@ FROM(
 	FROM smsdss.vReadmits                         AS A
 	JOIN smsdss.BMH_PLM_PtAcct_V                  AS B
 	ON A.[INDEX] = B.PtNo_Num
-	LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
-	ON A.[INDEX]=CAST(e.pt_id AS INT)
+	--LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
+	--ON A.[INDEX]=CAST(e.pt_id AS INT)
 
 	WHERE B.Adm_Date >= @SD1 AND B.Adm_Date < @ED1
 	AND A.INTERIM < 31
@@ -82,12 +82,12 @@ FROM(
 	AND B.hosp_svc != 'PSY'
 	AND B.tot_chg_amt > '0'
 	AND B.Plm_Pt_Acct_Type='I'
-	AND E.[ICD_CD_SCHM] = '9'
-	AND (
-		E.PROC_CD_SCHM = '9'
-		OR
-		E.PROC_CD_SCHM IS NULL
-		)
+	--AND E.[ICD_CD_SCHM] = '9'
+	--AND (
+	--	E.PROC_CD_SCHM = '9'
+	--	OR
+	--	E.PROC_CD_SCHM IS NULL
+	--	)
 ) A
 
 PIVOT(
@@ -115,8 +115,8 @@ FROM(
 	FROM smsdss.vReadmits                         AS A
 	JOIN smsdss.BMH_PLM_PtAcct_V                  AS B
 	ON A.[INDEX] = B.PtNo_Num
-	LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
-	ON A.[INDEX]=CAST(e.pt_id AS INT)
+	--LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
+	--ON A.[INDEX]=CAST(e.pt_id AS INT)
 
 	WHERE B.Adm_Date >= @SD2 AND B.Adm_Date < @ED2
 	AND A.INTERIM < 31
@@ -124,12 +124,12 @@ FROM(
 	AND B.hosp_svc != 'PSY'
 	AND B.tot_chg_amt > '0'
 	AND B.Plm_Pt_Acct_Type='I'
-	AND E.[ICD_CD_SCHM] = '9'
-	AND (
-		E.PROC_CD_SCHM = '9'
-		OR
-		E.PROC_CD_SCHM IS NULL
-		)
+	--AND E.[ICD_CD_SCHM] = '9'
+	--AND (
+	--	E.PROC_CD_SCHM = '9'
+	--	OR
+	--	E.PROC_CD_SCHM IS NULL
+	--	)
 ) A
 
 PIVOT(
@@ -160,8 +160,8 @@ FROM(
 	FROM smsdss.vReadmits                         AS A
 	JOIN smsdss.BMH_PLM_PtAcct_V                  AS B
 	ON A.[INDEX] = B.PtNo_Num
-	LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
-	ON A.[INDEX]=CAST(e.pt_id AS INT)
+	--LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt_v AS E
+	--ON A.[INDEX]=CAST(e.pt_id AS INT)
 
 	WHERE B.Adm_Date >= @SD2 AND B.Adm_Date < @ED2
 	AND A.INTERIM < 31
@@ -169,12 +169,12 @@ FROM(
 	AND B.hosp_svc != 'PSY'
 	AND B.tot_chg_amt > '0'
 	AND B.Plm_Pt_Acct_Type='I'
-	AND E.[ICD_CD_SCHM] = '9'
-	AND (
-		E.PROC_CD_SCHM = '9'
-		OR
-		E.PROC_CD_SCHM IS NULL
-		)
+	--AND E.[ICD_CD_SCHM] = '9'
+	--AND (
+	--	E.PROC_CD_SCHM = '9'
+	--	OR
+	--	E.PROC_CD_SCHM IS NULL
+	--	)
 ) A
 
 PIVOT(
