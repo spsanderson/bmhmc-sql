@@ -31,6 +31,7 @@ ON R.[INDEX] = b.ptno_num
 LEFT OUTER JOIN smsdss.dsch_disp_mstr         AS c
 ON b.dsch_disp=c.dsch_disp 
 	and c.src_sys_id='#PMSNTX0'
+	and c.orgz_cd = '?'	
 LEFT OUTER JOIN smsmir.mir_pract_mstr         AS d
 ON b.Atn_Dr_No=d.pract_no 
 	AND d.src_sys_id='#PMSNTX0'
@@ -72,38 +73,5 @@ WHERE B.Adm_Date >= @SD1 AND B.Adm_Date < @ED1
 AND B.hosp_svc != 'PSY'
 AND R.[READMIT SOURCE DESC] != 'Scheduled Admission'
 AND INTERIM < 31
---AND E.[ICD_CD_SCHM] = '0'
---AND (
---	E.PROC_CD_SCHM = '0'
---	OR
---	E.PROC_CD_SCHM IS NULL
---	)
-
-GROUP BY R.[INDEX]
-, b.Pt_Name
-, b.pt_age
-, b.pt_zip_cd
-, R.[READMIT]
-, R.[READMIT SOURCE DESC]
-, R.MRN
-, R.[INITIAL DISCHARGE]
-, R.[READMIT DATE]
-, R.[INTERIM]
-, R.[30D RA COUNT]
-, b.adm_date
-, b.dsch_dtime
-, MONTH(b.adm_date)
-, YEAR(b.adm_date)
-, b.User_Pyr1_Cat
-, INS.[Payer Category]
-, b.dsch_disp
-, c.dsch_disp_desc
-, b.atn_dr_no
-, d.pract_rpt_name
-, e.LIHN_Svc_Line
-, f.drg_no
-, g.drg_name
-, h.ED_MD
-, jj.userdatatext
 
 ORDER BY R.[INDEX]

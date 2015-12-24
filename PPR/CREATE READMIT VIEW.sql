@@ -39,13 +39,13 @@ c1.PtNo_Num                                AS [INDEX]
 , c2.PtNo_Num                              AS [READMIT]
 , c2.adm_src_desc                          AS [READMIT SOURCE DESC]
 , c1.Med_Rec_No                            AS [MRN]
-, c1.Dsch_Date                             AS [INITIAL DISCHARGE]
-, c2.Adm_Date                              AS [READMIT DATE]
+, CAST(c1.Dsch_Date AS DATE)               AS [INITIAL DISCHARGE]
+, CAST(c2.Adm_Date AS DATE)                AS [READMIT DATE]
 , DATEDIFF(DAY, c1.Dsch_Date, c2.Adm_Date) AS INTERIM
 , ROW_NUMBER() OVER (
 				    PARTITION BY C1.MED_REC_NO 
 				    ORDER BY C1.PTNO_NUM
-				    ) AS [30D RA COUNT]
+				    ) AS [ADMIT COUNT]
 
 
 FROM cte c1

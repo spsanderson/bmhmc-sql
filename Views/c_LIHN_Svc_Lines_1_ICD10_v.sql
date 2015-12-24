@@ -56,6 +56,9 @@ ON a.pt_id = i.pt_id
 LEFT OUTER JOIN smsmir.mir_clasf_mstr AS j
 ON i.dx_cd = j.clasf_cd 
 	AND j.clasf_schm = '0'
+	-- update ------------
+	AND j.clasf_type = 'D'
+	-- end of update -----
 LEFT OUTER JOIN smsmir.mir_sproc      AS k
 ON a.pt_id = k.pt_id 
 	AND k.proc_cd_prio = '01' 

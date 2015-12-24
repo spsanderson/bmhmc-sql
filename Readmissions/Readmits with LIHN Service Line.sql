@@ -4,7 +4,7 @@ DECLARE @SD2 DATETIME;
 DECLARE @ED2 DATETIME;
 
 SET @SD1 = '2014-01-01 00:00:00.000';
-SET @ED1 = '2015-09-01 00:00:00.000';
+SET @ED1 = '2014-09-01 00:00:00.000';
 SET @SD2 = '2015-01-01 00:00:00.000';
 SET @ED2 = '2015-09-01 00:00:00.000';
 
@@ -35,6 +35,7 @@ ON R.[INDEX] = b.ptno_num
 LEFT OUTER JOIN smsdss.dsch_disp_mstr         AS c
 ON b.dsch_disp=c.dsch_disp 
 	and c.src_sys_id='#PMSNTX0'
+	and c.orgz_cd = '?'
 LEFT OUTER JOIN smsmir.mir_pract_mstr         AS d
 ON b.Atn_Dr_No=d.pract_no 
 	AND d.src_sys_id='#PMSNTX0'
