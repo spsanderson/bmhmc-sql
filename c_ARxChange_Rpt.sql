@@ -326,9 +326,9 @@ FROM (
 	AND b.pt_type NOT IN ('R', 'K')
 ) b
 
-SELECT 'Brookhaven Memorial Hospital' AS [FacilityName]
-, '631-654-7209'                      AS [FacilityPhoneNumber]
-, b.TraumaIndicator                   AS [Elective_or_ED_Admission_or_Trauma_Indicator]
+SELECT 'Brookhaven Memorial Hospital'       AS [FacilityName]
+, '631-654-7209'                            AS [FacilityPhoneNumber]
+, b.TraumaIndicator                         AS [Elective_or_ED_Admission_or_Trauma_Indicator]
 , a.HospitalServiceDepartment
 , b.PhysicianName
 , a.Inpatient_Outpatient
@@ -338,8 +338,8 @@ SELECT 'Brookhaven Memorial Hospital' AS [FacilityName]
 , a.Primary_Financial_Class
 
 -- Patient Information ------------------------------------------------
-, b.ptnumber                          AS [Account_Number]
-, ''                                  AS [Patient_Alternate_ID]
+, b.ptnumber                                AS [Account_Number]
+, ''                                        AS [Patient_Alternate_ID]
 , a.PatientMedicalRecordNumber
 , a.Patient_Last_Name
 , a.Patient_First_Name
@@ -360,34 +360,34 @@ SELECT 'Brookhaven Memorial Hospital' AS [FacilityName]
 , a.Patient_Employer_City
 , a.Patient_Employer_State
 , a.Patient_Employer_Zip
-, ''                                  AS [Patient_Annual_Income]
+, ''                                        AS [Patient_Annual_Income]
 , a.Patient_Email
 
 -- Co-Signor (Guarantor Informaiton) ----------------------------------
 , a.GuarantorSocial
 , a.GuarantorDOB
-, ''                                  AS [GuarantorGender]
+, ''                                        AS [GuarantorGender]
 , a.GuarantorLast
 , a.GuarantorFirst
-, ''                                  AS [GuarantorMiddle]
-, ''                                  AS [GuarantorSuffix]
+, ''                                        AS [GuarantorMiddle]
+, ''                                        AS [GuarantorSuffix]
 , a.GuarantorAddressLine1
 , a.GuarantorAddressLine2
 , a.GuarantorCity
 , a.GuarantorState
 , a.GuarantorZip
 , a.GuarantorPhone
-, ''                                  AS [GuarantorCellPhone]
+, ''                                        AS [GuarantorCellPhone]
 , a.GuarantorWorkPhone
-, a.GuarantorEmployer_Name            AS [GuarantorEmployer_Name]
+, a.GuarantorEmployer_Name                  AS [GuarantorEmployer_Name]
 , a.GuarantorEmployer_Address
 , a.GuarantorEmployer_City
 , a.GuarantorEmployer_State
 , a.GuarantorEmployer_Zip
-, ''                                  AS [GuarnatorEmailAddress]
-, ''								  AS [Guarantor_Relation]
-, ''								  AS [GuarantorMaritalStatus]
-, ''								  AS [GuarantorHouseholdSize]
+, ''                                        AS [GuarnatorEmailAddress]
+, ''								        AS [Guarantor_Relation]
+, ''								        AS [GuarantorMaritalStatus]
+, ''								        AS [GuarantorHouseholdSize]
 
 -- Insuarnace Information (for each insurance payor listed) -----------
 , b.INS1_Name
@@ -420,55 +420,55 @@ SELECT 'Brookhaven Memorial Hospital' AS [FacilityName]
 , CONVERT(VARCHAR, a.vst_start_dtime, 101)  AS [DateOfAdmission]
 , CONVERT(VARCHAR, a.vst_start_dtime, 101)  AS [DateOfTreatment]
 , CONVERT(VARCHAR, a.vst_end_dtime, 101)    AS [Discharge_Date]
-, a.len_of_stay                                 AS [length_of_Stay_in_Days]
-, ''                                            AS [Date_Billed] -- need this
-, ''			                                AS [Amount_Charged]-- not needed
-, ''                                            AS [Amount_Billed_to_Insurance]-- not needed
-, a.tot_bal_amt                                 AS [Total_Amount_Due]
-, ''                                            AS [Patient_Responsibility_Amount]-- not needed
-, ''                                            AS [Patient_Amount_of_Payments_Received]-- not needed
+, a.len_of_stay                             AS [length_of_Stay_in_Days]
+, ''                                        AS [Date_Billed] -- need this
+, ''			                            AS [Amount_Charged]-- not needed
+, ''                                        AS [Amount_Billed_to_Insurance]-- not needed
+, a.tot_bal_amt                             AS [Total_Amount_Due]
+, ''                                        AS [Patient_Responsibility_Amount]-- not needed
+, ''                                        AS [Patient_Amount_of_Payments_Received]-- not needed
 , CONVERT(VARCHAR, a.Last_Pt_Pymt, 101)     AS [Date_of_Last_Patient_Paymnt]
-, ''                                            AS [Total_Amount_Due_from_Patient]-- not needed
-, ''                                            AS [Self_Pay_Adjustment_Amount]-- not needed
-, ''                                            AS [Account_Status]-- not needed
-, ''                                            AS [Status_Date]-- not needed
-, ''                                            AS [AmountPrePaid]-- not needed
-, ''                                            AS [TotalInterest]-- not needed
-, ''                                            AS [TotalLateFees]-- not needed
-, ''                                            AS [TotalInsurancePayments]-- not needed
-, ''                                            AS [APR]-- not needed
+, ''                                        AS [Total_Amount_Due_from_Patient]-- not needed
+, ''                                        AS [Self_Pay_Adjustment_Amount]-- not needed
+, ''                                        AS [Account_Status]-- not needed
+, ''                                        AS [Status_Date]-- not needed
+, ''                                        AS [AmountPrePaid]-- not needed
+, ''                                        AS [TotalInterest]-- not needed
+, ''                                        AS [TotalLateFees]-- not needed
+, ''                                        AS [TotalInsurancePayments]-- not needed
+, ''                                        AS [APR]-- not needed
 , CONVERT(VARCHAR, a.Last_Pt_Pymt, 101)     AS [LastPaymentDate]
-, a.Last_Pymt_Amount                            AS [LastPaymentAmount]
-, ''                                            AS [Amount_Charge_Off] -- not needed
-, ''                                            AS [Date_Account_Closed] -- not needed
-, ''                                            AS [Charge_Off_Date] -- not needed
-, ''                                            AS [Insurance_1_Amount_Billed] -- not needed
-, ''                                            AS [Insurance_1_Date_Billed] -- not needed
-, ''                                            AS [Insurance_1_Amount_of_Payments_Received] -- not needed
-, ''                                            AS [Insurance_1_Date_of_Last_Payment_Received] -- not needed
-, ''                                            AS [Insurance_1_Adjustment_Amount] -- not needed
-, ''                                            AS [Insurance_1_Co-Pay_Amount] -- not needed
-, ''                                            AS [Insurance_1_Co-Pay_Posted_Date] -- not needed
-, ''                                            AS [Insurance_1_Deductible_Amount] -- not needed
-, ''                                            AS [Insurance_1_Deductible_Posted_Date] -- not needed
-, ''                                            AS [Insurance_1_Insurance_Status] -- not needed
-, ''                                            AS [Insurance_1_Insurance_Denial_Code] -- not needed
-, ''                                            AS [Insurance_1_Insurance_Denial_Posted_Date] -- not needed
-, ''                                            AS [Insurance_2_Amount_Billed] -- not needed
-, ''                                            AS [Insurance_2_Date_Billed] -- not needed
-, ''                                            AS [Insurance_2_Amount_of_Payments_Received] -- not needed
-, ''                                            AS [Insurance_2_Date_of_Last_Payment_Received] -- not needed
-, ''                                            AS [Insurance_2_Adjustment_Amount] -- not needed
-, ''                                            AS [Insurance_2_Co-Pay_Amount] -- not needed
-, ''                                            AS [Insurance_2_Co-Pay_Posted_Date] -- not needed
-, ''                                            AS [Insurance_2_Deductible_Amount] -- not needed
-, ''                                            AS [Insurance_2_Deductible_Posted_Date] -- not needed
-, ''                                            AS [Insurance_2_Insurance_Status] -- not needed
-, ''                                            AS [Insurance_2_Insurance_Denial_Code] -- not needed
-, ''                                            AS [Insurance_2_Insurance_Denial_Posted_Date] -- not needed
+, a.Last_Pymt_Amount                        AS [LastPaymentAmount]
+, ''                                        AS [Amount_Charge_Off] -- not needed
+, ''                                        AS [Date_Account_Closed] -- not needed
+, ''                                        AS [Charge_Off_Date] -- not needed
+, ''                                        AS [Insurance_1_Amount_Billed] -- not needed
+, ''                                        AS [Insurance_1_Date_Billed] -- not needed
+, ''                                        AS [Insurance_1_Amount_of_Payments_Received] -- not needed
+, ''                                        AS [Insurance_1_Date_of_Last_Payment_Received] -- not needed
+, ''                                        AS [Insurance_1_Adjustment_Amount] -- not needed
+, ''                                        AS [Insurance_1_Co-Pay_Amount] -- not needed
+, ''                                        AS [Insurance_1_Co-Pay_Posted_Date] -- not needed
+, ''                                        AS [Insurance_1_Deductible_Amount] -- not needed
+, ''                                        AS [Insurance_1_Deductible_Posted_Date] -- not needed
+, ''                                        AS [Insurance_1_Insurance_Status] -- not needed
+, ''                                        AS [Insurance_1_Insurance_Denial_Code] -- not needed
+, ''                                        AS [Insurance_1_Insurance_Denial_Posted_Date] -- not needed
+, ''                                        AS [Insurance_2_Amount_Billed] -- not needed
+, ''                                        AS [Insurance_2_Date_Billed] -- not needed
+, ''                                        AS [Insurance_2_Amount_of_Payments_Received] -- not needed
+, ''                                        AS [Insurance_2_Date_of_Last_Payment_Received] -- not needed
+, ''                                        AS [Insurance_2_Adjustment_Amount] -- not needed
+, ''                                        AS [Insurance_2_Co-Pay_Amount] -- not needed
+, ''                                        AS [Insurance_2_Co-Pay_Posted_Date] -- not needed
+, ''                                        AS [Insurance_2_Deductible_Amount] -- not needed
+, ''                                        AS [Insurance_2_Deductible_Posted_Date] -- not needed
+, ''                                        AS [Insurance_2_Insurance_Status] -- not needed
+, ''                                        AS [Insurance_2_Insurance_Denial_Code] -- not needed
+, ''                                        AS [Insurance_2_Insurance_Denial_Posted_Date] -- not needed
 
 -- Total --------------------------------------------------------------
-, a.tot_chg_amt                                 AS [Total_Charges]
+, a.tot_chg_amt                             AS [Total_Charges]
 , a.Total_Payments
 , a.Total_Adjustments
 

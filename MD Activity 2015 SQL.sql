@@ -1,18 +1,22 @@
-DECLARE @ACTV_CD_START VARCHAR(10);
-DECLARE @ACTV_CD_END   VARCHAR(10);
+DECLARE @ACTV_CD_START  VARCHAR(10);
+DECLARE @ACTV_CD_END    VARCHAR(10);
 DECLARE @PROC_EFF_START DATETIME;
 DECLARE @PROC_EFF_END   DATETIME;
 DECLARE @PROC_CD_TYPE   VARCHAR(2);
-DECLARE @ADMIT_START DATETIME;
-DECLARE @ADMIT_END   DATETIME;
+DECLARE @ADMIT_START    DATETIME;
+DECLARE @ADMIT_END      DATETIME;
+DECLARE @PROC_SUMM_CAT  VARCHAR(15);
+DECLARE @HCPCS_PROC_CAT VARCHAR(15);
 
-SET @ACTV_CD_START = '07200000';
-SET @ACTV_CD_END   = '07299999';
-SET @PROC_EFF_START = '01/01/2014';
-SET @PROC_EFF_END   = '10/01/2015';
-SET @PROC_CD_TYPE  = 'PC';
-SET @ADMIT_START = @PROC_EFF_START;
-SET @ADMIT_END   = @PROC_EFF_END;
+SET @ACTV_CD_START  = '07200000';
+SET @ACTV_CD_END    = '07299999';
+SET @PROC_EFF_START = '01/01/2015';
+SET @PROC_EFF_END   = '01/01/2016';
+SET @PROC_CD_TYPE   = 'PC';
+SET @ADMIT_START    = @PROC_EFF_START;
+SET @ADMIT_END      = @PROC_EFF_END;
+SET @PROC_SUMM_CAT  = '%eye%';
+SET @HCPCS_PROC_CAT = @PROC_SUMM_CAT;
 
 -- DECLARE MD LIST ----------------------------------------------------
 DECLARE @MD_LIST TABLE (
@@ -100,8 +104,8 @@ ON D.Adm_Dr_No = ADM_DR.src_pract_no
 LEFT JOIN smsdss.proc_dim_v                            AS f
 ON a.proc_cd = f.proc_cd
 	AND (
-		f.proc_summ_cat like '%digestive%'
-		or f.hcpcs_proc_dtl_cat like '%digestive%'
+		f.proc_summ_cat like @PROC_SUMM_CAT
+		or f.hcpcs_proc_dtl_cat like @HCPCS_PROC_CAT
 	)
 -----------------------------------------------------------------------
 WHERE a.resp_pty_cd IN (

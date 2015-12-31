@@ -4,31 +4,31 @@ THE BELOW IS TO BE USED FOR THE COMPARATIVE READMISSIONS REPORT FOR
 ICD-9
 =======================================================================
 */
-SELECT a.[INDEX]
-, a.[READMIT]
-, a.[READMIT SOURCE DESC]
-, a.MRN
-, CAST(b.Adm_Date AS DATE)            AS [INITIAL ADMIT DATE]
-, CAST(a.[INITIAL DISCHARGE] AS DATE) AS [INITIAL DISCHARGE]
-, CAST(a.[READMIT DATE] AS DATE)      AS [READMIT DATE]
-, a.[INTERIM]
-, b.dsch_disp
-, c.pract_rpt_name
+SELECT a.[INDEX]                      AS [Initial_Encounter]
+, a.[READMIT]                         AS [Readmit_Encounter]
+, a.[READMIT SOURCE DESC]             AS [Readmit_Source]
+, a.MRN                               AS [MRN]
+, CAST(b.Adm_Date AS DATE)            AS [Initial_Admit_Date]
+, CAST(a.[INITIAL DISCHARGE] AS DATE) AS [Initial_Discharge_Date]
+, CAST(a.[READMIT DATE] AS DATE)      AS [Readmit_Date]
+, a.[INTERIM]                         AS [Days_Until_Readmit]
+, b.dsch_disp                         AS [Initial Disposition]
+, c.pract_rpt_name                    AS [Attending_Doctor]
 , CASE
 	WHEN c.src_spclty_cd = 'HOSIM'
 	THEN 1
 	ELSE 0
-  END AS [Hospitalist_Flag]
+  END                                 AS [Hospitalist_Flag]
 , CASE
 	WHEN b.User_Pyr1_Cat IN ('AAA','ZZZ') 
 		THEN 'Medicare'
 	WHEN b.User_Pyr1_Cat = 'WWW' 
 		THEN 'Medicaid'
 	ELSE 'Other'
-  END AS [Summary Ins Flag]
-, b.prin_dx_icd9_cd
-, b.prin_dx_icd10_cd
-, D.LIHN_Service_Line AS [Readmit LIHN Service Line]
+  END                                 AS [Summary Ins Flag]
+, b.prin_dx_icd9_cd                   AS [Principal_ICD9_Code]
+, b.prin_dx_icd10_cd                  AS [Principal_ICD10_Code]
+, D.LIHN_Service_Line                 AS [Readmit LIHN Service Line]
 
 FROM smsdss.vReadmits                                AS A
 LEFT OUTER MERGE JOIN smsdss.bmh_plm_ptacct_v        AS B
@@ -57,31 +57,31 @@ THE BELOW IS TO BE USED FOR THE COMPARATIVE READMISSIONS REPORT FOR
 ICD-10
 =======================================================================
 */
-SELECT a.[INDEX]
-, a.[READMIT]
-, a.[READMIT SOURCE DESC]
-, a.MRN
-, CAST(b.Adm_Date AS DATE)            AS [INITIAL ADMIT DATE]
-, CAST(a.[INITIAL DISCHARGE] AS DATE) AS [INITIAL DISCHARGE]
-, CAST(a.[READMIT DATE] AS DATE)      AS [READMIT DATE]
-, a.[INTERIM]
-, b.dsch_disp
-, c.pract_rpt_name
+SELECT a.[INDEX]                      AS [Initial_Encounter]
+, a.[READMIT]                         AS [Readmit_Encounter]
+, a.[READMIT SOURCE DESC]             AS [Readmit_Source]
+, a.MRN                               AS [MRN]
+, CAST(b.Adm_Date AS DATE)            AS [Initial_Admit_Date]
+, CAST(a.[INITIAL DISCHARGE] AS DATE) AS [Initial_Discharge_Date]
+, CAST(a.[READMIT DATE] AS DATE)      AS [Readmit_Date]
+, a.[INTERIM]                         AS [Days_Until_Readmit]
+, b.dsch_disp                         AS [Initial Disposition]
+, c.pract_rpt_name                    AS [Attending_Doctor]
 , CASE
 	WHEN c.src_spclty_cd = 'HOSIM'
 	THEN 1
 	ELSE 0
-  END AS [Hospitalist_Flag]
+  END                                 AS [Hospitalist_Flag]
 , CASE
 	WHEN b.User_Pyr1_Cat IN ('AAA','ZZZ') 
 		THEN 'Medicare'
 	WHEN b.User_Pyr1_Cat = 'WWW' 
 		THEN 'Medicaid'
 	ELSE 'Other'
-  END AS [Summary Ins Flag]
-, b.prin_dx_icd9_cd
-, b.prin_dx_icd10_cd
-, D.LIHN_Service_Line AS [Readmit LIHN Service Line]
+  END                                 AS [Summary Ins Flag]
+, b.prin_dx_icd9_cd                   AS [Principal_ICD9_Code]
+, b.prin_dx_icd10_cd                  AS [Principal_ICD10_Code]
+, D.LIHN_Service_Line                 AS [Readmit LIHN Service Line]
 
 FROM smsdss.vReadmits                                      AS A
 LEFT OUTER MERGE JOIN smsdss.bmh_plm_ptacct_v              AS B
