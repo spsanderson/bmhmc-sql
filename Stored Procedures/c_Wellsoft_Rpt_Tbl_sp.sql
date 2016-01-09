@@ -33,13 +33,13 @@ BEGIN
 	, TimeRNSignature
 	, timemdsignature
 	, RNSgntr
-	, TriageByNameEntered as [Triage_End]
-	, TriageStartTime as [Triage_Start]
+	, TriageByNameEntered  AS [Triage_End]
+	, TriageStartTime      AS [Triage_Start]
 	, AddedToAdmissionsTrack
 	, StatusAdmitConfirmed AS [Admit_Cnrfm_String]
 	, AdmittingMD
 	, AreaOfCare
-	, EDMD AS [ED_MD]
+	, EDMD                 AS [ED_MD]
 	, EDMDID
 	, Specialty
 	, AccessProceduresED
@@ -50,7 +50,10 @@ BEGIN
 	, TransferringFacility
 	, ReferMD
 	, PrivateName
-
+	, StatusAdmit 
+	, AdmitOrdersDT
+	, TimeLeftED
+	
 	INTO smsdss.c_Wellsoft_Rpt_tbl_tmp
 	
 	FROM [BMH-EDIS-CL]..[WELLUSER].[Patient_Chart] a 

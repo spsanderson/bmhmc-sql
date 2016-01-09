@@ -99,13 +99,111 @@ END
 =======================================================================
 */
 
+/*
+=======================================================================
+CREATE TABLE THAT WILL GET THE CODED DISCHARGE DISPOSITION OF THE VISIT
+=======================================================================
+*/
+DECLARE @CodedDispo TABLE (
+	PK INT IDENTITY(1, 1) PRIMARY KEY
+	, Encounter           INT
+	, Coded_Disposition   VARCHAR(3)
+);
+
+WITH CTE3 AS (
+	SELECT A.PtNo_Num
+	, A.dsch_disp
+
+	FROM SMSDSS.BMH_PLM_PtAcct_V AS A
+	
+	WHERE A.PtNo_Num >= (
+		SELECT MIN(PtNo_Num)
+		FROM SMSDSS.c_Home_Care_Rpt_Tbl
+	)
+)
+
+INSERT INTO @CodedDispo
+SELECT *
+FROM CTE3 C3
+/*
+=======================================================================
+END
+=======================================================================
+*/
+
+/*
+=======================================================================
+GET THE DESCRIPTION OF THE FINAL DISCHARGE ORDER FROM SORIAN
+=======================================================================
+*/
+DECLARE @FinalDischargeOrder TABLE (
+	PK INT IDENTITY(1, 1) PRIMARY KEY
+	, Encounter           INT
+	, Order_Number        INT
+	, Order_Date          DATE
+	, Order_Time          TIME
+	, Order_Description   VARCHAR(MAX)
+);
+
+WITH CTE4 AS (
+	SELECT B.episode_no
+	, B.ord_no
+	, B.DATE
+	, B.TIME
+	, B.desc_as_written
+
+	FROM (
+		SELECT EPISODE_NO
+		, ORD_NO
+		, CAST(ENT_DTIME AS DATE) AS [DATE]
+		, CAST(ENT_DTIME AS TIME) AS [TIME]
+		, desc_as_written
+		, ROW_NUMBER() OVER(
+							PARTITION BY EPISODE_NO ORDER BY ORD_NO DESC
+							) AS ROWNUM
+		FROM smsmir.sr_ord
+		WHERE svc_desc = 'DISCHARGE TO'
+		AND episode_no < '20000000'
+	) B
+
+	WHERE B.ROWNUM = 1
+)
+
+INSERT INTO @FinalDischargeOrder
+SELECT *
+FROM CTE4 C4
+/*
+=======================================================================
+END
+=======================================================================
+*/
+
+/*
+=======================================================================
+PULL IT ALL TOGETHER
+=======================================================================
+*/
 SELECT A.Encounter
+, B.MRN
+, B.Homecare_MRN
+, D.Order_Description AS [Final_Soarian_Discharge_Order_Desc]
+, CASE
+	WHEN PATINDEX('%(A-%', D.Order_Description) != 0
+		THEN SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 1, 1) +
+		     SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 3, 2)
+	ELSE ''
+  END AS [Final_Soarian_Dispo_Code]
+, C.Coded_Disposition
+, CASE
+	WHEN SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 1, 1) +
+		 SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 3, 2)
+		 = C.Coded_Disposition
+		THEN 1
+	ELSE 0
+  END                 AS [Soarian = Coded Dispo (1 = Y, 0 = N)]
 , A.Homecare_Comments
 , A.Letter_FaxPrint_DateTime
 , A.PrinterName
-, B.Encounter
-, B.MRN
-, B.Homecare_MRN
 , B.Admit_Date
 , B.Discharge_Date
 , B.Start_of_care_date
@@ -113,6 +211,10 @@ SELECT A.Encounter
 , B.NTUC_Reason
 , B.Entered_into_Invision_DateTime
 
-FROM @Referral AS A
-LEFT OUTER JOIN @HomeCareTable AS B
+FROM @Referral                       AS A
+LEFT OUTER JOIN @HomeCareTable       AS B
 ON A.Encounter = B.Encounter
+LEFT OUTER JOIN @CodedDispo          AS C
+ON A.Encounter = C.Encounter
+LEFT OUTER JOIN @FinalDischargeOrder AS D
+ON A.Encounter = D.Encounter

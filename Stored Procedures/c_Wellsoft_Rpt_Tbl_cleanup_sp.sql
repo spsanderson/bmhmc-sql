@@ -103,7 +103,28 @@ BEGIN
 	  120)                                                                 AS [Arrival]
 	, ChiefComplaint
 	, ReferMD
-	
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusAdmit), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusAdmit), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusAdmit), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusAdmit), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusAdmit), 11, 2) + ':00',
+	  120)                                                                 AS [Decision To Admit]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AdmitOrdersDT), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AdmitOrdersDT), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AdmitOrdersDT), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AdmitOrdersDT), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AdmitOrdersDT), 11, 2) + ':00',
+	  120)                                                                 AS [AdmitOrdersDT]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 11, 2) + ':00',
+	  120)                                                                 AS [TimeLeftED]
+	  
 	INTO smsdss.c_Wellsoft_Rpt_tbl
 
 	FROM smsdss.c_Wellsoft_Rpt_tbl_tmp
