@@ -187,8 +187,8 @@ PULL IT ALL TOGETHER
 =======================================================================
 */
 SELECT A.Encounter
-, B.MRN
-, B.Homecare_MRN
+, A.MRN
+, A.Homecare_MRN
 , D.Order_Description AS [Final_Soarian_Discharge_Order_Desc]
 , CASE
 	WHEN PATINDEX('%(A-%', D.Order_Description) != 0
@@ -204,21 +204,24 @@ SELECT A.Encounter
 		THEN 1
 	ELSE 0
   END                 AS [Soarian = Coded Dispo (1 = Y, 0 = N)]
-, A.Homecare_Vendor
---, A.Homecare_Comments
-, A.Letter_FaxPrint_DateTime
-, A.PrinterName
-, B.Admit_Date
-, B.Discharge_Date
-, B.Start_of_care_date
-, B.NTUC_Date
-, B.NTUC_Reason
-, B.Entered_into_Invision_DateTime
+, B.Homecare_Vendor
+--, B.Homecare_Comments
+, B.Letter_FaxPrint_DateTime
+, B.PrinterName
+, A.Admit_Date
+, A.Discharge_Date
+, A.Start_of_care_date
+, A.NTUC_Date
+, A.NTUC_Reason
+, A.Entered_into_Invision_DateTime
 
-FROM @Referral                       AS A
-LEFT OUTER JOIN @HomeCareTable       AS B
+FROM @HomeCareTable                    AS A
+LEFT OUTER JOIN @Referral              AS B
 ON A.Encounter = B.Encounter
-LEFT OUTER JOIN @CodedDispo          AS C
+LEFT OUTER JOIN @CodedDispo            AS C
 ON A.Encounter = C.Encounter
-LEFT OUTER JOIN @FinalDischargeOrder AS D
+LEFT OUTER JOIN @FinalDischargeOrder   AS D
 ON A.Encounter = D.Encounter
+
+WHERE B.PrinterName IS NULL
+AND B.Letter_FaxPrint_DateTime IS NULL

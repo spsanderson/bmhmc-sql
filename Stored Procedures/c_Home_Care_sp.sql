@@ -1,9 +1,12 @@
+USE [SMSPHDSSS0X0]
+GO
+/****** Object:  StoredProcedure [smsdss].[c_Home_Care_sp]    Script Date: 1/13/2016 2:32:00 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE smsdss.c_Home_Care_sp
+ALTER PROCEDURE [smsdss].[c_Home_Care_sp]
 AS
 
 BEGIN
@@ -143,15 +146,23 @@ BEGIN
 	, C.HC_NTUC_DATE           AS [NTUC Date]
 	, D.HC_NTUC_RSN            AS [NTUC Reason]
 	, A.Entered_Into_Invision  AS [Information Entered into Invision On]
+	, E.dsch_disp              AS [BMH Coded Disposition]
+	, E.vst_start_dtime        AS [BMH Admit DateTime]
+	, E.vst_end_dtime          AS [BMH Discharge DateTime]
 
 	INTO smsdss.c_Home_Care_Rpt_Tbl
 
-	FROM @HC_MRN A
-	LEFT OUTER JOIN @HC_SOC_DATE B
+	FROM @HC_MRN                            AS A
+	LEFT OUTER JOIN @HC_SOC_DATE            AS B
 	ON A.PTNO_NUM = B.PTNO_NUM
-	LEFT OUTER JOIN @HC_NTUC_DATE C
+	LEFT OUTER JOIN @HC_NTUC_DATE           AS C
 	ON A.PTNO_NUM = C.PTNO_NUM
-	LEFT OUTER JOIN @HC_NTUC_RSN  D
+	LEFT OUTER JOIN @HC_NTUC_RSN            AS D
 	ON A.PTNO_NUM = D.PTNO_NUM
+	-- add plm_ptacct_v admit datetime, disch datetime & coded dispo
+	LEFT OUTER JOIN SMSDSS.BMH_PLM_PtAcct_V AS E
+	ON A.PTNO_NUM = E.PtNo_Num
+		AND E.PtNo_Num < '20000000'
+		AND E.Plm_Pt_Acct_Type = 'I'
 
 END

@@ -42,7 +42,11 @@ CASE
 --, f.npi_no
 --, g.spclty_cd_Desc
 --, 'Medical Observation'
-, a.Plm_Pt_Acct_Type               AS [Encounter Type]
+, CASE
+	WHEN a.Plm_Pt_Acct_Type = 'O'
+		THEN 'OBS UNIT'
+		ELSE a.Plm_Pt_Acct_Type
+  END                             AS [Encounter Type]
 
 FROM smsdss.BMH_PLM_PtAcct_V             AS a
 LEFT OUTER JOIN smsmir.mir_pt            AS b
