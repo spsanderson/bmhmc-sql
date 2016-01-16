@@ -123,6 +123,8 @@ WITH CTE3 AS (
 		SELECT MIN(PtNo_Num)
 		FROM SMSDSS.c_Home_Care_Rpt_Tbl
 	)
+	AND a.PtNo_Num < '20000000'
+	AND a.Plm_Pt_Acct_Type = 'I'
 )
 
 INSERT INTO @CodedDispo

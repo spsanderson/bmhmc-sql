@@ -1,8 +1,3 @@
--- RUN THE HOMECARE STORED PROCEDURE BEFORE RUNNING THE QUERY SO 
--- THAT THE MOST UP TO DATE DATA IS CAPTURED
-EXEC smsdss.c_Home_Care_sp
-GO
-
 /*
 =======================================================================
 CREATE A TABLE FOR HOMECARE REFERRALS. WE DEFINE A REFERRAL AS BEING
@@ -125,6 +120,9 @@ WITH CTE3 AS (
 	)
 	AND a.PtNo_Num < '20000000'
 	AND a.Plm_Pt_Acct_Type = 'I'
+	AND a.Dsch_Date IS NOT NULL
+	AND LEFT(a.dsch_disp, 1) NOT IN ('C', 'D')
+	AND a.dsch_disp != 'AMA'
 )
 
 INSERT INTO @CodedDispo
@@ -189,8 +187,8 @@ PULL IT ALL TOGETHER
 =======================================================================
 */
 SELECT A.Encounter
-, A.MRN
-, A.Homecare_MRN
+, C.MRN
+, C.Homecare_MRN
 , D.Order_Description AS [Final_Soarian_Discharge_Order_Desc]
 , CASE
 	WHEN PATINDEX('%(A-%', D.Order_Description) != 0
@@ -198,11 +196,11 @@ SELECT A.Encounter
 		     SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 3, 2)
 	ELSE ''
   END AS [Final_Soarian_Dispo_Code]
-, C.Coded_Disposition
+, A.Coded_Disposition
 , CASE
 	WHEN SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 1, 1) +
 		 SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 3, 2)
-		 = C.Coded_Disposition
+		 = A.Coded_Disposition
 		THEN 1
 	ELSE 0
   END                 AS [Soarian = Coded Dispo (1 = Y, 0 = N)]
@@ -210,20 +208,17 @@ SELECT A.Encounter
 --, B.Homecare_Comments
 , B.Letter_FaxPrint_DateTime
 , B.PrinterName
-, A.Admit_Date
-, A.Discharge_Date
-, A.Start_of_care_date
-, A.NTUC_Date
-, A.NTUC_Reason
-, A.Entered_into_Invision_DateTime
+, C.Admit_Date
+, C.Discharge_Date
+, C.Start_of_care_date
+, C.NTUC_Date
+, C.NTUC_Reason
+, C.Entered_into_Invision_DateTime
 
-FROM @HomeCareTable                    AS A
+FROM @CodedDispo                       AS A
 LEFT OUTER JOIN @Referral              AS B
 ON A.Encounter = B.Encounter
-LEFT OUTER JOIN @CodedDispo            AS C
+LEFT OUTER JOIN @HomeCareTable         AS C
 ON A.Encounter = C.Encounter
 LEFT OUTER JOIN @FinalDischargeOrder   AS D
 ON A.Encounter = D.Encounter
-
-WHERE B.PrinterName IS NULL
-AND B.Letter_FaxPrint_DateTime IS NULL
