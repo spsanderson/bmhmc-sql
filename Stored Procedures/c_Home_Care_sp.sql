@@ -14,7 +14,8 @@ BEGIN
 	SET NOCOUNT ON;
 	SET ANSI_WARNINGS OFF;
 
-	DROP TABLE smsdss.c_Home_Care_Rpt_Tbl;
+	IF OBJECT_ID('smsdss.c_Home_Care_Rpt_Tbl', 'U') IS NOT NULL
+		DROP TABLE smsdss.c_Home_Care_Rpt_Tbl;
 
 	DECLARE @HC_MRN TABLE (
 		PK INT IDENTITY(1, 1)   PRIMARY KEY

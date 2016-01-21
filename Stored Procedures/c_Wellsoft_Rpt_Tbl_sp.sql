@@ -1,4 +1,5 @@
 SET ANSI_NULLS ON
+SET ANSI_WARNINGS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
@@ -15,7 +16,8 @@ BEGIN
 	-- interfering with SELECT statements.
 	SET NOCOUNT ON;
 
-	DROP TABLE smsdss.c_Wellsoft_Rpt_tbl_tmp;
+	IF OBJECT_ID('smsdss.c_Wellsoft_Rpt_tbl_tmp', 'U') IS NOT NULL
+		DROP TABLE smsdss.c_Wellsoft_Rpt_tbl_tmp;
 
 	SELECT Patient
 	, Account

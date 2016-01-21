@@ -1,4 +1,5 @@
 SET ANSI_NULLS ON
+SET ANSI_WARNINGS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
@@ -15,8 +16,9 @@ BEGIN
 	-- SET NOCOUNT ON added to prevent extra result sets from
 	-- interfering with SELECT statements.
 	SET NOCOUNT ON;
-
-    DROP TABLE smsdss.c_Wellsoft_Rpt_tbl;
+	
+	IF OBJECT_ID('smsdss.c_Wellsoft_Rpt_tbl', 'U') IS NOT NULL
+		DROP TABLE smsdss.c_Wellsoft_Rpt_tbl;
 
 	SELECT ROW_NUMBER() OVER(ORDER BY ARRIVAL) ID
 	, Patient
