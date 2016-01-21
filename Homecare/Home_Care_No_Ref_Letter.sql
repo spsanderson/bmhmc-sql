@@ -185,6 +185,49 @@ END
 
 /*
 =======================================================================
+Get the disposition entered into Soarian from the unit secretary, etc
+=======================================================================
+*/
+DECLARE @SoarianDispCode TABLE (
+	PK INT IDENTITY(1, 1) PRIMARY KEY
+	, Encounter           INT
+	, Full_Soarian_Dispo  VARCHAR(200)
+	, Soarian_Disp_Code   VARCHAR(5)
+);
+
+WITH CTE5 AS (
+	SELECT episode_no
+	, dsch_disp
+	, CASE
+		WHEN LEFT(dsch_disp, 1) = 'A'
+			THEN SUBSTRING(dsch_disp, PATINDEX('%A-%', dsch_disp), 1) +
+				 SUBSTRING(dsch_disp, PATINDEX('%A-%', dsch_disp) + 2, 2)
+		WHEN (
+				PATINDEX('%C -%', dsch_disp) = 1
+				OR
+				PATINDEX('%D -%', dsch_disp) = 1
+			)
+			THEN 'Death'			
+	  END AS [Soarian_Discharge_Code]
+	
+	FROM smsmir.mir_sr_vst_pms
+
+	WHERE episode_no < '20000000'
+	AND LEFT(episode_no, 4) != '1999'
+	AND episode_no NOT IN (
+		'12345678910', '99990000999'
+	)
+	AND dsch_disp IS NOT NULL 
+)
+
+INSERT INTO @SoarianDispCode
+SELECT * FROM CTE5
+
+--SELECT * FROM @SoarianDispCode
+--ORDER BY Encounter
+
+/*
+=======================================================================
 PULL IT ALL TOGETHER
 =======================================================================
 */
@@ -197,7 +240,8 @@ SELECT A.Encounter
 		THEN SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 1, 1) +
 		     SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 3, 2)
 	ELSE ''
-  END AS [Final_Soarian_Dispo_Code]
+  END                 AS [Final_Soarian_Disch_Ord_Dispo_Code]
+, E.Soarian_Disp_Code AS [Actual_Soarian_Disch_Dispo_Code]
 , C.Coded_Disposition
 , CASE
 	WHEN SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 1, 1) +
@@ -224,6 +268,8 @@ LEFT OUTER JOIN @CodedDispo            AS C
 ON A.Encounter = C.Encounter
 LEFT OUTER JOIN @FinalDischargeOrder   AS D
 ON A.Encounter = D.Encounter
+LEFT OUTER JOIN @SoarianDispCode       AS E
+ON A.Encounter = E.Encounter
 
 WHERE B.PrinterName IS NULL
 AND B.Letter_FaxPrint_DateTime IS NULL

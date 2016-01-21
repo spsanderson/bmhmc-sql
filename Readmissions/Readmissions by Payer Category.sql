@@ -35,6 +35,7 @@ FROM(
 	AND B.hosp_svc != 'PSY'
 	AND B.tot_chg_amt > '0'
 	AND B.Plm_Pt_Acct_Type='I'
+	AND B.PtNo_Num < '20000000'
 
 ) A
 
@@ -73,6 +74,7 @@ FROM(
 	AND B.hosp_svc != 'PSY'
 	AND B.tot_chg_amt > '0'
 	AND B.Plm_Pt_Acct_Type='I'
+	AND B.PtNo_Num < '20000000'
 ) A
 
 PIVOT(
