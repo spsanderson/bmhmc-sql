@@ -101,7 +101,12 @@ WITH CTE1 AS (
 	AND A.unit_seq_no NOT IN (-1)
 	-- We only want accounts that still have a balance
 	AND A.pt_bal_amt > 0
-	AND A.resp_cd IS NULL
+	
+	-- Change resp_cd to NOT IN (4, 5, 6) Per K D 1/22/2016
+	AND A.resp_cd NOT IN ('4', '5', '6')
+	--AND A.resp_cd IS NULL
+	-- End resp_cd edit
+	
 	-- Get rid of Hemo Test Pt
 	AND A.acct_no != '000074006123'
 )
@@ -203,9 +208,20 @@ ON A.[Visit Number / Account Number] = B.PT_ID
 LEFT OUTER MERGE JOIN @LastFinClass  AS C
 ON A.[Visit Number / Account Number] = C.PT_ID
 
---WHERE DATEDIFF(DAY, C.CMNT_CRE_DTIME, CAST(GETDATE() AS date)) >= 120
 WHERE (
-		[Days since last Patient Payment] >= 120
+		-- Changes days since last payment to  >= 90 
+		-- per K D 1/22/2016
+		-- [Days since last Patient Payment] >= 120
+		[Days since last Patient Payment] >= 90
 		OR
 		[Days since last Patient Payment] IS NULL
 	)
+-- Get rid of Unitized accounts per K D 1/22/2016
+AND LEFT(A.[Visit Number / Account Number], 5) != '00000'
+AND LEFT(A.[Visit Number / Account Number], 5) != '00007'
+-- Get rid of encounters where the Guarantor SSN is an
+-- erroneous number
+AND A.[Guarantor SSN] NOT IN (
+ '999999999', '999999991', '888888888'
+)
+AND A.[Guarantor Last Name] != 'BROOKHAVEN MEMORIAL HOPITAL'

@@ -63,7 +63,7 @@ WITH CTE2 AS (
 		ORDER BY B.dx_cd_prio
 	) AS [RN]
 
-	FROM SMSMIR.mir_pt AS A
+	FROM SMSMIR.mir_pt           AS A
 	INNER JOIN SMSMIR.mir_dx_grp AS B
 	ON A.pt_id = B.pt_id
 
@@ -71,7 +71,7 @@ WITH CTE2 AS (
 	AND b.dx_cd IN (
 		'585.6', 'n18.6', '500', 'j60'
 	)
-	AND a.med_rec_no IN (
+	AND CAST(a.med_rec_no AS INT) IN (
 		SELECT A.MRN
 		FROM @InitialPopulation AS A
 	)
@@ -84,6 +84,34 @@ WHERE CTE2.RN = 1
 
 --SELECT *
 --FROM @DXExclusions
+
+/*
+=======================================================================
+Dialysis Exclusions
+=======================================================================
+*/
+DECLARE @DialysisExclusionsTable TABLE (
+	PK INT IDENTITY(1, 1) PRIMARY KEY
+	, Encounter           INT
+	, MRN                 INT
+);
+
+WITH CTE3 AS (
+	SELECT PtNo_Num
+	, Med_Rec_No
+
+	FROM SMSDSS.BMH_PLM_PtAcct_V
+
+	WHERE hosp_svc IN ('DIA', 'DMS')
+	AND Dsch_Date IS NOT NULL
+	AND Med_Rec_No IN (
+		SELECT MRN
+		FROM @InitialPopulation
+	)
+)
+
+INSERT INTO @DialysisExclusionsTable
+SELECT * FROM CTE3
 
 /*
 =======================================================================
@@ -107,6 +135,10 @@ ON A.Encounter = B.[READMIT]
 	AND B.INTERIM < 91
 
 WHERE A.MRN NOT IN (
-	SELECT A.MRN
-	FROM @DXExclusions AS A
+	SELECT B.MRN
+	FROM @DXExclusions AS B
+)
+AND A.MRN NOT IN (
+	SELECT C.MRN
+	FROM @DialysisExclusionsTable AS C
 )

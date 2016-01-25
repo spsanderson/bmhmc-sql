@@ -2,8 +2,8 @@
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
 
-SET @SD = '2011-07-01';
-SET @ED = '2014-07-01';
+SET @SD = '2016-01-01';
+SET @ED = '2016-01-15';
 
 /*
 =======================================================================
@@ -115,7 +115,13 @@ FROM (
 	'482.1','482.2','482.30','482.31','482.32','482.39','482.40',
 	'482.41','482.42','482.49','482.81','482.82','482.83','482.84',
 	'482.89','482.9','483.0','483.1','483.8','485','486','487.0',
-	'488.11'
+	'488.11',
+	-- addition of ICD-10 codes, 9 codes kept in case of a mistake
+	'J12.0', 'J12.1', 'J12.2', 'J12.81', 'J12.89', 'J12.9', 'J13', 
+	'J18.1', 'J15.0', 'J15.1', 'J14', 'J15.4', 'J15.4', 'J15.3', 
+	'J15.4', 'J15.20', 'J15.211', 'J15.212', 'J15.29', 'J15.8', 
+	'J15.5', 'J15.6', 'A48.1', 'J15.8', 'J15.9', 'J15.7', 'J16.0', 
+	'J16.8', 'J18.0', 'J18.9', 'J11.00', 'J12.9', 'J10.08'
 	)
 	-- Patient must be 65 years of age or older upon admission.
 	AND A.Pt_Age >= 65
@@ -253,10 +259,12 @@ FROM (
 	ON A.PtNo_Num = B.[READMIT]
 	LEFT OUTER JOIN SMSDSS.c_AHRQ_Px_CC_Maps AS C
 	ON REPLACE(A.Prin_Icd9_Proc_Cd,'.','') = C.ICDCode
-		AND C.ICD_Ver_Flag = '09'
+		--AND C.ICD_Ver_Flag = '09'
+		AND C.ICD_Ver_Flag = '10'
 	LEFT OUTER JOIN SMSDSS.c_AHRQ_Dx_CC_Maps AS D
 	ON REPLACE(A.prin_dx_icd9_cd, '.','') = D.ICDCode
-		AND D.ICD_Ver_Flag = '09'
+		--AND D.ICD_Ver_Flag = '09'
+		AND D.ICD_Ver_Flag = '10'
 
 	WHERE A.Dsch_Date >= @SD
 	AND A.Dsch_Date < @ED

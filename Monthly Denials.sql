@@ -40,7 +40,7 @@ DECLARE @OUTPATIENT_DENIALS TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
 	, pt_id               INT
 	, bill_no             INT
-	, denials   FLOAT
+	, denials             FLOAT
 )
 
 INSERT INTO @OUTPATIENT_DENIALS
@@ -228,6 +228,8 @@ DECLARE @TmpDenialsTbl TABLE (
 	, ATTEND_DR                   VARCHAR(MAX)
 	, ATTEND_DR_NO                VARCHAR(MAX)
 	, ATTEND_SPCLTY               VARCHAR(MAX)
+	, ADM_DR_NO                   VARCHAR(MAX)
+	, ADM_DR                      VARCHAR(MAX)
 	, LAST_NAME                   VARCHAR(MAX)
 	, FIRST_NAME                  VARCHAR(MAX)
 	, RVW_DATE                    DATETIME
@@ -283,6 +285,10 @@ FROM (
 	, Attend_Dr
 	, attend_dr_no
 	, Attend_Spclty
+	-- add Admitting Phys
+	, Adm_Dr_No
+	, C.pract_rpt_name
+	-- end edit
 	, last_name
 	, first_name
 	, rvw_date
@@ -332,6 +338,10 @@ FROM (
 	FROM smsdss.c_Softmed_Denials_Detail_v
 	LEFT OUTER JOIN smsdss.BMH_PLM_PTACCT_V
 	ON smsdss.c_Softmed_Denials_Detail_v.bill_no = smsdss.BMH_PLM_PtAcct_V.PtNo_Num
+	-- get Admitting Phys
+	LEFT OUTER JOIN SMSDSS.pract_dim_v AS C
+	ON SMSDSS.BMH_PLM_PtAcct_V.Adm_Dr_No = C.src_pract_no
+		AND C.orgz_cd = 'S0X0'
 
 	WHERE patient_type = 'I'
 	AND discharged >= @SD
@@ -346,6 +356,8 @@ SELECT a.BILL_NO as tmbptbl_bill_no
 , a.ATTEND_DR
 , a.ATTEND_DR_NO
 , a.ATTEND_SPCLTY
+, A.ADM_DR_NO
+, A.ADM_DR
 , c.ED_MD
 , a.LAST_NAME
 , a.FIRST_NAME
@@ -413,6 +425,8 @@ SELECT O.BILL_NO
 , O.ATTEND_DR
 , O.ATTEND_DR_NO
 , O.ATTEND_SPCLTY
+, ''
+, ''
 , EDO.ED_MD
 , O.LAST_NAME
 , O.FIRST_NAME
