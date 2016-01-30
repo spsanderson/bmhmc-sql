@@ -33,14 +33,14 @@ WITH CTE1 AS (
 						ORDER BY C.[DATETIME] DESC
 						)       AS RN
 
-	FROM [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[dbo].[visit_view]         AS A
-	JOIN [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[dbo].[ctc_visit]          AS B
+	FROM [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[dbo].[visit_view]              AS A
+	LEFT JOIN [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[dbo].[ctc_visit]          AS B
 	ON A.VISIT_ID = B._FK_VISIT
-	JOIN [BMH-3MHIS-DB].[MMM_cor_BMH_LIVE].[DBO].[CTC_DOCUMENTSENT]   AS C
+	LEFT JOIN [BMH-3MHIS-DB].[MMM_cor_BMH_LIVE].[DBO].[CTC_DOCUMENTSENT]   AS C
 	ON B._FK_VISIT = C._FK_VISIT
-	JOIN [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[Dbo].[ctc_letter]         AS D
+	LEFT JOIN [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[Dbo].[ctc_letter]         AS D
 	ON D._FK_DOCUMENTSENT = C._PK
-	JOIN [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[Dbo].[ctc_letterPrintJob] AS E
+	LEFT JOIN [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[Dbo].[ctc_letterPrintJob] AS E
 	ON D._PK = E._FK_LETTER
 	
 	-- This will make sure we start from the beginning case in the 
@@ -51,6 +51,18 @@ WITH CTE1 AS (
 		)
 	-- Only capture Inpatients
 	AND A.BILL_NO < '20000000'
+	AND LEFT(A.BILL_NO, 4) != '1999'
+	AND B._PK IS NOT NULL
+	AND B.S_CPM_PATIENT_STATUS <> 'IP'
+	AND (
+		B.S_CPM_REASONFORHOMECARE IS NOT NULL
+		OR
+		B.S_HOMECARE_VENDOR IS NOT NULL
+		OR
+		B.DC_TO_DEST IN ('02', '05')
+		OR
+		B.VISIT_DC_STATUS = 'ATW'
+	)
 )
 
 INSERT INTO @Referral

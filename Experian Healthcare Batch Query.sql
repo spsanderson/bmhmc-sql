@@ -2,6 +2,7 @@ DECLARE @BatchTable TABLE (
 	PK INT IDENTITY(1, 1)               PRIMARY KEY
 	, [Visit Number / Account Number]   VARCHAR(MAX)
 	, [Unit Seq No]                     VARCHAR(MAX)
+	, [Adm Date]                        DATE
 	, [Guarantor First Name]            VARCHAR(MAX)
 	, [Guarantor Last Name]             VARCHAR(MAX)
 	, [Guarantor Address]               VARCHAR(MAX)
@@ -33,6 +34,7 @@ DECLARE @BatchTable TABLE (
 WITH CTE1 AS (
 	SELECT A.pt_id                 AS [Visit Number / Account Number]
 	, A.unit_seq_no                AS [Unit Seq No]
+	, C.Adm_Date                   AS [Adm Date]
 	, B.GuarantorFirst             AS [Guarantor First Name]
 	, B.GuarantorLast              AS [Guarantor Last Name]
 	, B.GuarantorAddress           AS [Guarantor Address]
@@ -103,7 +105,7 @@ WITH CTE1 AS (
 	AND A.pt_bal_amt > 0
 	
 	-- Change resp_cd to NOT IN (4, 5, 6) Per K D 1/22/2016
-	AND A.resp_cd NOT IN ('4', '5', '6')
+	AND A.resp_cd NOT IN ('4', '5', '6', '9', 'K')
 	--AND A.resp_cd IS NULL
 	-- End resp_cd edit
 	
@@ -189,7 +191,38 @@ WHERE RN = 1
 Pull it all together
 =======================================================================
 */
-SELECT A.*
+SELECT A.[Visit Number / Account Number]
+, A.[Unit Seq No]
+, A.[Adm Date]
+, A.[Guarantor First Name]
+, A.[Guarantor Last Name]
+, A.[Guarantor Address]
+, A.[Guarantor City]
+, A.[Guarantor State]
+, A.[Guarantor Zip]
+, CASE
+	WHEN (DATEDIFF(DAY, A.[Patient DOB], A.[Adm Date])/365.25) >= 21 
+		THEN A.[Patient SSN] 
+		ELSE A.[Guarantor SSN]
+  END                                AS [Guarantor SSN]
+, A.[Guarantor DOB]
+, A.[Patient First Name]
+, A.[Patient Last Name]
+, A.[Guarantor Phone]
+, A.[Patient Middle Name]
+, A.[Patient DOB]
+, A.[Patient Gender]
+, A.[Patient SSN]
+, A.[Patient Type]
+, A.[Financial Class]
+, A.[Client Balance]
+, A.[Marital Status]
+, A.[Diagnosis]
+, A.[Employer]
+, A.[Length of Stay]
+, A.[Date of Last Patient Payment]
+, A.[Amount of last Patient Payment]
+, A.[Days since last Patient Payment]
 , B.ACCT_HIST_CMNT                   AS [First_FC_Comment]
 , SUBSTRING(B.ACCT_HIST_CMNT, 16, 1) AS [First_FC]
 , B.CMNT_CRE_DTIME                   AS [Message_Date]
@@ -200,7 +233,7 @@ SELECT A.*
 	DAY,
 	C.CMNT_CRE_DTIME,
 	CAST(GETDATE() AS date)
-	)                                AS [Days_In_Last_FC]
+	)                                AS [Days_In_Current_FC]
 
 FROM @BatchTable                     AS A
 LEFT OUTER MERGE JOIN @FirstFinClass AS B
@@ -216,12 +249,14 @@ WHERE (
 		OR
 		[Days since last Patient Payment] IS NULL
 	)
+-- Must be self pay for at least 110 days
+AND DATEDIFF(DAY, C.CMNT_CRE_DTIME, CAST(GETDATE() AS date)) >= 110
 -- Get rid of Unitized accounts per K D 1/22/2016
 AND LEFT(A.[Visit Number / Account Number], 5) != '00000'
 AND LEFT(A.[Visit Number / Account Number], 5) != '00007'
 -- Get rid of encounters where the Guarantor SSN is an
 -- erroneous number
 AND A.[Guarantor SSN] NOT IN (
- '999999999', '999999991', '888888888'
+	'999999999', '999999991', '888888888', '111111111', '000000000'
 )
 AND A.[Guarantor Last Name] != 'BROOKHAVEN MEMORIAL HOPITAL'

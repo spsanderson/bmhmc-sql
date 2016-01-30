@@ -23,6 +23,7 @@ WITH CTE1 AS (
 	, C.[DATETIME]              AS [LETTER FAX/PRINT DATE]
 	, D.NAME                    AS [DocumentName]
 	, E.PRINTER                 AS [PrinterName]
+	-- Patients can have multiple letters, we just want the last one
 	, ROW_NUMBER() OVER(
 						PARTITION BY A.BILL_NO 
 						ORDER BY C.[DATETIME] DESC
@@ -49,6 +50,7 @@ WITH CTE1 AS (
 	AND LEFT(A.BILL_NO, 4) != '1999'
 	AND B._PK IS NOT NULL
 	AND B.S_CPM_PATIENT_STATUS <> 'IP'
+	-- Here we try to be as inclusive as possible in getting HC referrals
 	AND (
 		B.S_CPM_REASONFORHOMECARE IS NOT NULL
 		OR
@@ -132,9 +134,6 @@ WITH CTE3 AS (
 	)
 	AND a.PtNo_Num < '20000000'
 	AND a.Plm_Pt_Acct_Type = 'I'
-	AND a.Dsch_Date IS NOT NULL
-	AND LEFT(a.dsch_disp, 1) NOT IN ('C', 'D')
-	AND a.dsch_disp != 'AMA'
 )
 
 INSERT INTO @CodedDispo
@@ -193,11 +192,6 @@ END
 =======================================================================
 */
 
-/*
-=======================================================================
-Get the disposition entered into Soarian from the unit secretary, etc
-=======================================================================
-*/
 DECLARE @SoarianDispCode TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
 	, Encounter           INT
@@ -235,15 +229,14 @@ SELECT * FROM CTE5
 
 --SELECT * FROM @SoarianDispCode
 --ORDER BY Encounter
-
 /*
 =======================================================================
 PULL IT ALL TOGETHER
 =======================================================================
 */
 SELECT A.Encounter
-, C.MRN
-, C.Homecare_MRN
+, B.MRN
+, B.Homecare_MRN
 , D.Order_Description AS [Final_Soarian_Discharge_Order_Desc]
 , CASE
 	WHEN PATINDEX('%(A-%', D.Order_Description) != 0
@@ -252,31 +245,31 @@ SELECT A.Encounter
 	ELSE ''
   END                 AS [Final_Soarian_Disch_Ord_Dispo_Code]
 , E.Soarian_Disp_Code AS [Actual_Soarian_Disch_Dispo_Code]
-, A.Coded_Disposition
+, C.Coded_Disposition
 , CASE
 	WHEN SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 1, 1) +
 		 SUBSTRING(D.Order_Description, PATINDEX('%(A-%', D.ORDER_DESCRIPTION) + 3, 2)
-		 = A.Coded_Disposition
+		 = C.Coded_Disposition
 		THEN 1
 	ELSE 0
   END                 AS [Soarian = Coded Dispo (1 = Y, 0 = N)]
-, B.Homecare_Vendor
---, B.Homecare_Comments
-, B.Letter_FaxPrint_DateTime
-, B.PrinterName
-, C.Admit_Date
-, C.Discharge_Date
-, C.Start_of_care_date
-, C.NTUC_Date
-, C.NTUC_Reason
-, C.Entered_into_Invision_DateTime
+, A.Homecare_Vendor
+--, A.Homecare_Comments
+, A.Letter_FaxPrint_DateTime
+, A.PrinterName
+, B.Admit_Date
+, B.Discharge_Date
+, B.Start_of_care_date
+, B.NTUC_Date
+, B.NTUC_Reason
+, B.Entered_into_Invision_DateTime
 
-FROM @CodedDispo                       AS A
-LEFT OUTER JOIN @Referral              AS B
+FROM @Referral                       AS A
+LEFT OUTER JOIN @HomeCareTable       AS B
 ON A.Encounter = B.Encounter
-LEFT OUTER JOIN @HomeCareTable         AS C
+LEFT OUTER JOIN @CodedDispo          AS C
 ON A.Encounter = C.Encounter
-LEFT OUTER JOIN @FinalDischargeOrder   AS D
+LEFT OUTER JOIN @FinalDischargeOrder AS D
 ON A.Encounter = D.Encounter
-LEFT OUTER JOIN @SoarianDispCode       AS E
+LEFT OUTER JOIN @SoarianDispCode     AS E
 ON A.Encounter = E.Encounter
