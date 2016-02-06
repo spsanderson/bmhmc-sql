@@ -18,6 +18,7 @@ DECLARE @BatchTable TABLE (
 	, [Patient DOB]                     DATE
 	, [Patient Gender]                  CHAR(1)
 	, [Patient SSN]                     VARCHAR(MAX)
+	, [Uninsured Insured]               VARCHAR(MAX)
 	, [Patient Type]                    CHAR(1)
 	, [Financial Class]                 CHAR(1)
 	, [Client Balance]                  VARCHAR(MAX)
@@ -29,6 +30,7 @@ DECLARE @BatchTable TABLE (
 	, [Amount of last Patient Payment]  VARCHAR(10)
 	, [Days since last Patient Payment] INT
 	, [RN]                              INT
+	, [RN2]                             INT
 );
 
 WITH CTE1 AS (
@@ -52,6 +54,11 @@ WITH CTE1 AS (
 	, dbo.c_udf_AlphaNumericChars(
 		D.Pt_Social
 		)                          AS [Patient SSN]
+	, CASE
+		WHEN C.User_Pyr1_Cat IN ('MIS', '???')
+			THEN 'U'
+		ELSE 'I'
+	  END                          AS [Insured Uninsured]
 	, C.Plm_Pt_Acct_Type           AS [Patient Type]
 	, A.fc                         AS [Financial Class]
 	, A.pt_bal_amt                 AS [Client Balance]
@@ -72,6 +79,10 @@ WITH CTE1 AS (
 		PARTITION BY A.PT_ID
 		ORDER BY A.ADM_DTIME
 	) AS [RN]
+	, ROW_NUMBER() OVER(
+	PARTITION BY A.PT_ID
+	ORDER BY F.PAY_ENTRY_DATE DESC
+	) AS [RN2]
 
 	FROM SMSMIR.mir_acct                              AS A
 	LEFT OUTER JOIN SMSDSS.c_guarantor_demos_v        AS B
@@ -93,7 +104,12 @@ WITH CTE1 AS (
 	ON A.pt_id = F.pt_id
 		AND A.unit_seq_no = F.unit_seq_no
 		-- Get the last payment made by the pt by specifying rank = 1
-		AND F.Pymt_Rank = '1'
+		AND (
+			F.Pymt_Rank = '1'
+			-- add null to catch those that never paid
+			OR
+			F.Pymt_Rank IS NULL
+			)
 
 	WHERE RIGHT(A.from_file_ind, 1) IN ('A','T')
 	-- Make sure the current fin class is one of the below
@@ -105,8 +121,18 @@ WITH CTE1 AS (
 	AND A.pt_bal_amt > 0
 	
 	-- Change resp_cd to NOT IN (4, 5, 6) Per K D 1/22/2016
-	AND A.resp_cd NOT IN ('4', '5', '6', '9', 'K')
-	--AND A.resp_cd IS NULL
+	AND (
+		A.resp_cd NOT IN ('4', '5', '6', '9', 'K')
+		OR (
+			A.resp_cd IS NULL
+			OR
+			A.resp_cd IN (
+				'*', '-', '0', '1', '2', '3', '7', '8', 'A', 'B', 'C', 
+				'D', 'E', 'F', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'Q', 
+				'R', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+				)
+			)
+		)
 	-- End resp_cd edit
 	
 	-- Get rid of Hemo Test Pt
@@ -116,7 +142,8 @@ WITH CTE1 AS (
 INSERT INTO @BatchTable
 SELECT *
 FROM CTE1 C1
-
+WHERE C1.[RN2] = 1
+--select * from @BatchTable
 /*
 =======================================================================
 Get first and last financial classes
@@ -213,6 +240,7 @@ SELECT A.[Visit Number / Account Number]
 , A.[Patient DOB]
 , A.[Patient Gender]
 , A.[Patient SSN]
+, A.[Uninsured Insured]
 , A.[Patient Type]
 , A.[Financial Class]
 , A.[Client Balance]

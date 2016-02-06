@@ -2,8 +2,8 @@
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
 
-SET @SD = '2011-07-01';
-SET @ED = '2014-07-01';
+SET @SD = '2015-12-01';
+SET @ED = '2016-01-01';
 
 /*
 =======================================================================
@@ -114,7 +114,11 @@ FROM (
 	'402.01','402.11','402.91','404.01','404.03','404.11','404.13',
 	'404.91','404.93','428.0','428.1','428.20','428.21','428.22',
 	'428.23','428.30','428.31','428.32','428.33','428.40','428.41',
-	'428.42','428.43','428.9'
+	'428.42','428.43','428.9',
+	-- icd-10 codes
+	'I11.9', 'I11.0', 'I11.0', 'I13.0', 'I13.2', 'I13.0', 'I13.2', 
+	'I13.0', 'I13.2', 'I50.9', 'I50.1', 'I50.20', 'I50.21', 'I50.22', 
+	'I50.23', 'I50.30', 'I50.31', 'I50.32'
 	)
 	-- Patient must be 65 years of age or older upon admission.
 	AND A.Pt_Age >= 65
@@ -217,9 +221,9 @@ FROM (
 	-- Table PR.3
 	, CASE
 		WHEN C.CC_Code IN (
-		'PX_3',	'PX_104', 'PX_5',	'PX_106',
-		'PX_9',	'PX_107', 'PX_10',	'PX_109',
-		'PX_12', 'PX_112', 'PX_33',	'PX_113',
+		'PX_3',	'PX_104', 'PX_5',   'PX_106',
+		'PX_9',	'PX_107', 'PX_10',  'PX_109',
+		'PX_12', 'PX_112', 'PX_33', 'PX_113',
 		'PX_36', 'PX_114', 'PX_38', 'PX_119',
 		'PX_40', 'PX_120', 'PX_43', 'PX_124',
 		'PX_44', 'PX_129', 'PX_45', 'PX_132',
@@ -236,10 +240,30 @@ FROM (
 		ELSE 0
 	  END AS [Potentially Planned Proc (1 = Y, 0 = N)]
 	-- Table PR.4
+	--, CASE
+	--	WHEN A.Prin_Icd9_Proc_Cd IN (
+	--	'30.1','30.29','30.3','30.4','31.74','34.6',
+	--	'38.18','55.03','55.04','94.26','94.27'
+	--	)
+	--		THEN 1
+	--	ELSE 0
+	--  END AS [Prin Dx is Acute OR Complication of Care (1 = Y, 0 = N)]
 	, CASE
-		WHEN A.Prin_Icd9_Proc_Cd IN (
-		'30.1','30.29','30.3','30.4','31.74','34.6',
-		'38.18','55.03','55.04','94.26','94.27'
+		WHEN A.Prin_Icd10_Proc_Cd IN (
+		'0CBS0ZZ', '0CBS3ZZ', '0CBS4ZZ', '0CBS7ZZ', '0CBS8ZZ', '0CTS0ZZ',
+		'0CTS4ZZ', '0CTS8ZZ', '0CTS8ZZ', '0CTS8ZZ', '0CTS8ZZ', '0CTS8ZZ', 
+		'0CTS8ZZ', '0CTS8ZZ', '0CTS7ZZ', '0BW10FZ', '0BW13FZ', '0BW14FZ', 
+		'0WB6XZ2', '0WQ6XZ2', '0B5N0ZZ', '0B5N3ZZ', '0B5N4ZZ', '0B5P0ZZ', 
+		'0B5P3ZZ', '0B5P4ZZ', '04CK0ZZ', '04CK3ZZ', '04CK4ZZ', '04CL0ZZ', 
+		'04CL3ZZ', '04CL4ZZ', '04CM0ZZ', '04CM3ZZ', '04CM4ZZ', '04CN0ZZ', 
+		'04CN3ZZ', '04CN4ZZ', '04CP0ZZ', '04CP3ZZ', '04CP4ZZ', '04CQ0ZZ', 
+		'04CQ3ZZ', '04CQ4ZZ', '04CR0ZZ', '04CR3ZZ', '04CR4ZZ', '04CS0ZZ', 
+		'04CS3ZZ', '04CS4ZZ', '04CT0ZZ', '04CT3ZZ', '04CT4ZZ', '04CU0ZZ', 
+		'04CU3ZZ', '04CU4ZZ', '04CV0ZZ', '04CV3ZZ', '04CV4ZZ', '04CW0ZZ', 
+		'04CW3ZZ', '04CW4ZZ', '04CY0ZZ', '04CY3ZZ', '04CY4ZZ', '0T9030Z', 
+		'0T9040Z', '0T9130Z', '0T9140Z', '0TC03ZZ', '0TC04ZZ', '0TC13ZZ', 
+		'0TC14ZZ', '0TF33ZZ', '0TF34ZZ', '0TF43ZZ', '0TF44ZZ', 'GZB4ZZZ', 
+		'GZB0ZZZ', 'GZB1ZZZ', 'GZB2ZZZ', 'GZB3ZZZ', 'GZB4ZZZ'
 		)
 			THEN 1
 		ELSE 0
@@ -251,14 +275,16 @@ FROM (
 	INNER MERGE JOIN SMSDSS.vReadmits        AS B
 	ON A.PtNo_Num = B.[READMIT]
 	LEFT OUTER JOIN SMSDSS.c_AHRQ_Px_CC_Maps AS C
-	ON REPLACE(A.Prin_Icd9_Proc_Cd,'.','') = C.ICDCode
-		AND C.ICD_Ver_Flag = '09'
+	ON REPLACE(A.Prin_Icd10_Proc_Cd,'.','') = C.ICDCode
+		--AND C.ICD_Ver_Flag = '09'
+		AND C.ICD_Ver_Flag = '10'
 	LEFT OUTER JOIN SMSDSS.c_AHRQ_Dx_CC_Maps AS D
-	ON REPLACE(A.prin_dx_icd9_cd, '.','') = D.ICDCode
-		AND D.ICD_Ver_Flag = '09'
+	ON REPLACE(A.prin_dx_icd10_cd, '.','') = D.ICDCode
+		--AND D.ICD_Ver_Flag = '09'
+		AND D.ICD_Ver_Flag = '10'
 
 	WHERE A.Dsch_Date >= @SD
-	AND A.Dsch_Date < @ED
+	AND A.Dsch_Date < GETDATE()
 	AND A.Plm_Pt_Acct_Type = 'I'
 	AND A.PtNo_Num < '20000000'
 ) C
