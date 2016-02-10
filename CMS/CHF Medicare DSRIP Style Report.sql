@@ -6,7 +6,7 @@ Date: 11/24/2015
 =======================================================================
 Description:
 
-DSRIP MAX Series for CHF patients.
+Medicare CHF patients, similar style to DSRIP MAX Patients.
 Discharges from 01-01-2015 through 09-30-2015.
 CHF diganosis is of any priority, this will get our initial patient
 =======================================================================
@@ -61,7 +61,7 @@ WITH CTE AS (
 		)
 	AND A.dx_eff_dtime >= '2015-01-01 00:00:00.000' 
 	AND A.dx_eff_dtime <= '2015-09-30 23:59:59.000'
-	AND B.User_Pyr1_Cat IN ('WWW','III')
+	AND B.User_Pyr1_Cat IN ('AAA','EEE')
 	AND A.pt_id IN (
 		SELECT DISTINCT(pt_id)
 		FROM smsmir.mir_actv
@@ -107,7 +107,7 @@ WITH CTE2 AS (
 	
 	WHERE C.clasf_schm = '9'
 	AND B.Adm_Date >= '2015-01-01'
-	AND B.User_Pyr1_Cat IN ('WWW','III')
+	AND B.User_Pyr1_Cat IN ('AAA','EEE')
 	--AND A.[INTERIM] < 31
 )
 
@@ -156,7 +156,7 @@ WITH CTE3 AS (
 		)
 		AND B.dx_eff_dtime >= '2015-01-01 00:00:00.000' 
 	AND B.dx_eff_dtime <= '2015-09-30 23:59:59.000'
-	AND A.User_Pyr1_Cat IN ('WWW','III')
+	AND A.User_Pyr1_Cat IN ('AAA','EEE')
 	AND B.pt_id IN (
 		SELECT DISTINCT(pt_id)
 		FROM smsmir.mir_actv
@@ -189,7 +189,7 @@ WITH CTE4 AS (
 	INNER MERGE JOIN SMSDSS.BMH_PLM_PTACCT_V B
 	ON A.[ED Encounter Number] = B.PtNo_Num
 
-	WHERE B.User_Pyr1_Cat IN ('WWW','III')
+	WHERE B.User_Pyr1_Cat IN ('AAA','EEE')
 	AND B.Adm_Date >= '2015-01-01'
 )
 
@@ -204,7 +204,7 @@ DECLARE @CHF_ED TABLE (
 	PK INT IDENTITY(1, 1)   PRIMARY KEY
 	, [ED Encounter Number] INT
 	, [MRN]                 INT
-	, [ED COPD Visit Count] INT
+	, [ED CHF Visit Count]  INT
 );
 -- Insert all of the following into the final COPD ED Count table
 INSERT INTO @CHF_ED
@@ -353,11 +353,11 @@ SELECT IP.[Encounter Number]
 , RP.[Readmit Dx Code]
 , RP.[Readmit Dx Desc]
 , RP.[Days Until Readmit]
-, CED.[ED COPD Visit Count]
+, CED.[ED CHF Visit Count]
 , (
    ERTOT.[Total Count] -
-   CED.[ED COPD Visit Count]
-  )                       AS [Non COPD ER Visits]
+   CED.[ED CHF Visit Count]
+  )                       AS [Non CHF ER Visits]
 , ERTOT.[Total Count]     AS [Total ER Visits]
 , RA.RA_COUNT             AS [Total 30 Day Readmit Count]
 
