@@ -174,8 +174,8 @@ DECLARE @PlannedReadmit TABLE (
 	, Readmit                               INT -- should equal Encounter
 	, Readmit_Date                          DATE
 	, Readmit_Dsch_Date                     DATE
-	, AHRQ_Proc_CC_Code                     VARCHAR(6)
-	, AHRQ_Dx_CC_Code                       VARCHAR(6)
+	, AHRQ_Proc_CC_Code                     VARCHAR(10)
+	, AHRQ_Dx_CC_Code                       VARCHAR(10)
 	, Planned_Procedure                     INT
 	, Planned_Diagnosis                     INT
 	, Potentially_Planned_Proc              INT
@@ -221,9 +221,9 @@ FROM (
 	-- Table PR.3
 	, CASE
 		WHEN C.CC_Code IN (
-		'PX_3',	'PX_104', 'PX_5',   'PX_106',
-		'PX_9',	'PX_107', 'PX_10',  'PX_109',
-		'PX_12', 'PX_112', 'PX_33', 'PX_113',
+		'PX_3',	'PX_104', 'PX_5',	'PX_106',
+		'PX_9',	'PX_107', 'PX_10',	'PX_109',
+		'PX_12', 'PX_112', 'PX_33',	'PX_113',
 		'PX_36', 'PX_114', 'PX_38', 'PX_119',
 		'PX_40', 'PX_120', 'PX_43', 'PX_124',
 		'PX_44', 'PX_129', 'PX_45', 'PX_132',

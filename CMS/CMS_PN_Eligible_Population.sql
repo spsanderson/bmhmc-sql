@@ -177,8 +177,8 @@ DECLARE @PlannedReadmit TABLE (
 	, Readmit                               INT -- should equal Encounter
 	, Readmit_Date                          DATE
 	, Readmit_Dsch_Date                     DATE
-	, AHRQ_Proc_CC_Code                     VARCHAR(6)
-	, AHRQ_Dx_CC_Code                       VARCHAR(6)
+	, AHRQ_Proc_CC_Code                     VARCHAR(10)
+	, AHRQ_Dx_CC_Code                       VARCHAR(10)
 	, Planned_Procedure                     INT
 	, Planned_Diagnosis                     INT
 	, Potentially_Planned_Proc              INT

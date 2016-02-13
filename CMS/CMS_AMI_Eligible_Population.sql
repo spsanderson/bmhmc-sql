@@ -30,7 +30,7 @@ DECLARE @InitPop TABLE (
 	, Prin_Proc_Cd        VARCHAR(10)
 	, Prin_ICD9_Proc_Cd   VARCHAR(10)
 	, Prin_ICD10_Proc_Cd  VARCHAR(10)
-	, AHRQ_Dx_Cd          VARCHAR(7)
+	, AHRQ_Dx_Cd          VARCHAR(10)
 	, AHRQ_Dx_Cd_Desc     VARCHAR(MAX)
 	, Diagnosis           VARCHAR(MAX)
 )
@@ -111,11 +111,12 @@ FROM (
 	AND LEFT(A.dsch_disp, 1) NOT IN ('C' , 'D')
 	-- Specific ICD-9 codes used in CMS specs for cohort inclusion
 	AND A.prin_dx_cd IN (
-	'480.0','480.1','480.2','480.3','480.8','480.9','481','482.0',
-	'482.1','482.2','482.30','482.31','482.32','482.39','482.40',
-	'482.41','482.42','482.49','482.81','482.82','482.83','482.84',
-	'482.89','482.9','483.0','483.1','483.8','485','486','487.0',
-	'488.11'
+	-- ICD-9 codes
+	'410.00', '410.01', '410.10', '410.11', '410.20', '410.21', '410.30',
+	'410.31', '410.40', '410.41', '410.50', '410.51', '410.60', '410.61',
+	'410.70', '410.71', '410.80', '410.81', '410.90', '410.91',
+	-- ICD-10 codes
+	'I21.09', 'I21.09', 'I21.19', 'I21.11', 'I21.29', 'I21.4', 'I21.3'
 	)
 	-- Patient must be 65 years of age or older upon admission.
 	AND A.Pt_Age >= 65
@@ -171,8 +172,8 @@ DECLARE @PlannedReadmit TABLE (
 	, Readmit                               INT -- should equal Encounter
 	, Readmit_Date                          DATE
 	, Readmit_Dsch_Date                     DATE
-	, AHRQ_Proc_CC_Code                     VARCHAR(6)
-	, AHRQ_Dx_CC_Code                       VARCHAR(6)
+	, AHRQ_Proc_CC_Code                     VARCHAR(10)
+	, AHRQ_Dx_CC_Code                       VARCHAR(10)
 	, Planned_Procedure                     INT
 	, Planned_Diagnosis                     INT
 	, Potentially_Planned_Proc              INT
@@ -237,10 +238,30 @@ FROM (
 		ELSE 0
 	  END AS [Potentially Planned Proc (1 = Y, 0 = N)]
 	-- Table PR.4
+	--, CASE
+	--	WHEN A.Prin_Icd9_Proc_Cd IN (
+	--	'30.1','30.29','30.3','30.4','31.74','34.6',
+	--	'38.18','55.03','55.04','94.26','94.27'
+	--	)
+	--		THEN 1
+	--	ELSE 0
+	--  END AS [Prin Dx is Acute OR Complication of Care (1 = Y, 0 = N)]
 	, CASE
-		WHEN A.Prin_Icd9_Proc_Cd IN (
-		'30.1','30.29','30.3','30.4','31.74','34.6',
-		'38.18','55.03','55.04','94.26','94.27'
+		WHEN A.Prin_Icd10_Proc_Cd IN (
+		'0CBS0ZZ', '0CBS3ZZ', '0CBS4ZZ', '0CBS7ZZ', '0CBS8ZZ', '0CTS0ZZ',
+		'0CTS4ZZ', '0CTS8ZZ', '0CTS8ZZ', '0CTS8ZZ', '0CTS8ZZ', '0CTS8ZZ', 
+		'0CTS8ZZ', '0CTS8ZZ', '0CTS7ZZ', '0BW10FZ', '0BW13FZ', '0BW14FZ', 
+		'0WB6XZ2', '0WQ6XZ2', '0B5N0ZZ', '0B5N3ZZ', '0B5N4ZZ', '0B5P0ZZ', 
+		'0B5P3ZZ', '0B5P4ZZ', '04CK0ZZ', '04CK3ZZ', '04CK4ZZ', '04CL0ZZ', 
+		'04CL3ZZ', '04CL4ZZ', '04CM0ZZ', '04CM3ZZ', '04CM4ZZ', '04CN0ZZ', 
+		'04CN3ZZ', '04CN4ZZ', '04CP0ZZ', '04CP3ZZ', '04CP4ZZ', '04CQ0ZZ', 
+		'04CQ3ZZ', '04CQ4ZZ', '04CR0ZZ', '04CR3ZZ', '04CR4ZZ', '04CS0ZZ', 
+		'04CS3ZZ', '04CS4ZZ', '04CT0ZZ', '04CT3ZZ', '04CT4ZZ', '04CU0ZZ', 
+		'04CU3ZZ', '04CU4ZZ', '04CV0ZZ', '04CV3ZZ', '04CV4ZZ', '04CW0ZZ', 
+		'04CW3ZZ', '04CW4ZZ', '04CY0ZZ', '04CY3ZZ', '04CY4ZZ', '0T9030Z', 
+		'0T9040Z', '0T9130Z', '0T9140Z', '0TC03ZZ', '0TC04ZZ', '0TC13ZZ', 
+		'0TC14ZZ', '0TF33ZZ', '0TF34ZZ', '0TF43ZZ', '0TF44ZZ', 'GZB4ZZZ', 
+		'GZB0ZZZ', 'GZB1ZZZ', 'GZB2ZZZ', 'GZB3ZZZ', 'GZB4ZZZ'
 		)
 			THEN 1
 		ELSE 0
@@ -252,14 +273,16 @@ FROM (
 	INNER MERGE JOIN SMSDSS.vReadmits        AS B
 	ON A.PtNo_Num = B.[READMIT]
 	LEFT OUTER JOIN SMSDSS.c_AHRQ_Px_CC_Maps AS C
-	ON REPLACE(A.Prin_Icd9_Proc_Cd,'.','') = C.ICDCode
-		AND C.ICD_Ver_Flag = '09'
+	ON REPLACE(A.Prin_Icd10_Proc_Cd,'.','') = C.ICDCode
+		--AND C.ICD_Ver_Flag = '09'
+		AND C.ICD_Ver_Flag = '10'
 	LEFT OUTER JOIN SMSDSS.c_AHRQ_Dx_CC_Maps AS D
-	ON REPLACE(A.prin_dx_icd9_cd, '.','') = D.ICDCode
-		AND D.ICD_Ver_Flag = '09'
+	ON REPLACE(A.prin_dx_icd10_cd, '.','') = D.ICDCode
+		--AND D.ICD_Ver_Flag = '09'
+		AND D.ICD_Ver_Flag = '10'
 
 	WHERE A.Dsch_Date >= @SD
-	AND A.Dsch_Date < @ED
+	AND A.Dsch_Date < GETDATE()
 	AND A.Plm_Pt_Acct_Type = 'I'
 	AND A.PtNo_Num < '20000000'
 ) C
