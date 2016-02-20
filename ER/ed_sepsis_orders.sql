@@ -26,9 +26,22 @@ WITH Patients AS (
 	, MR#
 	, Account
 	, DATEDIFF(YEAR, AgeDob, Arrival) AS [Age_at_Arrival]
-	, Arrival
-	, Triage_Start
-	, TimeLeftED
+	, CASE
+		WHEN Arrival = '-- ::00'
+			THEN ''
+			ELSE Arrival
+	  END AS Arrival
+	, CASE
+		WHEN Triage_Start = '-- ::00'
+			THEN ''
+			ELSE Triage_Start
+	  END AS Triage_Start
+	, CASE
+		WHEN TimeLeftED = '-- ::00'
+			THEN ''
+			ELSE TimeLeftED
+	  END AS TimeLeftED
+
 	, Disposition
 	, CASE
 		WHEN Disposition IN (
@@ -45,6 +58,8 @@ WITH Patients AS (
 		OR
 		Diagnosis LIKE '%SEPTIC%'
 	)
+	AND Arrival >= @START
+	AND Arrival < @END
 )
 
 INSERT INTO @SepsisTbl

@@ -2,7 +2,7 @@ DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
 
 SET @SD = '2013-01-01';
-SET @ED = '2015-11-01';
+SET @ED = '2016-01-01';
 
 DECLARE @InpatientDenials TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
@@ -101,6 +101,24 @@ FROM (
 --SELECT * FROM @EDTBL
 
 -----------------------------------------------------------------------
+-- GET THE DRG NUMBER FOR THE CASE
+DECLARE @DRG TABLE (
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, ENCOUNTER INT
+	, DRG       VARCHAR(3)
+)
+
+INSERT INTO @DRG
+SELECT DRG.*
+FROM (
+	SELECT PTNO_NUM
+	, DRG_NO
+	FROM SMSDSS.BMH_PLM_PTACCT_V
+	WHERE Dsch_Date >= @SD
+	AND Dsch_Date < @ED
+) DRG
+
+-----------------------------------------------------------------------
 -- Outpatients
 DECLARE @OutPatient TABLE (
 	PK INT IDENTITY(1, 1)         PRIMARY KEY
@@ -144,6 +162,9 @@ DECLARE @OutPatient TABLE (
 	, visit_admit_diag            VARCHAR(MAX)
 	, admit_diag_Description      VARCHAR(MAX)
 	, admission_date              VARCHAR(MAX)
+	-- Add Admit Year and Month SPS 2/16/2016
+	, Adm_Yr                      VARCHAR(2)
+	, Adm_Month                   VARCHAR(2)
 	, discharged                  VARCHAR(MAX)
 	, Dsch_Yr                     VARCHAR(MAX)
 	, Dsch_Mo                     VARCHAR(MAX)
@@ -200,6 +221,9 @@ FROM (
 	, visit_admit_diag
 	, admit_diag_Description
 	, admission_date
+	-- Add Admit Year and Month SPS 2/16/2016
+	, YEAR(admission_Date) as Adm_Yr
+	, MONTH(admission_date) as Adm_Month
 	, discharged
 	, Dsch_Yr
 	, Dsch_Mo
@@ -265,6 +289,9 @@ DECLARE @TmpDenialsTbl TABLE (
 	, visit_admit_diag            VARCHAR(MAX)
 	, admit_diag_Description      VARCHAR(MAX)
 	, admission_date              VARCHAR(MAX)
+	-- Add Admit Year and Month SPS 2/16/2016
+	, Adm_Yr                      VARCHAR(2)
+	, Adm_Month                   VARCHAR(2)
 	, discharged                  VARCHAR(MAX)
 	, Dsch_Yr                     VARCHAR(MAX)
 	, Dsch_Mo                     VARCHAR(MAX)
@@ -324,6 +351,9 @@ FROM (
 	, visit_admit_diag
 	, admit_diag_Description
 	, admission_date
+	-- Add Admit Year and Month SPS 2/16/2016
+	, YEAR(admission_date) as Adm_Yr
+	, MONTH(admission_date) as Adm_Month
 	, discharged
 	, Dsch_Yr
 	, Dsch_Mo
@@ -394,6 +424,9 @@ SELECT a.BILL_NO as tmbptbl_bill_no
 , a.visit_admit_diag
 , a.admit_diag_Description
 , a.admission_date
+-- Add Admit Year and Month SPS 2/16/2016
+, a.Adm_Yr
+, a.Adm_Month
 , a.discharged
 , a.Dsch_Yr
 , a.Dsch_Mo
@@ -407,15 +440,19 @@ SELECT a.BILL_NO as tmbptbl_bill_no
 , a.cerm_rvwr_id
 , D.username
 , D.RN
+, DRG.DRG
 
-FROM @TmpDenialsTbl                       A
-LEFT OUTER JOIN @InpatientDenials         B
+FROM @TmpDenialsTbl                     AS A
+LEFT OUTER JOIN @InpatientDenials       AS B
 ON A.bill_no = B.pt_id
-LEFT OUTER JOIN @EDTBL                    C
+LEFT OUTER JOIN @EDTBL                  AS C
 ON A.bill_no = C.Account
-LEFT OUTER JOIN @USERTBL                  D
+LEFT OUTER JOIN @USERTBL                AS D
 ON A.CERM_RVWR_ID = D.login_id
 	AND D.RN = 1
+-- add drg no SPS 2/16/2016
+LEFT OUTER JOIN @DRG                    AS DRG
+ON A.BILL_NO = DRG.ENCOUNTER
 
 -- Union the results of the outpatients -------------------------------
 UNION
@@ -463,6 +500,9 @@ SELECT O.BILL_NO
 , O.visit_admit_diag
 , O.admit_diag_Description
 , O.admission_date
+-- Add Admit Year and Month SPS 2/16/2016
+, O.Adm_Yr
+, O.Adm_Month
 , O.discharged
 , O.Dsch_Yr
 , O.Dsch_Mo
@@ -476,11 +516,15 @@ SELECT O.BILL_NO
 , O.cerm_rvwr_id
 , ''
 , ''
+, DRG.DRG
 
-FROM @OutPatient                    O
-LEFT OUTER JOIN @EDTBL              EDO
+FROM @OutPatient                        AS O
+LEFT OUTER JOIN @EDTBL                  AS EDO
 ON O.BILL_NO = EDO.ACCOUNT
-LEFT OUTER JOIN @OUTPATIENT_DENIALS OD
+LEFT OUTER JOIN @OUTPATIENT_DENIALS     AS OD
 ON O.BILL_NO = OD.bill_no
+-- add drg no SPS 2/16/2016
+LEFT OUTER JOIN @DRG                    AS DRG
+ON O.BILL_NO = DRG.ENCOUNTER
 
 WHERE O.RN = 1

@@ -61,7 +61,7 @@ WITH CTE AS (
 		)
 	AND A.dx_eff_dtime >= '2015-01-01 00:00:00.000' 
 	AND A.dx_eff_dtime <= '2015-09-30 23:59:59.000'
-	AND B.User_Pyr1_Cat IN ('AAA','EEE')
+	AND B.User_Pyr1_Cat IN ('AAA')
 	AND A.pt_id IN (
 		SELECT DISTINCT(pt_id)
 		FROM smsmir.mir_actv
@@ -107,7 +107,7 @@ WITH CTE2 AS (
 	
 	WHERE C.clasf_schm = '9'
 	AND B.Adm_Date >= '2015-01-01'
-	AND B.User_Pyr1_Cat IN ('AAA','EEE')
+	AND B.User_Pyr1_Cat IN ('AAA')
 	--AND A.[INTERIM] < 31
 )
 
@@ -156,7 +156,7 @@ WITH CTE3 AS (
 		)
 		AND B.dx_eff_dtime >= '2015-01-01 00:00:00.000' 
 	AND B.dx_eff_dtime <= '2015-09-30 23:59:59.000'
-	AND A.User_Pyr1_Cat IN ('AAA','EEE')
+	AND A.User_Pyr1_Cat IN ('AAA')
 	AND B.pt_id IN (
 		SELECT DISTINCT(pt_id)
 		FROM smsmir.mir_actv
@@ -189,7 +189,7 @@ WITH CTE4 AS (
 	INNER MERGE JOIN SMSDSS.BMH_PLM_PTACCT_V B
 	ON A.[ED Encounter Number] = B.PtNo_Num
 
-	WHERE B.User_Pyr1_Cat IN ('AAA','EEE')
+	WHERE B.User_Pyr1_Cat IN ('AAA')
 	AND B.Adm_Date >= '2015-01-01'
 )
 
@@ -304,17 +304,24 @@ DECLARE @READMITS_CNT_TMP TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
 	, MRN                 INT
 	, [Admit_Count]       INT
-	, RN                  INT
+	--, RN                  INT
 )
 
 INSERT INTO @READMITS_CNT_TMP
 SELECT A.*
 FROM (
-	SELECT RA.[MRN]
-	, RA.[ADMIT COUNT]
-	, RN = ROW_NUMBER() OVER(PARTITION BY MRN ORDER BY [ADMIT COUNT] DESC)
+	SELECT ra.MRN
+	, count(RA.[MRN]) as [30 day ra count]
+	--, RA.[ADMIT COUNT]
+	--, rn = ROW_NUMBER() over(partition by MRN order by [initial discharge] desc)
+	--, RN = ROW_NUMBER() OVER(PARTITION BY MRN ORDER BY [ADMIT COUNT] DESC)
 
 	FROM smsdss.vReadmits RA
+
+	-- add interim
+	WHERE INTERIM < 31
+
+	group by ra.MRN
 ) A
 
 --SELECT * FROM @READMITS_CNT_TMP
@@ -333,7 +340,7 @@ FROM (
 	, R.[Admit_Count]
 
 	FROM @READMITS_CNT_TMP R
-	WHERE R.RN = 1
+	--WHERE R.RN = 1
 ) B
 
 --SELECT * FROM @RA_CNT

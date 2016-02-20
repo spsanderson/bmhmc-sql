@@ -219,8 +219,8 @@ Pull it all together
 =======================================================================
 */
 SELECT A.[Visit Number / Account Number]
-, A.[Unit Seq No]
-, A.[Adm Date]
+--, A.[Unit Seq No]
+--, A.[Adm Date]
 , A.[Guarantor First Name]
 , A.[Guarantor Last Name]
 , A.[Guarantor Address]
@@ -248,20 +248,20 @@ SELECT A.[Visit Number / Account Number]
 , A.[Diagnosis]
 , A.[Employer]
 , A.[Length of Stay]
-, A.[Date of Last Patient Payment]
-, A.[Amount of last Patient Payment]
-, A.[Days since last Patient Payment]
-, B.ACCT_HIST_CMNT                   AS [First_FC_Comment]
-, SUBSTRING(B.ACCT_HIST_CMNT, 16, 1) AS [First_FC]
-, B.CMNT_CRE_DTIME                   AS [Message_Date]
-, C.ACCT_HIST_CMNT                   AS [Last_FC_Comment]
-, SUBSTRING(C.ACCT_HIST_CMNT, 16, 1) AS [Last_FC]
-, C.CMNT_CRE_DTIME                   AS [Message_Date]
-, DATEDIFF(
-	DAY,
-	C.CMNT_CRE_DTIME,
-	CAST(GETDATE() AS date)
-	)                                AS [Days_In_Current_FC]
+--, A.[Date of Last Patient Payment]
+--, A.[Amount of last Patient Payment]
+--, A.[Days since last Patient Payment]
+--, B.ACCT_HIST_CMNT                   AS [First_FC_Comment]
+--, SUBSTRING(B.ACCT_HIST_CMNT, 16, 1) AS [First_FC]
+--, B.CMNT_CRE_DTIME                   AS [Message_Date]
+--, C.ACCT_HIST_CMNT                   AS [Last_FC_Comment]
+--, SUBSTRING(C.ACCT_HIST_CMNT, 16, 1) AS [Last_FC]
+--, C.CMNT_CRE_DTIME                   AS [Message_Date]
+--, DATEDIFF(
+--	DAY,
+--	C.CMNT_CRE_DTIME,
+--	CAST(GETDATE() AS date)
+--	)                                AS [Days_In_Current_FC]
 
 FROM @BatchTable                     AS A
 LEFT OUTER MERGE JOIN @FirstFinClass AS B

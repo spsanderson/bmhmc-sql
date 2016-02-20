@@ -71,6 +71,7 @@ WITH INITPOP AS (
 	, A.tot_chg_amt 
 	, A.tot_adj_amt 
 	, A.tot_pay_amt 
+	, C.tot_pymts_w_pip
 	, A.reimb_amt 
 	, A.Tot_Amt_Due 
 	, A.dsch_disp
@@ -86,13 +87,15 @@ WITH INITPOP AS (
 		WHEN A.dsch_disp = 'ATX'
 			THEN 'Transferred to inpatient rehabilitation (IRF) within hospital' 
 		ELSE B.dsch_ub_desc
-	  END                                AS [dsch_ub_desc]
+		END                                AS [dsch_ub_desc]
 
 
 	FROM smsdss.BMH_PLM_PtAcct_V         AS A
 	LEFT JOIN smsdss.dsch_disp_dim_v     AS B
 	ON SUBSTRING(A.dsch_disp, 2, 2) = RTRIM(LTRIM(B.dsch_disp))
 		AND B.orgz_cd = 'S0X0'
+	LEFT JOIN smsdss.c_tot_pymts_w_pip_v AS C
+	ON A.PTNO_NUM = C.acct_no
 
 	WHERE A.drg_no IN ('469', '470') 
 	AND A.Plm_Pt_Acct_Type = 'I' 
