@@ -106,16 +106,23 @@ DECLARE @DRG TABLE (
 	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
 	, ENCOUNTER INT
 	, DRG       VARCHAR(3)
+	, DRG_NAME  VARCHAR(MAX)
 )
 
 INSERT INTO @DRG
 SELECT DRG.*
 FROM (
-	SELECT PTNO_NUM
-	, DRG_NO
-	FROM SMSDSS.BMH_PLM_PTACCT_V
+	SELECT PLM.PtNo_Num
+	, PLM.drg_no
+	, DRGV.std_drg_name_modf
+
+	FROM SMSDSS.BMH_PLM_PTACCT_V PLM
+	LEFT OUTER JOIN SMSDSS.drg_dim_v AS DRGV
+	ON PLM.drg_no = DRGV.drg_no
+
 	WHERE Dsch_Date >= @SD
 	AND Dsch_Date < @ED
+	AND DRGV.drg_vers = 'MS-V25'
 ) DRG
 
 -----------------------------------------------------------------------
@@ -441,6 +448,7 @@ SELECT a.BILL_NO as tmbptbl_bill_no
 , D.username
 , D.RN
 , DRG.DRG
+, DRG.DRG_NAME
 
 FROM @TmpDenialsTbl                     AS A
 LEFT OUTER JOIN @InpatientDenials       AS B
@@ -517,6 +525,7 @@ SELECT O.BILL_NO
 , ''
 , ''
 , DRG.DRG
+, DRG.DRG_NAME
 
 FROM @OutPatient                        AS O
 LEFT OUTER JOIN @EDTBL                  AS EDO
