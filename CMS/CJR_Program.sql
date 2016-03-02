@@ -11,38 +11,39 @@ MS-DRG's 469 & 470
 =======================================================================
 */
 DECLARE @InitPop TABLE (
-	PK INT IDENTITY(1, 1) PRIMARY KEY
-	, Encounter INT
-	, MRN INT
-	, Pt_Sex CHAR(1)
-	, Age_at_Admit INT
-	, Pt_Name VARCHAR(50)
-	, Admit_DateTime DATETIME
-	, Adm_Yr INT
-	, Adm_Month INT
-	, Disch_DateTime DATETIME
-	, Disch_Yr INT
-	, Disch_Month INT
-	, LOS SMALLINT
-	, Prin_Dx_CD VARCHAR(15)
-	, Proc_Cd VARCHAR(15)
-	, MS_DRG CHAR(3)
-	, DRG_Cost_Weight FLOAT
-	, Fin_Class CHAR(1)
-	, From_File_Ind CHAR(2)
-	, Ins1 VARCHAR(4)
-	, Ins2 VARCHAR(4)
-	, Ins3 VARCHAR(4)
-	, Ins4 VARCHAR(4)
-	, Tot_Chg_Amt MONEY
-	, Tot_Adj_Amt MONEY
-	, Tot_Pay_Amt MONEY
-	, Reimb_Amt   MONEY
-	, Tot_Amt_Due MONEY
-	, Dsch_Disp VARCHAR(3)
-	, TwoDigit_DschDisp VARCHAR(2)
-	, Dsch_Disp_Desc VARCHAR(100)
-	, Dsch_UB_Desc VARCHAR(100)
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, Encounter           INT
+	, MRN                 INT
+	, Pt_Sex              CHAR(1)
+	, Age_at_Admit        INT
+	, Pt_Name             VARCHAR(50)
+	, Admit_DateTime      DATETIME
+	, Adm_Yr              INT
+	, Adm_Month           INT
+	, Disch_DateTime      DATETIME
+	, Disch_Yr            INT
+	, Disch_Month         INT
+	, LOS                 SMALLINT
+	, Prin_Dx_CD          VARCHAR(15)
+	, Proc_Cd             VARCHAR(15)
+	, MS_DRG              CHAR(3)
+	, DRG_Cost_Weight     FLOAT
+	, Fin_Class           CHAR(1)
+	, From_File_Ind       CHAR(2)
+	, Ins1                VARCHAR(4)
+	, Ins2                VARCHAR(4)
+	, Ins3                VARCHAR(4)
+	, Ins4                VARCHAR(4)
+	, Tot_Chg_Amt         MONEY
+	, Tot_Adj_Amt         MONEY
+	, Tot_Pay_Amt_w_PIP   MONEY
+	, Reimb_Amt           MONEY
+	, Tot_Amt_Due         MONEY
+	, Dsch_Disp           VARCHAR(3)
+	, TwoDigit_DschDisp   VARCHAR(2)
+	, Dsch_Disp_Desc      VARCHAR(100)
+	, Dsch_UB_Desc        VARCHAR(100)
+	, Prin_Dx_Hip_FX      CHAR(1)
 );
 
 WITH INITPOP AS (
@@ -58,7 +59,7 @@ WITH INITPOP AS (
 	, DATEPART(YEAR, A.vst_end_dtime)    AS [Disch_Yr] 
 	, DATEPART(MONTH, A.vst_end_dtime)   AS [Disch_Month] 
 	, CAST(A.Days_Stay AS smallint)      AS [Days_Stay] 
-	, A.prin_dx_cd 
+	, A.prin_dx_cd
 	, A.proc_cd 
 	, A.drg_no 
 	, A.drg_cost_weight 
@@ -70,7 +71,7 @@ WITH INITPOP AS (
 	, A.Pyr4_Co_Plan_Cd 
 	, A.tot_chg_amt 
 	, A.tot_adj_amt 
-	, A.tot_pay_amt 
+	--, A.tot_pay_amt 
 	, C.tot_pymts_w_pip
 	, A.reimb_amt 
 	, A.Tot_Amt_Due 
@@ -87,7 +88,27 @@ WITH INITPOP AS (
 		WHEN A.dsch_disp = 'ATX'
 			THEN 'Transferred to inpatient rehabilitation (IRF) within hospital' 
 		ELSE B.dsch_ub_desc
-		END                                AS [dsch_ub_desc]
+		END                              AS [dsch_ub_desc]
+	, CASE
+		WHEN A.prin_dx_cd IN (
+			-- ICD-9 codes
+			'820.00', '820.01', '820.02', '820.03', '820.09', '820.10',
+			'820.11', '820.12', '820.13', '820.19', '820.20', '820.21',
+			'820.22', '820.30', '820.31', '820.32', '820.8' , '820.9',
+			-- ICD-10 codes
+			'S72.019A', 'S72.023A', 'S72.026A', 'S72.033A', 'S72.036A', 
+			'S72.043A', 'S72.046A', 'S72.099A', 'S72.019B', 'S72.019C', 
+			'S72.023B', 'S72.023C', 'S72.026B', 'S72.026C', 'S72.033B', 
+			'S72.033C', 'S72.036B', 'S72.036C', 'S72.043B', 'S72.043C', 
+			'S72.046B', 'S72.046C', 'S72.099B', 'S72.099C', 'S72.109A', 
+			'S72.143A', 'S72.146A', 'S72.23XA', 'S72.26XA', 'S72.109B', 
+			'S72.109C', 'S72.143B', 'S72.143C', 'S72.146B', 'S72.146C', 
+			'S72.23XB', 'S72.23XC', 'S72.26XB', 'S72.26XC', 'S72.009A', 
+			'S72.009B', 'S72.009C'
+		)
+			THEN '1'
+			ELSE '0'
+	  END                                AS [Hip_Fx]
 
 
 	FROM smsdss.BMH_PLM_PtAcct_V         AS A
@@ -109,7 +130,7 @@ WITH INITPOP AS (
 INSERT INTO @InitPop
 SELECT * FROM INITPOP A
 
-SELECT * FROM @InitPop
+--SELECT * FROM @InitPop
 
 /*
 =======================================================================
@@ -117,10 +138,10 @@ Is the case a 30 day readmission with a primary MS-DRG that is excluded
 =======================================================================
 */
 DECLARE @ExcludedReadmits TABLE (
-	PK INT IDENTITY(1, 1) PRIMARY KEY
-	, Initial_Encounter INT
-	, Readmit_Encounter INT
-	, Readmit_MSDRG     VARCHAR(3)
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, Initial_Encounter   INT
+	, Readmit_Encounter   INT
+	, Readmit_MSDRG       VARCHAR(3)
 );
 
 WITH READMIT AS (
@@ -128,8 +149,8 @@ WITH READMIT AS (
 	, A.[READMIT]
 	, B.drg_no
 	
-	FROM SMSDSS.vReadmits                    AS A
-	INNER MERGE JOIN SMSDSS.BMH_PLM_PTACCT_V AS B
+	FROM SMSDSS.vReadmits              AS A
+	INNER JOIN SMSDSS.BMH_PLM_PTACCT_V AS B
 	ON A.[READMIT] = B.PtNo_Num
 
 	WHERE A.[INTERIM] < 31
@@ -182,4 +203,67 @@ WITH READMIT AS (
 INSERT INTO @ExcludedReadmits
 SELECT * FROM READMIT
 
-SELECT * FROM @ExcludedReadmits
+--SELECT * FROM @ExcludedReadmits
+
+/*
+=======================================================================
+Does pt have a secondary dx_cd of Hip_Fx
+=======================================================================
+*/
+DECLARE @SecondaryHip_Fx TABLE (
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, Encounter           INT
+	, Dx_Code             VARCHAR(15)
+	, RN                  INT
+);
+
+WITH DxCd AS (
+	SELECT pt_id
+	, dx_cd
+	, ROW_NUMBER() OVER(
+		PARTITION BY PT_ID
+		ORDER BY DX_CD_PRIO ASC
+	) AS RN
+
+	FROM smsmir.mir_dx_grp
+
+	WHERE LEFT(dx_cd_type, 2) = 'DF'
+	AND dx_cd IN (
+		-- ICD-9 codes
+		'820.00', '820.01', '820.02', '820.03', '820.09', '820.10',
+		'820.11', '820.12', '820.13', '820.19', '820.20', '820.21',
+		'820.22', '820.30', '820.31', '820.32', '820.8' , '820.9',
+		-- ICD-10 codes
+		'S72.019A', 'S72.023A', 'S72.026A', 'S72.033A', 'S72.036A', 
+		'S72.043A', 'S72.046A', 'S72.099A', 'S72.019B', 'S72.019C', 
+		'S72.023B', 'S72.023C', 'S72.026B', 'S72.026C', 'S72.033B', 
+		'S72.033C', 'S72.036B', 'S72.036C', 'S72.043B', 'S72.043C', 
+		'S72.046B', 'S72.046C', 'S72.099B', 'S72.099C', 'S72.109A', 
+		'S72.143A', 'S72.146A', 'S72.23XA', 'S72.26XA', 'S72.109B', 
+		'S72.109C', 'S72.143B', 'S72.143C', 'S72.146B', 'S72.146C', 
+		'S72.23XB', 'S72.23XC', 'S72.26XB', 'S72.26XC', 'S72.009A', 
+		'S72.009B', 'S72.009C'
+	)
+	AND dx_eff_dtime >= @START
+	AND dx_cd_prio != '01'
+	AND LEN(pt_id) >= 8
+)
+
+INSERT INTO @SecondaryHip_Fx
+SELECT * FROM DxCd
+WHERE RN = 1
+
+--SELECT * FROM @SecondaryHip_Fx
+
+/*
+=======================================================================
+Pull together Init-Pop and Readmit
+=======================================================================
+*/
+SELECT *
+
+FROM @InitPop                     AS A
+LEFT OUTER JOIN @ExcludedReadmits AS B
+ON A.Encounter = B.Initial_Encounter
+LEFT OUTER JOIN @SecondaryHip_Fx  AS C
+ON A.Encounter = C.Encounter

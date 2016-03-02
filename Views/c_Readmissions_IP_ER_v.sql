@@ -50,6 +50,7 @@ SELECT c1.Med_Rec_No                       AS [MRN]
 , c1.PtNo_Num                              AS [INDEX]
 , c2.PtNo_Num                              AS [READMIT]
 , c2.adm_src_desc                          AS [READMIT SOURCE DESC]
+, CAST(c1.Adm_Date AS DATE)                AS [INITIAL ADMIT DATE]
 , CAST(c1.Dsch_Date AS DATE)               AS [INITIAL DISCHARGE]
 , CAST(c2.Adm_Date AS DATE)                AS [READMIT DATE]
 , DATEDIFF(DAY, c1.Dsch_Date, c2.Adm_Date) AS INTERIM

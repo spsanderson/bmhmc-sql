@@ -24,8 +24,8 @@ BEGIN
 		DROP TABLE smsdss.c_Wellsoft_Ord_Rpt_Tbl;
 
 	SELECT A.[Patient]
-	, CAST(dbo.c_udf_AlphaNumericChars(A.[Account]) AS INT) AS [Account] 
-	, CAST(dbo.c_udf_AlphaNumericChars(A.[MR#]) AS INT)     AS [MR#]
+	, CAST(dbo.c_udf_NumericChars(A.[Account]) AS INT) AS [Account] 
+	, CAST(dbo.c_udf_NumericChars(A.[MR#]) AS INT)     AS [MR#]
 	, B.[OrderName]
 	, B.[Placer#]
 	, B.[Filler#]
@@ -35,26 +35,26 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[SchedDT]), 7, 2) + ' ' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[SchedDT]), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[SchedDT]), 11, 2) + ':00',
-	  120)                                                  AS SchedDT
+	  120)                                             AS SchedDT
 	, CONVERT(VARCHAR,
 	  SUBSTRING(dbo.c_udf_AlphaNumericChars(B.[InProgDT]), 1, 4) + '-' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[InProgDT]), 5, 2) + '-' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[InProgDT]), 7, 2) + ' ' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[InProgDT]), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[InProgDT]), 11, 2) + ':00',
-	  120)                                                  AS InProgDT
+	  120)                                             AS InProgDT
 	, CONVERT(VARCHAR,
 	  SUBSTRING(dbo.c_udf_AlphaNumericChars(B.[CompDT]), 1, 4) + '-' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[CompDT]), 5, 2) + '-' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[CompDT]), 7, 2) + ' ' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[CompDT]), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(B.[CompDT]), 11, 2) + ':00',
-	  120)                                                  AS CompDT
-	, RIGHT(B.[MDSigntr], 14)                               AS MD_Signature
+	  120)                                             AS CompDT
+	, RIGHT(B.[MDSigntr], 14)                          AS MD_Signature
 	, ROW_NUMBER() OVER(
 		PARTITION BY A.[Account], B.[UnivCode]
 		ORDER BY B.[SchedDT]
-	)                                                       AS [RN]
+	)                                                  AS [RN]
 
 	INTO smsdss.c_Wellsoft_Ord_Rpt_Tbl
 
