@@ -160,9 +160,9 @@ SELECT A.Vst_Start_Dtime
 , A.Order_Ent_DTime
 , A.Order_Str_DTime
 , A.Order_Stp_DTime
-, B.Before_Results
+, CAST(dbo.c_udf_NumericChars(B.Before_Results) AS INT) AS Before_Result
 , B.Result_Before_Date
-, C.After_Results
+, CAST(dbo.c_udf_NumericChars(C.After_Results) AS INT)  AS After_Result
 , C.Result_After_Date
 
 FROM @Patients         AS A

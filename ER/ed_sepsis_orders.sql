@@ -90,7 +90,7 @@ WITH CTE1 AS (
 	, A.CompDT
 	, ROW_NUMBER() OVER(
 		PARTITION BY A.ACCOUNT
-		ORDER BY A.PLACER#
+		ORDER BY A.SchedDT
 		) AS [RN]
 
 	FROM SMSDSS.c_Wellsoft_Ord_Rpt_Tbl   AS A
@@ -144,7 +144,7 @@ SELECT A.Account
 	, A.CompDT
 	, ROW_NUMBER() OVER(
 		PARTITION BY A.ACCOUNT
-		ORDER BY A.PLACER#
+		ORDER BY A.SchedDT
 		) AS [RN]
 
 	FROM SMSDSS.c_Wellsoft_Ord_Rpt_Tbl   AS A
@@ -198,7 +198,7 @@ WITH CTE3 AS (
 	, A.CompDT
 	, ROW_NUMBER() OVER(
 		PARTITION BY A.ACCOUNT
-		ORDER BY A.PLACER#
+		ORDER BY A.SchedDT
 		) AS [RN]
 
 	FROM SMSDSS.c_Wellsoft_Ord_Rpt_Tbl   AS A
@@ -271,7 +271,7 @@ WITH CTE4 AS (
 	, A.CompDT
 	, ROW_NUMBER() OVER(
 		PARTITION BY A.ACCOUNT
-		ORDER BY A.PLACER#
+		ORDER BY A.SchedDT
 		) AS [RN]
 
 	FROM SMSDSS.c_Wellsoft_Ord_Rpt_Tbl   AS A
@@ -321,7 +321,7 @@ WITH CTE5 AS (
 	, A.CompDT
 	, ROW_NUMBER() OVER(
 		PARTITION BY A.ACCOUNT
-		ORDER BY A.PLACER#
+		ORDER BY A.SchedDT
 		) AS [RN]
 
 	FROM SMSDSS.c_Wellsoft_Ord_Rpt_Tbl   AS A

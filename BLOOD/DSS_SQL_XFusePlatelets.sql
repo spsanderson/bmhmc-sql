@@ -1,100 +1,195 @@
-SELECT
-hpv.vst_start_dtime AS 'Admission_Date'
-, hpv.vst_end_dtime AS 'Disch_Date'
-, hp.rpt_name AS 'Patient_Name'    
-, ISNULL(CAST(FLOOR(DATEDIFF(DAY, hp.birth_dtime, getDate()) / 365.25) AS VARCHAR),'')AS 'Age'
-, hpv.med_rec_no AS 'MRN'
-, hpv.episode_no AS 'Patient_Account_ID'
-, ho.pty_name AS 'Ordering_Physician'
-, ho.ord_no AS 'Order_ID'
-, ho.svc_desc AS 'Order_Name'
---ho.qty_unit as 'Units',--Doesnt appear to be avaialble in DSS
---hosi.ReasonForRequest as 'Indication',-- NOT AVAILABLE IN DSS 
-, hcm.clasf_desc AS 'Admitting_Diag'
-, hpv.adm_dx_cd AS 'Admitting_Diag_Code' --I left it here ..not sure if they want the code
-, ho.ent_dtime AS 'Order_Entered_Date'
-, ho.str_dtime AS 'Order_Start_Date'
-, ho.stp_dtime AS 'Order_Stop_Date'
+DECLARE @START DATE, @END DATE;
+SET @START = '2014-08-01';
+SET @END   = '2014-09-01';
 
---------------------------------------------------------
+/* 
+======================================================================
+G E T - T H E - P A T I E N T S
+=======================================================================
+*/
+DECLARE @Patients TABLE (
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, Vst_Start_Dtime     DATETIME
+	, Vst_End_Dtime       DATETIME
+	, Pt_Name             VARCHAR(50)
+	, Age                 VARCHAR(4)
+	, MRN                 INT
+	, Encounter           INT
+	, Ordering_Party      VARCHAR(50)
+	, Ord_No              VARCHAR(15)
+	, Svc_Desc            VARCHAR(MAX)
+	, [x]                 CHAR(1)
+	, [xx]                CHAR(1)
+	, Order_Ent_DTime     DATETIME
+	, Order_Str_DTime     DATETIME
+	, Order_Stp_DTime     DATETIME
+	, Vst_No              INT
+);
 
-, hirz.result_value AS 'Result_Value_Before'
-, hirz.coll_dtime AS 'Result_Date_Before'
-, CASE WHEN hir2.def_type_ind = 'AN'
-       THEN
-         CAST(hir2.dsply_val AS VARCHAR)
-       WHEN hir2.def_type_ind = 'NM'
-       THEN 
-         CAST(hir2.val_no AS VARCHAR)
-  END AS 'Result_Value_After'
-, hir2.coll_dtime as 'Result_Date_After'
+WITH Patients AS (
+	SELECT A.vst_start_dtime
+	, A.vst_end_dtime
+	, B.rpt_name
+	, ISNULL(CAST(FLOOR(DATEDIFF(DAY, B.BIRTH_DTIME, GETDATE()) / 365.25) AS VARCHAR), '') AS [AGE]
+	, A.med_rec_no
+	, A.episode_no
+	, C.pty_name
+	, C.ord_no
+	, C.svc_desc
+	, '' AS X
+	, '' AS XX
+	, C.ent_dtime
+	, C.str_dtime
+	, C.stp_dtime
+	, C.vst_no
 
---------------------------------------------------------------------------------------------------------------
+	FROM SMSMIR.trn_sr_vst_pms   AS A
+	INNER JOIN SMSMIR.trn_sr_pt  AS B
+	ON A.pt_id = B.pt_id
+	INNER JOIN SMSMIR.trn_sr_ord AS C
+	ON A.vst_no = C.vst_no
+		AND C.svc_cd = 'XFusePlatelets'
+		AND C.ord_sts = 27
 
-FROM smsmir.trn_sr_vst_pms hpv WITH (nolock)
-JOIN smsmir.trn_sr_pt hp WITH (nolock)
-ON hpv.pt_id = hp.pt_id
-JOIN smsmir.trn_sr_ord ho WITH (nolock)
-ON hpv.vst_no = ho.vst_no
-AND ho.svc_cd  = 'XFusePlatelets'  --For Platelets
---and ho.svc_cd in ('XfuseBldPrd', 'XFusePlatelets')
---Used line above if you would like to see service(s) prior to Blood Transfusion changes in Dec 2012
-AND ho.ord_sts = 27 --Completed
-JOIN smsmir.clasf_mstr hcm
-ON hpv.adm_dx_cd = hcm.clasf_cd
+	WHERE A.vst_end_dtime IS NOT NULL
+	AND A.vst_end_dtime >= @START
+	AND A.vst_end_dtime < @END
+)
+INSERT INTO @Patients
+SELECT * FROM Patients
 
-------------------------------------------
---JOIN TO GET THE RESULT BEFORE TRANSFUSION
-JOIN (
-SELECT
-CASE WHEN hir.def_type_ind = 'AN'
-     THEN
-       CAST(hir.dsply_val AS VARCHAR)
-     WHEN hir.def_type_ind = 'NM'
-     THEN
-	   CAST(hir.val_no AS VARCHAR)
-END AS 'Result_Value'
-, hir.coll_dtime as 'Result_Date'
-, hir.vst_no
-, hir.coll_dtime
-, hir.rslt_obj_id
+--SELECT * FROM @Patients
 
-FROM smsmir.trn_sr_obsv hir
+/* 
+======================================================================
+G E T - T H E - B E F O R E - R E S U L T
+=======================================================================
+*/
+DECLARE @Before TABLE (
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, Before_Results      VARCHAR(MAX)
+	, Result_Before_Date  DATETIME
+	, Vst_No              VARCHAR(MAX)
+	, Coll_DTime          DATETIME
+	, Rslt_Obj_ID         VARCHAR(MAX)
+	, Obsv_CD             VARCHAR(15)
+	, Unit                VARCHAR(10)
+);
 
-WHERE hir.obsv_cd = '00402958'
-AND hir.obsv_std_unit = 'kul') hirz
+WITH Before AS (
+	SELECT CASE
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 1, 1)) = 164 THEN '0'
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 2, 1)) = 164 THEN '0'
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 3, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 2)))
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 4, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 3)))
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 5, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 4)))
+		ELSE OBS.dsply_val
+	  END              AS Result_Value_Before
+	  , obs.coll_dtime AS Result_Before_Date
+	  , obs.vst_no
+	  , obs.coll_dtime
+	  , obs.rslt_obj_id
+	  , obs.obsv_cd
+	  , obs.obsv_std_unit
+	
+	FROM SMSMIR.trn_sr_obsv AS OBS
 
-ON ho.vst_no = hirz.vst_no
-AND ho.ent_dtime > hirz.coll_dtime
---and cast(substring(hirz.result_value,1, cast(len(rtrim(ltrim(hirz.result_value)))-1 as int)) as decimal(5,1)) > 20000
-AND hirz.rslt_obj_id = (SELECT top 1 hirx.rslt_obj_id 
-                       FROM smsmir.trn_sr_obsv hirx WITH (nolock)
-                       WHERE hirz.vst_no = hirx.vst_no
-                       AND ho.ent_dtime > hirx.coll_dtime
-                       AND hirx.obsv_cd = '00402958'
-                       AND hirx.obsv_std_unit = 'kul'
-                       ORDER BY hirx.coll_dtime DESC)
+	WHERE OBS.obsv_cd = '00402958'
+	AND OBS.obsv_std_unit = 'kul'
+	AND OBS.coll_dtime >= DATEADD(DAY,-60, @START)
+	AND OBS.coll_dtime < @END 
+)
 
-------------------------------------------
---JOIN TO GET THE RESULT AFTER TRANSFUSION
-LEFT OUTER JOIN smsmir.trn_sr_obsv hir2 WITH (nolock)
-ON hirz.vst_no = hir2.vst_no
-AND hirz.rslt_obj_id <> hir2.rslt_obj_id
-AND hirz.coll_dtime < hir2.coll_dtime
-AND hir2.obsv_cd = '00402958'
-AND hir2.obsv_std_unit = 'kul'
-AND hir2.rslt_obj_id = (SELECT top 1 hir2x.rslt_obj_id 
-                       FROM smsmir.trn_sr_obsv hir2x WITH (nolock)
-                       WHERE hir2.vst_no = hir2x.vst_no 
-                       AND hirz.rslt_obj_id <> hir2x.rslt_obj_id
-                       AND hirz.coll_dtime < hir2x.coll_dtime
-                       AND hir2x.obsv_cd = '00402958'
-                       AND hir2x.obsv_std_unit = 'kul'
-                       ORDER BY hir2x.coll_dtime ASC)
+INSERT INTO @BEFORE 
+SELECT * FROM Before
 
---------------------------------------------------------------------------------------------------------------
+--SELECT * FROM @Before
 
-WHERE hpv.vst_end_dtime IS NOT NULL
-AND hpv.vst_end_dtime BETWEEN '2014-05-01' AND  '2014-05-31'
+/* 
+======================================================================
+G E T - T H E - A F T E R - R E S U L T
+=======================================================================
+*/
+DECLARE @After TABLE (
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, After_Results       VARCHAR(MAX)
+	, Result_After_Date   DATETIME
+	, Vst_No              VARCHAR(MAX)
+	, Coll_DTime          DATETIME
+	, Rslt_Obj_ID         VARCHAR(MAX)
+	, Obsv_CD             VARCHAR(15)
+	, Unit                VARCHAR(10)
+);
 
-ORDER BY Patient_Name, Order_Start_Date
+WITH After AS (
+	SELECT CASE
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 1, 1)) = 164 THEN '0'
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 2, 1)) = 164 THEN '0'
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 3, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 2)))
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 4, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 3)))
+		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 5, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 4)))
+		ELSE OBS.dsply_val
+	  END              AS Result_Value_Before
+	  , obs.coll_dtime AS Result_Before_Date
+	  , obs.vst_no
+	  , obs.coll_dtime
+	  , obs.rslt_obj_id
+	  , obs.obsv_cd
+	  , obs.obsv_std_unit
+	
+	FROM SMSMIR.trn_sr_obsv AS OBS
+
+	WHERE OBS.obsv_cd = '00402958'
+	AND OBS.obsv_std_unit = 'kul'
+	AND OBS.coll_dtime >= DATEADD(DAY,-60, @START)
+	AND OBS.coll_dtime < @END 
+)
+
+INSERT INTO @After
+SELECT * FROM After
+
+SELECT A.Vst_Start_Dtime
+, A.Vst_End_Dtime
+, A.Pt_Name
+, A.Age
+, A.MRN
+, A.Encounter
+, A.Ordering_Party
+, A.Ord_No
+, A.Svc_Desc
+, A.Order_Ent_DTime
+, A.Order_Str_DTime
+, A.Order_Stp_DTime
+, CAST(dbo.c_udf_NumericChars(B.Before_Results) AS INT) AS Before_Results
+, B.Result_Before_Date
+, CAST(dbo.c_udf_NumericChars(C.After_Results) AS INT)  AS After_Results
+, C.Result_After_Date
+
+FROM @Patients         AS A
+JOIN @Before           AS B
+ON A.vst_no = B.vst_no
+	AND A.Order_Ent_DTime > B.coll_dtime
+	AND B.Before_Results > '7'
+	AND B.rslt_obj_id = (
+		SELECT TOP 1 AA.rslt_obj_id
+		FROM @Before AS AA
+		WHERE B.vst_no = AA.vst_no
+		AND A.Order_Ent_DTime > AA.coll_dtime
+		--AND AA.obsv_cd = '00402958'
+		--AND AA.Unit = 'kul'
+		ORDER BY AA.coll_dtime DESC
+	)
+LEFT OUTER JOIN @After AS C
+ON B.Vst_No = C.Vst_No
+	AND B.Rslt_Obj_ID <> C.Rslt_Obj_ID
+	AND B.Coll_DTime < C.Coll_DTime
+	AND C.Rslt_Obj_ID = (
+		SELECT TOP 1 BB.Rslt_Obj_ID
+		FROM @After BB
+		WHERE B.Vst_No = BB.Vst_No
+		AND B.Rslt_Obj_ID <> BB.Rslt_Obj_ID
+		AND B.Coll_DTime < BB.Coll_DTime
+		--AND BB.Obsv_CD = '00402958'
+		--AND BB.Unit = 'kul'
+		ORDER BY BB.Coll_DTime ASC
+	)
