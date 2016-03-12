@@ -43,6 +43,10 @@ AND A.pt_id IN (
 
 /*
 =======================================================================
+Author: Steven P Sanderson II
+Department: Revenue Cycle
+Date: 11/24/2015
+=======================================================================
 Description:
 
 DSRIP MAX Series for COPD patients.
@@ -347,8 +351,8 @@ INSERT INTO @READMITS_CNT_TMP
 SELECT A.*
 FROM (
 	SELECT RA.[MRN]
-	, RA.[30D RA COUNT]
-	, RN = ROW_NUMBER() OVER(PARTITION BY MRN ORDER BY [30D RA COUNT] DESC)
+	, RA.[ADMIT COUNT]
+	, RN = ROW_NUMBER() OVER(PARTITION BY MRN ORDER BY [ADMIT COUNT] DESC)
 
 	FROM smsdss.vReadmits RA
 ) A

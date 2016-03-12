@@ -433,3 +433,111 @@ ON F.Encounter = PLM.PtNo_Num
 
 WHERE F.RN = 1
 ORDER BY F.Encounter, F.RN
+
+/*
+=======================================================================
+OPIATES START
+=======================================================================
+*/
+SELECT episode_no
+, Med_Rec_No
+, Days_Stay
+, ord_no
+, svc_desc
+, pty_name
+, ent_dtime
+
+FROM smsmir.sr_ord
+LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v
+ON smsmir.sr_ord.episode_no = smsdss.BMH_PLM_PtAcct_V.PtNo_Num
+
+WHERE svc_desc LIKE '%narcan%'
+AND ent_dtime >= '2015-12-01'
+AND ent_dtime < '2016-01-01'
+AND episode_no IN (
+	SELECT episode_no
+	FROM smsmir.sr_ord
+	WHERE (
+		svc_desc LIKE '%morphine%'
+		OR
+		svc_desc LIKE '%vicodin%'
+		OR
+		svc_desc LIKE '%percocet%'
+		OR
+		svc_desc LIKE '%oxyco%'
+	)
+	AND ent_dtime >= '2015-12-01'
+	AND ent_dtime < '2016-01-01'
+)
+
+-- GET FROM ED
+SELECT Account
+, MR#
+, Days_Stay
+, Placer#
+, OrderName
+, 'ED'
+, SchedDT
+
+FROM smsdss.c_Wellsoft_Ord_Rpt_Tbl
+LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v
+ON smsdss.c_wellsoft_ord_rpt_tbl.account = smsdss.bmh_plm_ptacct_v.PtNo_Num
+
+WHERE OrderName LIKE '%narcan%'
+AND OrderName NOT LIKE 'canceled%'
+AND SchedDT >= '2015-12-01'
+AND SchedDT <  '2016-01-01'
+AND Account IN (
+	SELECT account
+	FROM smsdss.c_Wellsoft_Ord_Rpt_Tbl
+	WHERE (
+		OrderName LIKE '%morph%'
+		OR
+		OrderName LIKE '%vicod%'
+		OR
+		OrderName LIKE '%perco%'
+		OR
+		OrderName LIKE '%oxycod%'
+	)
+	AND SchedDT >= '2015-12-01'
+	AND SchedDT < '2016-01-01'
+)
+
+-- GET FROM CHARGES
+SELECT c.PtNo_Num
+, c.Med_Rec_No
+, c.Days_Stay
+, '' AS order#
+, b.actv_name
+, '' AS ordering_party
+, a.actv_dtime
+
+FROM smsmir.mir_actv                    AS a
+LEFT OUTER JOIN smsmir.mir_actv_mstr    AS b
+ON a.actv_cd = b.actv_cd
+LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v AS c
+ON a.pt_id = c.pt_no
+
+WHERE b.actv_name LIKE 'naloxone%'
+AND a.actv_dtime >= '2015-12-01'
+AND a.actv_dtime < '2016-01-01'
+AND a.pt_id IN (
+	SELECT pt_id
+
+	FROM smsmir.mir_actv                 AS a
+	LEFT OUTER JOIN smsmir.mir_actv_mstr AS b
+	ON a.actv_cd = b.actv_cd
+
+	WHERE (
+		b.actv_name LIKE '%morphine%'
+		OR
+		b.actv_name LIKE '%oxycodone%'
+		OR
+		b.actv_name LIKE '%percocet%'
+		OR
+		b.actv_name LIKE '%vicodin%'
+	)
+	AND a.actv_dtime >= '2015-12-01'
+	AND a.actv_dtime < '2016-01-01'	
+)
+ORDER BY a.pt_id
