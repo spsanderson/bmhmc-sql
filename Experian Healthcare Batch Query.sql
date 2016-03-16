@@ -57,7 +57,7 @@ WITH CTE1 AS (
 	, CASE
 		WHEN C.User_Pyr1_Cat IN ('MIS', '???')
 			THEN 'U'
-		ELSE 'I'
+		    ELSE 'I'
 	  END                          AS [Insured Uninsured]
 	, C.Plm_Pt_Acct_Type           AS [Patient Type]
 	, A.fc                         AS [Financial Class]
@@ -109,14 +109,17 @@ WITH CTE1 AS (
 			-- add null to catch those that never paid
 			OR
 			F.Pymt_Rank IS NULL
-			)
+		)
 
 	WHERE RIGHT(A.from_file_ind, 1) IN ('A','T')
+	
 	-- Make sure the current fin class is one of the below
 	AND A.fc IN ('P','J','G','T')
+	
 	-- Get rid of the -1 Unit Seq No line as it is a summary of
 	-- all units
 	AND A.unit_seq_no NOT IN (-1)
+	
 	-- We only want accounts that still have a balance
 	AND A.pt_bal_amt > 0
 	
@@ -137,6 +140,13 @@ WITH CTE1 AS (
 	
 	-- Get rid of Hemo Test Pt
 	AND A.acct_no != '000074006123'
+
+	-- Get rid of unitized accounts
+	AND LEFT(A.acct_no, 5) != '00000'
+	AND LEFT(A.acct_no, 5) != '00007'
+	
+	-- Get rid of accounts that hae a credit rating
+	AND A.cr_rating IS NULL
 )
 --ORDER BY [Visit Number / Account Number]
 INSERT INTO @BatchTable
@@ -144,6 +154,7 @@ SELECT *
 FROM CTE1 C1
 WHERE C1.[RN2] = 1
 --select * from @BatchTable
+
 /*
 =======================================================================
 Get first and last financial classes
@@ -181,7 +192,7 @@ SELECT *
 FROM CTE2 C2
 WHERE RN = 1
 
--- GET THE LAST FIN CLASS A PATIENT WAS IN
+-- GET THE LAST FIN CLASS A PATIENT WAS IN ----------------------------
 DECLARE @LastFinClass TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
 	, PT_ID               CHAR(12)
@@ -248,6 +259,9 @@ SELECT A.[Visit Number / Account Number]
 , A.[Diagnosis]
 , A.[Employer]
 , A.[Length of Stay]
+
+INTO #experian_batch
+
 --, A.[Date of Last Patient Payment]
 --, A.[Amount of last Patient Payment]
 --, A.[Days since last Patient Payment]
@@ -277,14 +291,26 @@ WHERE (
 		OR
 		[Days since last Patient Payment] IS NULL
 	)
+
 -- Must be self pay for at least 110 days
 AND DATEDIFF(DAY, C.CMNT_CRE_DTIME, CAST(GETDATE() AS date)) >= 110
+
 -- Get rid of Unitized accounts per K D 1/22/2016
 AND LEFT(A.[Visit Number / Account Number], 5) != '00000'
 AND LEFT(A.[Visit Number / Account Number], 5) != '00007'
--- Get rid of encounters where the Guarantor SSN is an
--- erroneous number
-AND A.[Guarantor SSN] NOT IN (
+
+-- Brookhaven cannot be the guarantor
+AND A.[Guarantor Last Name] != 'BROOKHAVEN MEMORIAL HOPITAL'
+
+-- get the following accounts
+--AND A.[Visit Number / Account Number] IN ()
+
+SELECT * 
+FROM #experian_batch zzz
+
+WHERE zzz.[Guarantor SSN] NOT IN (
 	'999999999', '999999991', '888888888', '111111111', '000000000'
 )
-AND A.[Guarantor Last Name] != 'BROOKHAVEN MEMORIAL HOPITAL'
+
+-- Drop the temporary persistant table when done
+DROP TABLE #experian_batch

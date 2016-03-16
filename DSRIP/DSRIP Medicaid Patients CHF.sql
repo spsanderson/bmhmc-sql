@@ -304,17 +304,24 @@ DECLARE @READMITS_CNT_TMP TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
 	, MRN                 INT
 	, [Admit_Count]       INT
-	, RN                  INT
+	--, RN                  INT
 )
 
 INSERT INTO @READMITS_CNT_TMP
 SELECT A.*
 FROM (
-	SELECT RA.[MRN]
-	, RA.[ADMIT COUNT]
-	, RN = ROW_NUMBER() OVER(PARTITION BY MRN ORDER BY [ADMIT COUNT] DESC)
+	SELECT ra.MRN
+	, COUNT(RA.[MRN]) AS [30 day ra count]
+	--, RA.[ADMIT COUNT]
+	--, rn = ROW_NUMBER() over(partition by MRN order by [initial discharge] desc)
+	--, RN = ROW_NUMBER() OVER(PARTITION BY MRN ORDER BY [ADMIT COUNT] DESC)
 
 	FROM smsdss.vReadmits RA
+
+	-- add interim
+	WHERE INTERIM < 31
+
+	GROUP BY ra.MRN
 ) A
 
 --SELECT * FROM @READMITS_CNT_TMP
@@ -333,7 +340,7 @@ FROM (
 	, R.[Admit_Count]
 
 	FROM @READMITS_CNT_TMP R
-	WHERE R.RN = 1
+	--WHERE R.RN = 1
 ) B
 
 --SELECT * FROM @RA_CNT
