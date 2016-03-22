@@ -1,14 +1,15 @@
 USE [SMSPHDSSS0X0]
 GO
 
-/****** Object:  View [smsdss].[c_LIHN_Svc_Lines_Rpt_ICD10_v]    Script Date: 11/17/2015 2:51:00 PM ******/
+/****** Object:  View [smsdss].[c_LIHN_Svc_Lines_Rpt_ICD10_v]    Script Date: 3/22/2016 8:53:45 AM ******/
 SET ANSI_NULLS ON
 GO
 
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE VIEW [smsdss].[c_LIHN_Svc_Lines_Rpt_ICD10_v]
+
+ALTER VIEW [smsdss].[c_LIHN_Svc_Lines_Rpt_ICD10_v]
 AS
 
 SELECT     
@@ -42,7 +43,9 @@ a.pt_id
 		AND d.CC_Code IN ('DX_197')
 		THEN 'Cellulitis'
 
-	WHEN a.drg_no IN ('286', '287', '313')
+	WHEN --a.drg_no IN ('286', '287', '313')
+		-- edited 3/22/2016 sps due to new LIHN guidelines
+		a.drg_no IN ('313')
 		AND d.CC_Code IN ('DX_102')
 		THEN 'Chest Pain'
 
@@ -175,4 +178,7 @@ ON a.Proc01 = p.ICDCode
 	
 WHERE a.drg_schm IN ('MC11', 'MC12', 'MC13', 'MC14', 'MC15', 'MCT4')
 
+
 GO
+
+
