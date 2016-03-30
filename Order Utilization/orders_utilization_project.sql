@@ -1,81 +1,83 @@
 DECLARE @T1 TABLE (
-PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
-, MRN                 INT
-, Encounter           INT
-, Order_No            INT
-, Order_Loc           VARCHAR(100)
-, Svc_Cd              VARCHAR(100)
-, Svc_Desc            VARCHAR(500)
-, Ord_Set_ID          VARCHAR(200)
-, Ordering_Party      VARCHAR(500)
-, Ord_Pty_Number      CHAR(6)
-, Ord_Pty_Spclty      CHAR(5)
-, Performing_Dept     VARCHAR(100)
-, Svc_Dept            VARCHAR(100)
-, Svc_Sub_Dept        VARCHAR(100)
-, Ord_Occ_No          INT
-, Ord_Occ_Obj_ID      INT
-, Ord_Entry_DTime     DATETIME
-, Ord_Start_DTime     DATETIME
-, Ord_Stop_DTime      DATETIME
-, Order_Status        VARCHAR(250)
-, Order_Occ_sts_cd    CHAR(1)
-, Order_Occ_Status    VARCHAR(250)
-, Admit_DateTime      DATETIME
+	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
+	, MRN                 INT
+	, Encounter           INT
+	, Order_No            INT
+	, Order_Loc           VARCHAR(100)
+	, Svc_Cd              VARCHAR(100)
+	, Svc_Desc            VARCHAR(500)
+	, Ord_Set_ID          VARCHAR(200)
+	, Ordering_Party      VARCHAR(500)
+	, Ord_Pty_Number      CHAR(6)
+	, Ord_Pty_Spclty      CHAR(5)
+	, Performing_Dept     VARCHAR(100)
+	, Svc_Dept            VARCHAR(100)
+	, Svc_Sub_Dept        VARCHAR(100)
+	, Ord_Occ_No          INT
+	, Ord_Occ_Obj_ID      INT
+	, Ord_Entry_DTime     DATETIME
+	, Ord_Start_DTime     DATETIME
+	, Ord_Stop_DTime      DATETIME
+	, Order_Status        VARCHAR(250)
+	, Order_Occ_sts_cd    CHAR(1)
+	, Order_Occ_Status    VARCHAR(250)
+	, Admit_DateTime      DATETIME
+	, Dup_Order           CHAR(1)
 );
 
 WITH T1 AS (
-SELECT A.med_rec_no
-, A.episode_no
-, A.ord_no
-, A.ord_loc
-, A.svc_cd
-, A.svc_desc
-, A.ord_set_id
-, A.pty_name
-, A.pty_cd
-, E.src_spclty_cd
-, A.perf_dept
-, A.svc_dept
-, A.svc_subdept
-, A.ord_occr_no
-, A.ord_occr_obj_id
-, A.ent_dtime
-, A.Order_Str_Dtime
-, A.stp_dtime
-, C.ord_sts_modf  AS [Order_Status]
-, B.occr_sts_cd
-, B.occr_sts_modf AS [Order_Occ_Status]
-, D.adm_dtime
+	SELECT A.med_rec_no
+	, A.episode_no
+	, A.ord_no
+	, A.ord_loc
+	, A.svc_cd
+	, A.svc_desc
+	, A.ord_set_id
+	, A.pty_name
+	, A.pty_cd
+	, E.src_spclty_cd
+	, A.perf_dept
+	, A.svc_dept
+	, A.svc_subdept
+	, A.ord_occr_no
+	, A.ord_occr_obj_id
+	, A.ent_dtime
+	, A.Order_Str_Dtime
+	, A.stp_dtime
+	, C.ord_sts_modf  AS [Order_Status]
+	, B.occr_sts_cd
+	, B.occr_sts_modf AS [Order_Occ_Status]
+	, D.adm_dtime
+	, a.ovrd_dup_ind
 
-FROM smsdss.c_sr_orders_finance_rpt_v    AS A
-INNER JOIN SMSMIR.ord_occr_sts_modf_mstr AS B
-ON A.Occr_Sts = B.occr_sts_modf_cd
-INNER JOIN SMSMIR.ord_sts_modf_mstr      AS C
-ON A.ord_sts = C.ord_sts_modf_cd
-LEFT OUTER JOIN smsmir.acct              AS D
-ON A.episode_no = SUBSTRING(D.pt_id, 5, 8)
-LEFT OUTER JOIN smsdss.pract_dim_v       AS E
-ON A.pty_cd = E.src_pract_no
-AND E.orgz_cd = 'S0X0'
+	FROM smsdss.c_sr_orders_finance_rpt_v    AS A
+	INNER JOIN SMSMIR.ord_occr_sts_modf_mstr AS B
+	ON A.Occr_Sts = B.occr_sts_modf_cd
+	INNER JOIN SMSMIR.ord_sts_modf_mstr      AS C
+	ON A.ord_sts = C.ord_sts_modf_cd
+	LEFT OUTER JOIN smsmir.acct              AS D
+	ON A.episode_no = SUBSTRING(D.pt_id, 5, 8)
+	LEFT OUTER JOIN smsdss.pract_dim_v       AS E
+	ON A.pty_cd = E.src_pract_no
+	AND E.orgz_cd = 'S0X0'
 
-WHERE LEFT(A.svc_cd, 3) IN (
-	'004', '005', '006', '013', '014', '023'
-)
-AND C.ord_sts_modf IN ('Complete', 'Discontinue')
-AND D.adm_date >= '2015-01-01'
-AND D.adm_date <  '2015-04-01'
--- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
---AND LEFT(A.episode_no, 1) != '7'
-AND (
-	A.episode_no < '20000000'
-	OR
-		(
-		A.episode_no > '80000000'
-		AND
-		A.episode_no < '99999999'
-		)
+	WHERE LEFT(A.svc_cd, 3) IN (
+		'004', '005', '006', '013', '014', '023'
 	)
+	AND C.ord_sts_modf IN ('Complete', 'Discontinue')
+	AND D.adm_date >= '2015-01-01'
+	AND D.adm_date <  '2015-04-01'
+	-- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
+	--AND LEFT(A.episode_no, 1) != '7'
+	AND (
+		A.episode_no < '20000000'
+		OR
+			(
+			A.episode_no > '80000000'
+			AND
+			A.episode_no < '99999999'
+			)
+		)
 )
  
 INSERT INTO @T1
@@ -86,15 +88,15 @@ SELECT t1.MRN
 , t1.Order_No
 , t1.Order_Loc
 , CASE
-WHEN T1.Order_Loc = 'EDICMS'
-THEN 'ED'
-WHEN T1.Order_Loc != 'EDICMS'
-AND LEFT(T1.Encounter, 1) = '8'
-THEN 'ED'
-WHEN T1.Order_Loc != 'EDICMS'
-AND T1.Ord_Pty_Spclty = 'EMRED'
-THEN 'ED'
-ELSE 'IP'
+	WHEN T1.Order_Loc = 'EDICMS'
+		THEN 'ED'
+	WHEN T1.Order_Loc != 'EDICMS'
+		AND LEFT(T1.Encounter, 1) = '8'
+		THEN 'ED'
+	WHEN T1.Order_Loc != 'EDICMS'
+		AND T1.Ord_Pty_Spclty = 'EMRED'
+		THEN 'ED'
+	ELSE 'IP'
   END AS [ED_IP_FLAG]
 , t1.Svc_Desc
 , t1.Ord_Set_ID
@@ -140,7 +142,15 @@ ELSE 'IP'
 , t1.Order_Status
 , t1.Order_Occ_Status
 , t1.Admit_DateTime
+, t1.Dup_Order
 
+INTO #order_tmp_tbl
 FROM @T1 T1
-
 WHERE T1.Order_Occ_sts_cd = '4'
+
+SELECT *
+FROM #order_tmp_tbl ZZZ
+WHERE ZZZ.ED_IP_FLAG = ''  -- ED OR IP
+AND ZZZ.Svc_Dept_Desc = '' -- Laboratory OR Radiology
+
+DROP TABLE #order_tmp_tbl
