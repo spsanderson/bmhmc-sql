@@ -117,6 +117,8 @@ WITH INITPOP AS (
 		AND B.orgz_cd = 'S0X0'
 	LEFT JOIN smsdss.c_tot_pymts_w_pip_v AS C
 	ON A.PTNO_NUM = C.acct_no
+		AND a.pt_id_start_dtime = c.pt_id_start_dtime
+		AND A.unit_seq_no = C.unit_seq_no
 
 	WHERE A.drg_no IN ('469', '470') 
 	AND A.Plm_Pt_Acct_Type = 'I' 

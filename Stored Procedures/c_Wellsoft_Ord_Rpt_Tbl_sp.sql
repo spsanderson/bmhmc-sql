@@ -65,6 +65,8 @@ BEGIN
 	WHERE B.SentTo != 'Canceled'
 	AND A.[Account] != '1234567890'
 	AND A.[Account] != '1356718513566856'
+	AND LEN(A.[Account]) = 8
+	AND LEN(A.[MR#]) = 6
 	
 END
 

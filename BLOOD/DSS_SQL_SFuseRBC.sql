@@ -1,6 +1,6 @@
 DECLARE @START DATE, @END DATE;
-SET @START = '2014-08-01';
-SET @END   = '2014-09-01';
+SET @START = '2016-03-01';
+SET @END   = '2016-04-01';
 
 /* 
 ======================================================================
@@ -112,8 +112,8 @@ G E T - T H E - A F T E R - R E S U L T
 */
 DECLARE @After TABLE (
 	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
-	, After_Results      VARCHAR(MAX)
-	, Result_After_Date  DATETIME
+	, After_Results       VARCHAR(MAX)
+	, Result_After_Date   DATETIME
 	, Vst_No              VARCHAR(MAX)
 	, Coll_DTime          DATETIME
 	, Rslt_Obj_ID         VARCHAR(MAX)
@@ -157,12 +157,26 @@ SELECT A.Vst_Start_Dtime
 , A.Ordering_Party
 , A.Ord_No
 , A.Svc_Desc
+, '' AS [Admitting_Diag]
+, '' AS [Admitting_Diag_Code]
 , A.Order_Ent_DTime
 , A.Order_Str_DTime
 , A.Order_Stp_DTime
-, CAST(dbo.c_udf_NumericChars(B.Before_Results) AS INT) AS Before_Result
+--, CAST(dbo.c_udf_NumericChars(B.Before_Results) AS float) AS Before_Result
+, CASE
+	WHEN UNICODE(SUBSTRING(B.Before_Results, 4, 1)) = 13
+		THEN SUBSTRING(B.Before_Results, 1, 3)
+	WHEN UNICODE(SUBSTRING(B.Before_Results, 5, 1)) = 13
+		THEN SUBSTRING(B.Before_Results, 1, 4)
+  END AS Before_Results
 , B.Result_Before_Date
-, CAST(dbo.c_udf_NumericChars(C.After_Results) AS INT)  AS After_Result
+--, CAST(dbo.c_udf_NumericChars(C.After_Results) AS float)  AS After_Result
+, CASE
+	WHEN UNICODE(SUBSTRING(C.After_Results, 4, 1)) = 13
+		THEN SUBSTRING(C.After_Results, 1, 3)
+	WHEN UNICODE(SUBSTRING(C.After_Results, 5, 1)) = 13
+		THEN SUBSTRING(C.After_Results, 1, 4)
+  END AS After_Results
 , C.Result_After_Date
 
 FROM @Patients         AS A

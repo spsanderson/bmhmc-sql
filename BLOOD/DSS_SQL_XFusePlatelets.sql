@@ -1,11 +1,11 @@
 DECLARE @START DATE, @END DATE;
-SET @START = '2014-08-01';
-SET @END   = '2014-09-01';
+SET @START = '2016-03-01';
+SET @END   = '2016-04-01';
 
 /* 
 ======================================================================
 G E T - T H E - P A T I E N T S
-=======================================================================
+======================================================================
 */
 DECLARE @Patients TABLE (
 	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
@@ -63,7 +63,7 @@ SELECT * FROM Patients
 /* 
 ======================================================================
 G E T - T H E - B E F O R E - R E S U L T
-=======================================================================
+======================================================================
 */
 DECLARE @Before TABLE (
 	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
@@ -108,7 +108,7 @@ SELECT * FROM Before
 /* 
 ======================================================================
 G E T - T H E - A F T E R - R E S U L T
-=======================================================================
+======================================================================
 */
 DECLARE @After TABLE (
 	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
@@ -157,6 +157,8 @@ SELECT A.Vst_Start_Dtime
 , A.Ordering_Party
 , A.Ord_No
 , A.Svc_Desc
+, '' AS [Admitting_Diag]
+, '' AS [Admitting_Diag_Code]
 , A.Order_Ent_DTime
 , A.Order_Str_DTime
 , A.Order_Stp_DTime

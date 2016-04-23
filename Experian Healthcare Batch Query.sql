@@ -125,13 +125,13 @@ WITH CTE1 AS (
 	
 	-- Change resp_cd to NOT IN (4, 5, 6) Per K D 1/22/2016
 	AND (
-		A.resp_cd NOT IN ('4', '5', '6', '9', 'K')
+		A.resp_cd NOT IN ('4', '5', '6', '9', 'K', 'O')
 		OR (
 			A.resp_cd IS NULL
 			OR
 			A.resp_cd IN (
 				'*', '-', '0', '1', '2', '3', '7', '8', 'A', 'B', 'C', 
-				'D', 'E', 'F', 'G', 'I', 'H', 'J', 'L', 'M', 'N', 'O',
+				'D', 'E', 'F', 'G', 'I', 'H', 'J', 'L', 'M', 'N',
 				'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
 				)
 			)
