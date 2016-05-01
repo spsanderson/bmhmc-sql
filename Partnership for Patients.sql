@@ -3,6 +3,12 @@
 INR table
 =======================================================================
 */
+DECLARE @START DATE;
+DECLARE @END DATE;
+
+SET @START = '';
+SET @END = ''
+-----
 DECLARE @inr TABLE (
 	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
 	, Encounter               INT
@@ -40,8 +46,8 @@ WITH CTE1 AS (
 	WHERE a.obsv_cd = '2012'
 	AND a.val_no > 5
 	AND c.ord_sts_desc = 'Complete'
-	AND A.obsv_cre_dtime >= '2015-12-01'
-	AND A.obsv_cre_dtime < '2016-01-01'
+	AND A.obsv_cre_dtime >= @START
+	AND A.obsv_cre_dtime < @END
 )
 
 INSERT INTO @inr
@@ -133,6 +139,64 @@ ORDER BY A.Encounter, A.Process_DT
 
 /*
 =======================================================================
+g e t - p a t i e n t s - o n - w a r f a r i n 
+=======================================================================
+*/
+DECLARE @START DATE;
+DECLARE @END DATE;
+
+SET @START = '';
+SET @END = ''
+-----
+declare @warfarin table (
+pk int identity(1, 1) not null primary key
+, Encounter int
+, MRN int
+, Order_Number int
+, svc_desc varchar(max)
+, prim_gnrc_drug_name varchar(max)
+, ordering_party varchar(max)
+, ord_ent_dtime datetime
+, ord_start_dtime datetime
+, ord_stop_dtime datetime
+, rn int
+);
+
+with cte as (
+select so.episode_no
+, b.Med_Rec_No
+, so.ord_no
+, so.svc_desc
+, prim_gnrc_drug_name
+, so.pty_name as ordering_party
+, so.ent_dtime
+, so.str_dtime
+, so.stp_dtime
+, ROW_NUMBER() Over(
+partition by so.ord_no
+order by so.episode_no
+) as rn
+
+FROM smsmir.sr_ord                 AS SO
+JOIN smsmir.sr_ord_sts_hist        AS SOS
+ON SO.ord_no = SOS.ord_no
+JOIN smsmir.ord_sts_modf_mstr      AS OSM
+ON SOS.hist_no = OSM.ord_sts_cd
+and sos.hist_sts = osm.ord_sts_modf_cd
+left join smsdss.BMH_PLM_PtAcct_V  as b
+on so.episode_no = b.PtNo_Num
+
+--where so.ord_no = '18627289'
+WHERE SO.svc_desc LIKE '%Warfarin%'
+AND SO.ent_dtime >= @START
+AND SO.ent_dtime < @END
+)
+insert into @warfarin
+select * from cte
+select * from @warfarin where rn = 1
+
+/*
+=======================================================================
 ANTI-COAGULANT END
 =======================================================================
 */
@@ -147,6 +211,12 @@ BLOOD GLUCOSE START
 Glucose table
 =======================================================================
 */
+DECLARE @START DATE;
+DECLARE @END DATE;
+
+SET @START = '';
+SET @END = ''
+-----
 -- Get initial results
 DECLARE @GlucoseTmp TABLE (
 	PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
@@ -188,8 +258,8 @@ WITH GlucoseTmp AS (
 	AND A.dsply_val NOT LIKE 'qns%'
 	AND A.dsply_val NOT LIKE 'see%'
 	AND c.ord_sts_desc = 'Complete'
-	AND B.ent_dtime >= '2015-12-01'
-	AND B.ent_dtime < '2016-01-01'
+	AND B.ent_dtime >= @START
+	AND B.ent_dtime < @END
 	
 )
 
@@ -317,8 +387,8 @@ WITH Insulin AS (
 		, 'PIOGLITAZONE'
 		, 'REPAGLINIDE'
 	)
-	AND SO.ent_dtime >= '2015-12-01'
-	AND SO.ent_dtime < '2016-01-01'
+	AND SO.ent_dtime >= @START
+	AND SO.ent_dtime < @END
 )
 
 INSERT INTO @Insulin
@@ -436,9 +506,89 @@ ORDER BY F.Encounter, F.RN
 
 /*
 =======================================================================
+g e t - p a t i e n t s - o n - i n s u l i n
+=======================================================================
+*/
+DECLARE @START DATE;
+DECLARE @END DATE;
+
+SET @START = '';
+SET @END = ''
+-----
+declare @insulin table (
+pk int identity(1, 1) not null primary key
+, Encounter int
+, MRN int
+, Order_Number int
+, svc_desc varchar(max)
+, prim_gnrc_drug_name varchar(max)
+, ordering_party varchar(max)
+, ord_ent_dtime datetime
+, ord_start_dtime datetime
+, ord_stop_dtime datetime
+, rn int
+);
+
+with cte as (
+select so.episode_no
+, b.Med_Rec_No
+, so.ord_no
+, so.svc_desc
+, prim_gnrc_drug_name
+, so.pty_name as ordering_party
+, so.ent_dtime
+, so.str_dtime
+, so.stp_dtime
+, ROW_NUMBER() Over(
+partition by so.ord_no
+order by so.episode_no
+) as rn
+
+FROM smsmir.sr_ord                 AS SO
+JOIN smsmir.sr_ord_sts_hist        AS SOS
+ON SO.ord_no = SOS.ord_no
+JOIN smsmir.ord_sts_modf_mstr      AS OSM
+ON SOS.hist_no = OSM.ord_sts_cd
+and sos.hist_sts = osm.ord_sts_modf_cd
+left join smsdss.BMH_PLM_PtAcct_V  as b
+on so.episode_no = b.PtNo_Num
+
+--where so.ord_no = '18627289'
+WHERE SO.prim_gnrc_drug_name IN (
+'ACARBOSE'
+, 'GLIPIZIDE'
+, 'GLIPIXIDE XL'
+, 'GLYBRURIDE'
+, 'INSULIN ASPART 70/30'
+, 'INSULIN DETEMIR'
+, 'INSULIN GLARGINE'
+, 'INSULIN ISOPHANE HUMAN'
+, 'INSULIN LISPRO'
+, 'INSULIN LISPRO 75/25'
+, 'INSULIN REGULAR HUMAN'
+, 'METFORMIN'
+, 'PIOGLITAZONE'
+, 'REPAGLINIDE'
+)
+AND SO.ent_dtime >= @START
+AND SO.ent_dtime < @END
+)
+insert into @insulin
+select * from cte
+select * from @insulin where rn = 1
+
+
+/*
+=======================================================================
 OPIATES START
 =======================================================================
 */
+DECLARE @START DATE;
+DECLARE @END DATE;
+
+SET @START = '';
+SET @END = ''
+-----
 SELECT episode_no
 , Med_Rec_No
 , Days_Stay
@@ -452,8 +602,8 @@ LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v
 ON smsmir.sr_ord.episode_no = smsdss.BMH_PLM_PtAcct_V.PtNo_Num
 
 WHERE svc_desc LIKE '%narcan%'
-AND ent_dtime >= '2015-12-01'
-AND ent_dtime < '2016-01-01'
+AND ent_dtime >= @start
+AND ent_dtime < @end
 AND episode_no IN (
 	SELECT episode_no
 	FROM smsmir.sr_ord
@@ -466,8 +616,8 @@ AND episode_no IN (
 		OR
 		svc_desc LIKE '%oxyco%'
 	)
-	AND ent_dtime >= '2015-12-01'
-	AND ent_dtime < '2016-01-01'
+	AND ent_dtime >= @start
+	AND ent_dtime < @end
 )
 
 -- GET FROM ED
@@ -485,8 +635,8 @@ ON smsdss.c_wellsoft_ord_rpt_tbl.account = smsdss.bmh_plm_ptacct_v.PtNo_Num
 
 WHERE OrderName LIKE '%narcan%'
 AND OrderName NOT LIKE 'canceled%'
-AND SchedDT >= '2015-12-01'
-AND SchedDT <  '2016-01-01'
+AND SchedDT >= @start
+AND SchedDT <  @end
 AND Account IN (
 	SELECT account
 	FROM smsdss.c_Wellsoft_Ord_Rpt_Tbl
@@ -499,8 +649,8 @@ AND Account IN (
 		OR
 		OrderName LIKE '%oxycod%'
 	)
-	AND SchedDT >= '2015-12-01'
-	AND SchedDT < '2016-01-01'
+	AND SchedDT >= @start
+	AND SchedDT < @end
 )
 
 -- GET FROM CHARGES
@@ -519,8 +669,8 @@ LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v AS c
 ON a.pt_id = c.pt_no
 
 WHERE b.actv_name LIKE 'naloxone%'
-AND a.actv_dtime >= '2015-12-01'
-AND a.actv_dtime < '2016-01-01'
+AND a.actv_dtime >= @start
+AND a.actv_dtime < @end
 AND a.pt_id IN (
 	SELECT pt_id
 
@@ -537,7 +687,7 @@ AND a.pt_id IN (
 		OR
 		b.actv_name LIKE '%vicodin%'
 	)
-	AND a.actv_dtime >= '2015-12-01'
-	AND a.actv_dtime < '2016-01-01'	
+	AND a.actv_dtime >= @start
+	AND a.actv_dtime < @end
 )
 ORDER BY a.pt_id

@@ -77,14 +77,19 @@ DECLARE @Before TABLE (
 );
 
 WITH Before AS (
-	SELECT CASE
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 1, 1)) = 164 THEN '0'
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 2, 1)) = 164 THEN '0'
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 3, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 2)))
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 4, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 3)))
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 5, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 4)))
-		ELSE OBS.dsply_val
-	  END              AS Result_Value_Before
+	SELECT 
+	--CASE
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 1, 1)) = 164 THEN '0'
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 2, 1)) = 164 THEN '0'
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 3, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 2)))
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 4, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 3)))
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 5, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 4)))
+	--	ELSE OBS.dsply_val
+	--  END              AS Result_Value_Before
+		CASE
+			WHEN def_type_ind = 'AN' THEN dsply_val
+			WHEN def_type_ind != 'AN' THEN CAST(val_no AS VARCHAR)
+		END            AS Result_Value_Before
 	  , obs.coll_dtime AS Result_Before_Date
 	  , obs.vst_no
 	  , obs.coll_dtime
@@ -122,15 +127,20 @@ DECLARE @After TABLE (
 );
 
 WITH After AS (
-	SELECT CASE
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 1, 1)) = 164 THEN '0'
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 2, 1)) = 164 THEN '0'
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 3, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 2)))
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 4, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 3)))
-		WHEN UNICODE(SUBSTRING(OBS.dsply_val, 5, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 4)))
-		ELSE OBS.dsply_val
-	  END              AS Result_Value_Before
-	  , obs.coll_dtime AS Result_Before_Date
+	SELECT 
+	--CASE
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 1, 1)) = 164 THEN '0'
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 2, 1)) = 164 THEN '0'
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 3, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 2)))
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 4, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 3)))
+	--	WHEN UNICODE(SUBSTRING(OBS.dsply_val, 5, 1)) = 164 THEN RTRIM(LTRIM(SUBSTRING(OBS.dsply_val, 1, 4)))
+	--	ELSE OBS.dsply_val
+	--  END              AS Result_Value_Before
+		CASE
+			WHEN def_type_ind = 'AN' THEN dsply_val
+			WHEN def_type_ind != 'AN' THEN CAST(val_no AS VARCHAR)
+		END            AS Result_Value_After	
+	  , obs.coll_dtime AS Result_After_Date
 	  , obs.vst_no
 	  , obs.coll_dtime
 	  , obs.rslt_obj_id
@@ -162,16 +172,18 @@ SELECT A.Vst_Start_Dtime
 , A.Order_Ent_DTime
 , A.Order_Str_DTime
 , A.Order_Stp_DTime
-, CAST(dbo.c_udf_NumericChars(B.Before_Results) AS INT) AS Before_Results
+--, CAST(dbo.c_udf_NumericChars(B.Before_Results) AS INT) AS Before_Results
+, B.Before_Results
 , B.Result_Before_Date
-, CAST(dbo.c_udf_NumericChars(C.After_Results) AS INT)  AS After_Results
+--, CAST(dbo.c_udf_NumericChars(C.After_Results) AS INT)  AS After_Results
+, C.After_Results
 , C.Result_After_Date
 
 FROM @Patients         AS A
 JOIN @Before           AS B
 ON A.vst_no = B.vst_no
 	AND A.Order_Ent_DTime > B.coll_dtime
-	AND B.Before_Results > '7'
+	--AND B.Before_Results > '7'
 	AND B.rslt_obj_id = (
 		SELECT TOP 1 AA.rslt_obj_id
 		FROM @Before AS AA
