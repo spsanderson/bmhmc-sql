@@ -95,6 +95,6 @@ AND hir2.rslt_obj_id = (SELECT top 1 hir2x.rslt_obj_id
 --------------------------------------------------------------------------------------------------------------
 
 WHERE hpv.vst_end_dtime IS NOT NULL
-AND hpv.vst_end_dtime BETWEEN '2014-05-01' AND  '2014-05-31'
+AND hpv.vst_end_dtime BETWEEN '2014-08-01' AND  '2014-08-31'
 
 ORDER BY Patient_Name, Order_Start_Date

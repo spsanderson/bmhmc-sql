@@ -30,101 +30,101 @@ a.pt_id
 , CASE 
 	WHEN a.drg_no IN ('896', '897')
 		AND D.CC_Code = 'DX_660'
-		THEN 'Alcohol Abuse'
+		THEN 'Alcohol Abuse' -- good
 
 	WHEN a.drg_no IN ('231', '232', '233', '234', '235', '236')
-		THEN 'CABG'
+		THEN 'CABG' -- good
 
 	WHEN a.drg_no IN ('34', '35', '36', '37', '38', '39')
 		AND p.CC_Code IN ('PX_51', 'PX_59')
-		THEN 'Carotid Endarterectomy'
+		THEN 'Carotid Endarterectomy' -- good
 
 	WHEN a.drg_no IN ('602', '603')
 		AND d.CC_Code IN ('DX_197')
-		THEN 'Cellulitis'
+		THEN 'Cellulitis' -- good
 
 	WHEN --a.drg_no IN ('286', '287', '313')
 		-- edited 3/22/2016 sps due to new LIHN guidelines
 		a.drg_no IN ('313')
 		AND d.CC_Code IN ('DX_102')
-		THEN 'Chest Pain'
+		THEN 'Chest Pain' -- good
 
 	WHEN a.drg_no IN ('291', '292', '293')
 		AND d.CC_Code IN ('DX_108', 'DX_99')
-		THEN 'CHF'
+		THEN 'CHF' -- good
 
 	WHEN a.drg_no IN ('190', '191', '192')
 		AND d.CC_Code IN ('DX_127', 'DX_128')
-		THEN 'COPD'
+		THEN 'COPD' -- good
 
 	WHEN a.drg_no IN ('765', '766')
-		THEN 'C-Section'
+		THEN 'C-Section' -- good
 
 	WHEN a.drg_no IN ('61', '62', '63', '64', '65', '66')
-		THEN 'CVA'
+		THEN 'CVA' -- good
 
 	WHEN a.drg_no IN ('619', '620', '621')
 		AND p.CC_Code IN ('PX_74')
-		THEN 'Bariatric Surgery for Obesity'
+		THEN 'Bariatric Surgery For Obesity' -- update this
 
 	WHEN a.drg_no IN ('377',' 378', '379')
-		THEN 'GI Hemorrhage'
+		THEN 'GI Hemorrhage' -- good
 
 	WHEN a.drg_no IN ('739', '740', '741', '742', '743')
 		AND p.CC_Code IN ('PX_124')
-		THEN 'Hysterectomy'
+		THEN 'Hysterectomy' -- good
 
 	WHEN a.drg_no IN ('469', '470')
 		AND p.CC_Code IN ('PX_152', 'PX_153')
 		-- Exclusions
 		AND d.CC_Code NOT IN ('DX_237', 'DX_238', 'DX_230', 'DX_229'
 		, 'DX_226', 'DX_225', 'DX_231', 'DX_207')
-		THEN 'Joint Replacement'
+		THEN 'Joint Replacement' -- good
 
 	WHEN a.drg_no IN ('417', '418', '419')
-		THEN 'Laparoscopic Cholecystectomy'
+		THEN 'Laparoscopic Cholecystectomy' -- good
 
 	WHEN a.drg_no IN ('582', '583', '584', '585')
 		AND p.CC_Code IN ('PX_167')
-		THEN 'Mastectomy'
+		THEN 'Mastectomy' -- good
 
 	WHEN a.drg_no IN ('280', '281', '282', '283', '284', '285')
-		THEN 'MI'
+		THEN 'MI' -- good
 
 	WHEN a.drg_no IN ('795')
 		AND d.CC_Code IN ('DX_218')
-		THEN 'Normal Newborn'
+		THEN 'Normal Newborn' -- good
 
 	WHEN a.drg_no IN ('193', '194', '195')
-		THEN 'Pneumonia'
+		THEN 'Pneumonia' -- good
 
 	WHEN a.drg_no IN ('881', '885')
 		AND d.CC_Code IN ('DX_657')
-		THEN 'Major Depression/Bipolar Affective Disorders'
+		THEN 'Major Depression/Bipolar Affective Disorders' -- good
 
 	WHEN a.drg_no IN ('885')
 		AND d.CC_Code IN ('DX_659')
-		THEN 'Schizophrenia'
+		THEN 'Schizophrenia' -- good
 
 	WHEN a.drg_no IN ('246', '247', '248', '249', '250', '251')
 		AND p.CC_Code IN ('PX_45')
-		THEN 'PTCA'
+		THEN 'PTCA' -- good
 
 	WHEN a.drg_no IN ('945', '946')
-		THEN 'Rehab'
+		THEN 'Rehab' -- good
 
 	WHEN a.drg_no IN ('312')
-		THEN 'Syncope'
+		THEN 'Syncope' -- good
 
 	WHEN a.drg_no IN ('67', '68', '69')
-		THEN 'TIA'
+		THEN 'TIA' -- good
 
 	WHEN a.drg_no IN ('774', '775')
-		THEN 'Vaginal Delivery'
+		THEN 'Vaginal Delivery' -- good
 
 	WHEN a.drg_no IN ('216', '217', '218', '219', '220', '221', 
 		'266', '267')
-		THEN 'Valve Procedure'
+		THEN 'Valve Procedure' -- good
 		
 	WHEN a.drg_no BETWEEN '1' AND '8' 
 		OR a.drg_no BETWEEN '10' AND '14' 
@@ -154,8 +154,8 @@ a.pt_id
 		OR a.drg_no BETWEEN '955' AND '959' 
 		OR a.drg_no BETWEEN '969' AND '970' 
 		OR a.drg_no BETWEEN '981' AND '989' 
-		THEN 'Surgical' 
-	ELSE 'Medical' 
+		THEN 'Surgical' -- good 
+	ELSE 'Medical' -- good
 	
 END AS LIHN_Svc_Line
 , a.icd_cd_schm

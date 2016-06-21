@@ -232,10 +232,7 @@ WHERE PAV.Dsch_Date >= @START
 AND PAV.Dsch_Date < @END
 AND PAV.Plm_Pt_Acct_Type = 'I'
 AND PAV.PtNo_Num < '20000000'
-
 AND PDV.orgz_cd = 'S0X0'
-
 AND MPP.pyr_seq_no = 1
-
 AND ASM.orgz_cd = 'S0X0'
 

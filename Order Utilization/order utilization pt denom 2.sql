@@ -4,7 +4,7 @@ DECLARE @START DATE;
 DECLARE @END   DATE;
 
 SET @START = '2013-01-01';
-SET @END   = '2016-01-01';
+SET @END   = '2016-04-01';
 -----------------------------------------------------------------------
 
 SELECT A.PtNo_Num

@@ -13,7 +13,7 @@ Sub cmdBackUpStats()
     ActiveWorkbook.EnvelopeVisible = True
     
     With ActiveSheet.MailEnvelope
-        .Item.to = ""
+        .Item.to = "spsanderson@gmail.com"
         .Item.Subject = "Ticket Stats Backup"
 
         'Use item.display below if you want to edit before sending

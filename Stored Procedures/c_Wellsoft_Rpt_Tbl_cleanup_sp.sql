@@ -59,7 +59,7 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 7, 2) + ' ' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 11, 2) + ':00',
-	  120)                                                                 AS [timemdsignature]
+	  120)                                                                 AS [TimeMDsignature]
 	, RNSgntr
 	, CONVERT(VARCHAR,
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_End), 1, 4) + '-' +

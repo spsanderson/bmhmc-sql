@@ -47,6 +47,4 @@ AND adm_src_desc != 'SCHEDULED ADMISSION'
 AND pt_no < 20000000
 AND B_Adm_Src_Desc != 'SCHEDULED ADMISSION'
 AND B_Pt_No < 20000000
-AND Admit_Atn_Dr_Name IN (
-
-)
+AND Admit_Atn_Dr_Name IN ()

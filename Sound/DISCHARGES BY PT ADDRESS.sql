@@ -21,7 +21,7 @@ DISTINCT SUBSTRING(A1.pt_id, PATINDEX('%[^0]%', A1.PT_ID), 9)
    AS VARCHAR(5))
    )                           AS [YYYYqN]
 
-FROM smsdss.dly_cen_occ_fct_v A1
+FROM smsdss.dly_cen_occ_fct_v     A1
 	JOIN smsdss.vst_fct_v         A2
 	ON a1.pt_id = a2.pt_id
 	JOIN smsdss.pt_fct_v          A3

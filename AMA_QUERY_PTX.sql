@@ -3,21 +3,21 @@ DECLARE @ED DATETIME;
 SET @SD = '2010-01-01';
 SET @ED = '2014-07-01';
 
-SELECT DISTINCT VR.acct_no AS [VISIT ID]
+SELECT DISTINCT VR.acct_no      AS [VISIT ID]
 , VR.vst_med_rec_no MRN
 , VR.dsch_date
 , PV.Days_Stay [LOS]
 , VR.dsch_disp
 , VR.ward_cd
 , DATEPART(MONTH, VR.dsch_date) AS [MONTH]
-, DATEPART(YEAR, VR.dsch_date) AS [YEAR]
+, DATEPART(YEAR, VR.dsch_date)  AS [YEAR]
 , (
    CAST(DATEPART(YEAR, VR.Dsch_Date) 
    AS VARCHAR(5)) 
    + '-' 
    + CAST(DATEPART(QUARTER, VR.Dsch_Date)
    AS VARCHAR(5))
-   )                                        AS [YYYYqN]
+   )                            AS [YYYYqN]
 , PDV.pract_rpt_name [ATTENDING MD]
 , PDV.med_staff_dept
 , PDV.src_spclty_cd

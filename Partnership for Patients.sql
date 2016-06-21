@@ -215,7 +215,7 @@ DECLARE @START DATE;
 DECLARE @END DATE;
 
 SET @START = '';
-SET @END = ''
+SET @END = '';
 -----
 -- Get initial results
 DECLARE @GlucoseTmp TABLE (

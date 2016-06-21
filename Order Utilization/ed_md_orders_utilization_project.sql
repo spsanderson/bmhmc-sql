@@ -94,10 +94,13 @@ ISNULL(A.Total_ED_Lab_Orders, 0)
 +
 ISNULL(B.Total_ED_Rad_Orders, 0)
 )                                  AS [Total_ED_Orders]
+, C.er_level
 
 FROM @EDLab                  AS A
 LEFT OUTER MERGE JOIN @EDRad AS B
 ON A.Encounter = B.Encounter
+LEFT OUTER MERGE JOIN smsdss.c_er_tracking AS C
+on a.Encounter = c.episode_no
 
 WHERE A.Encounter != '99999999'
 AND LEFT(A.Encounter, 1) NOT IN ('3', '6')

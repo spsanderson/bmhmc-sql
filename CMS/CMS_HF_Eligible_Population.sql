@@ -1,9 +1,11 @@
+-- hf
 -- Variable declaration and setting -----------------------------------
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
 
-SET @SD = '2015-12-01';
-SET @ED = '2016-01-01';
+SET @SD = '2016-03-01';
+SET @ED = '2016-04-01';
+
 
 /*
 =======================================================================
@@ -103,8 +105,10 @@ FROM (
 	-- viable admissions
 	AND A.tot_chg_amt > '0'
 	-- Primary and secondary insurance must be Medicare A or B
-	AND A.User_Pyr1_Cat IN ('AAA','ZZZ')
-	AND LEFT(A.Pyr2_Co_Plan_Cd, 1) IN ('A','Z')
+	AND A.User_Pyr1_Cat IN ('AAA') -- comment out per Z,'ZZZ')
+
+	-- comment out per Z
+	--AND LEFT(A.Pyr2_Co_Plan_Cd, 1) IN ('A','Z')
 	-- Exclude those that were discharged AMA, Transfer to another
 	-- acute facility or mortality
 	AND A.dsch_disp NOT IN ('AMA', 'ATA', 'ATS', 'ATF', 'ATH', 'ATN')

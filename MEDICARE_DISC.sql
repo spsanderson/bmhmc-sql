@@ -5,8 +5,8 @@ SELECT PtNo_Num
 
 from smsdss.BMH_PLM_PtAcct_V
 
-where Dsch_DTime >= '2014-05-01' 
-AND DSCH_DTIME < '2014-06-01'
+where Dsch_DTime >= '2014-07-01' 
+AND DSCH_DTIME < '2014-08-01'
 AND Plm_Pt_Acct_Type = 'I'
 AND Plm_Pt_Acct_Type != 'P'
 AND PtNo_Num < '20000000'

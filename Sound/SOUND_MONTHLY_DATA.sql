@@ -23,6 +23,10 @@ SELECT med_rec_no                        AS [Med_Rec_No]
 , Admitting_Phys
 , Attending_Phys
 , DC_Order_Date
+-- add phys writting last adt09 order and DC_Order_Date
+--, Discharging_Phys 
+--, DC_Order_Date
+-- end edit: sps 1/22/2016 per new spec
 , CONVERT(VARCHAR,DC_Order_Time,108)     AS [DC_Order_Time]
 , DC_Dispo_Code
 , DC_Dispo_Defin

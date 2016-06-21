@@ -56,7 +56,7 @@ SELECT c1.Med_Rec_No                       AS [MRN]
 , DATEDIFF(DAY, c1.Dsch_Date, c2.Adm_Date) AS INTERIM
 , ROW_NUMBER() OVER (
 				    PARTITION BY C1.MED_REC_NO 
-				    ORDER BY C1.PTNO_NUM
+				    ORDER BY C1.ADM_DATE
 				    ) AS [VISIT COUNT]
 
 
