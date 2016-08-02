@@ -1,8 +1,11 @@
+-- this is used to create the smsdss.c_ed_e_and_m_order_utilization_project table
+DROP TABLE smsdss.c_ed_e_and_m_order_utilization_project
+
 DECLARE @START DATE;
 DECLARE @END   DATE;
 
 SET @START = '2013-01-01';
-SET @END   = '2016-04-01';
+SET @END   = '2016-07-01';
 -----------------------------------------------------------------------
 DECLARE @EDRad TABLE (
 PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
@@ -95,6 +98,8 @@ ISNULL(A.Total_ED_Lab_Orders, 0)
 ISNULL(B.Total_ED_Rad_Orders, 0)
 )                                  AS [Total_ED_Orders]
 , C.er_level
+
+INTO smsdss.c_ed_e_and_m_order_utilization_project
 
 FROM @EDLab                  AS A
 LEFT OUTER MERGE JOIN @EDRad AS B
