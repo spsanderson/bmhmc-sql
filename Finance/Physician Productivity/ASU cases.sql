@@ -4,12 +4,8 @@ SELECT COUNT(a.pt_no) AS [Cases]
 , a.Pt_No
 , a.pt_type
 , a.hosp_svc
-,
---b.spclty_cd1,
-c.spclty_cd_desc
-, 
---a.hosp_svc,
-a.atn_dr_no
+, c.spclty_cd_desc
+, a.atn_dr_no
 , b.pract_rpt_name
 , d.proc_Cd           AS [Prin_Proc_Cd]
 , e.clasf_desc        AS [Prin_Proc_Cd_Desc]
@@ -49,12 +45,8 @@ GROUP BY MONTH(a.adm_Date)
 , a.Pt_No
 , a.pt_type
 , a.hosp_svc
-,
---b.spclty_cd1,
-c.spclty_cd_desc
-, 
---a.hosp_svc,
-a.atn_dr_no
+, c.spclty_cd_desc
+, a.atn_dr_no
 , b.pract_rpt_name
 , d.proc_Cd 
 , e.clasf_desc

@@ -6,54 +6,41 @@ SELECT COUNT(a.pt_no) AS [Cases]
 , a.hosp_svc
 , c.spclty_cd_desc
 , a.atn_dr_no
-, b.pract_rpt_name    AS [Attending]
-, d.resp_pty_cd
-, h.pract_rpt_name    AS [Surgeon]
+, b.pract_rpt_name
 , d.proc_Cd           AS [Prin_Proc_Cd]
 , e.clasf_desc        AS [Prin_Proc_Cd_Desc]
 , a.tot_Chg_Amt
-, G.UserDataCd
 
 INTO #PATIENT_COUNTS
 
-FROM smsdss.bmh_plm_ptacct_v                  AS A 
-LEFT JOIN smsmir.mir_pract_mstr               AS B
+FROM smsdss.bmh_plm_ptacct_v             AS a 
+LEFT JOIN smsmir.mir_pract_mstr          AS b
 ON a.atn_dr_no = b.pract_no 
 	AND b.src_sys_id='#PASS0X0'
-LEFT OUTER JOIN smsdss.pract_spclty_mstr      AS C
+LEFT OUTER JOIN smsdss.pract_spclty_mstr AS c
 ON b.spclty_cd1 = c.spclty_cd 
 	AND c.src_sys_id = '#PMSNTX0'
-LEFT OUTER JOIN smsmir.mir_sproc              AS D
+LEFT OUTER JOIN smsmir.mir_sproc         AS d
 ON a.Pt_No = d.pt_id 
 	AND d.proc_cd_prio IN ('1','01') 
 	AND proc_cd_type = 'PC'
-LEFT OUTER JOIN smsmir.mir_clasf_mstr         AS E
+LEFT OUTER JOIN smsmir.mir_clasf_mstr    AS e
 ON d.proc_cd=e.clasf_cd
--- add in user two field of 571 for orsos case
-LEFT OUTER JOIN smsdss.BMH_UserTwoFact_V      AS F
-ON A.PtNo_Num = F.PtNo_Num
-	AND F.UserDataKey = '571'
-LEFT OUTER JOIN smsdss.BMH_UserTwoField_Dim_V AS G
-ON F.UserDataKey = G.UserTwoKey
-LEFT OUTER JOIN smsmir.mir_pract_mstr         AS H
-on d.resp_pty_cd = h.pract_no
-	and h.src_sys_id = '#PASS0X0'
 
 WHERE (
-	a.pt_type NOT IN ('D','G')
+	a.pt_type IN ('D','G')
 	AND hosp_svc NOT IN ('INF','CTH')
 	--AND Atn_Dr_No = ''
 	AND (
-		Adm_Date >= '2015-01-01' 
-		AND Adm_Date < '2016-01-01' 
-		OR 
 		Adm_Date >= '2016-01-01' 
-		AND Adm_Date < '2016-06-01'
+		AND Adm_Date < '2016-04-01' 
+		--OR 
+		--Adm_Date >= '01/01/2015' 
+		--AND Adm_Date < '09/30/2015'
 	)
 	AND a.tot_chg_amt > '0'
-	AND LEFT(a.pt_no,5) = '00001'
+	AND LEFT(a.pt_no,5)NOT IN ('00008','00009')
 )
-AND F.UserDataKey = '571'
 
 GROUP BY MONTH(a.adm_Date)
 , YEAR(a.adm_Date) 
@@ -63,12 +50,9 @@ GROUP BY MONTH(a.adm_Date)
 , c.spclty_cd_desc
 , a.atn_dr_no
 , b.pract_rpt_name
-, d.resp_pty_cd
-, h.pract_rpt_name
 , d.proc_Cd 
 , e.clasf_desc
 , a.tot_Chg_Amt
-, G.UserDataCd
 ---------------------------------------------------------------------------------------------------
 --SELECT *
 --FROM #PATIENT_COUNTS
@@ -157,7 +141,7 @@ SELECT a.*
 
 FROM #patient_counts       AS A
 LEFT JOIN #pract_name_temp AS B
-ON a.resp_pty_cd = b.[dss prov num]
+ON a.atn_dr_no = b.[dss prov num]
 	AND b.rn = 1
 
 ---------------------------------------------------------------------------------------------------
