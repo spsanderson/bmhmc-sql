@@ -40,8 +40,8 @@ AND C1.RN+1 = C2.RN
 AND DATEDIFF(HOUR, c1.[Arrival Datetime], c2.[Arrival Datetime]) <= 72
 
 -- Use below to get between specific dates
---AND c1.[Arrival Datetime] <= ''
---AND c1.[Arrival Datetime] > ''
+--AND c1.[Arrival Datetime] >= ''
+--AND c1.[Arrival Datetime] < ''
 
 -- Use below to get last Sunday - Saturday
 AND c1.[Arrival Datetime] >= DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -7))
