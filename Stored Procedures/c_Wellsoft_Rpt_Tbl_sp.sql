@@ -1,5 +1,7 @@
+USE [SMSPHDSSS0X0]
+GO
+/****** Object:  StoredProcedure [smsdss].[c_Wellsoft_Rpt_Tbl_sp]    Script Date: 09/26/2016 13:59:17 ******/
 SET ANSI_NULLS ON
-SET ANSI_WARNINGS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
@@ -8,7 +10,7 @@ GO
 -- Create date: 11-19-2015
 -- Description:	Create a reportable wellsoft table bound to smsdss schema
 -- =============================================
-CREATE PROCEDURE smsdss.c_Wellsoft_Rpt_Tbl_sp
+ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_sp]
 AS
 
 BEGIN
@@ -55,6 +57,10 @@ BEGIN
 	, StatusAdmit 
 	, AdmitOrdersDT
 	, TimeLeftED
+	, MLPResHistory
+	, TriageMLP
+	, StatusMLPChart
+	, TimeMLPSignature
 	
 	INTO smsdss.c_Wellsoft_Rpt_tbl_tmp
 	
@@ -66,4 +72,3 @@ BEGIN
 	WHERE Account != '1234567890'
 
 END
-GO

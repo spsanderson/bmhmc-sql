@@ -1,5 +1,7 @@
+USE [SMSPHDSSS0X0]
+GO
+/****** Object:  StoredProcedure [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp]    Script Date: 09/26/2016 14:43:46 ******/
 SET ANSI_NULLS ON
-SET ANSI_WARNINGS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
@@ -9,7 +11,7 @@ GO
 -- Description:	Clean up results from smsdss.c_Wellsoft_Rpt_Tbl_sp
 -- and insert results into smsdss.c_Wellsoft_Rpt_tbl
 -- =============================================
-CREATE PROCEDURE smsdss.c_Wellsoft_Rpt_Tbl_cleanup_sp 
+ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp] 
 AS
 
 BEGIN
@@ -59,7 +61,7 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 7, 2) + ' ' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(timemdsignature), 11, 2) + ':00',
-	  120)                                                                 AS [TimeMDsignature]
+	  120)                                                                 AS [timemdsignature]
 	, RNSgntr
 	, CONVERT(VARCHAR,
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(Triage_End), 1, 4) + '-' +
@@ -126,6 +128,22 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 11, 2) + ':00',
 	  120)                                                                 AS [TimeLeftED]
+	, MLPResHistory
+	, TriageMLP
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusMLPChart), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusMLPChart), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusMLPChart), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusMLPChart), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusMLPChart), 11, 2) + ':00',
+	  120)                                                                 AS [StatusMLPChart DateTime]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 11, 2) + ':00',
+	  120)                                                                 AS [DateTime MLP Signature]
 	  
 	INTO smsdss.c_Wellsoft_Rpt_tbl
 
@@ -135,4 +153,3 @@ BEGIN
 	AND LEN(Account) = 8
 
 END
-GO

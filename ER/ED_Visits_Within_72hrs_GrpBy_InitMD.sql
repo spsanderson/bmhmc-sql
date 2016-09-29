@@ -45,7 +45,7 @@ AND DATEDIFF(HOUR, c1.[Arrival Datetime], c2.[Arrival Datetime]) <= 72
 
 -- Use below to get last Sunday - Saturday
 AND c1.[Arrival Datetime] >= DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -7))
-AND c1.[Arrival Datetime] <= DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -1))
+AND c1.[Arrival Datetime] < DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -0))
 
 ORDER BY [Initial ED Md]
 , MR#

@@ -15,9 +15,14 @@ SELECT * FROM CTE1
 -----------------------------------------------------------------------
 
 SELECT A.PtNo_Num
+, A.Pt_No
 , A.Med_Rec_No
 , A.Pt_SSA_No
-, '' AS HIC
+, CASE
+	WHEN LEFT(A.PYR1_CO_PLAN_CD, 1) IN ('A', 'Z')
+		THEN RTRIM(ISNULL(D.POL_NO, '')) + RTRIM(LTRIM(ISNULL(D.grp_no, '')))
+		ELSE ''
+  END AS HIC
 , CASE 
 	WHEN LEFT(a.Pyr1_Co_Plan_Cd, 1) = 'W'
 		THEN RTRIM(ISNULL(D.POL_NO, '')) + RTRIM(LTRIM(ISNULL(D.GRP_NO, '')))
@@ -43,7 +48,13 @@ SELECT A.PtNo_Num
 , a.Days_Stay       AS [Length of Stay]
 , a.Pyr1_Co_Plan_Cd AS [Primary Ins Code]
 , INS1.PYR_NAME     AS [Primary Insurance Name]
-, E.pol_no          AS [Primary Insurance Policy Number]
+, CASE
+	WHEN LEFT(INS1.PYR_CD, 1) IN ('A', 'Z')
+		THEN RTRIM(ISNULL(D.POL_NO, '')) + RTRIM(LTRIM(ISNULL(D.grp_no, '')))
+	WHEN LEFT(a.Pyr1_Co_Plan_Cd, 1) = 'W'
+		THEN RTRIM(ISNULL(D.POL_NO, '')) + RTRIM(LTRIM(ISNULL(D.GRP_NO, '')))
+		ELSE ''
+  END               AS [Primary Insurance Policy Number] 
 , a.Pyr2_Co_Plan_Cd AS [Secondary Ins Code]
 , INS2.PYR_NAME     AS [Secondary Insurance Name]
 , F.pol_no          AS [Secondary Insurance Policy Number]
@@ -58,10 +69,11 @@ SELECT A.PtNo_Num
 , ISNULL(-(F.tot_pay_amt), 0)  AS [Secondary Ins Payment Amount]
 , ISNULL(-(G.tot_pay_amt), 0)  AS [Third Ins Payment Amount]
 , ISNULL(-(H.tot_pay_amt), 0)  AS [Fourth Ins Payment Amount]
-, ''                AS [Monther's Patient ID Number]
-, ''                AS [Mother's Name]
+, ''                AS [Mothers Patient ID Number]
+, ''                AS [Mothers Name]
 , DDD.DISPO         AS [NUBC Standard Patient Discharge Status]
 
+INTO #TMP_A
 
 FROM smsdss.BMH_PLM_PtAcct_V        AS A
 LEFT JOIN smsdss.c_patient_demos_v  AS B
@@ -120,5 +132,101 @@ AND A.Dsch_Date < '2016-01-01'
 AND A.Plm_Pt_Acct_Type = 'I'
 AND A.PtNo_Num < '20000000'
 AND LEFT(A.PTNO_NUM, 4) != '1999'
-AND A.User_Pyr1_Cat IN ('AAA', 'ZZZ', 'WWW')
-OPTION(FORCE ORDER)
+--AND A.User_Pyr1_Cat IN ('AAA', 'ZZZ', 'WWW')
+
+OPTION(FORCE ORDER);
+
+--SELECT * FROM #TMP_A
+-----------------------------------------
+-- PAYMENTS W PIP VIEW
+DECLARE @PIP_PMTS TABLE (
+	PK INT IDENTITY(1, 1) PRIMARY KEY
+	, PT_ID VARCHAR(12)
+	, PYR_CD VARCHAR(5)
+	, TOT_PYMTS_W_PIP MONEY
+);
+
+WITH CTE AS (
+	SELECT PIP.pt_id
+	, PIP.pyr_cd
+	, SUM(PIP.tot_pymts_w_pip) AS tot_pymts_w_pip
+	
+	FROM smsdss.c_tot_pymts_w_pip_plan_lvl_v PIP
+	INNER JOIN #TMP_A AS A
+	ON A.Pt_No = PIP.pt_id
+	
+	GROUP BY PIP.pt_id, PIP.pyr_cd
+)
+
+INSERT INTO @PIP_PMTS
+SELECT * FROM CTE
+
+--SELECT * FROM @PIP_PMTS
+----------------------------------------
+SELECT A.ptno_num
+, a.med_rec_no
+, a.pt_ssa_no
+, a.hic
+, a.medicaid_id_number
+, a.pt_first
+, a.pt_last
+, a.pt_middle
+, a.pt_birthdate
+, a.pt_sex
+, a.addr_line1
+, a.pt_addr_line2
+, a.pt_addr_city
+, a.pt_addr_state
+, a.pt_phone_no
+, a.adm_date
+, a.[ed arrival]
+, a.dsch_date
+, a.[pt type]
+, a.[discharge floor]
+, a.[ub type of bill number]
+, a.[drg number]
+, a.[length of stay]
+, a.[primary ins code]
+, a.[primary insurance name]
+, a.[primary insurance policy number]
+, a.[secondary ins code]
+, a.[secondary insurance name]
+, a.[secondary insurance policy number]
+, a.[third ins code]
+, a.[third insurance name]
+, a.[third insurance policy number]
+, a.[fourth ins code]
+, a.[fourth insurance name]
+, a.[fourth insurance policy number]
+, a.[total charges]
+, B.TOT_PYMTS_W_PIP as [primary ins payment amount]
+, C.TOT_PYMTS_W_PIP as [secondary ins payment amount]
+, D.TOT_PYMTS_W_PIP as [third ins payment amount]
+, E.TOT_PYMTS_W_PIP as [fourth ins payment amount]
+, a.[mothers patient id number]
+, a.[mothers name]
+, a.[nubc standard patient discharge status]
+
+INTO #TMP_B
+
+FROM #TMP_A AS A
+LEFT JOIN @PIP_PMTS AS B
+ON A.PT_NO = B.PT_ID
+	AND A.[Primary Ins Code] = RTRIM(LTRIM(B.PYR_CD))
+LEFT JOIN @PIP_PMTS AS C
+ON A.PT_NO = C.PT_ID
+	AND A.[Secondary Ins Code] = RTRIM(LTRIM(C.PYR_CD))
+LEFT JOIN @PIP_PMTS AS D
+ON A.PT_NO = D.PT_ID
+	AND A.[Third Ins Code] = RTRIM(LTRIM(D.PYR_CD))
+LEFT JOIN @PIP_PMTS AS E
+ON A.PT_NO	= E.PT_ID
+	AND A.[Fourth Ins Code] = RTRIM(LTRIM(E.PYR_CD))
+
+--WHERE A.PTNO_NUM = ''
+
+select * from #tmp_b
+----------------------------------------
+
+DROP TABLE #TMP_A
+DROP TABLE #TMP_B
