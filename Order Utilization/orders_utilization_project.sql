@@ -52,7 +52,7 @@ WITH T1 AS (
        , B.occr_sts_cd
        , B.occr_sts_modf AS [Order_Occ_Status]
        , D.adm_dtime
-       ,YEAR(d.adm_Dtime) AS [Admit_Year]
+       , YEAR(d.adm_Dtime) AS [Admit_Year]
        , a.ovrd_dup_ind
 
        FROM smsdss.c_sr_orders_finance_rpt_v    AS A
