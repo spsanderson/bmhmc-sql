@@ -46,8 +46,8 @@ and LEFT(c1.TimeLeftED, 4) = '2016'
 --AND c1.[Arrival Datetime] < '2016-10-01'
 
 -- Use below to get last Sunday - Saturday
---AND c1.[Arrival Datetime] >= DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -7))
---AND c1.[Arrival Datetime] < DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -0))
+AND c1.[Arrival Datetime] >= DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -7))
+AND c1.[Arrival Datetime] < DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -0))
 
 ORDER BY [Initial ED Md]
 , MR#

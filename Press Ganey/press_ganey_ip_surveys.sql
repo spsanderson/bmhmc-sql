@@ -1,29 +1,33 @@
 SELECT [SURVEY DESIGNATOR] = 'IN0101P'
 , [CLIENT ID] = '725'
-, [LAST NAME] = A.pt_last_name
+, [LAST NAME] = ISNULL(A.pt_last_name, '')
 , [MIDDLE INITIAL] = ''
-, [FIRST NAME] = A.pt_first_name 
-, [ADDRESS 1] = B.addr_line1
-, [CITY] = B.addr_line2
-, [STATE] = B.addr_line3
-, [ZIP CODE] = PLM.Pt_Zip_Cd
-, [TELEPHONE NUMBER] = A.pt_rpt_phone_no
-, [MS-DRG] = PLM.drg_no
-, [GENDER] = SEX.PT_SEX 
+, [FIRST NAME] = ISNULL(A.pt_first_name , '')
+, [ADDRESS 1] = ISNULL(B.addr_line1, '')
+, [CITY] = ISNULL(B.addr_line2, '')
+, [STATE] = ISNULL(B.addr_line3, '')
+, [ZIP CODE] = ISNULL(PLM.Pt_Zip_Cd, '')
+, [TELEPHONE NUMBER] = ISNULL(A.pt_rpt_phone_no, '')
+, [MS-DRG] = ISNULL(CAST(PLM.drg_no AS VARCHAR), '')
+, [GENDER] = ISNULL(SEX.PT_SEX , '')
 , [DATE OF BIRTH] = REPLACE(CONVERT(VARCHAR(10), PLM.Pt_Birthdate, 101), '/','')
-, [LANGUAGE] = LANG.LANG
+, [LANGUAGE] = ISNULL(LANG.LANG, '')
 , [MEDICAL RECORD NUMBER] = PLM.Med_Rec_No
 , [UNIQUE ID] = PLM.PtNo_Num
-, [ADMISSION SOURCE] = ADM_SRC.ADM_SRC
+, [ADMISSION SOURCE] = ISNULL(ADM_SRC.ADM_SRC, '')
 , [ADMIT DATE] = REPLACE(CONVERT(VARCHAR(10), PLM.Adm_Date, 101), '/', '')
 , [DISCHARGE DATE] = REPLACE(CONVERT(VARCHAR(10), PLM.Dsch_Date, 101), '/', '')
-, [PATIENT DISCHARGE STATUS] = DSCH_DISP.DSCH_DISP
-, [UNIT] = A.ward_cd
-, [PATIENT EMAIL] = D.UserDataText
-, [ATTENDING PHYSICIAN NPI] = E.npi_no
-, [ATTENDING PHYSICIAN NAME] = E.pract_rpt_name
-, [SPECIALTY] = E.med_staff_dept
-, [ER_ADMIT] = PLM.ED_Adm
+, [PATIENT DISCHARGE STATUS] = ISNULL(DSCH_DISP.DSCH_DISP, '')
+, [UNIT] = ISNULL(A.ward_cd, '')
+, [PATIENT EMAIL] = ISNULL(D.UserDataText, '')
+, [ATTENDING PHYSICIAN NPI] = ISNULL(E.npi_no, '')
+, CASE
+	WHEN RIGHT(ISNULL(upper(e.pract_rpt_name), ''),1) = 'x'
+	THEN SUBSTRING(e.pract_rpt_name, 1, CHARINDEX('X',E.PRACT_RPT_NAME, 1)-1)
+	ELSE ISNULL(UPPER(E.pract_rpt_name), '')
+  END AS [ATTENDING PHYSICIAN NAME]
+, [SPECIALTY] = ISNULL(E.med_staff_dept, '')
+, [ER_ADMIT] = ISNULL(PLM.ED_Adm, '')
 , [E.O.R INDICATOR] = '$'
 
 FROM smsdss.BMH_PLM_PtAcct_V             AS PLM
