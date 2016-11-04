@@ -8,8 +8,8 @@
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
-SET @STARTDATE = '2013-12-01'
-SET @ENDATE = '2013-12-31'
+SET @STARTDATE = '2016-09-01'
+SET @ENDATE = '2016-10-01'
 
 SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
 , pv.med_staff_dept AS 'MED STAFF'
@@ -22,7 +22,8 @@ FROM smsmir.vst_rpt vr
 JOIN smsdss.pract_dim_v pv
 ON vr.adm_pract_no = pv.src_pract_no
 
-WHERE vr.adm_dtime BETWEEN @STARTDATE AND @ENDATE
+WHERE vr.adm_dtime >= @STARTDATE 
+AND vr.adm_dtime < @ENDATE
 AND vr.vst_type_cd = 'I'
 AND pv.spclty_desc != 'NO DESCRIPTION'
 AND pv.spclty_desc NOT LIKE 'HOSPITALIST%'
