@@ -46,10 +46,10 @@ WITH CTE AS (
 	, d.spclty_desc
 	, d.spclty_cd
 
-	from [bmh-softmed-db].[ssi_bmh_live].[dbo].[cre_practice] as a
-	left join [BMH-SOFTMED-DB].[SSI_BMH_LIVE].[dbo].[cre_provider_practice] as b
+	from [bmh-3mhis-db].[mmm_cor_bmh_live].[dbo].[cre_practice] as a
+	left join [BMH-3mhis-DB].[mmm_cor_BMH_LIVE].[dbo].[cre_provider_practice] as b
 	on a._PK = b.pPractice
-	left join [BMH-SOFTMED-DB].[SSI_BMH_LIVE].[dbo].[cre_provider] as c
+	left join [BMH-3mhis-DB].[mmm_cor_BMH_LIVE].[dbo].[cre_provider] as c
 	on b._parent = c._PK
 	left join smsdss.pract_dim_v as d
 	on SUBSTRING(c.provnum, 3, 6) = rtrim(ltrim(d.src_pract_no))COLLATE SQL_Latin1_General_CP1_CI_AS

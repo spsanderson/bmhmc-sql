@@ -52,41 +52,48 @@ FROM (
 	, CAST(XXX.Adm_Date AS DATE) AS [Admit Date]
 	, CAST(XXX.Dsch_Date AS DATE) AS [Discharge Date]
 	, CASE
-		  WHEN a.pyr_cd = '*' 
+			WHEN a.pyr_cd = '*' 
 				THEN 'Self Pay' + ',' + COALESCE(ISNULL(B.INS_NAME, ''), I.PYR_NAME)
-		  ELSE A.pyr_cd + ',' + COALESCE(B.INS_NAME, I.PYR_NAME) 
-	  END AS [Payor Code]
+			ELSE A.pyr_cd + ',' + COALESCE(B.INS_NAME, I.PYR_NAME) 
+		END AS [Payor Code]
 	, CASE
-		  WHEN a.pyr_cd = '*' THEN 'Self Pay'
-		  ELSE I.pyr_name 
-	  END AS [Payor Code Description]
+			WHEN a.pyr_cd = '*' THEN 'Self Pay'
+			ELSE I.pyr_name 
+		END AS [Payor Code Description]
 	, CASE
-		  WHEN a.pyr_cd = '*'
-		  THEN 'Self Pay' + ',' + ISNULL(B.INS_NAME, '') + ',' +
+			WHEN a.pyr_cd = '*'
+			THEN 'Self Pay' + ',' + ISNULL(B.INS_NAME, '') + ',' +
 				ISNULL(I.pyr_name, '') + ',' + ISNULL(H.subscr_ins_grp_name, '')
-		  ELSE A.pyr_cd + ',' + ISNULL(B.INS_NAME, '') + ',' +
+			ELSE A.pyr_cd + ',' + ISNULL(B.INS_NAME, '') + ',' +
 				ISNULL(I.pyr_name,'') + ',' + ISNULL(H.subscr_ins_grp_name, '') 
-	  END AS [PAYOR SUB-CODE]
+		END AS [PAYOR SUB-CODE]
 	, '' as [Payor ID Number]
 	, CASE
 		WHEN D.CITY IS NULL
 		THEN SUBSTRING(E.[State],1,CHARINDEX(',',E.[STATE],1)-1)
 		ELSE D.CITY
-	  END AS [Payor City]
+		END AS [Payor City]
 	, ISNULL(SUBSTRING(E.[State], CHARINDEX(',', E.[State],1)+1, 2), '') AS [Payor State]
 	, '' as [Payor TIN]
 	, ISNULL(XXX.Pyr1_Co_Plan_Cd, '') AS [Primay Payor]
 	, ISNULL(XXX.Pyr2_Co_Plan_Cd, '') AS [Secondary Payor]
 	, ISNULL(XXX.Pyr3_Co_Plan_Cd, '') AS [Tertiary Payor]
 	, ISNULL(XXX.Pyr4_Co_Plan_Cd, '') AS [Quaternary Payor]
-	, H.pyr_seq_no AS [Primarv v Secondary Indicator]
+	-- edit out line below as a fix to the payor sequence number sps 11/17/2016
+	--, H.pyr_seq_no AS [Primarv v Secondary Indicator]
+	, ISNULL(PYR_No.PYR_SEQ_NO, 0)    AS [Primarv v Secondary Indicator]
+	-- end of edit
 	, 'NO' AS [Risk Sharing Payor] -- WE DON'T DO
 	, 'Direct' AS [Direct/Non Direct Payor]
 	, A.hosp_svc AS [Medical Service Code]
 	, HSVC.hosp_svc_name AS [Service Code Description]
 	, A.tot_pay_adj_amt AS [Payment Amount]
-	, PMT_TYPE.PMT_TYPE AS [Payment Type]
-	, PMT_TYPE_DESC.PMT_TYPE_DESC AS [Payment Type Description]
+	-- edit payor sequence number and payment type sps 11/17/2016
+	--, PMT_TYPE.PMT_TYPE AS [Payment Type]
+	--, PMT_TYPE_DESC.PMT_TYPE_DESC AS [Payment Type Description]
+	, PMT_TYPE.PMT_TYPE               AS [Payment Type]
+	, PMT_TYPE_DESC.PMT_TYPE_DESC     AS [Payment Type Description]
+	-- END edit
 	, IP_OP.IP_OP AS [Receivable Type]
 	, HCRA_LINE.HCRA_LINE AS HCRA_LINE
 	, '' AS [HCRA Line Description]
@@ -107,31 +114,31 @@ FROM (
 	FROM SMSDSS.c_HCRA_mir_pay_2016            AS A
 	LEFT JOIN SMSDSS.c_HCRA_ins_name           AS B
 	ON A.PT_ID = B.PT_ID
-		  AND A.pyr_cd = B.pyr_cd
+			AND A.pyr_cd = B.pyr_cd
 	LEFT JOIN SMSDSS.c_HCRA_ins_addr1          AS C
 	ON A.PT_ID = C.PT_ID
-		  AND A.pyr_cd = C.pyr_cd
+			AND A.pyr_cd = C.pyr_cd
 	LEFT JOIN SMSDSS.c_HCRA_ins_city           AS D
 	ON A.PT_ID = D.PT_ID
-		  AND A.pyr_cd = D.pyr_cd
+			AND A.pyr_cd = D.pyr_cd
 	LEFT JOIN SMSDSS.c_HCRA_ins_state          AS E
 	ON A.PT_ID = E.PT_ID
-		  AND A.pyr_cd = E.pyr_cd
+			AND A.pyr_cd = E.pyr_cd
 	LEFT JOIN SMSDSS.c_HCRA_ins_zip            AS F
 	ON A.PT_ID = F.PT_ID
-		  AND A.pyr_cd = F.pyr_cd
+			AND A.pyr_cd = F.pyr_cd
 	LEFT JOIN SMSDSS.c_HCRA_ins_tele           AS G
 	ON A.PT_ID = G.PT_ID
-		  AND A.pyr_cd = G.pyr_cd
+			AND A.pyr_cd = G.pyr_cd
 	LEFT JOIN SMSMIR.pyr_plan                  AS H
 	ON A.PT_ID = H.PT_ID
-		  AND A.pyr_cd = H.pyr_cd
+			AND A.pyr_cd = H.pyr_cd
 	LEFT JOIN SMSMIR.pyr_mstr                  AS I
 	ON A.pyr_cd = I.pyr_cd
-		  AND I.iss_orgz_cd = 'S0X0'
+			AND I.iss_orgz_cd = 'S0X0'
 	LEFT JOIN SMSDSS.hosp_svc_dim_v            AS HSVC
 	ON A.hosp_svc = HSVC.hosp_svc
-		  AND HSVC.orgz_cd = 'S0X0'
+			AND HSVC.orgz_cd = 'S0X0'
 	LEFT JOIN SMSDSS.c_HCRA_unique_pt_id_2016  AS ZZZ
 	ON A.PT_ID = ZZZ.PT_ID
 	LEFT JOIN SMSDSS.BMH_PLM_PTACCT_V          AS XXX
@@ -144,13 +151,16 @@ FROM (
 	ON A.PT_ID = COINS.PT_ID
 	LEFT JOIN smsdss.c_HCRA_unidentifiable_flag AS UNID
 	ON A.PT_ID = UNID.pt_id
+	LEFT JOIN SMSDSS.c_HCRA_Pyr_Seq_No_2016     AS PYR_NO
+	ON A.PT_ID = PYR_NO.PT_ID
+		AND A.pyr_cd = PYR_NO.PYR_CD
 
 	CROSS APPLY (
-		  SELECT
+			SELECT
 				CASE
-					  WHEN LEFT(A.PT_ID, 5) = '00001' THEN 'Inpatient'
-					  ELSE 'Outpatient'
-		  END AS IP_OP
+						WHEN LEFT(A.PT_ID, 5) = '00001' THEN 'Inpatient'
+						ELSE 'Outpatient'
+			END AS IP_OP
 	) IP_OP
 
 	CROSS APPLY (
@@ -185,26 +195,50 @@ FROM (
 			
 		END AS HCRA_LINE
 	) HCRA_LINE
+
+	-- EDIT THESE OUT TO FIX PAYOR SEQ NO SPS 11/17/2016	
+	--CROSS APPLY (
+	--	SELECT
+	--		CASE
+	--			WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
+	--			WHEN H.pyr_seq_no = '1' THEN 'INS1'
+	--			WHEN H.pyr_seq_no = '2' THEN 'INS2'
+	--			WHEN H.pyr_seq_no = '3' THEN 'INS3'
+	--			WHEN H.pyr_seq_no = '4' THEN 'INS4'
+	--	END AS PMT_TYPE
+	--) PMT_TYPE
 	
+	--CROSS APPLY (
+	--	SELECT
+	--		CASE
+	--			WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
+	--			WHEN H.pyr_seq_no = '1' THEN 'Primary Insurance'
+	--			WHEN H.pyr_seq_no = '2' THEN 'Secondary Insurance'
+	--			WHEN H.pyr_seq_no = '3' THEN 'Tertiary Insurance'
+	--			WHEN H.pyr_seq_no = '4' THEN 'Quaternary Insurance'
+	--	END AS PMT_TYPE_DESC
+	--) PMT_TYPE_DESC
+	-- END OF EDIT
+
 	CROSS APPLY (
 		SELECT
 			CASE
-				WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
-				WHEN H.pyr_seq_no = '1' THEN 'INS1'
-				WHEN H.pyr_seq_no = '2' THEN 'INS2'
-				WHEN H.pyr_seq_no = '3' THEN 'INS3'
-				WHEN H.pyr_seq_no = '4' THEN 'INS4'
+				WHEN PYR_NO.PYR_SEQ_NO = 1 THEN 'INS1'
+				WHEN PYR_NO.PYR_SEQ_NO = 2 THEN 'INS2'
+				WHEN PYR_NO.PYR_SEQ_NO = 3 THEN 'INS3'
+				WHEN PYR_NO.PYR_SEQ_NO = 4 THEN 'INS4'
+				ELSE 'Self Pay'
 		END AS PMT_TYPE
 	) PMT_TYPE
-	
+
 	CROSS APPLY (
 		SELECT
 			CASE
-				WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
-				WHEN H.pyr_seq_no = '1' THEN 'Primary Insurance'
-				WHEN H.pyr_seq_no = '2' THEN 'Secondary Insurance'
-				WHEN H.pyr_seq_no = '3' THEN 'Tertiary Insurance'
-				WHEN H.pyr_seq_no = '4' THEN 'Quaternary Insurance'
+				WHEN PYR_NO.PYR_SEQ_NO = 1 THEN 'Primary Insurance'
+				WHEN PYR_NO.PYR_SEQ_NO = 2 THEN 'Secondary Insurance'
+				WHEN PYR_NO.PYR_SEQ_NO = 3 THEN 'Tertiary Insurance'
+				WHEN PYR_NO.PYR_SEQ_NO = 4 THEN 'Quaternary Insurance'
+				ELSE 'Self Pay'
 		END AS PMT_TYPE_DESC
 	) PMT_TYPE_DESC
 ) A;

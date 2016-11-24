@@ -1,8 +1,8 @@
 DECLARE @START AS DATE;
 DECLARE @END   AS DATE;
 
-SET @START = '2016-01-01';
-SET @END   = '2016-08-01';
+SET @START = '2016-07-01';
+SET @END   = '2016-10-01';
 --------------------------
 
 DECLARE @IP_DISCHARGES TABLE (
@@ -96,6 +96,7 @@ SELECT A.MRN
 		THEN '0'
 		ELSE '1'
   END                                      AS [RA_FLAG]
+, F.pyr_group2
 
 FROM @IP_DISCHARGES                 AS A
 LEFT MERGE JOIN @ED_RETURN          AS B
@@ -106,3 +107,9 @@ ON B.Readmit = C.Account
 -- GET THE ED MD OF THE INITIAL IP VISIT
 LEFT JOIN smsdss.c_Wellsoft_Rpt_tbl AS D
 ON A.Encounter = D.Account
+-- GET PRIMARY PAYOR CATEGORY
+LEFT MERGE JOIN smsdss.BMH_PLM_PtAcct_V   AS E
+ON A.Encounter = E.PtNo_Num
+LEFT JOIN smsdss.pyr_dim_v          AS F
+ON E.Pyr1_Co_Plan_Cd = F.src_pyr_cd
+	AND E.Regn_Hosp = F.orgz_cd

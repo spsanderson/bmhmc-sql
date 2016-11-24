@@ -9,7 +9,7 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 /****** Script for SelectTopNRows command from SSMS  ******/
-ALTER VIEW [smsdss].[c_LIHN_Svc_Lines_Rpt2_v]
+ALTER VIEW [smsdss].[c_LIHN_Svc_Lines_Rpt2_ICD10_v]
 AS
 SELECT pt_id
 , Dsch_Date

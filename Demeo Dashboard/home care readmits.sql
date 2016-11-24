@@ -18,4 +18,7 @@ ON A.PtNo_Num = B.[INDEX]
 	AND B.[INTERIM] < 31
 	AND B.[READMIT SOURCE DESC] != 'Scheduled Admission'
 
+WHERE A.[BMH Discharge DateTime] >= ''
+AND A.[BMH Discharge DateTime] < ''
+	
 ORDER BY A.[BMH Discharge DateTime]
