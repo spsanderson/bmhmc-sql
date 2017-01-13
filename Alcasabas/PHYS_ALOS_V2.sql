@@ -8,19 +8,20 @@
 DECLARE @STARTDATE DATETIME
 DECLARE @ENDATE DATETIME
 
-SET @STARTDATE = '2016-09-01'
-SET @ENDATE = '2016-10-01'
+SET @STARTDATE = '2016-11-01'
+SET @ENDATE = '2016-12-01'
 
 SELECT DISTINCT pv.pract_rpt_name AS 'PHYSICIAN'
 , pv.med_staff_dept AS 'MED STAFF'
 , COUNT(DISTINCT vr.pt_id) AS '# PTS' 
-, AVG(vr.len_of_stay) AS 'AVG LOS'
-, AVG(vr.drg_std_days_stay) AS 'AVG DRG LOS BENCH'
-, AVG(vr.len_of_stay - vr.drg_std_days_stay) AS 'AVG(LOS - DRG BENCH)'
+, ROUND(AVG(vr.len_of_stay), 2) AS 'AVG LOS'
+, ROUND(AVG(elos.performance), 2) as 'elos'
 
 FROM smsmir.vst_rpt vr
 JOIN smsdss.pract_dim_v pv
 ON vr.adm_pract_no = pv.src_pract_no
+join smsdss.c_elos_bench_data as elos
+on vr.pt_id = elos.Encounter
 
 WHERE vr.adm_dtime >= @STARTDATE 
 AND vr.adm_dtime < @ENDATE
@@ -31,12 +32,13 @@ AND vr.drg_std_days_stay IS NOT NULL
 AND pv.pract_rpt_name != '?'
 AND pv.orgz_cd = 's0x0'
 AND pv.med_staff_dept IN (
-'INTERNAL MEDICINE',
-'FAMILY PRACTICE',
-'SURGERY'
+	'Internal Medicine/Pediatrics',
+	'Internal Medicine',
+	'Pediatrics',
+	'Family Practice'
 )
 GROUP BY pv.pract_rpt_name, pv.med_staff_dept, pv.spclty_desc
-ORDER BY pv.med_staff_dept, AVG(vr.len_of_stay - vr.drg_std_days_stay)DESC
+ORDER BY pv.med_staff_dept
 
 --#####################################################################
 -- END REPORT.

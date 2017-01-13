@@ -131,7 +131,8 @@ LEFT OUTER JOIN SMSPHDSSS0X0.smsmir.mir_pract_mstr				  AS i
 ON (RIGHT(LTRIM(RTRIM(g.provno)),6)=i.pract_no COLLATE SQL_Latin1_General_CP1_CI_AS)
 	AND (i.src_sys_id='#PMSNTX0' COLLATE SQL_Latin1_General_CP1_CI_AS)
 LEFT OUTER JOIN [BMH-3MHIS-DB].[MMM_COR_BMH_LIVE].[dbo].[CTC_UM_CERM] AS q
-ON a.visit_id=q._fk_visit  AND q.cerm_review_type='Admission'
+ON a.visit_id=q._fk_visit  
+	AND q.cerm_review_type='Admission'
 LEFT OUTER JOIN smsmir.mir_pyr_plan                               AS s
 ON CAST(a.bill_no AS INT)=CAST(s.pt_id AS INT) 
 	AND s.pyr_seq_no = '1' 

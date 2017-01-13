@@ -39,7 +39,7 @@ ON C1.MR# = C2.MR#
 WHERE C1.[Arrival Datetime] <> C2.[Arrival Datetime]
 AND C1.RN+1 = C2.RN
 AND DATEDIFF(HOUR, c1.TimeLeftED, c2.[Arrival Datetime]) <= 72
-and LEFT(c1.TimeLeftED, 4) = '2016'
+--and LEFT(c1.TimeLeftED, 4) = '2016'
 
 -- Use below to get between specific dates
 --AND c1.[Arrival Datetime] >= '2016-09-01'
