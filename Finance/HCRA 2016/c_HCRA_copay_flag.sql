@@ -6,7 +6,7 @@ CREATE TABLE smsdss.c_HCRA_copay_flag (
 	, Pay_Cd VARCHAR(12)
 	, Pay_Desc VARCHAR(100)
 	, Copay_Flag CHAR(1)
-	, Pay_Date DATE
+	, Pay_Entry_Date DATE
 	, positive_pay MONEY
 	, negative_pay MONEY
 	, check_digit MONEY
@@ -25,7 +25,7 @@ FROM (
 		WHEN a.pay_desc like '%co%pa%' THEN '1'
 		ELSE a.pay_desc
 	  END AS co_pay_flag
-	, a.pay_date
+	, a.pay_entry_date
 	, a.tot_pay_adj_amt AS [positive pay]
 	, c.tot_pay_adj_amt AS [negative pay]
 	, A.tot_pay_adj_amt + C.tot_pay_adj_amt AS [Checksum]

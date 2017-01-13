@@ -14,12 +14,12 @@ DECLARE @ORSOS_END_1    DATETIME;
 DECLARE @ORSOS_START_2  DATETIME;
 DECLARE @ORSOS_END_2    DATETIME;
 
-SET @ORSOS_START_1 = '2015-01-01 00:00:00';
-SET @ORSOS_END_1   = '2016-01-01 00:00:00';
+SET @ORSOS_START_1 = '2016-11-01 00:00:00';
+SET @ORSOS_END_1   = '2016-12-01 00:00:00';
 SET @BMH_START_1   = @ORSOS_START_1;
 SET @BMH_END_1     = @ORSOS_END_1;
-SET @ORSOS_START_2 = '2016-01-01 00:00:00';
-SET @ORSOS_END_2   = '2016-08-01 00:00:00';
+SET @ORSOS_START_2 = '2019-01-01 00:00:00';
+SET @ORSOS_END_2   = '2019-08-01 00:00:00';
 SET @BMH_START_2   = @ORSOS_START_2;
 SET @BMH_END_2     = @ORSOS_END_2;
 
@@ -437,10 +437,10 @@ WITH CTE AS (
 	, d.spclty_desc
 	, d.spclty_cd
 
-	FROM [bmh-softmed-db].[ssi_bmh_live].[dbo].[cre_practice]               AS A
-	LEFT JOIN [BMH-SOFTMED-DB].[SSI_BMH_LIVE].[dbo].[cre_provider_practice] AS B
+	FROM [bmh-3mhis-db].[mmm_cor_bmh_live].[dbo].[cre_practice]               AS A
+	LEFT JOIN [BMH-3mhis-DB].[mmm_cor_BMH_LIVE].[dbo].[cre_provider_practice] AS B
 	ON a._PK = b.pPractice
-	LEFT JOIN [BMH-SOFTMED-DB].[SSI_BMH_LIVE].[dbo].[cre_provider]          AS C
+	LEFT JOIN [BMH-3mhis-DB].[mmm_cor_BMH_LIVE].[dbo].[cre_provider]          AS C
 	ON b._parent = c._PK
 	LEFT JOIN smsdss.pract_dim_v                                            AS D
 	ON SUBSTRING(c.provnum, 3, 6) = RTRIM(LTRIM(d.src_pract_no))COLLATE SQL_Latin1_General_CP1_CI_AS

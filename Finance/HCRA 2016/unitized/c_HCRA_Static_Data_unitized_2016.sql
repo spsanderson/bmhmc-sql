@@ -1,6 +1,7 @@
-CREATE TABLE smsdss.c_HCRA_Static_Data_2016 (
+CREATE TABLE smsdss.c_HCRA_Static_Data_Unitized_2016 (
 	PK INT NOT NULL IDENTITY(1, 1) PRIMARY KEY
 	, [Reference Number] VARCHAR(15)
+	, [Unit Seq No] VARCHAR(10)
 	, [System] VARCHAR(10)
 	, [MRN] VARCHAR(8)
 	, [Admit Date] DATE
@@ -44,31 +45,21 @@ CREATE TABLE smsdss.c_HCRA_Static_Data_2016 (
 	, UN_ID_NEG_PAY MONEY
 )
 
-INSERT INTO smsdss.c_HCRA_Static_Data_2016
+INSERT INTO smsdss.c_HCRA_Static_Data_Unitized_2016
 
 SELECT A.*
 FROM (
-	SELECT ZZZ.PtNo_Num AS [Reference Number]
+	SELECT top 500000 substring(a.PT_ID, 5, 8) AS [Reference Number]
+	, a.unit_seq_no
 	, 'FMS' AS [System]
 	, ZZZ.MRN
 	, CAST(XXX.Adm_Date AS DATE) AS [Admit Date]
 	, CAST(XXX.Dsch_Date AS DATE) AS [Discharge Date]
-	--, CASE
-	--		WHEN a.pyr_cd = '*' 
-	--			THEN 'Self Pay' + ',' + COALESCE(ISNULL(B.INS_NAME, ''), I.PYR_NAME)
-	--		ELSE A.pyr_cd + ',' + COALESCE(B.INS_NAME, I.PYR_NAME) 
-	--	END AS [Payor Code]
-	-- EDIT 12-12-2016 PER SCOTT
 	, CASE
 		WHEN A.PYR_CD = '*'
 			THEN 'MIS'
 		ELSE A.PYR_CD
 	  END AS [Payor Code]
-	-- EDIT 12-13-16 PER SCOTT
-	--, CASE
-	--		WHEN a.pyr_cd = '*' THEN 'Self Pay'
-	--		ELSE COALESCE(B.INS_NAME, I.PYR_NAME) 
-	--	END AS [Payor Code Description]
 	, CASE
 		WHEN a.pyr_cd = '*' THEN 'Self Pay'
 		WHEN A.pyr_cd IN (
@@ -76,7 +67,6 @@ FROM (
 			,'J36','X21','M35'
 		)
 			THEN COALESCE(B.ins_name, I.PYR_NAME)
-		-- end 12-15-16 from 12-14 HCRA call
 		WHEN A.PYR_CD = 'C05'
 			AND (
 				XXX.Pyr2_Co_Plan_Cd = 'C30'
@@ -116,13 +106,6 @@ FROM (
 		-- end edit 12-15-16
 		ELSE I.PYR_NAME
 	  END AS [Payor Code Description]
-	--, CASE
-	--		WHEN a.pyr_cd = '*'
-	--		THEN 'Self Pay' + ',' + ISNULL(B.INS_NAME, '') + ',' +
-	--			ISNULL(I.pyr_name, '') + ',' + ISNULL(H.subscr_ins_grp_name, '')
-	--		ELSE A.pyr_cd + ',' + ISNULL(B.INS_NAME, '') + ',' +
-	--			ISNULL(I.pyr_name,'') + ',' + ISNULL(H.subscr_ins_grp_name, '') 
-	--	END AS [PAYOR SUB-CODE]
 	, '' AS [PAYOR SUB-CODE]
 	, '' AS [Payor ID Number]
 	, CASE
@@ -136,21 +119,14 @@ FROM (
 	, ISNULL(XXX.Pyr2_Co_Plan_Cd, '') AS [Secondary Payor]
 	, ISNULL(XXX.Pyr3_Co_Plan_Cd, '') AS [Tertiary Payor]
 	, ISNULL(XXX.Pyr4_Co_Plan_Cd, '') AS [Quaternary Payor]
-	-- edit out line below as a fix to the payor sequence number sps 11/17/2016
-	--, H.pyr_seq_no AS [Primarv v Secondary Indicator]
 	, ISNULL(PYR_No.PYR_SEQ_NO, 0)    AS [Primarv v Secondary Indicator]
-	-- end of edit
 	, 'NO' AS [Risk Sharing Payor] -- WE DON'T DO
 	, 'Direct' AS [Direct/Non Direct Payor]
 	, A.hosp_svc AS [Medical Service Code]
 	, HSVC.hosp_svc_name AS [Service Code Description]
 	, A.tot_pay_adj_amt AS [Payment Amount]
-	-- edit payor sequence number and payment type sps 11/17/2016
-	--, PMT_TYPE.PMT_TYPE AS [Payment Type]
-	--, PMT_TYPE_DESC.PMT_TYPE_DESC AS [Payment Type Description]
 	, PMT_TYPE.PMT_TYPE               AS [Payment Type]
 	, PMT_TYPE_DESC.PMT_TYPE_DESC     AS [Payment Type Description]
-	-- END edit
 	, IP_OP.IP_OP AS [Receivable Type]
 	, HCRA_LINE.HCRA_LINE AS HCRA_LINE
 	, '' AS [HCRA Line Description]
@@ -169,53 +145,61 @@ FROM (
 	, ISNULL(UNID.POSITIVE_PAY, 0) AS UNID_POS_PAY
 	, ISNULL(UNID.NEGATIVE_PAY, 0) AS UNID_NEG_PAY
 
-	FROM SMSDSS.c_HCRA_mir_pay_2016            AS A
-	LEFT JOIN SMSDSS.c_HCRA_ins_name           AS B
+	FROM smsdss.c_HCRA_mir_pay_unitized_2016            AS A
+	LEFT JOIN SMSDSS.c_HCRA_ins_name_unitized           AS B
 	ON A.PT_ID = B.PT_ID
-			AND A.pyr_cd = B.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_addr1          AS C
-	ON A.PT_ID = C.PT_ID
-			AND A.pyr_cd = C.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_city           AS D
+		AND A.pyr_cd = B.pyr_cd
+	--LEFT JOIN SMSDSS.c_HCRA_ins_addr1_unitized          AS C
+	--ON A.PT_ID = C.PT_ID
+	--		AND A.pyr_cd = C.pyr_cd
+	LEFT JOIN SMSDSS.c_HCRA_ins_city_unitized           AS D
 	ON A.PT_ID = D.PT_ID
 			AND A.pyr_cd = D.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_state          AS E
+	LEFT JOIN SMSDSS.c_HCRA_ins_state_unitized          AS E
 	ON A.PT_ID = E.PT_ID
 			AND A.pyr_cd = E.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_zip            AS F
-	ON A.PT_ID = F.PT_ID
-			AND A.pyr_cd = F.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_tele           AS G
-	ON A.PT_ID = G.PT_ID
-			AND A.pyr_cd = G.pyr_cd
+	--LEFT JOIN SMSDSS.c_HCRA_ins_zip_unitized            AS F
+	--ON A.PT_ID = F.PT_ID
+	--		AND A.pyr_cd = F.pyr_cd
+	--LEFT JOIN SMSDSS.c_HCRA_ins_tele_unitized           AS G
+	--ON A.PT_ID = G.PT_ID
+	--		AND A.pyr_cd = G.pyr_cd
 	LEFT JOIN SMSMIR.pyr_plan                  AS H
 	ON A.PT_ID = H.PT_ID
-			AND A.pyr_cd = H.pyr_cd
+		AND A.pyr_cd = H.pyr_cd
+		AND A.unit_seq_no = H.unit_seq_no
 	LEFT JOIN SMSMIR.pyr_mstr                  AS I
 	ON A.pyr_cd = I.pyr_cd
 			AND I.iss_orgz_cd = 'S0X0'
 	LEFT JOIN SMSDSS.hosp_svc_dim_v            AS HSVC
 	ON A.hosp_svc = HSVC.hosp_svc
 			AND HSVC.orgz_cd = 'S0X0'
-	LEFT JOIN SMSDSS.c_HCRA_unique_pt_id_2016  AS ZZZ
+	LEFT JOIN SMSDSS.c_HCRA_unique_pt_id_unitized_2016  AS ZZZ
 	ON A.PT_ID = ZZZ.PT_ID
+		AND A.unit_seq_no = ZZZ.UNIT_SEQ_NO
 	LEFT JOIN SMSDSS.BMH_PLM_PTACCT_V          AS XXX
 	ON A.PT_ID = XXX.Pt_No
-	LEFT JOIN smsdss.c_HCRA_copay_flag         AS COPAY
+		AND A.unit_seq_no = XXX.unit_seq_no
+	LEFT JOIN smsdss.c_HCRA_copay_flag_unitized         AS COPAY
 	ON A.PT_ID = COPAY.PT_ID
 		AND COPAY.check_digit = 0
-	LEFT JOIN smsdss.c_HCRA_deductible_flag    AS DEDUC
+		AND A.unit_seq_no = COPAY.unit_seq_no
+	LEFT JOIN smsdss.c_HCRA_deductible_flag_unitized    AS DEDUC
 	ON A.PT_ID = DEDUC.PT_ID
 		AND DEDUC.check_digit = 0
-	LEFT JOIN smsdss.c_HCRA_coins_flag         AS COINS
+		AND A.unit_seq_no = DEDUC.unit_seq_no
+	LEFT JOIN smsdss.c_HCRA_coins_flag_unitized         AS COINS
 	ON A.PT_ID = COINS.PT_ID
 		AND COINS.check_digit = 0
-	LEFT JOIN smsdss.c_HCRA_unidentifiable_flag AS UNID
+		AND A.unit_seq_no = COINS.unit_seq_no
+	LEFT JOIN smsdss.c_HCRA_unidentifiable_flag_unitized AS UNID
 	ON A.PT_ID = UNID.pt_id
 		AND UNID.check_digit = 0
-	LEFT JOIN SMSDSS.c_HCRA_Pyr_Seq_No_2016     AS PYR_NO
+		AND A.unit_seq_no = UNID.UNIT_SEQ_NO
+	LEFT JOIN SMSDSS.c_HCRA_Pyr_Seq_No_unitized_2016     AS PYR_NO
 	ON A.PT_ID = PYR_NO.PT_ID
 		AND A.pyr_cd = PYR_NO.PYR_CD
+		AND A.unit_seq_no = PYR_NO.UNIT_SEQ_NO
 
 	CROSS APPLY (
 			SELECT
@@ -257,30 +241,6 @@ FROM (
 			
 		END AS HCRA_LINE
 	) HCRA_LINE
-
-	-- EDIT THESE OUT TO FIX PAYOR SEQ NO SPS 11/17/2016	
-	--CROSS APPLY (
-	--	SELECT
-	--		CASE
-	--			WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
-	--			WHEN H.pyr_seq_no = '1' THEN 'INS1'
-	--			WHEN H.pyr_seq_no = '2' THEN 'INS2'
-	--			WHEN H.pyr_seq_no = '3' THEN 'INS3'
-	--			WHEN H.pyr_seq_no = '4' THEN 'INS4'
-	--	END AS PMT_TYPE
-	--) PMT_TYPE
-	
-	--CROSS APPLY (
-	--	SELECT
-	--		CASE
-	--			WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
-	--			WHEN H.pyr_seq_no = '1' THEN 'Primary Insurance'
-	--			WHEN H.pyr_seq_no = '2' THEN 'Secondary Insurance'
-	--			WHEN H.pyr_seq_no = '3' THEN 'Tertiary Insurance'
-	--			WHEN H.pyr_seq_no = '4' THEN 'Quaternary Insurance'
-	--	END AS PMT_TYPE_DESC
-	--) PMT_TYPE_DESC
-	-- END OF EDIT
 
 	CROSS APPLY (
 		SELECT

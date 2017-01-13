@@ -1,15 +1,16 @@
 CREATE TABLE smsdss.c_HCRA_mir_pay_2016 (
  PK INT NOT NULL IDENTITY(1, 1) PRIMARY KEY
-, PT_ID VARCHAR(12)
-, pay_cd VARCHAR(15)
-, pay_date DATE
-, pay_seq_no INT
-, tot_pay_adj_amt MONEY
-, orgz_cd VARCHAR(10)
-, pay_desc VARCHAR(200)
-, hosp_svc VARCHAR(10)
-, pyr_cd VARCHAR(5)
+, PT_ID             VARCHAR(12)
+, pay_cd            VARCHAR(15)
+, pay_entry_date    DATE
+, pay_seq_no        INT
+, tot_pay_adj_amt   MONEY
+, orgz_cd           VARCHAR(10)
+, pay_desc          VARCHAR(200)
+, hosp_svc          VARCHAR(10)
+, pyr_cd            VARCHAR(5)
 , pt_id_start_dtime DATETIME
+, pip_flag          VARCHAR(7)
 );
 
 INSERT INTO smsdss.c_HCRA_mir_pay_2016
@@ -18,7 +19,7 @@ SELECT *
 FROM (
 	SELECT pt_id
 	, pay_cd
-	, pay_date
+	, pay_entry_date
 	, pay_seq_no
 	, tot_pay_adj_amt
 	, orgz_cd
@@ -26,6 +27,15 @@ FROM (
 	, hosp_svc
 	, pyr_cd
 	, pt_id_start_dtime
+	, CASE
+		WHEN (
+			pay_cd BETWEEN '09600000' AND '09699999'
+			OR pay_cd BETWEEN '00990000' AND '00999999'
+			OR pay_cd BETWEEN '09900000' AND '09999999'
+		)
+		THEN 'NON-PIP'
+		ELSE 'PIP'
+	  END AS [pip_flag]
 
 	FROM smsmir.pay
 
@@ -43,9 +53,10 @@ FROM (
 		'09801119'
 		)
 	)
-	AND LEFT(pt_id, 5) != '00007'
-	AND pay_date >= '2012-01-01'
-	AND pay_date < '2016-01-01'
+	-- GET RID OF TEST PATIENTS AND UNITIZED ACCOUNTS
+	AND LEFT(pt_id, 5) NOT IN ('00007', '00000')
+	-- CHANGE FROM PAY_DATE TO PAY_ENTRY_DATE WHICH REC'S TO BANK
+	AND pay_entry_date >= '2012-01-01'
+	AND pay_entry_date < '2016-01-01'
 	AND tot_pay_adj_amt != '0'
-) A
-
+) A;

@@ -2,7 +2,7 @@ DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
 
 SET @SD = '2014-01-01';
-SET @ED = '2016-04-01';
+SET @ED = '2016-12-01';
 
 DECLARE @InpatientDenials TABLE (
 	PK INT IDENTITY(1, 1) PRIMARY KEY
@@ -452,6 +452,8 @@ SELECT a.BILL_NO as tmbptbl_bill_no
 , D.RN
 , DRG.DRG
 , DRG.DRG_NAME
+, VST.ward_cd
+, datepart(hour, vst.adm_dtime) as [arrival hour]
 
 FROM @TmpDenialsTbl                     AS A
 LEFT OUTER JOIN @InpatientDenials       AS B
@@ -464,6 +466,9 @@ ON A.CERM_RVWR_ID = D.login_id
 -- add drg no SPS 2/16/2016
 LEFT OUTER JOIN @DRG                    AS DRG
 ON A.BILL_NO = DRG.ENCOUNTER
+-- get discharge unit
+LEFT OUTER JOIN SMSMIR.VST_RPT          AS VST
+ON A.BILL_NO = SUBSTRING(VST.PT_ID, 5, 8)
 
 -- Union the results of the outpatients -------------------------------
 UNION
@@ -530,6 +535,8 @@ SELECT O.BILL_NO
 , ''
 , DRG.DRG
 , DRG.DRG_NAME
+, VST.ward_cd
+, datepart(hour, vst.adm_dtime) as [arrival hour]
 
 FROM @OutPatient                        AS O
 LEFT OUTER JOIN @EDTBL                  AS EDO
@@ -539,5 +546,7 @@ ON O.BILL_NO = OD.bill_no
 -- add drg no SPS 2/16/2016
 LEFT OUTER JOIN @DRG                    AS DRG
 ON O.BILL_NO = DRG.ENCOUNTER
+LEFT OUTER JOIN SMSMIR.vst_rpt          AS VST
+ON O.BILL_NO = SUBSTRING(VST.PT_ID, 5, 8)
 
 WHERE O.RN = 1

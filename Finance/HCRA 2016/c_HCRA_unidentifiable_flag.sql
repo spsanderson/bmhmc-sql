@@ -6,7 +6,7 @@ CREATE TABLE smsdss.c_HCRA_unidentifiable_flag (
 	, Pay_Cd VARCHAR(12)
 	, Pay_Desc VARCHAR(100)
 	, Unidentifiable_Flag CHAR(1)
-	, Pay_Date DATE
+	, Pay_Entry_Date DATE
 	, positive_pay MONEY
 	, negative_pay MONEY
 	, check_digit MONEY
@@ -29,7 +29,7 @@ FROM (
 		)	THEN '1'
 		ELSE a.pay_desc
 	  END AS unidentifiable_flag
-	, a.pay_date
+	, a.pay_entry_date
 	, a.tot_pay_adj_amt AS [positive pay]
 	, c.tot_pay_adj_amt AS [negative pay]
 	, A.tot_pay_adj_amt + C.tot_pay_adj_amt AS [Checksum]

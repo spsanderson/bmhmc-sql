@@ -1,4 +1,4 @@
-SELECT TOP 1000 CAST(A.[REFERENCE NUMBER] AS VARCHAR) + CAST(PK AS VARCHAR) AS [Reference Number]
+SELECT TOP 500 CAST(A.[REFERENCE NUMBER] AS VARCHAR) + CAST(PK AS VARCHAR) AS [Reference Number]
 , A.[System]
 , A.[MRN]
 , A.[Admit Date]
@@ -21,12 +21,43 @@ SELECT TOP 1000 CAST(A.[REFERENCE NUMBER] AS VARCHAR) + CAST(PK AS VARCHAR) AS [
 , A.[Service Code Description]
 , A.[Payment Type]
 , A.[Payment Type Description]
+, A.[Payment Amount]
 , A.[Receivable Type]
 , A.[HCRA Line]
 , A.[HCRA Line Description]
-, A.[Payment Received Date]
+, A.[Payment Entry Date]
 
 FROM smsdss.C_HCRA_STATIC_DATA_2016 AS A
 
-WHERE A.[Payor Code] != '*'
-AND A.[Primary v Secondary Indicator] != '0'
+union all
+
+select top 500 cast(b.[reference number] as varchar) + cast(b.[unit seq no] as varchar)
+, b.[System]
+, b.[MRN]
+, b.[Admit Date]
+, b.[Discharge Date]
+, b.[Payor Code]
+, b.[Payor Code Description]
+, b.[Payor Sub-Code]
+, b.[Payor ID Number]
+, ISNULL(b.[Payor City], '') AS [Payor City]
+, b.[Payor State]
+, b.[Payor TIN]
+, b.[Primary Payor]
+, b.[Secondary Payor]
+, b.[Tertiary Payor]
+, b.[Quaternary Payor]
+, b.[Primary v Secondary Indicator]
+, b.[Risk Sharing Payor]
+, b.[Direct/Non Direct Payor]
+, b.[Medical Service Code]
+, b.[Service Code Description]
+, b.[Payment Type]
+, b.[Payment Type Description]
+, b.[Payment Amount]
+, b.[Receivable Type]
+, b.[HCRA Line]
+, b.[HCRA Line Description]
+, b.[Payment Entry Date]
+
+from smsdss.c_hcra_static_data_unitized_2016 as b
