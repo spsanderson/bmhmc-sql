@@ -10,6 +10,7 @@ CREATE TABLE smsdss.c_HCRA_unidentifiable_flag (
 	, positive_pay MONEY
 	, negative_pay MONEY
 	, check_digit MONEY
+	, rn tinyint
 )
 
 INSERT INTO SMSDSS.c_HCRA_unidentifiable_flag
@@ -33,6 +34,10 @@ FROM (
 	, a.tot_pay_adj_amt AS [positive pay]
 	, c.tot_pay_adj_amt AS [negative pay]
 	, A.tot_pay_adj_amt + C.tot_pay_adj_amt AS [Checksum]
+	, rn = ROW_NUMBER() over(
+		partition by a.pt_id
+		order by a.pay_entry_date desc
+		)
 
 	FROM smsmir.pay                            AS a
 	INNER JOIN smsdss.c_HCRA_unique_pt_id_2016 AS b
@@ -57,4 +62,7 @@ FROM (
 			OR
 			c.pay_desc LIKE '%copa%/%de%'
 		)
-) A;
+) A
+
+where a.rn = 1
+;

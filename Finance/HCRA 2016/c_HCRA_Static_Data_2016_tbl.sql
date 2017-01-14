@@ -48,27 +48,16 @@ INSERT INTO smsdss.c_HCRA_Static_Data_2016
 
 SELECT A.*
 FROM (
-	SELECT ZZZ.PtNo_Num AS [Reference Number]
+	SELECT zzz.PtNo_Num AS [Reference Number]
 	, 'FMS' AS [System]
-	, ZZZ.MRN
-	, CAST(XXX.Adm_Date AS DATE) AS [Admit Date]
-	, CAST(XXX.Dsch_Date AS DATE) AS [Discharge Date]
-	--, CASE
-	--		WHEN a.pyr_cd = '*' 
-	--			THEN 'Self Pay' + ',' + COALESCE(ISNULL(B.INS_NAME, ''), I.PYR_NAME)
-	--		ELSE A.pyr_cd + ',' + COALESCE(B.INS_NAME, I.PYR_NAME) 
-	--	END AS [Payor Code]
-	-- EDIT 12-12-2016 PER SCOTT
+	, zzz.MRN
+	, cast(xxx.adm_date as date) as adm_date
+	, cast(xxx.dsch_date as date) as dsch_date
 	, CASE
 		WHEN A.PYR_CD = '*'
 			THEN 'MIS'
 		ELSE A.PYR_CD
-	  END AS [Payor Code]
-	-- EDIT 12-13-16 PER SCOTT
-	--, CASE
-	--		WHEN a.pyr_cd = '*' THEN 'Self Pay'
-	--		ELSE COALESCE(B.INS_NAME, I.PYR_NAME) 
-	--	END AS [Payor Code Description]
+		END AS [Payor Code]
 	, CASE
 		WHEN a.pyr_cd = '*' THEN 'Self Pay'
 		WHEN A.pyr_cd IN (
@@ -76,7 +65,6 @@ FROM (
 			,'J36','X21','M35'
 		)
 			THEN COALESCE(B.ins_name, I.PYR_NAME)
-		-- end 12-15-16 from 12-14 HCRA call
 		WHEN A.PYR_CD = 'C05'
 			AND (
 				XXX.Pyr2_Co_Plan_Cd = 'C30'
@@ -115,14 +103,7 @@ FROM (
 			THEN COALESCE(B.ins_name, I.PYR_NAME)
 		-- end edit 12-15-16
 		ELSE I.PYR_NAME
-	  END AS [Payor Code Description]
-	--, CASE
-	--		WHEN a.pyr_cd = '*'
-	--		THEN 'Self Pay' + ',' + ISNULL(B.INS_NAME, '') + ',' +
-	--			ISNULL(I.pyr_name, '') + ',' + ISNULL(H.subscr_ins_grp_name, '')
-	--		ELSE A.pyr_cd + ',' + ISNULL(B.INS_NAME, '') + ',' +
-	--			ISNULL(I.pyr_name,'') + ',' + ISNULL(H.subscr_ins_grp_name, '') 
-	--	END AS [PAYOR SUB-CODE]
+		END AS [Payor Code Description]
 	, '' AS [PAYOR SUB-CODE]
 	, '' AS [Payor ID Number]
 	, CASE
@@ -136,21 +117,14 @@ FROM (
 	, ISNULL(XXX.Pyr2_Co_Plan_Cd, '') AS [Secondary Payor]
 	, ISNULL(XXX.Pyr3_Co_Plan_Cd, '') AS [Tertiary Payor]
 	, ISNULL(XXX.Pyr4_Co_Plan_Cd, '') AS [Quaternary Payor]
-	-- edit out line below as a fix to the payor sequence number sps 11/17/2016
-	--, H.pyr_seq_no AS [Primarv v Secondary Indicator]
 	, ISNULL(PYR_No.PYR_SEQ_NO, 0)    AS [Primarv v Secondary Indicator]
-	-- end of edit
 	, 'NO' AS [Risk Sharing Payor] -- WE DON'T DO
 	, 'Direct' AS [Direct/Non Direct Payor]
 	, A.hosp_svc AS [Medical Service Code]
 	, HSVC.hosp_svc_name AS [Service Code Description]
 	, A.tot_pay_adj_amt AS [Payment Amount]
-	-- edit payor sequence number and payment type sps 11/17/2016
-	--, PMT_TYPE.PMT_TYPE AS [Payment Type]
-	--, PMT_TYPE_DESC.PMT_TYPE_DESC AS [Payment Type Description]
 	, PMT_TYPE.PMT_TYPE               AS [Payment Type]
 	, PMT_TYPE_DESC.PMT_TYPE_DESC     AS [Payment Type Description]
-	-- END edit
 	, IP_OP.IP_OP AS [Receivable Type]
 	, HCRA_LINE.HCRA_LINE AS HCRA_LINE
 	, '' AS [HCRA Line Description]
@@ -169,44 +143,59 @@ FROM (
 	, ISNULL(UNID.POSITIVE_PAY, 0) AS UNID_POS_PAY
 	, ISNULL(UNID.NEGATIVE_PAY, 0) AS UNID_NEG_PAY
 
-	FROM SMSDSS.c_HCRA_mir_pay_2016            AS A
-	LEFT JOIN SMSDSS.c_HCRA_ins_name           AS B
-	ON A.PT_ID = B.PT_ID
-			AND A.pyr_cd = B.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_addr1          AS C
-	ON A.PT_ID = C.PT_ID
-			AND A.pyr_cd = C.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_city           AS D
-	ON A.PT_ID = D.PT_ID
-			AND A.pyr_cd = D.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_state          AS E
-	ON A.PT_ID = E.PT_ID
-			AND A.pyr_cd = E.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_zip            AS F
-	ON A.PT_ID = F.PT_ID
-			AND A.pyr_cd = F.pyr_cd
-	LEFT JOIN SMSDSS.c_HCRA_ins_tele           AS G
-	ON A.PT_ID = G.PT_ID
-			AND A.pyr_cd = G.pyr_cd
-	LEFT JOIN SMSMIR.pyr_plan                  AS H
-	ON A.PT_ID = H.PT_ID
-			AND A.pyr_cd = H.pyr_cd
-	LEFT JOIN SMSMIR.pyr_mstr                  AS I
-	ON A.pyr_cd = I.pyr_cd
-			AND I.iss_orgz_cd = 'S0X0'
-	LEFT JOIN SMSDSS.hosp_svc_dim_v            AS HSVC
-	ON A.hosp_svc = HSVC.hosp_svc
-			AND HSVC.orgz_cd = 'S0X0'
-	LEFT JOIN SMSDSS.c_HCRA_unique_pt_id_2016  AS ZZZ
-	ON A.PT_ID = ZZZ.PT_ID
-	LEFT JOIN SMSDSS.BMH_PLM_PTACCT_V          AS XXX
-	ON A.PT_ID = XXX.Pt_No
-	LEFT JOIN smsdss.c_HCRA_copay_flag         AS COPAY
+	from smsdss.c_HCRA_mir_pay_2016 as a
+	left join smsdss.c_HCRA_ins_name as b
+	on a.PT_ID = b.PT_ID
+		and a.pyr_cd = b.pyr_cd
+	left join smsdss.c_HCRA_unique_pt_id_2016 as zzz
+	on a.PT_ID = zzz.PT_ID
+	left join smsdss.BMH_PLM_PtAcct_V as xxx
+	on a.PT_ID = xxx.Pt_No
+	and a.hosp_svc = xxx.hosp_svc
+	and a.pt_id_start_dtime = xxx.pt_id_start_dtime
+	-- kick our really old payment plan dms cases
+	and xxx.PtNo_Num not in (
+		'53040861', '53919940'
+	)
+	left join smsdss.c_hcra_ins_addr1 as c
+	on a.PT_ID = c.PT_ID
+		and a.pyr_cd = c.pyr_cd
+		and a.pt_id_start_dtime = c.pt_id_start_dtime
+	left join smsdss.c_hcra_ins_city as d
+	on a.PT_ID = d.PT_ID
+		and a.pyr_cd = d.pyr_cd
+		and a.pt_id_start_dtime = d.pt_id_start_dtime
+	left join smsdss.c_hcra_ins_state as e
+	on a.pt_id = e.PT_ID
+		and a.pt_id_start_dtime = e.pt_id_start_dtime
+		and a.pyr_cd = e.pyr_cd
+	left join smsdss.c_hcra_ins_zip as f
+	on a.pt_id = f.pt_id
+		and a.pyr_cd = f.pyr_cd
+		and a.pt_id_start_dtime = f.pt_id_start_dtime
+	left join smsdss.c_hcra_ins_tele as g
+	on a.PT_ID = g.pt_id
+		and a.pyr_cd = g.pyr_cd
+		and a.pt_id_start_dtime = g.pt_id_start_dtime
+	--left join smsmir.pyr_plan as h
+	--on a.PT_ID = h.pt_id
+	--	and a.pyr_cd = h.pyr_cd
+	left join smsmir.pyr_mstr as i
+	on a.pyr_cd = i.pyr_cd
+		and a.orgz_cd = i.iss_orgz_cd
+	left join smsdss.hosp_svc_dim_v as hsvc
+	on a.hosp_svc = hsvc.hosp_svc
+		and a.orgz_cd = hsvc.orgz_cd
+	LEFT JOIN smsdss.c_HCRA_copay_flag        AS COPAY
 	ON A.PT_ID = COPAY.PT_ID
 		AND COPAY.check_digit = 0
+		and copay.PtNo_Num not in (
+			'53040861', '53919940'
+		)
 	LEFT JOIN smsdss.c_HCRA_deductible_flag    AS DEDUC
 	ON A.PT_ID = DEDUC.PT_ID
 		AND DEDUC.check_digit = 0
+
 	LEFT JOIN smsdss.c_HCRA_coins_flag         AS COINS
 	ON A.PT_ID = COINS.PT_ID
 		AND COINS.check_digit = 0
@@ -218,12 +207,12 @@ FROM (
 		AND A.pyr_cd = PYR_NO.PYR_CD
 
 	CROSS APPLY (
-			SELECT
-				CASE
-						WHEN LEFT(A.PT_ID, 5) = '00001' THEN 'Inpatient'
-						ELSE 'Outpatient'
-			END AS IP_OP
-	) IP_OP
+				SELECT
+					CASE
+							WHEN LEFT(A.PT_ID, 5) = '00001' THEN 'Inpatient'
+							ELSE 'Outpatient'
+				END AS IP_OP
+		) IP_OP
 
 	CROSS APPLY (
 		SELECT
@@ -257,30 +246,6 @@ FROM (
 			
 		END AS HCRA_LINE
 	) HCRA_LINE
-
-	-- EDIT THESE OUT TO FIX PAYOR SEQ NO SPS 11/17/2016	
-	--CROSS APPLY (
-	--	SELECT
-	--		CASE
-	--			WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
-	--			WHEN H.pyr_seq_no = '1' THEN 'INS1'
-	--			WHEN H.pyr_seq_no = '2' THEN 'INS2'
-	--			WHEN H.pyr_seq_no = '3' THEN 'INS3'
-	--			WHEN H.pyr_seq_no = '4' THEN 'INS4'
-	--	END AS PMT_TYPE
-	--) PMT_TYPE
-	
-	--CROSS APPLY (
-	--	SELECT
-	--		CASE
-	--			WHEN H.pyr_seq_no = '0' THEN 'Self Pay'
-	--			WHEN H.pyr_seq_no = '1' THEN 'Primary Insurance'
-	--			WHEN H.pyr_seq_no = '2' THEN 'Secondary Insurance'
-	--			WHEN H.pyr_seq_no = '3' THEN 'Tertiary Insurance'
-	--			WHEN H.pyr_seq_no = '4' THEN 'Quaternary Insurance'
-	--	END AS PMT_TYPE_DESC
-	--) PMT_TYPE_DESC
-	-- END OF EDIT
 
 	CROSS APPLY (
 		SELECT
