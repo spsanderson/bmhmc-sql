@@ -3,9 +3,10 @@ SELECT a.[payor code]
 , a.[payor code description]
 , a.[payor sub-code]
 , a.[payor type]
---, b.elector
---, b.non_elector
---, b.federal
+, b.elector
+, b.non_elector
+, b.federal
+, b.sorted_tin 
 , CASE
 	WHEN b.elector != 'NULL'     
 		THEN b.elector
@@ -28,3 +29,5 @@ SELECT a.[payor code]
 FROM smsdss.c_HCRA_Payor_Data_2016                     AS A
 LEFT JOIN smsdss.c_HCRA_Payor_Code_Elector_Status_2016 AS B
 ON a.[payor sub-code] = b.[payor sub-code]
+
+order by a.[Payor Type]
