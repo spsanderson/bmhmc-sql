@@ -6,7 +6,7 @@ select a.*
   end as [Payor Code Final]
 , b.ins_name
 
---into #temp_a
+into #temp_a
 
 from smsdss.c_HCRA_Static_Data_Unitized_2016 as a
 left join smsdss.c_HCRA_ins_name_unitized as b
@@ -48,7 +48,48 @@ select a.[reference number]
               THEN C.[CODE]
        ELSE A.[Payor Code]
   END AS [Payor Code]
-, a.[Payor Code Description]
+--, a.[Payor Code Description]
+, CASE
+	WHEN a.[Payor Code] = 'MIS' THEN 'Self Pay'
+	WHEN LEFT(a.[Payor Code], 1) = 'A' THEN zzz.[DESCRIPTION]
+	WHEN LEFT(a.[Payor Code], 1) = 'B' THEN zzz.[PAYOR]
+	--WHEN LEFT(a.[Payor Code], 1) = 'C' THEN zzz.[TYPE]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] != 'NULL'
+		 and c.[NAME] = 'NULL' THEN zzz.[TYPE]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] != 'NULL' THEN c.[NAME]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] = 'NULL'   THEN zzz.[TYPE]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] IS NULL THEN zzz.[TYPE]
+	WHEN LEFT(a.[Payor Code], 1) = 'D' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'E'
+		 and a.[Payor Code] != 'E36'   THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'E36'        THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'I'
+		 and a.[Payor Code] != 'I09'   THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'I09'        THEN zzz.[Type]
+	WHEN LEFT(a.[payor code], 1) = 'J'
+		 and a.[Payor Code] != 'J36'   THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'J36'        THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'K'
+		 and a.[Payor Code] not IN ('K03', 'K30', 'K79') THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] IN ('K03', 'K30', 'K79') THEN zzz.[TYPE]
+	WHEN a.[Payor Code] = 'M35' THEN zzz.[TYPE]
+	WHEN a.[Payor Code] = 'm96' THEN zzz.[PAYOR]
+	--WHEN LEFT(a.[payor code], 1) = 'N' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'O' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'S' THEN zzz.[PAYOR]
+	WHEN LEFT(a.[payor code], 1) = 'W'
+		 and a.[Payor Code] != 'W11' THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'W11' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'X'
+		 and a.[Payor Code] not IN ('x21', 'x35', 'x36', 'x41', 'x52', 'x71', 'x91') THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] IN ('x21', 'x36', 'x41', 'x52', 'x71', 'x91') THEN zzz.[TYPE]
+	WHEN a.[payor code] = 'x35' THEN zzz.[DESCRIPTION]
+	WHEN LEFT(a.[payor code], 1) = 'z' THEN zzz.[DESCRIPTION]
+  END AS [Payor Code Description]
 , a.[PAYOR SUB-CODE for elector] -- comment out of view
 , a.[Payor ID Number]
 --, a.[Payor City]
@@ -139,7 +180,7 @@ create table smsdss.c_HCRA_Static_Data_w_TIN_unitized_2016 (
 	, [Admit Date] DATE
 	, [Discharge Date] DATE
 	, [Payor Code] VARCHAR(50)
-	, [Payor Code Description] VARCHAR(100)
+	, [Payor Code Description] VARCHAR(max)
 	, [Payor Sub-Code] VARCHAR(200)
 	, [Payor ID Number] VARCHAR(5)
 	, [Payor City] VARCHAR(70)

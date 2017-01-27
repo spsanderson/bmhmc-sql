@@ -1,15 +1,15 @@
-select a.*
+SELECT a.*
 , CASE
        WHEN a.[Payor Code] = 'MIS' 
               THEN 'Self Pay' + ',' + ISNULL(B.INS_NAME, '') + ',' + ISNULL(I.pyr_name, '') + ',' + ISNULL(H.subscr_ins_grp_name, '') 
        ELSE A.[Payor Code]+ ',' + ISNULL(B.INS_NAME, '') + ',' + ISNULL(I.pyr_name,'') + ',' + ISNULL(H.subscr_ins_grp_name, '')  
   END AS [PAYOR SUB-CODE for elector] 
 
-into #temp_a
+INTO #temp_a
 
-from smsdss.c_HCRA_Static_Data_2016 as a
-left join smsdss.c_hcra_ins_name as b
-on a.[Reference Number] = SUBSTRING(b.PT_ID, 5, 8)
+FROM smsdss.c_HCRA_Static_Data_2016 AS a
+LEFT join smsdss.c_hcra_ins_name AS b
+ON a.[Reference Number] = SUBSTRING(b.PT_ID, 5, 8)
        and a.[Payor Code] = b.pyr_cd
 LEFT JOIN SMSMIR.pyr_plan AS H 
 ON A.[Reference Number] = substring(H.PT_ID , 5, 8)
@@ -18,11 +18,11 @@ LEFT JOIN SMSMIR.pyr_mstr AS I
 ON A.[Payor Code]= I.pyr_cd 
        AND I.iss_orgz_cd = 'S0X0'
 
---select * from #temp_a
+--SELECT * FROM #temp_a
 
 -----
 
-select a.[reference number]
+SELECT a.[reference number]
 , a.[System]
 , a.[MRN]
 , a.[Admit Date]
@@ -34,7 +34,48 @@ select a.[reference number]
               THEN C.[CODE]
        ELSE A.[Payor Code]
   END AS [Payor Code]
-, a.[Payor Code Description]
+--, a.[Payor Code Description]
+, CASE
+	WHEN a.[Payor Code] = 'MIS' THEN 'Self Pay'
+	WHEN LEFT(a.[Payor Code], 1) = 'A' THEN zzz.[DESCRIPTION]
+	WHEN LEFT(a.[Payor Code], 1) = 'B' THEN zzz.[PAYOR]
+	--WHEN LEFT(a.[Payor Code], 1) = 'C' THEN zzz.[TYPE]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] != 'NULL'
+		 and c.[NAME] = 'NULL' THEN zzz.[TYPE]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] != 'NULL' THEN c.[NAME]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] = 'NULL'   THEN zzz.[TYPE]
+	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
+         AND C.[CODE] IS NULL THEN zzz.[TYPE]
+	WHEN LEFT(a.[Payor Code], 1) = 'D' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'E'
+		 and a.[Payor Code] != 'E36'   THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'E36'        THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'I'
+		 and a.[Payor Code] != 'I09'   THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'I09'        THEN zzz.[Type]
+	WHEN LEFT(a.[payor code], 1) = 'J'
+		 and a.[Payor Code] != 'J36'   THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'J36'        THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'K'
+		 and a.[Payor Code] not IN ('K03', 'K30', 'K79') THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] IN ('K03', 'K30', 'K79') THEN zzz.[TYPE]
+	WHEN a.[Payor Code] = 'M35' THEN zzz.[TYPE]
+	WHEN a.[Payor Code] = 'm96' THEN zzz.[PAYOR]
+	--WHEN LEFT(a.[payor code], 1) = 'N' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'O' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'S' THEN zzz.[PAYOR]
+	WHEN LEFT(a.[payor code], 1) = 'W'
+		 and a.[Payor Code] != 'W11' THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'W11' THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'X'
+		 and a.[Payor Code] not IN ('x21', 'x35', 'x36', 'x41', 'x52', 'x71', 'x91') THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] IN ('x21', 'x36', 'x41', 'x52', 'x71', 'x91') THEN zzz.[TYPE]
+	WHEN a.[payor code] = 'x35' THEN zzz.[DESCRIPTION]
+	WHEN LEFT(a.[payor code], 1) = 'z' THEN zzz.[DESCRIPTION]
+  END AS [Payor Code Description]
 , a.[PAYOR SUB-CODE for elector] -- comment out of view
 , a.[Payor ID Number]
 --, a.[Payor City]
@@ -71,7 +112,11 @@ select a.[reference number]
 , a.[Quaternary Payor]
 , a.[Primary v Secondary Indicator]
 , a.[Risk Sharing Payor]
-, a.[Direct/Non Direct Payor]
+--, a.[Direct/Non Direct Payor]
+, CASE
+	WHEN a.[Payor Code] = 'mis' THEN 'Self Pay'
+	else zzz.[ELECTOR STATUS]
+  END AS [Direct/Non Direct Payor]
 , a.[Medical Service Code]
 , a.[Service Code Description]
 , a.[Payment Amount]
@@ -101,18 +146,19 @@ select a.[reference number]
 , b.Non_Elector
 , b.Non_Elector_Name
 , c.*
+, CASE WHEN c.NAME = 'null' THEN '1' else '0' END AS name_test
 , zzz.*
 
-into #temp_b
+INTO #temp_b
 
-from #temp_a as a
-left join smsdss.c_HCRA_Payor_Code_Elector_Status_2016 as b
-on a.[Payor Sub-Code for elector] = b.[Payor Sub-Code]
+FROM #temp_a AS a
+LEFT join smsdss.c_HCRA_Payor_Code_Elector_Status_2016 AS b
+ON a.[Payor Sub-Code for elector] = b.[Payor Sub-Code]
        and a.[Payor Code Description] = b.[Payor Code Description]
-left join smsdss.c_HCRA_Payor_Code_Elector_Status_nf_2016 as c
-on a.[Reference Number] = c.[ref#]
-left join smsdss.c_HCRA_pyr_cd_to_elector_2016 as zzz
-on a.[Payor Code] = zzz.[PYR CODE]
+LEFT join smsdss.c_HCRA_Payor_Code_Elector_Status_nf_2016 AS c
+ON a.[Reference Number] = c.[ref#]
+LEFT join smsdss.c_HCRA_pyr_cd_to_elector_2016 AS zzz
+ON a.[Payor Code] = zzz.[PYR CODE]
 
 ------------------------------
 
@@ -124,7 +170,7 @@ create table smsdss.c_HCRA_Static_Data_w_TIN_2016 (
 	, [Admit Date] DATE
 	, [Discharge Date] DATE
 	, [Payor Code] VARCHAR(50)
-	, [Payor Code Description] VARCHAR(100)
+	, [Payor Code Description] VARCHAR(max)
 	, [Payor Sub-Code] VARCHAR(200)
 	, [Payor ID Number] VARCHAR(5)
 	, [Payor City] VARCHAR(70)
@@ -162,9 +208,9 @@ create table smsdss.c_HCRA_Static_Data_w_TIN_2016 (
 	, UN_ID_NEG_PAY MONEY
 )
 
-insert into smsdss.c_HCRA_Static_Data_w_TIN_2016
+INSERT INTO smsdss.c_HCRA_Static_Data_w_TIN_2016
 
-Select a.[Reference Number]
+SELECT a.[Reference Number]
 , a.[System]
 , a.MRN
 , a.[Admit Date]
@@ -206,4 +252,4 @@ Select a.[Reference Number]
 , a.un_id_pos_pay
 , a.un_id_neg_pay
 
-From #temp_b as a
+From #temp_b AS a

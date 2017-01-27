@@ -519,7 +519,7 @@ from (
 	union all
 
 	select cast(a.[reference number] as varchar) + cast(a.pk as varchar) as [Reference Number]
-		, a.[system]
+		, 'ADS' as [system]
 		, a.mrn
 		, a.[admit date]
 		, a.[discharge date]
@@ -568,3 +568,62 @@ from (
 
 select *
 from #temp_c
+
+---------------------------------------------------------------------------------------------------
+-- Get control totals
+---------------------------------------------------------------------------------------------------
+select datepart(year, [payment entry date]) as pmt_yr
+, datepart(month, [payment entry date]) as pmt_mo
+, sum([payment amount]) as pmt_amt
+
+into #temp_d
+
+from #temp_c
+
+where [PIP Flag] = 'PIP'
+
+group by datepart(year, [payment entry date])
+, datepart(month, [payment entry date])
+
+select datepart(year, [payment entry date]) as pmt_yr
+, datepart(month, [payment entry date]) as pmt_mo
+, sum([payment amount]) as pmt_amt
+
+into #temp_e
+
+from #temp_c
+
+where [PIP Flag] = 'NON-PIP'
+
+group by datepart(year, [payment entry date])
+, datepart(month, [payment entry date])
+
+select datepart(year, [payment entry date]) as pmt_yr
+, datepart(month, [payment entry date]) as pmt_mo
+, sum([payment amount]) as pmt_amt
+
+into #temp_f
+
+from #temp_c
+
+where [PIP Flag] = ''
+
+group by datepart(year, [payment entry date])
+, datepart(month, [payment entry date])
+
+-----
+
+select a.pmt_yr
+, a.pmt_mo
+, a.pmt_amt as [pip]
+, b.pmt_amt as [non-pip]
+, c.pmt_amt as [emm]
+from #temp_d as a
+left join #temp_e as b
+on a.pmt_yr = b.pmt_yr
+	and a.pmt_mo = b.pmt_mo
+left join #temp_f as c
+on a.pmt_yr = c.pmt_yr
+	and a.pmt_mo = c.pmt_mo
+
+order by a.pmt_yr, a.pmt_mo
