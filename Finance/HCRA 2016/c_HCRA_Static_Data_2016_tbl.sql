@@ -151,12 +151,12 @@ FROM (
 	on a.PT_ID = zzz.PT_ID
 	left join smsdss.BMH_PLM_PtAcct_V as xxx
 	on a.PT_ID = xxx.Pt_No
-	and a.hosp_svc = xxx.hosp_svc
-	and a.pt_id_start_dtime = xxx.pt_id_start_dtime
+		and a.hosp_svc = xxx.hosp_svc
+		and a.pt_id_start_dtime = xxx.pt_id_start_dtime
 	-- kick our really old payment plan dms cases
-	and xxx.PtNo_Num not in (
-		'53040861', '53919940'
-	)
+		and xxx.PtNo_Num not in (
+			'53040861', '53919940'
+		)
 	left join smsdss.c_hcra_ins_addr1 as c
 	on a.PT_ID = c.PT_ID
 		and a.pyr_cd = c.pyr_cd

@@ -36,45 +36,130 @@ SELECT a.[reference number]
   END AS [Payor Code]
 --, a.[Payor Code Description]
 , CASE
-	WHEN a.[Payor Code] = 'MIS' THEN 'Self Pay'
-	WHEN LEFT(a.[Payor Code], 1) = 'A' THEN zzz.[DESCRIPTION]
-	WHEN LEFT(a.[Payor Code], 1) = 'B' THEN zzz.[PAYOR]
-	--WHEN LEFT(a.[Payor Code], 1) = 'C' THEN zzz.[TYPE]
+	WHEN a.[Payor Code] = 'MIS' 
+		THEN 'Self Pay'
+
+	WHEN LEFT(a.[Payor Code], 1) = 'A' 
+		THEN zzz.[DESCRIPTION]
+
+	WHEN LEFT(a.[Payor Code], 1) = 'B' 
+		THEN zzz.[PAYOR]
+
 	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
-         AND C.[CODE] != 'NULL'
-		 and c.[NAME] = 'NULL' THEN zzz.[TYPE]
+        AND C.[CODE] != 'NULL'
+		and c.[NAME] = 'NULL' 
+		THEN zzz.[TYPE]
 	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
-         AND C.[CODE] != 'NULL' THEN c.[NAME]
+        AND C.[CODE] != 'NULL' 
+		THEN c.[NAME]
 	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
-         AND C.[CODE] = 'NULL'   THEN zzz.[TYPE]
+        AND C.[CODE] = 'NULL'   
+		THEN zzz.[TYPE]
 	WHEN A.[PAYOR CODE] IN ('C05', 'C30', 'N09', 'N10','N30')
-         AND C.[CODE] IS NULL THEN zzz.[TYPE]
-	WHEN LEFT(a.[Payor Code], 1) = 'D' THEN zzz.[TYPE]
+        AND C.[CODE] IS NULL 
+		THEN zzz.[TYPE]
+
+	WHEN LEFT(a.[Payor Code], 1) = 'D' 
+		THEN zzz.[TYPE]
+
 	WHEN LEFT(a.[payor code], 1) = 'E'
-		 and a.[Payor Code] != 'E36'   THEN zzz.[PAYOR]
-	WHEN a.[Payor Code] = 'E36'        THEN zzz.[TYPE]
+		and a.[Payor Code] != 'E36'   
+		THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'E36'
+		AND b.Elector_Name NOT IN ('0', 'NULL')       
+		THEN COALESCE(B.ELECTOR_NAME, ZZZ.[TYPE])
+	WHEN a.[Payor Code] = 'E36'
+		AND (
+			b.Elector_Name IN ('0', 'NULL')
+		OR b.Elector_Name IS NULL
+		)
+		THEN zzz.[TYPE]
+
+	WHEN a.[Payor Code] = 'i01'
+		THEN zzz.[PAYOR]
 	WHEN LEFT(a.[payor code], 1) = 'I'
-		 and a.[Payor Code] != 'I09'   THEN zzz.[PAYOR]
-	WHEN a.[Payor Code] = 'I09'        THEN zzz.[Type]
+		and a.[Payor Code] != 'I09'   
+		THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'I09'
+		AND b.[Elector_Name] NOT IN ('0', 'NULL')
+		THEN COALESCE(B.[ELECTOR_NAME], ZZZ.[TYPE])
+	WHEN a.[Payor Code] = 'I09'
+		AND (
+			b.[Elector_Name] IN ('O', 'NULL')
+		OR b.[Elector_Name] IS NULL
+		)
+		THEN zzz.[TYPE]
+
 	WHEN LEFT(a.[payor code], 1) = 'J'
-		 and a.[Payor Code] != 'J36'   THEN zzz.[PAYOR]
-	WHEN a.[Payor Code] = 'J36'        THEN zzz.[TYPE]
+		and a.[Payor Code] != 'J36'   
+		THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'J36'        
+		AND b.[Elector_Name] NOT IN ('0', 'NULL')
+		THEN COALESCE(B.[ELECTOR_NAME], ZZZ.[TYPE])
+	WHEN a.[Payor Code] = 'J36'
+		AND (
+			b.[Elector_Name] IN ('0', 'NULL')
+		OR b.[Elector_Name] IS NULL
+		)
+		THEN zzz.[TYPE]
+
 	WHEN LEFT(a.[payor code], 1) = 'K'
-		 and a.[Payor Code] not IN ('K03', 'K30', 'K79') THEN zzz.[PAYOR]
-	WHEN a.[Payor Code] IN ('K03', 'K30', 'K79') THEN zzz.[TYPE]
-	WHEN a.[Payor Code] = 'M35' THEN zzz.[TYPE]
-	WHEN a.[Payor Code] = 'm96' THEN zzz.[PAYOR]
-	--WHEN LEFT(a.[payor code], 1) = 'N' THEN zzz.[TYPE]
-	WHEN LEFT(a.[payor code], 1) = 'O' THEN zzz.[TYPE]
-	WHEN LEFT(a.[payor code], 1) = 'S' THEN zzz.[PAYOR]
+		and a.[Payor Code] not IN ('K03', 'K30', 'K79', 'K20') 
+		THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] IN ('K79') 
+		THEN zzz.[TYPE]
+	WHEN a.[Payor Code] IN ('K20', 'K03', 'K30')
+		AND b.[Elector_Name] NOT IN ('0', 'NULL')
+		THEN COALESCE(B.[ELECTOR_NAME], ZZZ.[TYPE])
+	WHEN a.[Payor Code] IN ('K20', 'K03', 'K30')
+		AND (
+			b.Elector_Name IN ('0', 'NULL')
+			OR b.Elector_Name IS NULL
+		)
+		THEN zzz.[TYPE]
+
+	WHEN a.[Payor Code] = 'M35' 
+		THEN zzz.[TYPE]
+
+	WHEN a.[Payor Code] = 'm96' 
+		THEN zzz.[PAYOR]
+
+	WHEN LEFT(a.[payor code], 1) = 'O' 
+		THEN zzz.[TYPE]
+
+	WHEN LEFT(a.[payor code], 1) = 'S' 
+		THEN zzz.[PAYOR]
+
 	WHEN LEFT(a.[payor code], 1) = 'W'
-		 and a.[Payor Code] != 'W11' THEN zzz.[PAYOR]
-	WHEN a.[Payor Code] = 'W11' THEN zzz.[TYPE]
+		 and a.[Payor Code] != 'W11' 
+		 THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] = 'W11' 
+		THEN zzz.[TYPE]
+
 	WHEN LEFT(a.[payor code], 1) = 'X'
-		 and a.[Payor Code] not IN ('x21', 'x35', 'x36', 'x41', 'x52', 'x71', 'x91') THEN zzz.[PAYOR]
-	WHEN a.[Payor Code] IN ('x21', 'x36', 'x41', 'x52', 'x71', 'x91') THEN zzz.[TYPE]
-	WHEN a.[payor code] = 'x35' THEN zzz.[DESCRIPTION]
-	WHEN LEFT(a.[payor code], 1) = 'z' THEN zzz.[DESCRIPTION]
+		 and a.[Payor Code] not IN ('x21', 'x35', 'x36', 'x41', 'x52', 'x71', 'x91') 
+		 and zzz.[PAYOR] IS null 
+		 THEN zzz.[TYPE]
+	WHEN LEFT(a.[payor code], 1) = 'X'
+		 and a.[Payor Code] not IN ('x21', 'x35', 'x36', 'x41', 'x52', 'x71', 'x91') 
+		 THEN zzz.[PAYOR]
+	WHEN a.[Payor Code] IN ('x21', 'x41', 'x52', 'x71', 'x91') 
+		THEN zzz.[TYPE]
+	WHEN a.[Payor Code] = 'X36'
+		AND b.Elector_Name NOT IN ('0', 'NULL')
+		THEN COALESCE(B.ELECTOR_NAME, ZZZ.[TYPE])
+	WHEN a.[Payor Code] = 'X36'
+		AND (
+			b.Elector_Name IN ('0', 'NULL')
+			OR b.Elector_Name IS NULL 
+		)
+		THEN zzz.[TYPE]
+	WHEN a.[payor code] = 'x35' 
+		THEN zzz.[DESCRIPTION]
+
+	WHEN LEFT(a.[payor code], 1) = 'z' 
+		THEN 'Medicare Part B'
+
   END AS [Payor Code Description]
 , a.[PAYOR SUB-CODE for elector] -- comment out of view
 , a.[Payor ID Number]

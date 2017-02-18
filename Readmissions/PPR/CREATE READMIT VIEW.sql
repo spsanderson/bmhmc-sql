@@ -1,17 +1,19 @@
 USE [SMSPHDSSS0X0]
 GO
 
-/****** 
-
-Object:  View [smsdss].[vReadmits]    Script Date: 06/30/2014 12:15:07 
-
-******/
-
+/****** Object:  View [smsdss].[vReadmits]    Script Date: 2/7/2017 9:27:52 AM ******/
 SET ANSI_NULLS ON
 GO
 
 SET QUOTED_IDENTIFIER ON
 GO
+
+
+
+
+
+
+
 
 ALTER VIEW [smsdss].[vReadmits]
 AS
@@ -33,6 +35,8 @@ WITH cte AS (
   
   WHERE Plm_Pt_Acct_Type = 'I'
   AND PtNo_Num < '20000000' 
+  AND LEFT(PtNo_Num, 1) = '1'
+  AND LEFT(PtNo_Num, 4) != '1999'
   )
 SELECT
 c1.PtNo_Num                                AS [INDEX]
@@ -54,4 +58,14 @@ INNER JOIN cte c2 ON c1.Med_Rec_No = c2.Med_Rec_No
 WHERE c1.Adm_Date <> c2.Adm_Date
 AND c1.r+1 = c2.r
 
+
+
+
+
+
+
+
+
 GO
+
+

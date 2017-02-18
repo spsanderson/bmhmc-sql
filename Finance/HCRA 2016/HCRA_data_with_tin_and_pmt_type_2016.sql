@@ -566,8 +566,129 @@ from (
 
 ---------------------------------------------------------------------------------------------------
 
-select *
-from #temp_c
+select a.[Reference Number]
+, left(a.[reference number], 8) as test_pt_id
+, a.[System]
+, a.[MRN]
+, a.[Admit Date]
+, a.[Discharge Date]
+, b.adm_date
+, b.dsch_date
+, case
+	when a.[Admit Date] IS null 
+		then b.adm_date
+	else a.[Admit Date]
+  end as [Admit Date Test]
+, case
+	when a.[Discharge Date] IS NULL
+		and b.dsch_date IS NULL
+		then b.adm_date
+	when a.[Discharge Date] IS NULL
+		then b.dsch_date
+	else a.[Discharge Date]
+  end as [Discharge Date Test]
+, case
+	when a.[System] = 'ADS'
+		and a.[payor code] is null
+		and a.[Payment Type Description] like '%patient%'
+		then 'Self'
+	when a.[system] = 'ads'
+		and a.[payor code] is null
+		and a.[Payment Type Description] like '%medic%'
+		then 'MDCD'
+	else a.[Payor Code]
+  end as [Payor Code]
+, case 
+	when a.[Payor Code Description] is null
+		and a.[Payment Type Description] like '%medic%'
+		then 'MEDICAID'
+	else a.[Payor Code Description]
+  end as [Payor Code Description]
+, '' as [Payor Sub-Code]
+, a.[Payor ID Number]
+, a.[Payor City]
+, a.[Payor State]
+, a.[Payor TIN]
+, a.[Primary Payor]
+, a.[Secondary Payor]
+, a.[Tertiary Payor]
+, a.[Quaternary Payor]
+, a.[Primary v Secondary Indicator]
+, a.[Risk Sharing Payor]
+, a.[Direct/Non Direct Payor]
+, a.[Medical Service Code]
+, a.[Service Code Description]
+, a.[Payment Amount]
+, case 
+	when a.[System] = 'ADS' 
+	and a.[Payment Type] is null
+	and a.[Payment Type Description] like '%medic%'
+		then 'MEDICAID'
+	else a.[Payment Type Description]
+  end as [Payment Description]
+, case
+	when a.[system] = 'fms'
+		then coalesce(a.[Flag_A], a.[Payment Type Description])
+	else a.[Payment Type Description]
+  end as [Payment Type Description]
+, a.[Receivable Type]
+, a.[HCRA Line]
+, a.[HCRA Line Description]
+, a.[Payment Entry Date]
+
+into #temp_d
+
+from #temp_c a
+left merge join smsmir.vst_rpt as b
+on left(a.[reference number], 8) = substring(b.pt_id, 5, 8)
+	and left(a.[reference number], 1) != '7'
+	and left(a.[reference number], 8) not in (
+		'53040861', '53919940'
+	)
+
+--where a.[Reference Number] = ''
+--where a.[admit date] is null
+--and a.[discharge date] is null
+
+-----
+
+select a.[Reference Number]
+, a.[System]
+, a.MRN
+, cast(a.[Admit Date Test] as date) as [Admit Date]
+, CAST(a.[discharge date test] as date) as [Discharge Date]
+, a.[Payor Code]
+, a.[Payor Code Description]
+, a.[Payor Sub-Code]
+, a.[Payor ID Number]
+, a.[Payor City]
+, a.[Payor State]
+, a.[Payor TIN]
+, a.[Primary Payor]
+, a.[Secondary Payor]
+, a.[Tertiary Payor]
+, a.[Quaternary Payor]
+, a.[Primary v Secondary Indicator]
+, a.[Risk Sharing Payor]
+, a.[Direct/Non Direct Payor]
+, a.[Medical Service Code]
+, a.[Service Code Description]
+, ISNULL(a.[Payment Amount], 0) as [Payment Amount]
+, a.[Payment Description]
+, a.[Receivable Type]
+, a.[HCRA Line]
+, a.[HCRA Line Description]
+, a.[Payment Entry Date]
+
+into #temp_e
+
+from #temp_d a
+
+-----
+
+select a.*
+
+from #temp_e as a
 
 ---------------------------------------------------------------------------------------------------
 -- Get control totals

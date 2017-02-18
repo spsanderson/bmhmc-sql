@@ -255,3 +255,5 @@ ON A.pt_id = I.Encounter
 
 WHERE A.pt_sts_cd = 'IA'
 AND A.dsch_dtime IS NULL
+
+OPTION(FORCE ORDER);

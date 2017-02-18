@@ -84,13 +84,13 @@ SELECT a.[INDEX]                      AS [Initial_Encounter]
 , D.LIHN_Service_Line                 AS [Readmit LIHN Service Line]
 
 FROM smsdss.vReadmits                                      AS A
-LEFT OUTER MERGE JOIN smsdss.bmh_plm_ptacct_v              AS B
+LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v              AS B
 ON a.[INDEX] = b.PtNo_Num
 	AND a.MRN = b.Med_Rec_No
 LEFT OUTER JOIN smsdss.pract_dim_v                         AS C
 ON b.Atn_Dr_No = c.src_pract_no
 	AND c.orgz_cd = 'S0X0'
-LEFT OUTER MERGE JOIN smsdss.c_LIHN_Svc_Lines_Rpt2_icd10_v AS D
+LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt2_icd10_v AS D
 ON A.[READMIT] = SUBSTRING(d.pt_id, 5, 8)
 
 WHERE INTERIM < 31
@@ -102,4 +102,4 @@ AND b.Adm_Date < '2015-10-01'
 AND b.tot_chg_amt > '0'
 -- end edit -----------------------------------------------------------
 
-ORDER BY a.[INDEX]
+OPTION(FORCE ORDER);

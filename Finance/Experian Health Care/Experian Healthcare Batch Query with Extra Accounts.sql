@@ -4,7 +4,7 @@ DECLARE @test TABLE (
 )
 
 INSERT INTO @test
-VALUES (''), (''), ('')
+SELECT PT_NO FROM smsdss.C_FRIDAY_EXPERIAN_FILE
 
 DECLARE @BatchTable TABLE (
 	PK INT IDENTITY(1, 1)               PRIMARY KEY
