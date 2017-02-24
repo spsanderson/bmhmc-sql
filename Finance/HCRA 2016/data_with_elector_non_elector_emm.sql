@@ -4,7 +4,12 @@ select a.[Payment/Invoice] as [Reference Number]
 , a.MRN
 , a.[Admit Date]
 , a.[Discharge Date]
-, a.[Ins Code] as [Payor Code]
+--, a.[Ins Code] as [Payor Code]
+, case
+	when a.Prim = 'Prim' then a.[Ins Code]
+	when a.Prim = 'Sec' then a.[2nd Ins Code]
+	else 'Self Pay'
+  end as [Payor Code]
 , a.[Insurance] as [Payor Code Description]
 , a.[Payor Sub-code]
 , '' as [Payor ID Number]

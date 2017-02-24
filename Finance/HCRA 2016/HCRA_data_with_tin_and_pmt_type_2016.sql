@@ -686,9 +686,48 @@ from #temp_d a
 
 -----
 
-select a.*
+select a.[Reference Number]
+, a.[System]
+, a.[MRN]
+, a.[Admit Date]
+, a.[Discharge Date]
+, coalesce(b.[new_pyr_cd], c.[new_pyr_cd], d.[new_pyr_cd], e.[new_pyr_cd], a.[Payor Code]) as [Payor Code]
+--, B.[new_pyr_cd]
+, a.[Payor Code Description]
+, a.[Payor Sub-Code]
+, a.[Payor ID Number]
+, a.[Payor City]
+, a.[Payor State]
+, a.[Payor TIN]
+, a.[Primary Payor]
+, a.[Secondary Payor]
+, a.[Tertiary Payor]
+, a.[Quaternary Payor]
+, a.[Primary v Secondary Indicator]
+, a.[Risk Sharing Payor]
+, a.[Direct/Non Direct Payor]
+, a.[Medical Service Code]
+, a.[Service Code Description]
+, a.[Payment Amount]
+, a.[Payment Description]
+, a.[Receivable Type]
+, a.[HCRA Line]
+, a.[HCRA Line Description]
+, a.[Payment Entry Date]
 
 from #temp_e as a
+left join smsdss.c_hcra_e36_seq_tbl as b
+on a.[Payor Code] = B.[payor code]
+	and a.[Payor Code Description] = B.[payor code description]
+left join smsdss.c_hcra_x36_seq_tbl as c
+on a.[Payor Code] = C.[payor code]
+	and a.[Payor Code Description] = C.[payor code description]
+left join smsdss.c_hcra_i09_seq_tbl as d
+on a.[Payor Code] = d.[payor code]
+	and a.[Payor Code Description] = d.[payor code description]
+left join smsdss.c_hcra_k20_seq_tbl as e
+on a.[Payor Code] = E.[payor code]
+	and a.[Payor Code Description] = E.[payor code description]
 
 ---------------------------------------------------------------------------------------------------
 -- Get control totals
