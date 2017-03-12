@@ -20,8 +20,8 @@ ON a.bill_no = c.PtNo_Num
 LEFT OUTER MERGE JOIN SMSDSS.c_Softmed_Denials_Detail_v               AS D
 ON A.BILL_NO = SUBSTRING(D.bill_no, 5,8) COLLATE SQL_Latin1_General_CP1_CI_AS
 
-WHERE C.Dsch_Date >= '2015-01-01'
-AND C.Dsch_Date < '2016-01-01'
+WHERE C.Adm_Date >= '2015-01-01'
+AND C.Adm_Date < '2016-01-01'
 AND (
 	b.cerm_review_type = 'Admission'
 	or

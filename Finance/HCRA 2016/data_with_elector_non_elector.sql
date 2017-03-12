@@ -106,12 +106,12 @@ SELECT a.[reference number]
 	WHEN LEFT(a.[payor code], 1) = 'K'
 		and a.[Payor Code] not IN ('K03', 'K30', 'K79', 'K20') 
 		THEN zzz.[PAYOR]
-	WHEN a.[Payor Code] IN ('K79') 
-		THEN zzz.[TYPE]
-	WHEN a.[Payor Code] IN ('K20', 'K03', 'K30')
+	WHEN a.[Payor Code] IN ('K79', 'K03','K30') 
+		THEN zzz.[DESCRIPTION]
+	WHEN a.[Payor Code] IN ('K20')
 		AND b.[Elector_Name] NOT IN ('0', 'NULL')
 		THEN COALESCE(B.[ELECTOR_NAME], ZZZ.[TYPE])
-	WHEN a.[Payor Code] IN ('K20', 'K03', 'K30')
+	WHEN a.[Payor Code] IN ('K20')
 		AND (
 			b.Elector_Name IN ('0', 'NULL')
 			OR b.Elector_Name IS NULL
@@ -153,7 +153,7 @@ SELECT a.[reference number]
 			b.Elector_Name IN ('0', 'NULL')
 			OR b.Elector_Name IS NULL 
 		)
-		THEN zzz.[TYPE]
+		THEN coalesce(a.[payor code description], zzz.[TYPE])
 	WHEN a.[payor code] = 'x35' 
 		THEN zzz.[DESCRIPTION]
 
@@ -161,6 +161,7 @@ SELECT a.[reference number]
 		THEN 'Medicare Part B'
 
   END AS [Payor Code Description]
+--, xxx.ins_name
 , a.[PAYOR SUB-CODE for elector] -- comment out of view
 , a.[Payor ID Number]
 --, a.[Payor City]
@@ -233,6 +234,8 @@ SELECT a.[reference number]
 , c.*
 , CASE WHEN c.NAME = 'null' THEN '1' else '0' END AS name_test
 , zzz.*
+--, xxx.[Reference Number] as [vauge encounter]
+--, xxx.[Payor Sub-Code]
 
 INTO #temp_b
 
@@ -244,6 +247,17 @@ LEFT join smsdss.c_HCRA_Payor_Code_Elector_Status_nf_2016 AS c
 ON a.[Reference Number] = c.[ref#]
 LEFT join smsdss.c_HCRA_pyr_cd_to_elector_2016 AS zzz
 ON a.[Payor Code] = zzz.[PYR CODE]
+-- add in vauge researched by k desposito spreadsheet here
+-- smsdss.c_HCRA_vauge_researched_internally_2016
+--left join smsdss.c_hcra_vauge_researched_internally_2016 as xxx
+--on a.[Payor Sub-Code for elector] = xxx.[payor sub-code]
+--	and a.[reference number] = xxx.[reference number]
+
+--where a.[reference number] in (
+--	select [reference number]
+--	from smsdss.c_hcra_vauge_researched_internally_2016
+--)
+
 
 ------------------------------
 
@@ -295,23 +309,28 @@ create table smsdss.c_HCRA_Static_Data_w_TIN_2016 (
 
 INSERT INTO smsdss.c_HCRA_Static_Data_w_TIN_2016
 
-SELECT a.[Reference Number]
+select a.[Reference Number]
 , a.[System]
-, a.MRN
+, a.[MRN]
 , a.[Admit Date]
 , a.[Discharge Date]
 , a.[Payor Code]
 , a.[Payor Code Description]
-, a.[PAYOR SUB-CODE for elector]
+--, case
+--	when a.ins_name IS Not null and a.ins_name !=''
+--	then a.ins_name
+--	else a.[Payor Code Description]
+--  end as [Payor Code Description]
+, a.[Payor Sub-Code for elector]
 , a.[Payor ID Number]
-, a.[payor city]
+, a.[Payor City]
 , a.[Payor State]
-, a.[Payor Tin]
+, a.[Payor TIN]
 , a.[Primary Payor]
 , a.[Secondary Payor]
 , a.[Tertiary Payor]
 , a.[Quaternary Payor]
-, a.[primary v secondary indicator]
+, a.[Primary v Secondary Indicator]
 , a.[Risk Sharing Payor]
 , a.[Direct/Non Direct Payor]
 , a.[Medical Service Code]
@@ -323,7 +342,7 @@ SELECT a.[Reference Number]
 , a.[HCRA Line]
 , a.[HCRA Line Description]
 , a.[Payment Entry Date]
-, a.[pip flag]
+, a.[PIP Flag]
 , a.copay_flag
 , a.copay_positive_pay
 , a.copay_negative_pay
@@ -337,4 +356,6 @@ SELECT a.[Reference Number]
 , a.un_id_pos_pay
 , a.un_id_neg_pay
 
-From #temp_b AS a
+from #temp_b as a
+
+--drop table #temp_a, #temp_b

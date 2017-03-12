@@ -682,7 +682,7 @@ select a.[Reference Number]
 
 into #temp_e
 
-from #temp_d a
+from #temp_d as a
 
 -----
 
@@ -691,9 +691,29 @@ select a.[Reference Number]
 , a.[MRN]
 , a.[Admit Date]
 , a.[Discharge Date]
-, coalesce(b.[new_pyr_cd], c.[new_pyr_cd], d.[new_pyr_cd], e.[new_pyr_cd], a.[Payor Code]) as [Payor Code]
---, B.[new_pyr_cd]
-, a.[Payor Code Description]
+, coalesce(
+	b.[new_pyr_cd], c.[new_pyr_cd], 
+	d.[new_pyr_cd], e.[new_pyr_cd], 
+	xxx.new_pyr_cd, zzz.new_pyr_cd, 
+	a.[Payor Code]
+) as [Payor Code]
+, zzz.new_pyr_cd
+, zzz.pyr_cd
+--, a.[Payor Code Description]
+, case
+	when (
+		a.[Payor Code] in ('n09','n10','n30')
+		and a.[Payor Code Description] = 'no fault'
+	)
+		then coalesce(zzz.ins_co, a.[payor code description])
+	when (
+		a.[Payor Code] in ('c05') 
+		and a.[Payor Code Description] like 'Worker%s Comp'
+		and yyy.insurance_company != ''
+	)
+		then coalesce(yyy.insurance_company, a.[payor code description])
+	else a.[Payor Code Description]
+  end as [Payor Code Description]
 , a.[Payor Sub-Code]
 , a.[Payor ID Number]
 , a.[Payor City]
@@ -714,6 +734,9 @@ select a.[Reference Number]
 , a.[HCRA Line]
 , a.[HCRA Line Description]
 , a.[Payment Entry Date]
+, zzz.ins_co
+
+into #temp_f
 
 from #temp_e as a
 left join smsdss.c_hcra_e36_seq_tbl as b
@@ -728,6 +751,66 @@ on a.[Payor Code] = d.[payor code]
 left join smsdss.c_hcra_k20_seq_tbl as e
 on a.[Payor Code] = E.[payor code]
 	and a.[Payor Code Description] = E.[payor code description]
+left join smsdss.c_hcra_no_fault_researched_internally_2016 as zzz
+on left(a.[reference number], 8) = zzz.encounter
+	and left(a.[Payor Code],3) = zzz.pyr_cd
+-- add j36 seq tbl
+left join smsdss.c_hcra_j36_seq_tbl as xxx
+on a.[Payor Code] = xxx.[payor code]
+	and a.[Payor Code Description] = xxx.[payor code description]
+-- add c05 wip
+left join smsdss.c_hcra_c05_wip_internal_research yyy
+on a.[Reference Number] = yyy.[reference number]
+	--and a.[Payor Code] = yyy.[payor code]
+	--and a.[Payor Code Description] = yyy.[payor code description]
+
+
+--where a.[System] = 'fms'
+--and a.[Payor Code] = 'c05'
+
+
+-----
+
+select a.[Reference Number]
+, a.[System]
+, a.[MRN]
+, a.[Admit Date]
+, a.[Discharge Date]
+, a.[Payor Code]
+, coalesce(b.[ins_co], a.[payor code description]) as [Payor Code Description]
+, a.[Payor ID Number]
+, coalesce(b.[city], a.[Payor City]) as [Payor City]
+, coalesce(b.[State], a.[Payor State]) as [Payor State]
+, a.[Payor TIN]
+, a.[Primary Payor]
+, a.[Secondary Payor]
+, a.[Tertiary Payor]
+, a.[Quaternary Payor]
+, a.[Primary v Secondary Indicator]
+, a.[Risk Sharing Payor]
+, a.[Direct/Non Direct Payor]
+, a.[Medical Service Code]
+, a.[Service Code Description]
+, a.[Payment Amount]
+, a.[Payment Description]
+, a.[Receivable Type]
+, a.[HCRA Line]
+, a.[HCRA Line Description]
+, a.[Payment Entry Date]
+
+from #temp_f as a
+left join [smsdss].[c_HCRA_nf_wc_internal] as b
+on a.[Payor Code] = B.[Payor code]
+
+where a.[System] = 'fms'
+--and a.[Payor Code] = 'c05' 
+and a.[Payor Code] != 'MIS'
+
+-----
+--drop table #temp_a, #temp_b, #temp_c, #temp_d, #temp_e, #temp_f
+
+
+
 
 ---------------------------------------------------------------------------------------------------
 -- Get control totals

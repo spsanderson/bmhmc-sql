@@ -8,9 +8,32 @@ select a.[Payment/Invoice] as [Reference Number]
 , case
 	when a.Prim = 'Prim' then a.[Ins Code]
 	when a.Prim = 'Sec' then a.[2nd Ins Code]
+	when (
+		Prim IS null
+		and
+		[Type Description] in (
+			'Medicaid Payment',
+			'APG MEDICAID PAYMENT'
+		)
+	)
+	then 'MDCD'
 	else 'Self Pay'
   end as [Payor Code]
-, a.[Insurance] as [Payor Code Description]
+--, a.[Insurance] as [Payor Code Description]
+, case
+	when a.Prim = 'Prim' then a.[Insurance]
+	when a.Prim = 'Sec' then a.[2nd Ins]
+	when (
+		Prim IS null
+		and
+		[Type Description] in (
+			'Medicaid Payment',
+			'APG MEDICAID PAYMENT'
+		)
+	)
+	then 'Medicaid'
+	else 'Self Pay'
+  end as [Payor Code Description]
 , a.[Payor Sub-code]
 , '' as [Payor ID Number]
 , a.[Payor City]
@@ -86,8 +109,12 @@ select a.[reference number]
 , a.MRN
 , a.[Admit Date]
 , a.[Discharge Date]
-, a.[Payor Code]
-, a.[Payor Code Description]
+, ltrim(rtrim(a.[Payor Code])) as [Payor Code]
+, case
+	when a.[Payor Code] != 'Self Pay'
+		then ltrim(rtrim(a.[Payor Code Description]))
+	else 'Self Pay'
+  end as [Payor Code Description]
 , a.[Payor Sub-code]
 , a.[Payor ID number]
 , a.[Payor City]
@@ -96,6 +123,7 @@ select a.[reference number]
 	when a.[Payor TIN] is null then b.[Payor TIN]
 	else a.[Payor TIN]
   end as [Payor TIN]
+, coalesce(b.[payor tin], a.[payor tin]) p_tin_test
 , a.[Primary Payor]
 , a.[2nd ins code]
 , a.[2nd ins]
@@ -200,6 +228,9 @@ select b.*
 	when b.[Payor TIN] is null
 		and b.[payor code description] like '%unkechaug indian nation%'
 		then 'KPMG Question'
+	when b.[Payor TIN] IS null 
+		and b.[Payor Code Description] like '%medicaid%'
+		then 'Federal'
   end as [Payor TIN Third Pass]		
 
 into #temp_c
@@ -209,13 +240,148 @@ from #temp_b as b
 -----
 
 select c.*
-, coalesce(c.[Payor TIN], c.[payor tin third pass]) as [payor tin final]
+, coalesce(c.p_tin_test, c.[Payor TIN], c.[payor tin third pass]) as [payor tin final]
+, [description].[desc]
 
 into #temp_d
 
 from #temp_c as c
 
------
+cross apply (
+	select
+		case
+			WHEN c.[Payor Code] = '1199' THEN 'L1199 NATL BENEFIT FUND'
+			WHEN c.[Payor Code] = 'AAET' THEN 'Aetna'
+			WHEN c.[Payor Code] = 'AAET' THEN 'Aetna'
+			WHEN c.[Payor Code] = 'AARP' THEN 'AARP Health Care Options Federal'
+			WHEN c.[Payor Code] = 'ABMH' THEN 'Aetna'
+			WHEN c.[Payor Code] = 'AET' THEN 'Aetna'
+			WHEN c.[Payor Code] = 'AETN' THEN 'Aetna'
+			WHEN c.[Payor Code] = 'AETP' THEN 'Aetna'
+			WHEN c.[Payor Code] = 'AMGP' THEN 'Amrigroup'
+			WHEN c.[Payor Code] = 'BEA' THEN 'Beacon Health Strategies'
+			WHEN c.[Payor Code] = 'BEA' THEN 'Beacon Health Strategies Federal'
+			WHEN c.[Payor Code] = 'BEA9' THEN 'Beacon Health Strategies'
+			WHEN c.[Payor Code] = 'BEA9' THEN 'Beacon Health Strategies'
+			WHEN c.[Payor Code] = 'BLSC' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'BLSC' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'BLSC' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'BLSF' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'BLSF' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'BLSH' THEN 'BCBS Federal'
+			WHEN c.[Payor Code] = 'BLSH' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'BLSP' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'BLSP' THEN 'BCBS Federal'
+			WHEN c.[Payor Code] = 'BLSP' THEN 'Empire BCBS'
+			WHEN c.[Payor Code] = 'CIBG' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIBH' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIBH' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIG3' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIG3' THEN 'Cigna Federal'
+			WHEN c.[Payor Code] = 'CIG7' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIG8' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIG8' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIGB' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIGN' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'CIGU' THEN 'Cigna'
+			WHEN c.[Payor Code] = 'COM1' THEN 'Commercial'
+			WHEN c.[Payor Code] = 'COMM' THEN 'Commercial'
+			WHEN c.[Payor Code] = 'COMM' THEN 'Metrohealth Federal'
+			WHEN c.[Payor Code] = 'COMM' THEN 'Commercial Federal'
+			WHEN c.[Payor Code] = 'COMM' THEN 'Commercial'
+			WHEN c.[Payor Code] = 'COMM' THEN 'Consoidated Health Plans'
+			WHEN c.[Payor Code] = 'FID9' THEN 'Fidelis'
+			WHEN c.[Payor Code] = 'FID9' THEN 'Fidelis'
+			WHEN c.[Payor Code] = 'FID9' THEN 'Fidelis Federal'
+			WHEN c.[Payor Code] = 'FID9' THEN 'Fidelis Federal'
+			WHEN c.[Payor Code] = 'FIDC' THEN 'Fidelis'
+			WHEN c.[Payor Code] = 'FIDC' THEN 'Fidelis'
+			WHEN c.[Payor Code] = 'FIDE' THEN 'Fidelis'
+			WHEN c.[Payor Code] = 'FIDS' THEN 'Fidelis'
+			WHEN c.[Payor Code] = 'FIDS' THEN 'Fidelis'
+			WHEN c.[Payor Code] = 'GEAS' THEN 'GEHA-ASA'
+			WHEN c.[Payor Code] = 'GHI' THEN 'GHI'
+			WHEN c.[Payor Code] = 'GHI' THEN 'GHI Federal'
+			WHEN c.[Payor Code] = 'GHI5' THEN 'GHI'
+			WHEN c.[Payor Code] = 'GHI5' THEN 'GHI'
+			WHEN c.[Payor Code] = 'GHI5' THEN 'GHI Federal'
+			WHEN c.[Payor Code] = 'GHI6' THEN 'GHI Federal'
+			WHEN c.[Payor Code] = 'GHI6' THEN 'GHI'
+			WHEN c.[Payor Code] = 'GHIM' THEN 'GHI Medicare Federal'
+			WHEN c.[Payor Code] = 'GHIM' THEN 'GHI'
+			WHEN c.[Payor Code] = 'GHIM' THEN 'GHI Medicare Federal'
+			WHEN c.[Payor Code] = 'GHIP' THEN 'GHI'
+			WHEN c.[Payor Code] = 'HEA' THEN 'Helath First Inc'
+			WHEN c.[Payor Code] = 'HEA9' THEN 'Helath First Inc'
+			WHEN c.[Payor Code] = 'HEA9' THEN 'Health First Inc Federal'
+			WHEN c.[Payor Code] = 'HEA9' THEN 'Helath First Inc'
+			WHEN c.[Payor Code] = 'HEAS' THEN 'Helath First Inc'
+			WHEN c.[Payor Code] = 'HIPP' THEN 'HIP Health Plan'
+			WHEN c.[Payor Code] = 'HIPP' THEN 'HIP Health Plan Federal'
+			WHEN c.[Payor Code] = 'HREP' THEN 'Health Republic Ins'
+			WHEN c.[Payor Code] = 'IGA' THEN 'Island Group Admistrators'
+			WHEN c.[Payor Code] = 'MAG' THEN 'Magnacare'
+			WHEN c.[Payor Code] = 'MAGE' THEN 'Magellan Behavioral'
+			WHEN c.[Payor Code] = 'MAGL' THEN 'Magellan Behavioral'
+			WHEN c.[Payor Code] = 'MAGL' THEN 'Magellan Behavioral Federal'
+			WHEN c.[Payor Code] = 'MAGN' THEN 'Magnacare'
+			WHEN c.[Payor Code] = 'MALO' THEN 'Maloney Associates Inc'
+			WHEN c.[Payor Code] = 'MDCD' THEN 'Medicaid'
+			WHEN c.[Payor Code] = 'MDCD' THEN 'Medicaid'
+			WHEN c.[Payor Code] = 'MDCD' THEN 'Medicare'
+			WHEN c.[Payor Code] = 'MDCR' THEN 'Medicare'
+			WHEN c.[Payor Code] = 'MDCR' THEN 'Medicaid'
+			WHEN c.[Payor Code] = 'NHP' THEN 'NEIGHBORHOOD HEALTH'
+			WHEN c.[Payor Code] = 'OFP' THEN 'Oxford'
+			WHEN c.[Payor Code] = 'OFPP' THEN 'Oxford'
+			WHEN c.[Payor Code] = 'OFPP' THEN 'Oxford'
+			WHEN c.[Payor Code] = 'OPPT' THEN 'Optum Health'
+			WHEN c.[Payor Code] = 'OPPT' THEN 'Optum Health Federal'
+			WHEN c.[Payor Code] = 'OPT' THEN 'Optum Health Federal'
+			WHEN c.[Payor Code] = 'OPT' THEN 'Optum Health'
+			WHEN c.[Payor Code] = 'OXUH' THEN 'Oxford'
+			WHEN c.[Payor Code] = 'OXUH' THEN 'Oxford'
+			WHEN c.[Payor Code] = 'RRMC' THEN 'Railroad Medicare'
+			WHEN c.[Payor Code] = 'Self Pay' THEN 'Self Pay'
+			WHEN c.[Payor Code] = 'Self Pay' THEN 'Self Pay'
+			WHEN c.[Payor Code] = 'SHP' THEN 'SUFFOLK HEALTH PLAN'
+			WHEN c.[Payor Code] = 'TRI' THEN 'Tricare'
+			WHEN c.[Payor Code] = 'UBAA' THEN 'United Healthcare AARP Federal'
+			WHEN c.[Payor Code] = 'UBH' THEN 'United Behaviroal Health'
+			WHEN c.[Payor Code] = 'UBH1' THEN 'United Behaviroal Health'
+			WHEN c.[Payor Code] = 'UBH1' THEN 'United Behaviroal Health Federal'
+			WHEN c.[Payor Code] = 'UBH3' THEN 'United Behaviroal Health'
+			WHEN c.[Payor Code] = 'UBH3' THEN 'United Behaviroal Health Federal'
+			WHEN c.[Payor Code] = 'UBH4' THEN 'United Healthcare'
+			WHEN c.[Payor Code] = 'UBH4' THEN 'United Behaviroal Health'
+			WHEN c.[Payor Code] = 'UNGA' THEN 'United Healthcare'
+			WHEN c.[Payor Code] = 'UNI3' THEN 'United Healthcare'
+			WHEN c.[Payor Code] = 'UNK' THEN 'UNKECHAUG INDIAN NATION'
+			WHEN c.[Payor Code] = 'VAL1' THEN 'Value Options'
+			WHEN c.[Payor Code] = 'VAL1' THEN 'Value Options Federal'
+			WHEN c.[Payor Code] = 'VAL2' THEN 'Value Options Federal'
+			WHEN c.[Payor Code] = 'VAL2' THEN 'Value Options'
+			WHEN c.[Payor Code] = 'VAL2' THEN 'GHI'
+			WHEN c.[Payor Code] = 'VAL3' THEN 'Value Options'
+			WHEN c.[Payor Code] = 'VAL3' THEN 'Value Options Federal'
+			WHEN c.[Payor Code] = 'VALA' THEN 'Aetna'
+			WHEN c.[Payor Code] = 'VALG' THEN 'GHI'
+			WHEN c.[Payor Code] = 'VALG' THEN 'Value Options GHI Federal'
+			WHEN c.[Payor Code] = 'VALH' THEN 'HIP Health Plan'
+			WHEN c.[Payor Code] = 'VALH' THEN 'Value Options HIP'
+			WHEN c.[Payor Code] = 'VALH' THEN 'Value Options HIP'
+			WHEN c.[Payor Code] = 'VALH' THEN 'Value Options HIP Federal'
+			WHEN c.[Payor Code] = 'VALH' THEN 'Value Options HIP'
+			WHEN c.[Payor Code] = 'VALO' THEN 'Value Options'
+			WHEN c.[Payor Code] = 'VYCD' THEN 'Value Options Vytra'
+			WHEN c.[Payor Code] = 'WELC' THEN 'Wellcare Of New York'
+			WHEN c.[Payor Code] = 'WELL' THEN 'Wellcare Of New York Federal'
+			WHEN c.[Payor Code] = 'WELL' THEN 'Wellcare Of New York'
+	end as [desc]
+) [description]
+
+--
+
 create table smsdss.c_HCRA_Static_Data_w_TIN_EMM_2016 (
 	PK INT NOT NULL IDENTITY(1, 1) PRIMARY KEY
 	, [Reference Number] INT
@@ -272,7 +438,7 @@ from (
 	, d.[Admit Date]
 	, d.[Discharge Date]
 	, d.[Payor Code]
-	, d.[Payor Code Description]
+	, d.[desc] as [Payor Code Description]
 	, d.[Payor Sub-Code]
 	, d.[Payor ID Number]
 	, d.[Payor City]
@@ -317,6 +483,9 @@ from (
 	from #temp_d as d
 ) A
 
------
+--
+
+select *
+from smsdss.c_HCRA_Static_Data_w_TIN_EMM_2016
 
 --drop table #temp_a, #temp_b, #temp_c, #temp_d
