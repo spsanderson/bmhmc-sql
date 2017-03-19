@@ -694,8 +694,8 @@ select a.[Reference Number]
 , coalesce(
 	b.[new_pyr_cd], c.[new_pyr_cd], 
 	d.[new_pyr_cd], e.[new_pyr_cd], 
-	xxx.new_pyr_cd, zzz.new_pyr_cd, 
-	a.[Payor Code]
+	xxx.new_pyr_cd, yyy.new_pyr_cd,
+	zzz.new_pyr_cd, a.[Payor Code]
 ) as [Payor Code]
 , zzz.new_pyr_cd
 , zzz.pyr_cd

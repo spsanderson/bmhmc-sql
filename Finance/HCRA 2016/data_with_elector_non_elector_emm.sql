@@ -41,8 +41,8 @@ select a.[Payment/Invoice] as [Reference Number]
 , a.Payor
 , a.[Payor ID]
 , case
-	when a.Insurance like '%medicare%' then 'Federal'
-	when a.Insurance like '%medicaid%' then 'Federal'
+	--when a.Insurance like '%medicare%' then 'Federal'
+	--when a.Insurance like '%medicaid%' then 'Federal'
 	when a.payor like '%IGA-ISLAND GROUP ADMINISTRAT%' then 'TPA'
 	when a.payor like '%MAGE-MAGELLAN BEHAVORIAL%' then 'TPA'
 	when a.payor like '%MAGL-MAGELLAN BEHAVIORAL%' then 'TPA'
@@ -50,6 +50,7 @@ select a.[Payment/Invoice] as [Reference Number]
 	when a.payor like '%mdcd-medicaid%' then 'Federal'
 	when a.payor like '%mdcr-medicare%' then 'Federal'
 	when a.payor like '%medicaid%' then 'Federal'
+	when a.Payor like '%mediare%' then 'Federal'
 	when a.payor like '%ofpp-oxford health plans%' then '222797560'
 	when a.payor like '%oxuh-oxford united healthcare%' then '222797560'
 	when a.payor like '%self%' then 'self'

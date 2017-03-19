@@ -1,6 +1,5 @@
 DROP TABLE smsdss.c_Lab_Rad_Order_Utilization
 
-
 DECLARE @T1 TABLE (
        PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
        , MRN                 INT
@@ -71,7 +70,7 @@ WITH T1 AS (
        )
        AND C.ord_sts_modf IN ('Complete', 'Discontinue')
        AND D.adm_date >= '2013-01-01'
-       AND D.adm_date <  '2016-04-01'
+       AND D.adm_date <  '2017-01-01'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
        --AND LEFT(A.episode_no, 1) != '7'
        AND (
@@ -106,17 +105,18 @@ SELECT t1.MRN
 , T1.svc_cd
 , t1.Svc_Desc
 , t1.Ord_Set_ID
+, t1.Ord_Pty_Number
 , t1.Ordering_Party
 , t1.Ord_Pty_Spclty
 , t1.Performing_Dept
 , CASE
        WHEN T1.Performing_Dept='BMHEKG' THEN 'EKG'
        WHEN t1.Svc_Sub_Dept IN (
-       '114', '7', '2', '137', '127', '3', '135', '117', '6'  
+       '114', '7', '2', '137', '127', '3', '135', '6'  --117
        )
               THEN 'Laboratory'
        WHEN t1.Svc_Sub_Dept IN (
-       '1045', '16', '13', '12', '11', '133', '14', '17', '10', '1004'
+       '1045', '16', '13', '12', '11', '14', '17', '10', '1004' --133
        )
               THEN 'Radiology'
   END AS [Svc_Dept_Desc]

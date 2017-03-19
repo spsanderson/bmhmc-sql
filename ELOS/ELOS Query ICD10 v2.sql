@@ -39,6 +39,17 @@ SELECT a.pt_id
 		THEN a.LOS
 	ELSE d.Performance
   END AS [Performance]
+, f.[outlier threshold] as [Threshold]
+, Case
+	when a.LOS > f.[Outlier Threshold]
+		THEN 'Outside Threshold'
+		ELSE 'Inside Threshold'
+  end as [In or Outside Threshold]
+, Case
+	when a.LOS > f.[Outlier Threshold]
+		then 1
+		else 0
+  end as [outlier_flag]
 
 FROM smsdss.c_LIHN_Svc_Lines_Rpt2_ICD10_v     AS a
 LEFT JOIN smsdss.BMH_PLM_PtAcct_V             AS b
@@ -54,6 +65,8 @@ ON c.APRDRGNO = d.[APRDRG Code]
 LEFT JOIN smsdss.pract_dim_v                  AS e
 ON a.Atn_Dr_No = e.src_pract_no
 	AND e.orgz_cd = 's0x0'
+LEFT JOIN smsdss.c_LIHN_APR_DRG_OutlierThresholds AS f
+ON c.APRDRGNO = f.[apr-drgcode]
 
 WHERE a.Dsch_Date >= '2017-01-01'
 AND a.Dsch_Date < '2017-02-01'
