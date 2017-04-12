@@ -87,7 +87,7 @@ WITH CTE AS (
 			)
 	)
 	AND B.ROOM_ID IN (
-		'PRO RM_01', 'PRO RM_02'
+		'PRO RM_01', 'PRO RM_02', 'KPOR_O1', 'KPOR_02', 'KPOR_03', 'KPOR_04'
 	)
 	AND (
 		B.START_DATE >= @ORSOS_START_DT

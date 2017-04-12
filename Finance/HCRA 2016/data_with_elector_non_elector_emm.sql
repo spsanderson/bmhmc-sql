@@ -77,7 +77,11 @@ select a.[Payment/Invoice] as [Reference Number]
 , a.[Ins Code] as [Primary Payor]
 , a.[2nd Ins Code]
 , a.[2nd ins]
-, a.[Primary Vs Secondary Indicator]
+, case
+	when a.[Primary Vs Secondary Indicator] = 'Patient'
+		then '0'
+		else a.[Primary Vs Secondary Indicator]
+  end as [Primary Vs Secondary Indicator]
 , a.[Risk-sharing]
 , a.[Direct/Non Direct]
 , a.[Medical Service code]

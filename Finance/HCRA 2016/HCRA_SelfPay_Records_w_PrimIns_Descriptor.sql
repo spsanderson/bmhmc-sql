@@ -1,4 +1,4 @@
-select a.pk
+select A.pk
 , a.[reference number]
 , a.[system]
 , a.mrn
@@ -11,7 +11,11 @@ select a.pk
 , a.[payor city]
 , a.[payor state]
 , a.[payor tin]
-, a.[primary payor]
+, case 
+	when a.[primary payor] = '*'
+		then 'MIS'
+		else a.[Primary Payor]
+  end as [Primary Payor]
 , a.[secondary payor]
 , a.[tertiary payor]
 , a.[quaternary payor]
@@ -635,7 +639,6 @@ select a.[Reference Number]
 , a.[HCRA Line]
 , a.[HCRA Line Description]
 , a.[Payment Entry Date]
-, a.[PIP Flag]
 
 into #temp_d
 
@@ -651,7 +654,7 @@ on left(a.[reference number], 8) = substring(b.pt_id, 5, 8)
 --where a.[admit date] is null
 --and a.[discharge date] is null
 
----------------------------------------------------------------------------------------------------
+-----
 
 select a.[Reference Number]
 , a.[System]
@@ -680,13 +683,12 @@ select a.[Reference Number]
 , a.[HCRA Line]
 , a.[HCRA Line Description]
 , a.[Payment Entry Date]
-, a.[PIP Flag]
 
 into #temp_e
 
 from #temp_d as a
 
----------------------------------------------------------------------------------------------------
+-----
 
 select a.[Reference Number]
 , a.[System]
@@ -736,7 +738,6 @@ select a.[Reference Number]
 , a.[HCRA Line]
 , a.[HCRA Line Description]
 , a.[Payment Entry Date]
-, a.[PIP Flag]
 , zzz.ins_co
 
 into #temp_f
@@ -771,50 +772,24 @@ on a.[Reference Number] = yyy.[reference number]
 --where a.[System] = 'fms'
 --and a.[Payor Code] = 'c05'
 
----------------------------------------------------------------------------------------------------
+
+-----
 
 select a.[Reference Number]
 , a.[System]
 , a.[MRN]
 , a.[Admit Date]
 , a.[Discharge Date]
-, case
-	when a.[Payor Code] = ''
-	and a.[reference number] = d.[reference number]
-		then d.[payor code]
-	else a.[payor code]
-  end as [Payor Code]
-, case
-	when a.[reference number] = d.[reference number]
-	and a.[payor code description] = ''
-		then d.[payor code description]
-		else coalesce(b.[ins_co], a.[payor code description]) 
-  end as [Payor Code Description]
+, a.[Payor Code]
+, coalesce(b.[ins_co], a.[payor code description]) as [Payor Code Description]
 , a.[Payor ID Number]
 , coalesce(b.[city], a.[Payor City]) as [Payor City]
 , coalesce(b.[State], a.[Payor State]) as [Payor State]
 , a.[Payor TIN]
---, a.[Primary Payor]
-, case 
-	when a.[Primary Payor] = '' 
-		then c.Pyr1_Co_Plan_Cd
-		else a.[Primary Payor]
-  end as [Primary Payor]
-, case
-	when a.[Secondary Payor] = ''
-		then c.Pyr2_Co_Plan_Cd
-		else a.[Secondary Payor]
-  end as [Secondary Payor]
-, case
-	when a.[Tertiary Payor] = ''
-		then c.Pyr3_Co_Plan_Cd
-		else a.[Tertiary Payor]
-  end as [Tertiary Payor]
-, case
-	when a.[Quaternary Payor] = ''
-		then c.Pyr4_Co_Plan_Cd
-		else a.[Quaternary Payor]
-  end as [Quaternary Payor]
+, ltrim(rtrim(a.[Primary Payor])) as [Primary Payor]
+, ltrim(rtrim(a.[Secondary Payor])) as [Secondary Payor]
+, ltrim(rtrim(a.[Tertiary Payor])) as [Tertiary Payor]
+, ltrim(rtrim(a.[Quaternary Payor])) as [Quaternary Payor]
 , a.[Primary v Secondary Indicator]
 , a.[Risk Sharing Payor]
 , a.[Direct/Non Direct Payor]
@@ -826,193 +801,47 @@ select a.[Reference Number]
 , a.[HCRA Line]
 , a.[HCRA Line Description]
 , a.[Payment Entry Date]
-, a.[PIP Flag]
-, rn = ROW_NUMBER() over(partition by a.[reference number] order by a.[reference number])
 
 into #temp_g
 
 from #temp_f as a
 left join [smsdss].[c_HCRA_nf_wc_internal] as b
 on a.[Payor Code] = B.[Payor code]
-left join smsdss.BMH_PLM_PtAcct_V as c
-on left(a.[Reference Number], 8) = c.PtNo_Num
-	and c.PtNo_Num not in (
-			'53040861', '53919940'
-		)
-	and LEFT(c.ptno_num, 1) != '7'
-left join smsdss.c_hcra_blank_pyr_cd_and_desc as d
-on a.[reference number] = d.[reference number]
 
---where a.[System] = 'fms'
---and a.[Payor Code] = 'c05' 
---and a.[Payor Code] != 'MIS'
----------------------------------------------------------------------------------------------------
+where a.[System] = 'fms'
 
-select a.*
+-----
+
+select distinct(LEFT(a.[reference number], 8)) as [Encounter]
+, a.[Payor Code]
+, a.[Payor Code Description]
+, a.[Primary Payor]
+, case
+	when LEFT(a.[payor code], 3) = a.[Primary Payor]
+		then a.[Payor Code] + '-' + a.[Primary Payor]
+		else ''
+  end as pyr_cd_prim_unique_key
 
 into #temp_h
 
 from #temp_g as a
 
-
-where a.rn = 1
----------------------------------------------------------------------------------------------------
-
-select COUNT(a.[reference number])
-
-from #temp_h as a
-
----------------------------------------------------------------------------------------------------
-
--- Get control totals by pip, non-pip, unitized pip and non pip and finally ads/emm
-select DATEPART(year, [payment entry date]) as pmt_yr
-, DATEPART(month, [payment entry date]) as pmt_mo
-, SUM([payment amount]) as pmt_amt
-
-into #temp_pmt_nonunitized_pip
-
-from #temp_h 
-
-where [PIP Flag] = 'pip'
-and [System] = 'fms'
-and LEFT([reference number], 1) != '7'
-
-group by DATEPART(year, [payment entry date])
-, DATEPART(month, [payment entry date])
+where LEFT(a.[payor code],3) = a.[Primary Payor]
 
 -----
 
-select DATEPART(year, [payment entry date]) as pmt_yr
-, DATEPART(month, [payment entry date]) as pmt_mo
-, SUM([payment amount]) as pmt_amt
+select a.*
+, b.pyr_cd_prim_unique_key
+, b.[Payor Code Description]
 
-into #temp_pmt_unitized_pip
+from #temp_g as a
+left join #temp_h as b
+on LEFT(a.[Reference Number], 8) = b.[Encounter]
+	and a.[Primary Payor] = b.[Primary Payor]
 
-from #temp_h 
+where a.[Payor Code] = 'MIS'
 
-where [PIP Flag] = 'pip'
-and [System] = 'fms'
-and LEFT([reference number], 1) = '7'
-
-group by DATEPART(year, [payment entry date])
-, DATEPART(month, [payment entry date])
 
 -----
-
-select DATEPART(year, [payment entry date]) as pmt_yr
-, DATEPART(month, [payment entry date]) as pmt_mo
-, SUM([payment amount]) as pmt_amt
-
-into #temp_pmt_nonunitized_nonpip
-
-from #temp_h 
-
-where [PIP Flag] = 'NON-PIP'
-and [System] = 'fms'
-and LEFT([reference number], 1) != '7'
-
-group by DATEPART(year, [payment entry date])
-, DATEPART(month, [payment entry date])
-
------
-
-select DATEPART(year, [payment entry date]) as pmt_yr
-, DATEPART(month, [payment entry date]) as pmt_mo
-, SUM([payment amount]) as pmt_amt
-
-into #temp_pmt_unitized_nonpip
-
-from #temp_h 
-
-where [PIP Flag] = 'NON-PIP'
-and [System] = 'fms'
-and LEFT([reference number], 1) = '7'
-
-group by DATEPART(year, [payment entry date])
-, DATEPART(month, [payment entry date])
-
------
-
-select DATEPART(year, [payment entry date]) as pmt_yr
-, DATEPART(month, [payment entry date]) as pmt_mo
-, SUM([payment amount]) as pmt_amt
-
-into #temp_pmt_fms_nonpip
-
-from #temp_h 
-
-where [PIP Flag] = 'NON-PIP'
-and [System] = 'fms'
-
-group by DATEPART(year, [payment entry date])
-, DATEPART(month, [payment entry date])
-
------
-
-select DATEPART(year, [payment entry date]) as pmt_yr
-, DATEPART(month, [payment entry date]) as pmt_mo
-, SUM([payment amount]) as pmt_amt
-
-into #temp_pmt_fms_pip
-
-from #temp_h 
-
-where [PIP Flag] = 'PIP'
-and [System] = 'fms'
-
-group by DATEPART(year, [payment entry date])
-, DATEPART(month, [payment entry date])
-
------
-
-select DATEPART(year, [payment entry date]) as pmt_yr
-, DATEPART(month, [payment entry date]) as pmt_mo
-, SUM([payment amount]) as pmt_amt
-
-into #temp_pmt_ads
-
-from #temp_h 
-
-where [System] = 'ads'
-
-group by DATEPART(year, [payment entry date])
-, DATEPART(month, [payment entry date])
-
------
-
-select a.pmt_yr
-, a.pmt_mo
-, a.pmt_amt as [non-unitized non-pip]
-, b.pmt_amt as [non-unitized pip]
-, c.pmt_amt as [unitized non-pip]
-, d.pmt_amt as [unitized pip]
-, e.pmt_amt as [fms non-pip]
-, f.pmt_amt as [fms pip]
-, g.pmt_amt as [ads]
-
-from #temp_pmt_nonunitized_nonpip as a
-left join #temp_pmt_nonunitized_pip as b
-on a.pmt_yr = b.pmt_yr
-	and a.pmt_mo = b.pmt_mo
-left join #temp_pmt_unitized_nonpip as c
-on a.pmt_yr = c.pmt_yr
-	and a.pmt_mo = c.pmt_mo
-left join #temp_pmt_unitized_pip as d
-on a.pmt_yr = d.pmt_yr
-	and a.pmt_mo = d.pmt_mo
-left join #temp_pmt_fms_nonpip as e
-on a.pmt_yr = e.pmt_yr
-	and a.pmt_mo = e.pmt_mo
-left join #temp_pmt_fms_pip as f
-on a.pmt_yr = f.pmt_yr
-	and a.pmt_mo = f.pmt_mo
-left join #temp_pmt_ads as g
-on a.pmt_yr = g.pmt_yr
-	and a.pmt_mo = g.pmt_mo
-
-order by a.pmt_yr, a.pmt_mo
----------------------------------------------------------------------------------------------------
-
---drop table #temp_a, #temp_b, #temp_c, #temp_d, #temp_e, #temp_f, #temp_g, #temp_h
-
----------------------------------------------------------------------------------------------------
+--drop table #temp_a, #temp_b, #temp_c, #temp_d, #temp_e, #temp_f
+--drop table #temp_g

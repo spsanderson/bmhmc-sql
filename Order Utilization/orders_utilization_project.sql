@@ -157,6 +157,7 @@ SELECT t1.MRN
 INTO smsdss.c_Lab_Rad_Order_Utilization
 FROM @T1 T1
 WHERE T1.Order_Occ_sts_cd = '4'
+AND T1.SVC_SUB_DEPT NOT IN ('133','117')
 
 SELECT *
 FROM  smsdss.c_Lab_Rad_Order_Utilization ZZZ

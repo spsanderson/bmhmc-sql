@@ -83,11 +83,11 @@ SELECT a.[INDEX]                      AS [Initial_Encounter]
 , b.prin_dx_icd10_cd                  AS [Principal_ICD10_Code]
 , D.LIHN_Service_Line                 AS [Readmit LIHN Service Line]
 
-FROM smsdss.vReadmits                                      AS A
+FROM smsdss.vReadmits                                AS A
 LEFT OUTER JOIN smsdss.bmh_plm_ptacct_v              AS B
 ON a.[INDEX] = b.PtNo_Num
 	AND a.MRN = b.Med_Rec_No
-LEFT OUTER JOIN smsdss.pract_dim_v                         AS C
+LEFT OUTER JOIN smsdss.pract_dim_v                   AS C
 ON b.Atn_Dr_No = c.src_pract_no
 	AND c.orgz_cd = 'S0X0'
 LEFT OUTER JOIN smsdss.c_LIHN_Svc_Lines_Rpt2_icd10_v AS D

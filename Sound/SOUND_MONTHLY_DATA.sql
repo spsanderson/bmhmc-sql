@@ -156,9 +156,11 @@ FROM
 	ON B.PtNo_Num = OBS.PtNo_Num
 
 	WHERE LEFT(a.dx_cd_type,2)='DF' 
-		AND (b.plm_pt_acct_type='I' 
-			OR (b.hosp_Svc='OBV')
-			) 
+		AND (
+			b.plm_pt_acct_type='I' 
+			OR 
+			b.hosp_Svc = 'OBV'
+		) 
 		AND b.dsch_dtime >= @SD 
 		AND b.dsch_dtime < @ED
 		AND PDV.src_spclty_cd = 'HOSIM'

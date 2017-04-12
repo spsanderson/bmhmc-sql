@@ -186,7 +186,7 @@ SELECT A.*
 , ISNULL(CAST(D.[MAX ED VISIT] AS VARCHAR), '') AS [Max ED Visit]
 , ISNULL(ZZZ.[Charity Status], '') AS [Inpatient Charity Status]
 , ISNULL(ZZZ.[Medicaid Status], '') AS [Inpatient Mediciad Status]
-, ISNULL( ZZZ.paymentAdvisorCategoryName, '') AS [IP Pmt Advice Cat]
+, ISNULL(ZZZ.paymentAdvisorCategoryName, '') AS [IP Pmt Advice Cat]
 , ISNULL(ZZZ.paymentAdvisorSuggestion, '') AS [IP Pmt Advice Suggestion]
 , ISNULL(XXX.[Charity Status], '') AS [ED Charity Status]
 , ISNULL(XXX.[Medicaid Status], '') AS [ED Medicaid Status]
