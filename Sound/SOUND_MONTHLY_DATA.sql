@@ -4,8 +4,8 @@ GO
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
 
-SET @SD = '2017-01-01';
-SET @ED = '2017-02-01';
+SET @SD = '2017-03-01';
+SET @ED = '2017-04-01';
 
 SELECT med_rec_no                        AS [Med_Rec_No]
 , ptno_num                               AS [Acct_No]
