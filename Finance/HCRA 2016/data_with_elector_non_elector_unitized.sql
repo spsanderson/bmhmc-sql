@@ -13,6 +13,8 @@ left join smsdss.c_HCRA_ins_name_unitized as b
 on a.[Reference Number] = SUBSTRING(b.PT_ID, 5, 8)
     and a.[Payor Code] = b.pyr_cd
 
+--select * from #temp_a;
+
 -----
 
 select a.*
@@ -31,7 +33,9 @@ on a.[Reference Number] = substring(b.pt_id, 5, 8)
 	and b.from_file_ind = '0A'
 left join smsmir.pyr_mstr as c
 on a.[Payor Code Final] = c.pyr_cd
-	and c.iss_orgz_cd = 's0x0'
+	and c.iss_orgz_cd = 's0x0';
+
+--select * from #temp_b;
 
 -----
 
@@ -211,7 +215,11 @@ select a.[reference number]
 , a.[Quaternary Payor]
 , a.[Primary v Secondary Indicator]
 , a.[Risk Sharing Payor]
-, a.[Direct/Non Direct Payor]
+--, a.[Direct/Non Direct Payor]
+, CASE
+	WHEN a.[Payor Code] = 'mis' THEN 'Self Pay'
+	else zzz.[ELECTOR STATUS]
+  END AS [Direct/Non Direct Payor]
 , a.[Medical Service Code]
 , a.[Service Code Description]
 , a.[Payment Amount]
@@ -253,6 +261,7 @@ left join smsdss.c_HCRA_Payor_Code_Elector_Status_nf_2016 as c
 on a.[Reference Number] = c.[ref#]
 left join smsdss.c_HCRA_pyr_cd_to_elector_2016 as zzz
 on a.[Payor Code] = zzz.[PYR CODE]
+;
 
 -----
 

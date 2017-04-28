@@ -19,23 +19,40 @@ SELECT A.Med_Rec_No
 , A.Adm_Date
 , A.Dsch_Date
 , A.Days_Stay
-, D.[READMIT]
-, D.[READMIT DATE]
-, D.[READMIT SOURCE DESC]
-, D.[INTERIM]
-, CASE
-	WHEN A.User_Pyr1_Cat = 'III'
-		THEN 'Managed Medicaide'
-		ELSE'FFS Medicaid'
-  END AS [Medicaid_Flag]
 , A.ED_Adm
 , A.prin_dx_cd
 , A.prin_dx_cd_schm
 , B.alt_clasf_desc
+, D.[READMIT] AS [Readmit]
+, D.[READMIT DATE] AS [Readmit Date]
+, D.[READMIT SOURCE DESC] AS [Readmit Source Desc]
+, D.[INTERIM] AS [Interim]
+, CASE
+	WHEN LEFT(D.[READMIT], 1) = '1'
+		THEN 1
+		ELSE 0
+  END AS [Readmit_Flag]
+, CASE
+	WHEN LEFT(D.[READMIT], 1) = '8'
+		THEN 1
+		ELSE 0
+  END AS [ED_Return_Flag]
+, CASE
+	WHEN A.User_Pyr1_Cat = 'III'
+		THEN 'Managed Medicaid'
+		ELSE'FFS Medicaid'
+  END AS [Medicaid_Flag]
+, CASE
+	WHEN LEFT(A.dsch_disp, 1) IN ('C', 'D')
+		THEN 1
+		ELSE 0
+  END AS [Mortality Flag]
 , RN = ROW_NUMBER() OVER(
 	PARTITION BY A.med_rec_no
 	ORDER BY A.vst_start_dtime
 )
+
+INTO #TEMP_A
 
 FROM smsdss.BMH_PLM_PtAcct_V AS A
 LEFT JOIN smsdss.dx_cd_dim_v AS B
@@ -57,4 +74,35 @@ AND LEFT(A.PtNo_Num, 1) IN (
 	'1', '8'
 )
 AND DATEPART(YEAR, A.Dsch_Date) = '2016'
+;
 
+-------------------
+
+SELECT DISTINCT(A.Med_Rec_No)
+
+INTO #MORTALITY_FLAG
+
+FROM #TEMP_A AS A
+
+WHERE A.[Mortality Flag] = '1'
+;
+
+-------------------
+
+SELECT *
+
+FROM #TEMP_A AS A
+
+WHERE A.Med_Rec_No NOT IN (
+	SELECT Med_Rec_No
+	FROM #MORTALITY_FLAG
+)
+
+ORDER BY A.Med_Rec_No
+, A.Adm_Date
+;
+
+-------------------
+
+DROP TABLE #TEMP_A;
+DROP TABLE #MORTALITY_FLAG;

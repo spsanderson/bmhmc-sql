@@ -21,10 +21,10 @@ FROM smsdss.c_elos_bench_data                AS A
 LEFT JOIN smsdss.c_Lab_Rad_Order_Utilization AS B
 ON a.Encounter = b.Encounter
 
-WHERE B.Ord_Pty_Number IN (
-'017194', '006924'
-)
-AND B.Ord_Entry_DTime >= '2016-01-01'
+--WHERE B.Ord_Pty_Number IN (
+--'017194', '006924'
+--)
+WHERE B.Ord_Entry_DTime >= '2016-01-01'
 AND B.Ord_Entry_DTime < '2017-01-01'
 -- WE DON'T WANT NULL DEPT DESCRIPTIONS
 AND B.Svc_Sub_Dept_Desc IS NOT NULL
@@ -33,11 +33,11 @@ AND A.Encounter IS NOT NULL
 AND B.Ord_Pty_Number IS NOT NULL
 -- WE DON'T WANT TEST CPOE OR OTHER ERRONEOUS PROVIDER ID NUMBERS
 AND B.Ord_Pty_Number NOT IN (
-'000000', '000059', '999995', '999999'
+	'000000', '000059', '999995', '999999'
 )
 -- WE WILL ONLY FOCUS ON THESE LIHN SERVICE LINES AS PREVIOUSLY DISCUSSED
 AND A.LIHN_Service_Line IN (
-'Surgical', 'MI', 'CHF', 'CVA', 'Pneumonia'
+	'Surgical', 'MI', 'CHF', 'CVA', 'Pneumonia'
 )
 
 GROUP BY B.Ord_Pty_Number, B.Ordering_Party, A.LIHN_Service_Line, B.Svc_Sub_Dept_Desc
@@ -72,9 +72,9 @@ ORDER BY A.Ord_Pty_Number, A.Ordering_Party, A.LIHN_Service_Line, A.Svc_Sub_Dept
 -- THIS QUERY WILL MAKE A VARIANCE FLAG OF 0/1
 SELECT A.*
 , CASE
-WHEN A.Variance > 0
-THEN 1
-ELSE 0
+	WHEN A.Variance > 0
+		THEN 1
+		ELSE 0
   END AS [Variance_Flag]
 
 INTO #TEMP_D
@@ -104,6 +104,7 @@ WHERE A.Variance_Flag = 1
 
 GROUP BY A.Ord_Pty_Number
 , A.LIHN_Svc_Dept_Desc
+;
 
 -----------------------------------------------------------------------
 /*
@@ -123,20 +124,20 @@ SELECT a.Encounter AS PT_ID
 , A.SOI
 , A.LIHN_Svc_Line_APR_SOI
 , A.Performance
-, A.[ Threshold]
+, A.[Threshold]
 , A.[In or Outside Threshold]
 , b.*
 , c.Atn_Dr_No
 , d.pract_rpt_name AS [Attending Dr]
 , CASE
-WHEN d.src_spclty_cd = 'HOSIM'
-THEN 'Hospitalist'
-ELSE 'Community'
+	WHEN d.src_spclty_cd = 'HOSIM'
+		THEN 'Hospitalist'
+		ELSE 'Community'
   END AS hospitalist_flag
 , CONCAT(a.lihn_service_line, ' - ', b.svc_sub_dept_desc) as [svc_line_and_dept_desc]
 , rn = ROW_NUMBER() OVER(
-PARTITION BY A.ENCOUNTER, CONCAT(a.lihn_service_line, ' - ', b.svc_sub_dept_desc)
-ORDER BY B.ORDER_NO 
+	PARTITION BY A.ENCOUNTER, CONCAT(a.lihn_service_line, ' - ', b.svc_sub_dept_desc)
+	ORDER BY B.ORDER_NO 
 )
 
 INTO #TEMP_F
@@ -148,10 +149,10 @@ LEFT JOIN smsdss.BMH_PLM_PtAcct_V            AS C
 ON a.Encounter = c.PtNo_Num
 LEFT JOIN smsdss.pract_dim_v                 AS D
 ON c.Atn_Dr_No = d.src_pract_no
-AND c.Regn_Hosp = d.orgz_cd
+	AND c.Regn_Hosp = d.orgz_cd
 INNER JOIN #TEMP_E                           AS E
 ON B.Ord_Pty_Number = E.Ord_Pty_Number
-AND CONCAT(a.lihn_service_line, ' - ', b.svc_sub_dept_desc) = E.LIHN_Svc_Dept_Desc
+	AND CONCAT(a.lihn_service_line, ' - ', b.svc_sub_dept_desc) = E.LIHN_Svc_Dept_Desc
 
 WHERE B.Ord_Entry_DTime >= '2016-01-01'
 AND B.Ord_Entry_DTime < '2017-01-01'
@@ -167,6 +168,9 @@ OPTION(FORCE ORDER)
 
 =======================================================================
 */
+SELECT *
+FROM #TEMP_F
+;
 -----
 
 DROP TABLE #TEMP_A;
@@ -175,4 +179,3 @@ DROP TABLE #TEMP_C;
 DROP TABLE #TEMP_D;
 DROP TABLE #TEMP_E;
 DROP TABLE #TEMP_F;
-
