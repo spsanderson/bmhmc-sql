@@ -32,15 +32,15 @@ DECLARE @inr TABLE (
 	, Encounter               INT
 	, Order_Number            VARCHAR(12)
 	, Order_Occr_Number       VARCHAR(12)
-	, Ord_Obj_ID              CHAR(8)
-	, Value                   CHAR(6)
+	, Ord_Obj_ID              CHAR(80)
+	, Value                   CHAR(60)
 	, Ord_Entry_DateTime      DATETIME
 	, Collection_DT           DATETIME
 	, Vst_Start_DT            DATETIME
-	, Observation_Name        CHAR(3)
-	, Hospital_Svc            VARCHAR(4)
-	, Ord_Spclty_Cd           VARCHAR(7)
-	, Nurs_Sta                VARCHAR(5)
+	, Observation_Name        CHAR(30)
+	, Hospital_Svc            VARCHAR(40)
+	, Ord_Spclty_Cd           VARCHAR(70)
+	, Nurs_Sta                VARCHAR(50)
 );
 
 WITH CTE1 AS (
@@ -77,12 +77,11 @@ WITH CTE1 AS (
 	AND a.coll_dtime >= @START
 	AND A.coll_dtime < @END
 	AND LEFT(A.episode_no, 1) = '1'
-	AND c.src_hosp_svc != 'PSY'
 	AND c.ord_pty_spclty != 'EMRED'
 	AND c.loc_cd != 'EDICMS'
 	AND c.src_nurs_sta != 'EMER'
 	AND c.nurs_sta NOT IN (
-		'EMER', 'PACU', 'SICU', 'CATH'
+		'EMER', 'PACU', 'SICU', 'CATH', 'PSY'
 	)
 	AND c.preadm_ord_ind_cd != '1'
 	AND a.coll_dtime >= d.vst_start_dtime
@@ -111,7 +110,7 @@ FROM #TEMP_A AS A;
 SELECT COUNT(*) AS [Total_INR_GT_5.0]
 --SELECT *
 FROM #TEMP_A AS A
-WHERE A.Value >=5.0;
+WHERE A.new_val >=5.0;
 
 -----
 

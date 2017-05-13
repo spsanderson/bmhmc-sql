@@ -843,19 +843,66 @@ on left(a.[Reference Number], 8) = c.PtNo_Num
 left join smsdss.c_hcra_blank_pyr_cd_and_desc as d
 on a.[reference number] = d.[reference number]
 
---where a.[System] = 'fms'
---and a.[Payor Code] = 'c05' 
---and a.[Payor Code] != 'MIS'
 ---------------------------------------------------------------------------------------------------
 
-select a.*
+SELECT a.[Reference Number]
+, a.[System]
+, a.[MRN]
+, a.[Admit Date]
+, a.[Discharge Date]
+, CASE
+	WHEN B.[Payor Code] IS NULL
+		THEN a.[Payor Code]
+	WHEN B.[Payor Code] IN ('S93', 'W29')
+		THEN LEFT(B.[Payor Code], 3)
+	WHEN B.[Payor Code] NOT IN ('S93', 'W29')
+		AND B.[Payor Code] IS NOT NULL
+		THEN B.[new_pyr_cd]
+	ELSE a.[Payor Code]
+  END AS [Payor Code]
+, CASE
+	WHEN B.[Payor Code] IS NULL
+		THEN a.[Payor Code Description]
+	WHEN B.[Payor Code] IN ('S93', 'W29')
+		THEN B.[Payor Description]
+	WHEN B.[Payor Code] NOT IN ('S93', 'W29')
+		AND B.[Payor Code] IS NOT NULL
+		THEN B.[Payor Description]
+	ELSE a.[Payor Code Description]
+  END AS [Payor Code Description]
+, a.[Payor ID Number]
+, a.[Payor City]
+, a.[Payor State]
+, CASE
+	WHEN B.[REFERENCE NUMBER] IS NOT NULL
+		THEN ''
+		ELSE a.[Payor TIN]
+  END AS [Payor TIN]
+, a.[Primary Payor]
+, a.[Secondary Payor]
+, a.[Tertiary Payor]
+, a.[Quaternary Payor]
+, a.[Primary v Secondary Indicator]
+, a.[Risk Sharing Payor]
+, a.[Direct/Non Direct Payor]
+, a.[Medical Service Code]
+, a.[Service Code Description]
+, a.[Payment Amount]
+, a.[Payment Description]
+, a.[Receivable Type]
+, a.[HCRA Line]
+, a.[HCRA Line Description]
+, a.[Payment Entry Date]
+, a.[PIP Flag]
 
 into #temp_h
 
 from #temp_g as a
-
+left join smsdss.c_hcra_pyr_cd_d93_d97_w31 as b
+on a.[Reference Number] = B.[reference number]
 
 where a.rn = 1
+
 ---------------------------------------------------------------------------------------------------
 
 select COUNT(a.[reference number])

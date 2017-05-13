@@ -69,15 +69,14 @@ AND A.dsply_val NOT LIKE 'call%'
 AND A.dsply_val NOT LIKE 'fing%'
 AND A.dsply_val NOT LIKE 'qns%'
 AND A.dsply_val NOT LIKE 'see%'
-AND B.ent_dtime >= '2016-01-01'
-AND B.ent_dtime < '2016-02-01'
+AND B.ent_dtime >= @START
+AND B.ent_dtime < @END
 AND LEFT(A.episode_no, 1) = '1'
-AND c.src_hosp_svc != 'PSY'
 AND c.ord_pty_spclty != 'EMRED'
 AND c.loc_cd != 'EDICMS'
 AND c.src_nurs_sta != 'EMER'
 AND c.nurs_sta NOT IN (
-	'EMER', 'PACU', 'SICU', 'CATH'
+	'EMER', 'PACU', 'SICU', 'CATH', 'PSY'
 )
 AND c.preadm_ord_ind_cd != '1'
 AND a.coll_dtime >= d.vst_start_dtime
@@ -136,6 +135,8 @@ SELECT A.episode_no
 INTO #TEMP_C 
 
 FROM #TEMP_B AS A
+
+WHERE clean_value IS NOT NULL
 ;
 
 -----
@@ -146,10 +147,10 @@ FROM #TEMP_C;
 -----
 
 SELECT COUNT(*)
-SELECT *
+--SELECT *
 FROM #TEMP_C
-WHERE Glucose_Val <= 40
-ORDER BY Glucose_Val;
+WHERE Glucose_Val <= 40;
+--ORDER BY Glucose_Val;
 
 -----
 

@@ -49,12 +49,11 @@ WHERE A.svc_cd IN (
 AND A.ent_dtime >= @start
 AND A.ent_dtime < @end
 AND a.ent_dtime > b.vst_start_dtime
-AND a.src_hosp_svc != 'PSY'
 AND a.ord_pty_spclty != 'EMRED'
 AND a.loc_cd != 'EDICMS'
 AND a.src_nurs_sta != 'EMER'
 AND a.nurs_sta NOT IN (
-	'EMER', 'PACU', 'SICU', 'CATH'
+	'EMER', 'PACU', 'SICU', 'CATH', 'PSY'
 )
 AND a.preadm_ord_ind_cd != '1'
 AND LEFT(b.PtNo_Num, 1) = '1'
@@ -78,3 +77,5 @@ SELECT COUNT(*)
 FROM #TEMP_A;
 
 -----
+
+DROP TABLE #TEMP_A
