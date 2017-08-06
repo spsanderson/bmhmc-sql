@@ -129,6 +129,7 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeLeftED), 11, 2) + ':00',
 	  120)                                                                 AS [TimeLeftED]
 	, MLPResHistory
+	, res_pa_np
 	, TriageMLP
 	, CONVERT(VARCHAR,
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(StatusMLPChart), 1, 4) + '-' +

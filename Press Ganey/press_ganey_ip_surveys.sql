@@ -74,11 +74,11 @@ CROSS APPLY (
 CROSS APPLY (
 	SELECT
 		CASE
-			WHEN PLM.dsch_disp IN ('AHR','AHF', 'HR', 'HF') THEN '01'
-			WHEN PLM.dsch_disp IN ('ATW', 'TW') THEN '06'
-			WHEN PLM.dsch_disp IN ('AMA', 'MA') THEN '07'
-			WHEN PLM.dsch_disp IN ('ATE', 'ATL', 'TE', 'TL') THEN '03'
-			WHEN PLM.dsch_disp IN ('ATH', 'TH') THEN '02'
+			WHEN PLM.dsch_disp IN ('AHR','AHF', 'HR', 'HF', ' HR', ' HF') THEN '01'
+			WHEN PLM.dsch_disp IN ('ATW', 'TW', ' TW') THEN '06'
+			WHEN PLM.dsch_disp IN ('AMA', 'MA', ' MA') THEN '07'
+			WHEN PLM.dsch_disp IN ('ATE', 'ATL', 'TE', 'TL', ' TE', ' TL') THEN '03'
+			WHEN PLM.dsch_disp IN ('ATH', 'TH', ' TH') THEN '02'
 			WHEN PLM.dsch_disp IN ('ATV', 'ATO', 'AMN', 'ATF') THEN '05'
 			WHEN PLM.dsch_disp IN ('ATR', 'ATI') THEN '04'
 			WHEN PLM.dsch_disp IN ('ATT', 'AHI') THEN '50'

@@ -1,7 +1,3 @@
-/*
-Get the total insurance balance across all loaded plans and the total paid
-by the patient
-*/
 SELECT DISTINCT(acct.pt_id)
 , isnull(acct.dsch_dtime,acct.adm_dtime) as 'Vst_End_Dtime'
 , acct.fc
@@ -28,10 +24,9 @@ left join smsdss.c_guarantor_demos_v as guar
 on acct.pt_id = guar.pt_id
 left join smsmir.vst_rpt as vst
 on acct.pt_id = vst.pt_id
-       and acct.prim_pyr_cd = vst.prim_pyr_cd
+	and acct.prim_pyr_cd = vst.prim_pyr_cd
 
-WHERE tot_Bal_amt > '0'
-AND prim_pyr_Cd in (
-	''
-)
-AND adm_dtime >= '2015-01-01 00:00:00.000'
+WHERE acct.tot_Bal_amt > '0'
+AND acct.prim_pyr_cd = 'J18'
+AND acct.dsch_dtime >= '2014-01-01 00:00:00.000'
+AND acct.dsch_dtime < '2017-06-04 00:00:00.000'

@@ -147,10 +147,9 @@ FROM #TEMP_C;
 -----
 
 SELECT COUNT(*)
-SELECT *
+--SELECT *
 FROM #TEMP_C
-WHERE Glucose_Val >= 300
-ORDER BY Glucose_Val;
+WHERE Glucose_Val >= 300;
 
 -----
 

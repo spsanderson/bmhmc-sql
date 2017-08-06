@@ -58,6 +58,7 @@ BEGIN
 	, AdmitOrdersDT
 	, TimeLeftED
 	, MLPResHistory
+	, res_pa_np
 	, TriageMLP
 	, StatusMLPChart
 	, TimeMLPSignature
@@ -70,5 +71,5 @@ BEGIN
 		AND a.Slave_Rec_Id=b.Slave_Rec_Id
 
 	WHERE Account != '1234567890'
-
+	
 END
