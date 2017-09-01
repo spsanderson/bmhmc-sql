@@ -1,18 +1,26 @@
 -- VARIABLE DECLARATION AND INITIALIZATION
 DECLARE @SD AS DATE;
 DECLARE @ED AS DATE;
-SET @SD = '2013-10-01';
-SET @ED = '2014-08-01';
+SET @SD = '2012-01-01';
+SET @ED = '2017-07-01';
 -- END OF VARIABLES
 
 SELECT DISTINCT SO.episode_no
+, SO.pty_cd
+, CASE
+	WHEN SUBSTRING(ordering.pract_rpt_name, 1,
+			CHARINDEX(' X', ordering.PRACT_RPT_NAME, 1)) = ''
+	THEN UPPER(ordering.PRACT_RPT_NAME)
+	ELSE SUBSTRING(ordering.PRACT_RPT_NAME, 1,
+			CHARINDEX(' X', ordering.pract_rpt_name, 1))
+  END								AS [Doctor Ordering Consult]
 , CASE
 	WHEN SUBSTRING(PDV.pract_rpt_name, 1,
 			CHARINDEX(' X', PDV.PRACT_RPT_NAME, 1)) = ''
 	THEN UPPER(PDV.PRACT_RPT_NAME)
 	ELSE SUBSTRING(PDV.PRACT_RPT_NAME, 1,
 			CHARINDEX(' X', PDV.pract_rpt_name, 1))
-  END								AS [Doctor Ordering Consult]
+  END								AS [Attending]
 , PDV.src_spclty_cd
 , SO.svc_cd
 , SO.ord_no
@@ -45,6 +53,10 @@ LEFT MERGE JOIN smsdss.BMH_PLM_PtAcct_V        PAV
 ON SO.episode_no = PAV.PtNo_Num
 LEFT MERGE JOIN smsdss.pract_dim_v             PDV
 ON PAV.Atn_Dr_No = PDV.src_pract_no
+	and PAV.Regn_Hosp = PDV.orgz_cd
+left join smsdss.pract_dim_v ordering
+on SO.pty_cd = ordering.src_pract_no	
+	and ordering.orgz_cd = 's0x0'
 
 -- FILTER(S)
 WHERE PAV.Dsch_Date >= @SD
@@ -52,7 +64,7 @@ AND PAV.Dsch_Date < @ED
 AND PAV.Plm_Pt_Acct_Type = 'I'
 AND PAV.PtNo_Num < '20000000'
 AND PDV.orgz_cd = 'S0X0'
---AND PDV.spclty_cd != 'HOSIM'
+AND PDV.spclty_cd = 'HOSIM'
 AND svc_cd = 'Consult: Doctor'
 AND SO.signon_id != 'HSF_JS'								
 

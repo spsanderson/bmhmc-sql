@@ -1,16 +1,16 @@
-SELECT DISTINCT(acct.pt_id)
-, isnull(acct.dsch_dtime,acct.adm_dtime) as 'Vst_End_Dtime'
-, acct.fc
-, acct.hosp_svc
-, DATEDIFF(dd,isnull(acct.dsch_dtime,acct.adm_Dtime),getdate()) as 'Age'
-, acct.prim_pyr_cd
-, acct.tot_chg_amt
-, acct.tot_bal_amt
-, acct.ins_pay_amt
-, acct.pt_bal_amt
-, (acct.tot_bal_amt - acct.pt_bal_amt) as 'Ins_Bal_Amt'
-, acct.tot_pay_amt
-, (acct.tot_pay_amt - acct.ins_pay_amt) as 'Pt_Pay_Amt'
+SELECT PYRPLAN.pt_id
+, VST.vst_end_date
+, VST.fc
+, VST.hosp_svc
+, DATEDIFF(DD, VST.VST_END_DATE, GETDATE()) AS 'AGE IN DAYS'
+, PYRPLAN.pyr_cd
+, VST.tot_chg_amt
+, VST.tot_bal_amt
+, VST.ins_pay_amt
+, VST.pt_bal_amt
+, PYRPLAN.tot_amt_due AS INS_BAL_AMT
+, VST.tot_pay_amt
+, (VST.tot_pay_amt - VST.ins_pay_amt) AS PT_PAY_AMT
 , guar.GuarantorDOB
 , guar.GuarantorFirst
 , guar.GuarantorLast
@@ -19,14 +19,15 @@ SELECT DISTINCT(acct.pt_id)
 , vst.ins3_pol_no
 , vst.ins4_pol_no
 
-FROM smsmir.mir_Acct as acct
-left join smsdss.c_guarantor_demos_v as guar
-on acct.pt_id = guar.pt_id
-left join smsmir.vst_rpt as vst
-on acct.pt_id = vst.pt_id
-	and acct.prim_pyr_cd = vst.prim_pyr_cd
+FROM SMSMIR.PYR_PLAN AS PYRPLAN
+LEFT JOIN smsmir.vst_rpt VST
+ON PYRPLAN.pt_id = VST.pt_id
+	AND PYRPLAN.unit_seq_no = VST.unit_seq_no
+LEFT JOIN smsdss.c_guarantor_demos_v AS GUAR
+ON VST.pt_id = GUAR.pt_id
 
-WHERE acct.tot_Bal_amt > '0'
-AND acct.prim_pyr_cd = 'J18'
-AND acct.dsch_dtime >= '2014-01-01 00:00:00.000'
-AND acct.dsch_dtime < '2017-06-04 00:00:00.000'
+WHERE VST.prim_pyr_cd = 'J18'
+AND VST.vst_end_date IS NOT NULL
+AND PYRPLAN.PYR_CD = 'J18'
+AND VST.tot_bal_amt > 0
+;

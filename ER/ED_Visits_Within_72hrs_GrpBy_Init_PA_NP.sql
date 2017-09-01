@@ -40,15 +40,15 @@ WHERE C1.[Arrival Datetime] <> C2.[Arrival Datetime]
 AND C1.RN+1 = C2.RN
 AND DATEDIFF(HOUR, c1.TimeLeftED, c2.[Arrival Datetime]) <= 72
 AND C1.res_pa_np is not null
-AND LEFT(c1.TimeLeftED, 4) = '2016'
+AND LEFT(c1.TimeLeftED, 4) = '2017'
 
 -- Use below to get between specific dates
-AND c1.[Arrival Datetime] >= '2016-01-01'
-AND c1.[Arrival Datetime] < '2017-01-01'
+--AND c1.[Arrival Datetime] >= '2016-01-01'
+--AND c1.[Arrival Datetime] < '2017-01-01'
 
 -- Use below to get last Sunday - Saturday
---AND c1.[Arrival Datetime] >= DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -7))
---AND c1.[Arrival Datetime] < DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -0))
+AND c1.[Arrival Datetime] >= DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -7))
+AND c1.[Arrival Datetime] < DATEADD(DD, -1, DATEADD(WK, DATEDIFF(WK, 0, GETDATE()), -0))
 
 ORDER BY [Initial PA/NP]
 , MR#

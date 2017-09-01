@@ -96,6 +96,7 @@ WITH CTE1 AS (
 	LEFT OUTER JOIN SMSDSS.c_guarantor_demos_v        AS B
 	ON A.pt_id = B.pt_id
 		AND A.pt_id_start_dtime = B.pt_id_start_dtime
+		AND A.from_file_ind = B.from_file_ind
 	LEFT OUTER JOIN SMSDSS.BMH_PLM_PTACCT_V           AS C
 	ON A.pt_id = C.Pt_No
 		AND A.unit_seq_no = C.unit_seq_no
@@ -105,6 +106,7 @@ WITH CTE1 AS (
 	LEFT OUTER JOIN smsdss.c_patient_employer_demos_v AS E
 	ON A.pt_id = E.pt_id
 		AND A.pt_id_start_dtime = E.pt_id_start_dtime
+		AND A.from_file_ind = E.from_file_ind 
 	/*
 	Get the last payment made by the patient from smsdss.c_pt_payments_v
 	*/
