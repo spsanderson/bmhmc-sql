@@ -5,4 +5,4 @@ SELECT column_name AS [name],
                                   ELSE CAST(CHARACTER_MAXIMUM_LENGTH AS VARCHAR(5))
                                   END + ')', '') AS [type]
 FROM   INFORMATION_SCHEMA.Columns
-WHERE  table_name = 'c_experian_return_file'
+WHERE  table_name = ''

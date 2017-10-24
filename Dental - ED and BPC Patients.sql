@@ -21,11 +21,15 @@ ON c.prin_hcpc_proc_cd = d.clasf_cd
 left outer join smsmir.mir_clasf_mstr as e
 ON c.prin_dx_icd10_cd = e.clasf_cd
 
-where (dx_cd BETWEEN 'K00.0' AND 'K08.9'
-OR LEFT(dx_cd,5)='S02.5')
+where (
+	dx_cd BETWEEN 'K00.0' AND 'K08.9'
+	OR 
+	LEFT(dx_cd,5)='S02.5'
+)
 AND vst_type_cd = 'O'
 and dx_cd_type = 'DF'
 AND dx_eff_Dtime BETWEEN '2016-01-01 00:00:00.000' AND '2016-12-31 23:59:59.000'
 AND hosp_svc IN ('EME','EPC','BPC')
 
 order by pt_id, dx_cd_prio,dx_cd
+;

@@ -6,7 +6,6 @@ DECLARE @ED DATETIME;
 SET @SD = '2016-03-01';
 SET @ED = '2016-04-01';
 
-
 /*
 =======================================================================
 Initial Eligible Admissions
