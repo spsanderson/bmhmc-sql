@@ -48,7 +48,6 @@ SELECT d.user_pyr1_cat
 	AND a.pt_id = p.pt_id 
 	AND a.pt_id_start_dtime = p.pt_id_start_dtime 
 	AND a.unit_seq_no = p.unit_seq_no
-
 	HAVING SUM(p.chg_tot_amt)>0
 )                                                      AS [Implant_Chgs]
 , ISNULL(e.tot_pymts_w_pip,0)                          AS [Pymts_W_PIP]
