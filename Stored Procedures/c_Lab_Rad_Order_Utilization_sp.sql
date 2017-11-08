@@ -180,7 +180,7 @@ BEGIN
 	   AND LEFT(A.episode_no, 1) IN ('1', '8')
 	   AND LEFT(A.episode_no, 4) != '1999'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
-       --AND LEFT(A.episode_no, 1) != '7'
+       AND LEFT(A.episode_no, 1) != '7'
 	)
 
 	INSERT INTO @T1
@@ -402,7 +402,7 @@ ELSE BEGIN
 	   AND LEFT(A.episode_no, 1) IN ('1', '8')
 	   AND LEFT(A.episode_no, 4) != '1999'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
-       --AND LEFT(A.episode_no, 1) != '7'
+       AND LEFT(A.episode_no, 1) != '7'
 	)
 
 	INSERT INTO @T2

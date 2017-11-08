@@ -24,6 +24,12 @@ SELECT PYRPLAN.pt_id
 , COALESCE(vst.ins4_pol_no, INS4.USER_TEXT, VST.SUBSCR_INS4_GRP_ID) AS [Ins4]
 , vst.drg_no
 , PYR_USER.user_text AS [Auth]
+, (
+	select SUM(net_pay_amt)
+	from smsmir.mir_vst_apc as apc
+	where PYRPLAN.pt_id = apc.pt_id
+	and PYRPLAN.unit_seq_no = apc.unit_seq_no
+) AS [APC_Est_Net_Pay_Amt]
 
 FROM SMSMIR.PYR_PLAN AS PYRPLAN
 LEFT JOIN smsmir.vst_rpt VST
@@ -76,6 +82,7 @@ ON PYRPLAN.PT_ID = INS_NAME.PT_ID
 
 --WHERE VST.prim_pyr_cd = 'J01'
 WHERE VST.vst_end_date IS NOT NULL
-AND PYRPLAN.PYR_CD = 'E39'
+AND PYRPLAN.PYR_CD IN ('I01', 'J01', 'E14', 'K71')
 AND VST.tot_bal_amt > 0
+AND PYRPLAN.tot_amt_due > 0
 ;

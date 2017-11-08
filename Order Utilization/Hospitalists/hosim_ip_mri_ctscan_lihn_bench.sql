@@ -15,7 +15,10 @@ The criterion are:
 	3. The service sub department is either:
 		a. MRI
 		b. Cat Scan
-	4. The orders must fall in the years 2014, 2015 and 2016
+	4. The patients must be discharged in 2015 or 2016
+	
+	Dead Criterion
+	XXX 4. The orders must fall in the years 2014, 2015 and 2016 XXX
 
 Change log
 Version	- Date			- Comment
@@ -27,6 +30,7 @@ v1.1    - 10-23-2017 	- Change to exclude patients who's los falls outside of
 							from the LIHN variance reports
 v1.2 	- 10-24-2017	- Fix ELOS computation to properly account for distinct encounters
 							for each of the service lines and svc_sub_dept_desc within
+						- Changed criterion 4 to Discharge_DT must be in years 2015 & 2016
 */
 
 SELECT DISTINCT(a.Encounter) AS Encounter

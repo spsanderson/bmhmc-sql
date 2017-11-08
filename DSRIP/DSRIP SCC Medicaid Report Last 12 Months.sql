@@ -15,7 +15,7 @@ DECLARE @ThisDate DATETIME;
 
 SET @ThisDate = GETDATE();
 SET @START = dateadd(mm, datediff(mm, 0, @ThisDate) - 12, 0) -- Beginning of previous month
-SET @END   = dateadd(mm, datediff(mm, 0, @ThisDate), 0) -- Beginning of this month
+SET @END   = dateadd(mm, datediff(mm, 0, @ThisDate), 0)      -- Beginning of this month
 
 SELECT PLM.Med_Rec_No	
 , PLM.PtNo_Num
