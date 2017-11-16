@@ -70,6 +70,6 @@ LEFT OUTER JOIN smsmir.mdc_mstr       AS m
 ON a.mdc_no = m.mdc
 
 WHERE a.drg_type = '1' 
-AND a.drg_schm IN ('MC11','MC12','MC13','MC14','MC15','MCT4', 'MC16')
+AND a.drg_schm IN ('MC11','MC12','MC13','MC14','MC15','MCT4', 'MC16', 'MC17')
 
 GO
