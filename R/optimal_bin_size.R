@@ -28,5 +28,7 @@ optBin <- function(x){
   idx <- which.min(C)
   optD <- D[idx]
   
-  return(optD)
+  edges <- seq(min(x),max(x),length=N[idx])
+  
+  return(edges)
 }
