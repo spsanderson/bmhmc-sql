@@ -16,6 +16,7 @@ The criterion are:
 		a. MRI
 		b. Cat Scan
 	4. The patients must be discharged in 2015 or 2016
+	5. The LOS must be inside the Threshold
 	
 	Dead Criterion
 	XXX 4. The orders must fall in the years 2014, 2015 and 2016 XXX

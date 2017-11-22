@@ -136,6 +136,8 @@ rptTblOrdPtyLIHNPerf <- distinct(
     , Ord_Pty_Number
     , Ordering_Party
     , LIHN_Svc_Line
+    , ordpty_svcline_ord_count
+    , ordpty_svcline_pt_count
     , ord_pty_svc_alos
     , ord_pty_svc_elos
     , ord_pty_svcline_ord_elos
@@ -143,6 +145,102 @@ rptTblOrdPtyLIHNPerf <- distinct(
 )
 rptTblOrdPtyLIHNPerf <- arrange(.data = rptTblOrdPtyLIHNPerf
   , Ord_Pty_Number, LIHN_Svc_Line)
+
+rptTblOrdPtyEncPerf <- rptTblOrdPtyEncPerf %>%
+  group_by(Ord_Pty_Number) %>%
+  mutate(agg_per = round(mean(ord_per_pt_elos), 4))
+
+rptTblLIHNCounts <- tblPerf %>%
+  group_by(LIHN_Svc_Line) %>%
+  mutate(svcline_order_count = n_distinct(Order_No)) %>%
+  mutate(svcline_pt_count = n_distinct(Encounter)) %>%
+  group_by(LIHN_Svc_Line, Svc_Sub_Dept_Desc) %>%
+  mutate(svcDesc_order_count = n_distinct(Order_No)) %>%
+  mutate(svcDesc_pt_count = n_distinct(Encounter))
+
+rptTblLIHNCounts <- ungroup(rptTblLIHNCounts) 
+rptTblLIHNCounts_a <- distinct(
+  select(
+    .data = rptTblLIHNCounts
+    , LIHN_Svc_Line
+    , svcline_order_count
+    , svcline_pt_count
+  )
+)
+rptTblLIHNCounts_b <- filter(
+  .data = rptTblLIHNCounts
+  , Svc_Sub_Dept_Desc == "MRI"
+  )
+rptTblLIHNCounts_b <- distinct(
+  select(
+    .data = rptTblLIHNCounts_b
+    , LIHN_Svc_Line
+    , mri_order_count = svcDesc_order_count
+    , mri_pt_count = svcDesc_pt_count
+  )
+)
+
+rptTblLIHNCounts_c <- filter(
+  .data = rptTblLIHNCounts
+  , Svc_Sub_Dept_Desc == "Cat Scan"
+)
+rptTblLIHNCounts_c <- distinct(
+  select (
+    .data = rptTblLIHNCounts_c
+    , LIHN_Svc_Line
+    , ctscan_order_count = svcDesc_order_count
+    , ctscan_pt_count = svcDesc_pt_count
+  )
+)
+  
+test <- full_join(
+  rptTblLIHNCounts_a, rptTblLIHNCounts_b, by = "LIHN_Svc_Line"
+)
+test <- full_join(
+  test, rptTblLIHNCounts_c, by = "LIHN_Svc_Line"
+)
+# pick up here, need to rename columns
+rptTblLIHNCounts <- select(
+  .data = test
+  , LIHN_Svc_Line
+  , svcline_order_count
+  , svcline_pt_count
+  , mri_order_count
+  , mri_pt_count
+  , ctscan_order_count
+  , ctscan_pt_count
+) %>%
+  mutate_all(funs(ifelse(is.na(.), 0, .)))
+
+rm(test
+   , rptTblLIHNCounts_a
+   , rptTblLIHNCounts_b
+   , rptTblLIHNCounts_c
+   )
+
+rptTblEncPerf <- rad_data %>%
+  group_by(Encounter) %>%
+  mutate(order_count = n_distinct(Order_No)) %>%
+  mutate(order_per_elos = order_count / Performance)
+
+rptTblEncPerf <- rptTblEncPerf %>%
+  distinct(Encounter
+           , order_per_elos
+           , Ord_Ent_Mo
+  ) %>%
+  filter(
+      Ord_Ent_Mo == 1 | 
+      Ord_Ent_Mo == 2 |
+      Ord_Ent_Mo == 3 |
+      Ord_Ent_Mo == 4 |
+      Ord_Ent_Mo == 5 |
+      Ord_Ent_Mo == 6 |
+      Ord_Ent_Mo == 7 |
+      Ord_Ent_Mo == 8 |
+      Ord_Ent_Mo == 9 |
+      Ord_Ent_Mo == 10
+    )
+
 
 # Create functions for histograms and optimal binsize 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -201,7 +299,9 @@ optBin <- function(x){
   idx <- which.min(C)
   optD <- D[idx]
   
-  return(optD)
+  edges <- seq(min(x),max(x),length=N[idx])
+  
+  return(edges)
 }
 #################
 
@@ -212,7 +312,7 @@ optBin <- function(x){
 bw <- optBin(rptTblOrdPtyEncPerf$LOS)
 ggplot(data = rptTblOrdPtyEncPerf) +
   geom_histogram(mapping = aes(x = LOS)
-                 , binwidth = bw
+                 , breaks = bw
                  , color = "black"
                  , fill = "lightblue") +
   xlab("Length of Stay") +
@@ -223,7 +323,7 @@ ggplot(data = rptTblOrdPtyEncPerf) +
 bw <- optBin(rptTblOrdPtyEncPerf$ord_per_pt_elos)
 ggplot(data = rptTblOrdPtyEncPerf) +
   geom_histogram(mapping = aes(x = ord_per_pt_elos)
-                , binwidth = bw
+                , breaks = bw
                 , color = "black"
                 , fill = "lightblue") +
   xlab("Orders Per Patient Per ELOS") +
@@ -231,11 +331,14 @@ ggplot(data = rptTblOrdPtyEncPerf) +
   ggtitle("Average Orders Per Patient Per ELOS"
           , subtitle = "Source: DSS")
 
+stats <- boxplot.stats(rptTblOrdPtyLIHNPerf$ord_pty_svcline_ord_elos)$stats
 ggplot(data = rptTblOrdPtyLIHNPerf
        , mapping = aes(x = reorder(LIHN_Svc_Line,
                                   ord_pty_svcline_ord_elos)
                        ,y = ord_pty_svcline_ord_elos)) +
-  geom_boxplot(fill = "lightblue") +
+  geom_boxplot(fill = "lightblue",
+               outlier.shape = NA) +
+  scale_y_continuous(limits = c(stats[1], stats[5])) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 60, hjust = 1),
         panel.grid.major.y = element_blank(),
@@ -255,3 +358,37 @@ boxplot(tblPerf$avg_ord_per_pt_elos
     , ylab = "Average Orders Per Patient Per ELOS"
   )
 
+ggplot(data = rptTblOrdPtyEncPerf,
+       mapping = aes(x = agg_per,
+                     y = reorder(Ordering_Party, agg_per)
+                     )
+       ) +
+  geom_segment(aes(yend = Ordering_Party), 
+               xend = 0, color = "grey50") +
+  geom_point(size = 3) +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank()) +
+  ylab("Ordering Provider") +
+  xlab("Aggregate Performance of Order Per Pt ELOS") +
+  ggtitle("Aggregate Performance of Orders Per PT Elos by Ordering Provider",
+          subtitle = "Source: DSS")
+
+ggplot(data = rptTblOrdPtyLIHNPerf,
+       mapping = aes(x = ord_pty_svcline_ord_elos,
+                     y = reorder(Ordering_Party, ord_pty_svcline_ord_elos)
+                     )
+       ) +
+  geom_segment(aes(yend = Ordering_Party),
+               xend = 0, color = "grey50") +
+  geom_point(size = 3, aes(color = LIHN_Svc_Line)) +
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank()) +
+  ylab("Ordering Provider") +
+  xlab("Orders Per LIHN Svc Line Per Pt ELOS") +
+  ggtitle("Orders per Pt ELOS by LIHN Service Line",
+          subtitle = "Source: DSS")
+
+ggplot(data = rptTblEncPerf, 
+       mapping = aes(x = Ord_Ent_Mo,
+                     y = order_per_elos)) +
+  geom_boxplot(outlier.shape = NA)
