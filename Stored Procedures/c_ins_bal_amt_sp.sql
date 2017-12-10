@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [smsdss].[c_ins_bal_amt_sp]    Script Date: 8/24/2017 9:05:42 AM ******/
+/****** Object:  StoredProcedure [smsdss].[c_ins_bal_amt_sp]    Script Date: 12/7/2017 10:49:02 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -14,10 +14,13 @@ SET ANSI_WARNINGS OFF;
 
 /*
 Check to see if the table even exists. If not create and populate, else insert
-new records only if the run date is not already in the table.
+new records only if the run date is not already in the table. This excludes accounts
+in a numeric financial class
 
 Author: Steven P Sanderson II, MPH
 Department: Finance, Revenue Cycle
+
+v2		- 2017-12-07		- comment out unit_seq_no in pyrplan and vstrpt join
 */
 IF NOT EXISTS (
 	SELECT TOP 1 * FROM sysobjects WHERE name='c_ins_bal_amt' AND xtype='U'
@@ -72,7 +75,7 @@ BEGIN
 	, CASE
 		WHEN PYRPLAN.PYR_CD = '*' THEN 0
 		ELSE CAST(PYRPLAN.tot_amt_due AS money)
-		END                                                AS [Ins_Bal_Amt]
+		END                                              AS [Ins_Bal_Amt]
 	, CAST(VST.tot_pay_amt AS money) AS [tot_pay_amt]
 	, CAST((VST.tot_pay_amt - VST.ins_pay_amt) AS money) AS [pt_pay_amt]
 	, CAST(guar.GuarantorDOB as date)                    AS [GuarantorDOB]
@@ -92,12 +95,13 @@ BEGIN
 	FROM SMSMIR.PYR_PLAN AS PYRPLAN
 	LEFT JOIN smsmir.vst_rpt VST
 	ON PYRPLAN.pt_id = VST.pt_id
-			AND PYRPLAN.unit_seq_no = VST.unit_seq_no
+			--AND PYRPLAN.unit_seq_no = VST.unit_seq_no
 	LEFT JOIN smsdss.c_guarantor_demos_v AS GUAR
 	ON VST.pt_id = GUAR.pt_id
 		AND VST.from_file_ind = GUAR.from_file_ind
 
 	WHERE VST.tot_bal_amt > 0
+	AND PYRPLAN.tot_amt_due > 0
 	AND VST.vst_end_date IS NOT NULL
 	AND VST.fc not in (
 		'1','2','3','4','5','6','7','8','9'
@@ -107,7 +111,7 @@ BEGIN
 	, PYRPLAN.pyr_cd
 END
 
-ELSE
+ELSE BEGIN
 	INSERT INTO smsdss.c_ins_bal_amt
 	SELECT PYRPLAN.pt_id
 	, VST.unit_seq_no
@@ -125,7 +129,7 @@ ELSE
 	, CASE
 		WHEN PYRPLAN.PYR_CD = '*' THEN 0
 		ELSE CAST(PYRPLAN.tot_amt_due AS money)
-		END                                                AS [Ins_Bal_Amt]
+		END                                              AS [Ins_Bal_Amt]
 	, CAST(VST.tot_pay_amt AS money) AS [tot_pay_amt]
 	, CAST((VST.tot_pay_amt - VST.ins_pay_amt) AS money) AS [pt_pay_amt]
 	, CAST(guar.GuarantorDOB as date)                    AS [GuarantorDOB]
@@ -145,12 +149,13 @@ ELSE
 	FROM SMSMIR.PYR_PLAN AS PYRPLAN
 	LEFT JOIN smsmir.vst_rpt VST
 	ON PYRPLAN.pt_id = VST.pt_id
-			AND PYRPLAN.unit_seq_no = VST.unit_seq_no
+			--AND PYRPLAN.unit_seq_no = VST.unit_seq_no
 	LEFT JOIN smsdss.c_guarantor_demos_v AS GUAR
 	ON VST.pt_id = GUAR.pt_id
 		AND VST.from_file_ind = GUAR.from_file_ind
 
 	WHERE VST.tot_bal_amt > 0
+	AND PYRPLAN.tot_amt_due > 0
 	AND VST.vst_end_date IS NOT NULL
 	AND VST.fc not in (
 		'1','2','3','4','5','6','7','8','9'
@@ -160,4 +165,5 @@ ELSE
 
 	ORDER BY PYRPLAN.pt_id
 	, PYRPLAN.pyr_cd
+END
 ;

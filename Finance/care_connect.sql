@@ -34,9 +34,10 @@ SELECT PYRPLAN.pt_id
 FROM SMSMIR.PYR_PLAN AS PYRPLAN
 LEFT JOIN smsmir.vst_rpt VST
 ON PYRPLAN.pt_id = VST.pt_id
-       AND PYRPLAN.unit_seq_no = VST.unit_seq_no
+       --AND PYRPLAN.unit_seq_no = VST.unit_seq_no
 LEFT JOIN smsdss.c_guarantor_demos_v AS GUAR
 ON VST.pt_id = GUAR.pt_id
+	AND VST.from_file_ind = GUAR.from_file_ind
 -- ADD AUTHORIZATION NUMBER '5C49AUTH'
 LEFT JOIN SMSMIR.MIR_PYR_PLAN_USER AS PYR_USER
 ON PYRPLAN.PT_ID = PYR_USER.PT_ID
@@ -82,7 +83,8 @@ ON PYRPLAN.PT_ID = INS_NAME.PT_ID
 
 --WHERE VST.prim_pyr_cd = 'J01'
 WHERE VST.vst_end_date IS NOT NULL
-AND PYRPLAN.PYR_CD IN ('I01', 'J01', 'E14', 'K71')
+AND PYRPLAN.PYR_CD IN ('')
 AND VST.tot_bal_amt > 0
 AND PYRPLAN.tot_amt_due > 0
+order by PYRPLAN.pt_id
 ;

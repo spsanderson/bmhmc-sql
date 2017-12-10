@@ -1,9 +1,10 @@
-SELECT [SURVEY DESIGNATOR] = 'IN0101P'
+SELECT [SURVEY DESIGNATOR] = 'AS0101'
 , [CLIENT ID] = '725'
 , [LAST NAME] = ISNULL(A.pt_last_name, '')
 , [MIDDLE INITIAL] = ''
 , [FIRST NAME] = ISNULL(A.pt_first_name , '')
 , [ADDRESS 1] = ISNULL(B.addr_line1, '')
+, [ADDRESS 2] = ISNULL(B.addr_line2, '')
 , [CITY] = ISNULL(B.addr_line2, '')
 , [STATE] = ISNULL(B.addr_line3, '')
 , [ZIP CODE] = ISNULL(PLM.Pt_Zip_Cd, '')
@@ -13,19 +14,19 @@ SELECT [SURVEY DESIGNATOR] = 'IN0101P'
 , [LANGUAGE] = ISNULL(LANG.LANG, '')
 , [MEDICAL RECORD NUMBER] = PLM.Med_Rec_No
 , [UNIQUE ID] = PLM.PtNo_Num
-, [ADMISSION SOURCE] = ISNULL(ADM_SRC.ADM_SRC, '')
-, [ADMIT DATE] = REPLACE(CONVERT(VARCHAR(10), PLM.Adm_Date, 101), '/', '')
-, [PATIENT DISCHARGE STATUS] = ISNULL(DSCH_DISP.DSCH_DISP, '')
-, [UNIT] = ISNULL(A.ward_cd, '')
-, [PATIENT EMAIL] = ISNULL(D.UserDataText, '')
 , [ATTENDING PHYSICIAN NPI] = ISNULL(E.npi_no, '')
 , CASE
        WHEN RIGHT(ISNULL(upper(e.pract_rpt_name), ''),1) = 'x'
        THEN SUBSTRING(e.pract_rpt_name, 1, CHARINDEX('X',E.PRACT_RPT_NAME, 1)-1)
        ELSE ISNULL(UPPER(E.pract_rpt_name), '')
   END AS [ATTENDING PHYSICIAN NAME]
+, [ADMISSION SOURCE] = ISNULL(ADM_SRC.ADM_SRC, '')
+, [ADMIT DATE] = REPLACE(CONVERT(VARCHAR(10), PLM.Adm_Date, 101), '/', '')
+, [PATIENT DISCHARGE STATUS] = ISNULL(DSCH_DISP.DSCH_DISP, '')
+, [UNIT] = ISNULL(A.ward_cd, '')
+--, [PATIENT EMAIL] = ISNULL(D.UserDataText, '')
 , [SPECIALTY] = ISNULL(E.spclty_desc, '')
-, [ER_ADMIT] = ISNULL(PLM.ED_Adm, '')
+--, [ER_ADMIT] = ISNULL(PLM.ED_Adm, ''
 , [E.O.R INDICATOR] = '$'
 
 INTO #TEMP_A
@@ -109,12 +110,15 @@ AND PLM.DSCH_DATE < '2017-11-01'
 --WHERE PLM.DSCH_DATE = CAST(GETDATE()-1 AS DATE)
 AND PLM.Plm_Pt_Acct_Type = 'O'
 AND PLM.tot_chg_amt > 0
-AND PLM.Adm_Source NOT IN ('NE', 'NB')
 AND PLM.Pt_No IN (
        SELECT DISTINCT(ZZZ.Pt_No)
        FROM smsdss.BMH_PLM_PtAcct_Clasf_Proc_V_New AS ZZZ
        WHERE (
-              ZZZ.ClasfCd between '10021' and '69990'
+			ZZZ.ClasfCd BETWEEN '10021' AND '69990' 
+			OR
+			ZZZ.clasfCd IN (
+				'G0104','G0105','G0121','G0260'
+			)
        )
 )
 
@@ -127,37 +131,44 @@ SELECT *
 INTO #TEMP_B
 
 FROM (
-	SELECT pt_id
-	, proc_cd
-	, proc_cd_prio
-	, proc_cd_modf1
-	, proc_cd_modf2
-	, proc_cd_modf3
+       SELECT pt_id
+       , proc_cd
+       , proc_cd_prio
 
-	FROM smsmir.sproc AS A
+       FROM smsmir.sproc AS A
        
-	WHERE A.proc_cd_prio IN (
-			'01','02','03','04','05','06'
-	)
-	and (
-		(
-			proc_cd_modf1 != '73'
-			or
-			proc_cd_modf1 != '74'
+       WHERE A.proc_cd_prio IN (
+		'01','02','03','04','05','06'
+        )
+        AND (
+			(
+				(
+					proc_cd_modf1 != '73'
+                    AND
+                    proc_cd_modf1 != '74'
+				)
+				OR
+				proc_cd_modf1 IS NULL
+            )
+			AND (
+                (
+					proc_cd_modf2 != '73'
+                    AND
+                    proc_cd_modf2 != '74'
+				)
+				OR
+				proc_cd_modf2 IS NULL
+			)
+            AND (
+				(
+					proc_cd_modf3 != '73'
+                    AND
+                    proc_cd_modf3 != '74'
+				)
+				OR
+				proc_cd_modf3 IS NULL
+			)
 		)
-		and
-		(
-			proc_cd_modf2 != '73'
-			or
-			proc_cd_modf2 != '74'
-		)
-		and
-		(
-			proc_cd_modf3 != '73'
-			or
-			proc_cd_modf3 != '74'
-		)
-	)
 ) A
 
 PIVOT (
@@ -166,9 +177,9 @@ PIVOT (
 ) PVT
 
 WHERE SUBSTRING(PT_ID, 5, 8) IN (
-       SELECT ZZZ.[UNIQUE ID]
-       FROM #TEMP_A AS ZZZ
-)
+	SELECT ZZZ.[UNIQUE ID]
+    FROM #TEMP_A AS ZZZ
+	)
 ;
 
 -----
@@ -179,6 +190,7 @@ SELECT A.[SURVEY DESIGNATOR]
 , A.[MIDDLE INITIAL]
 , A.[FIRST NAME]
 , A.[ADDRESS 1]
+, A.[ADDRESS 2]
 , A.[CITY]
 , A.[STATE]
 , A.[ZIP CODE]
@@ -188,25 +200,34 @@ SELECT A.[SURVEY DESIGNATOR]
 , A.[LANGUAGE]
 , A.[MEDICAL RECORD NUMBER]
 , A.[UNIQUE ID]
+, A.[ATTENDING PHYSICIAN NPI]
+, A.[ATTENDING PHYSICIAN NAME]
 , A.[ADMISSION SOURCE]
 , A.[ADMIT DATE]
 , A.[PATIENT DISCHARGE STATUS]
 , A.UNIT
-, A.[PATIENT EMAIL]
-, A.[ATTENDING PHYSICIAN NPI]
-, A.[ATTENDING PHYSICIAN NAME]
 , A.SPECIALTY
-, A.ER_ADMIT
+--, A.[PATIENT EMAIL]
+--, A.ER_ADMIT
 , [Procdure Code 1] = B.[01]
 , [Procdure Code 2] = B.[02]
 , [Procdure Code 3] = B.[03]
 , [Procdure Code 4] = B.[04]
 , [Procdure Code 5] = B.[05]
 , [Procdure Code 6] = B.[06]
+, [Deceased Flag] = CASE WHEN A.[PATIENT DISCHARGE STATUS] = '20' THEN 'Y' ELSE 'N' END
+, [No Publicity Flag] = 'N'
+, [State Regulation Flag] = 'N'
+, [Transferred/Admitted to IP] = 'N'
 , A.[E.O.R INDICATOR]
 
 FROM #TEMP_A AS A
 LEFT OUTER JOIN #TEMP_B    AS B
 ON A.[UNIQUE ID] = SUBSTRING(pt_id, 5, 8)
+
+--where A.[UNIQUE ID] in (
+--	''
+--)
+WHERE B.[01] IS NOT NULL
 
 DROP TABLE #TEMP_A, #TEMP_B
