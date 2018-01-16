@@ -31,7 +31,7 @@ ON a.pt_id = c.Pt_No
 LEFT OUTER JOIN smsmir.mir_Actv_proc_seg_xref      AS bb
 ON a.actv_cd = bb.actv_cd 
 	AND bb.proc_pyr_ind = 'H'
-LEFT OUTER JOIN smsdss.c_CMS_2016_Lab_Fee_Schedule AS d
+LEFT OUTER JOIN smsdss.c_CMS_2018_Lab_Fee_Schedule AS d
 ON bb.clasf_cd = d.HCPCS 
 	AND d.modifier IS NULL
 

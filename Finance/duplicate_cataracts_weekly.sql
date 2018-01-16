@@ -77,12 +77,13 @@ SELECT * FROM CTE1
 SELECT T1.*
 , CODERV.Coder
 , RN = ROW_NUMBER() OVER(
-	PARTITION BY MED_REC_NO
+	PARTITION BY MED_REC_NO, proc_cd_modf1
 	ORDER BY PROC_EFF_DATE
 )
 FROM @T1 AS T1
 LEFT JOIN smsdss.c_bmh_coder_activity_v AS CODERV
-ON T1.PT_ID = CODERV.Patient_ID;
+ON T1.PT_ID = CODERV.Patient_ID
 
+order by t1.med_rec_no
 
 DROP TABLE #TEMPA;
