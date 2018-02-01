@@ -61,8 +61,9 @@ SELECT
 WHERE A.vst_start_dtime >= '2013-01-01'
 	AND A.vst_start_dtime < '2014-01-01'
 	AND (
-		A.PtNo_Num LIKE '6%'
-		OR A.PtNo_Num LIKE '3%'
+		LEFT(A.PtNo_Num, 1) = '6'
+		OR 
+		LEFT(A.PtNo_Num, 1) = '3'
 		)
 	AND B.ClasfCd IN (
 	'36147', '36870', '36821', '36832', '36830', '93545', '93459', '93460',
