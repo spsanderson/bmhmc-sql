@@ -1,19 +1,18 @@
 USE [SMSPHDSSS0X0]
 GO
-
-/****** Object:  StoredProcedure [smsdss].[c_dly_ed_tracking_sp]    Script Date: 1/29/2018 9:47:21 AM ******/
+/****** Object:  StoredProcedure [smsdss].[c_dly_ed_tracking_sp]    Script Date: 2/9/2018 8:53:37 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE  [smsdss].[c_dly_ed_tracking_sp_test]
+ALTER PROCEDURE  [smsdss].[c_dly_ed_tracking_sp]
 AS
 
 /* 
 =======================================================================
 Author: Steven P Sanderson II, MPH
-Create date: 08132010
+Create date: 08-13-2010
 Description: Stored procedure to track ED records sent to AVIA code
 to test exec smsdss.c_dly_ed_tracking_sp 
 
@@ -30,10 +29,10 @@ BEGIN
 	SET NOCOUNT ON;
 	SET ANSI_WARNINGS OFF;
 
-	DROP TABLE smsdss.c_er_tracking_test;
+	DROP TABLE smsdss.c_er_tracking;
 
-	-- if the table does not exist (DNE) then create
-	CREATE TABLE smsdss.c_er_tracking_test (
+	-- create table
+	CREATE TABLE smsdss.c_er_tracking (
 		rpt_name VARCHAR(40) NULL
 		, pt_id CHAR(13) NOT NULL
 		, episode_no VARCHAR(20) NOT NULL
@@ -78,7 +77,11 @@ BEGIN
 	)
 	;
 	-- Now that the table is created we can start to gather data to populate it
-	-- Create Intial Base population
+	/*
+	===================================================================
+	Create Intial Base population
+	===================================================================
+	*/
 	SELECT A.PT_ID
 	, A.episode_no
 	, A.vst_id
@@ -106,7 +109,13 @@ BEGIN
 	)
 	;
 	-- SELECT * FROM #BASE_POP WHERE episode_no = '';
-	-- create temp table with chief complaint
+	
+	
+	/*
+	===================================================================
+	Create temp table with chief complaint
+	===================================================================
+	*/
 	SELECT pt_id
 	, episode_no
 	, [Chief_Complaint] = user_data_text
@@ -123,7 +132,11 @@ BEGIN
 	--SELECT * FROM #ER_Chf_Complaint WHERE episode_no = ''
 	;
 
-	--Create Temp Table With Date Sent To Avia. Convert Invision "2" Field to Date
+	/*
+	===================================================================
+	Create Temp Table With Date Sent To Avia. Convert Invision "2" Field to Date
+	===================================================================
+	*/
 	SELECT pt_id
 	, Episode_no
 	, [Sent_To_Avia_Date] = CAST((left(user_data_text,2)+'-'+substring(user_data_text,3,2)+'-'+right(user_data_text,2)) AS datetime)
@@ -140,7 +153,11 @@ BEGIN
 	--SELECT * FROM #ER_To_Avia WHERE EPISODE_NO = ''
 	;
 
-	-- create temp table with ER Walkout/Non-Billable Indicator
+	/*
+	===================================================================
+	Create temp table with ER Walkout/Non-Billable Indicator
+	===================================================================
+	*/
 	SELECT CAST(RIGHT(RTRIM(xx.PT_ID), 8) AS varchar(20)) AS pt_id
 	, CASE
 		WHEN xx.ACTV_CD IN ('04600565','04600052')
@@ -168,7 +185,11 @@ BEGIN
 	-- SELECT * FROM #ER_Wlk_Out_Ind WHERE PT_ID = ''
 	;
 
-	-- Create Temp Table with ER Visit Charges & Servce Levels
+	/*
+	===================================================================
+	Create Temp Table with ER Visit Charges & Servce Levels
+	===================================================================
+	*/
 	SELECT CAST(RIGHT(RTRIM(Q.pt_id), 8) AS varchar(20)) AS pt_id
 	, Q.ACTV_CD
 	, r.actv_name
@@ -215,7 +236,11 @@ BEGIN
 	-- SELECT * FROM #ER_Vist_Chgs WHERE PT_ID = ''
 	;
 
-	-- Create Temp table with Attending Phsycian Info
+	/*
+	===================================================================
+	Create Temp table with Attending Phsycian Info
+	===================================================================
+	*/
 	SELECT aa.episode_no
 	, aa.pt_id
 	, ab.pt_id as [Vst_Pt_Id]
@@ -249,7 +274,11 @@ BEGIN
 	-- SELECT * FROM #ER_ATTEND_PHYS_NAME WHERE EPISODE_NO = ''
 	;
 
-	--Create Temp Table With Admitting ER Physician Name
+	/*
+	===================================================================
+	Create Temp Table With Admitting ER Physician Name
+	===================================================================
+	*/
 	SELECT ax.episode_no
 	, ax.pt_id
 	, ax.pt_id_start_dtime
@@ -280,7 +309,11 @@ BEGIN
 	-- SELECT * FROM #ER_ADMIT_PHYS_NAME WHERE EPISODE_NO = ''
 	;
 
-	/* Get items from smsmir.mir_vst */
+	/*
+	===================================================================
+	Get items from smsmir.mir_vst
+	===================================================================
+	*/
 	SELECT SUBSTRING(PT_ID, 5, 8) AS [Episode_No]
 	, pt_id
 	, ISNULL(PRIN_DX_CD, prin_dx_icd10_cd) AS [prin_dx_cd]
@@ -298,8 +331,12 @@ BEGIN
 	-- SELECT * FROM #MIR_VST WHERE EPISODE_NO = ''
 	;
 
-	/*Brings Together All Data From Temp and MIR Tables*/
-	INSERT 	INTO smsdss.c_er_tracking_test
+	/*
+	===================================================================
+	Brings Together All Data From Temp and MIR Tables
+	===================================================================
+	*/
+	INSERT INTO smsdss.c_er_tracking
 
 	SELECT b.rpt_name
 	, a.pt_id
@@ -342,7 +379,6 @@ BEGIN
 	, [RunDate] = CAST(GETDATE() AS date)
 	, [RunDateTime] = GETDATE()
 
-	--FROM smsmir.mir_cen_hist as a 
 	FROM #BASE_POP AS A
 	LEFT JOIN smsmir.mir_pms_case as b
 	ON a.pt_id = b.pt_id 

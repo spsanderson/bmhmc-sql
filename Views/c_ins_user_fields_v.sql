@@ -1,18 +1,16 @@
 USE [SMSPHDSSS0X0]
 GO
 
-/****** Object:  View [smsdss].[c_ins_user_fields_v]    Script Date: 10/6/2016 11:04:37 AM ******/
+/****** Object:  View [smsdss].[c_ins_user_fields_v]    Script Date: 2/1/2018 9:07:40 AM ******/
 SET ANSI_NULLS ON
 GO
 
 SET QUOTED_IDENTIFIER ON
 GO
 
-
-
-
 ALTER VIEW [smsdss].[c_ins_user_fields_v]
 AS
+
 SELECT a.pt_id
 , a.acct_no
 , a.pt_id_start_dtime
@@ -23,6 +21,7 @@ SELECT a.pt_id
 , d.user_text as 'Ins_State'
 , e.user_text as 'Ins_Zip'
 , g.user_text as 'Ins_Tel_No'
+, a.from_file_ind
 
 FROM smsmir.mir_pyr_plan_user as a LEFT OUTER JOIN
 smsmir.mir_pyr_plan_user as b 
@@ -66,5 +65,6 @@ GROUP BY a.pt_id
 , e.user_text
 , f.user_text
 , g.user_text
+, a.from_file_ind
 
 GO

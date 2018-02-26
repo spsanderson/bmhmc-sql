@@ -58,8 +58,8 @@ BEGIN
 
 	INTO smsdss.c_Wellsoft_Ord_Rpt_Tbl
 
-	FROM [BMH-EDIS-CL]..[WELLUSER].[Patient_Chart]             A
-	LEFT OUTER JOIN [BMH-EDIS-CL]..[WELLUSER].[Patient_Orders] B
+	FROM [BMH-EDIS-CL]..[WELLUSER].[Patient_Chart]             A WITH(NOLOCK)
+	LEFT OUTER JOIN [BMH-EDIS-CL]..[WELLUSER].[Patient_Orders] B WITH(NOLOCK)
 	ON A.MASTER_REC_ID = B.MASTER_REC_ID
 
 	WHERE B.SentTo != 'Canceled'

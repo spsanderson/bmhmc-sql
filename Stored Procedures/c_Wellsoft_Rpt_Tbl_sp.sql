@@ -65,8 +65,8 @@ BEGIN
 	
 	INTO smsdss.c_Wellsoft_Rpt_tbl_tmp
 	
-	FROM [BMH-EDIS-CL]..[WELLUSER].[Patient_Chart] a 
-	LEFT OUTER JOIN [BMH-EDIS-CL]..[WELLUSER].[Patient_Diagnoses] b
+	FROM [BMH-EDIS-CL]..[WELLUSER].[Patient_Chart] a WITH(NOLOCK)
+	LEFT OUTER JOIN [BMH-EDIS-CL]..[WELLUSER].[Patient_Diagnoses] b WITH(NOLOCK)
 	ON a.Master_Rec_Id=b.Master_Rec_Id 
 		AND a.Slave_Rec_Id=b.Slave_Rec_Id
 

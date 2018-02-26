@@ -3,9 +3,15 @@ GO
 
 DECLARE @SD DATETIME;
 DECLARE @ED DATETIME;
+DECLARE @ThisDate DATETIME;
 
-SET @SD = '2017-03-01';
-SET @ED = '2017-04-01';
+-- Set dates dynamically
+SET @ThisDate = GETDATE();
+SET @SD = DATEADD(MM, DATEDIFF(MM, 0, @ThisDate) - 1, 0);
+SET @ED = dateadd(mm, datediff(mm, 0, @ThisDate), 0);
+
+--SET @SD = '2017-03-01';
+--SET @ED = '2017-04-01';
 
 SELECT med_rec_no                        AS [Med_Rec_No]
 , ptno_num                               AS [Acct_No]
