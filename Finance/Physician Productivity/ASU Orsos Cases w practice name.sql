@@ -14,8 +14,8 @@ DECLARE @ORSOS_END_1    DATETIME;
 DECLARE @ORSOS_START_2  DATETIME;
 DECLARE @ORSOS_END_2    DATETIME;
 
-SET @ORSOS_START_1 = '2016-11-01 00:00:00';
-SET @ORSOS_END_1   = '2016-12-01 00:00:00';
+SET @ORSOS_START_1 = '2018-03-01 00:00:00';
+SET @ORSOS_END_1   = '2018-04-01 00:00:00';
 SET @BMH_START_1   = @ORSOS_START_1;
 SET @BMH_END_1     = @ORSOS_END_1;
 SET @ORSOS_START_2 = '2019-01-01 00:00:00';
@@ -473,13 +473,43 @@ ORDER BY A.[Practice Name];
 ---------------------------------------------------------------------------------------------------
 SELECT DATEPART(YEAR, A.[ORSOS START DATE]) AS SVC_YEAR
 , DATEPART(MONTH, A.[ORSOS START DATE]) AS SVC_MONTH
-, A.*
+, A.[ORSOS Case No]
+, A.[DSS Case No]
+, C.Pt_Name
+, A.MD_ID
+, A.[PROVIDER NAME]
+, A.spclty_cd1
+, A.spclty_cd_desc
+, A.med_staff_dept
+, A.[ORSOS Start Date]
+, A.[ORSOS Room ID]
+, A.[Ent Proc Rm Time]
+, A.[Leave Proc Rm Time]
+, A.[Procedure]
+, A.[Anes Start Date]
+, A.[Anes Start Time]
+, A.[Anes End Date]
+, A.[Anes End Time]
+, A.[Patient Type]
+, A.[Adm Recovery Date]
+, A.[Adm Recovery Time]
+, A.[Leave Recovery Date]
+, A.[Leave Recovery Time]
+, A.[Total Actv Qty AmbSurg]
+, A.[Total Actv Charge AmbSurg]
+, A.[Total Actv Qty OR Time]
+, A.[Total Actv Charge OR Time]
+, A.pt_type
+, A.hosp_svc
+, A.tot_chg_amt
 , B.[Practice Name]
 
 FROM #TEMP_E AS A
 LEFT JOIN #PRACT_NAME_TEMP AS B
 ON A.[MD_ID] = B.[DSS PROV NUM]
 	AND B.[RN] = 1
+LEFT JOIN smsdss.BMH_PLM_PtAcct_V AS C
+ON A.[DSS Case No] = C.PtNo_Num
 	
 WHERE A.MD_ID IS NOT NULL
 
