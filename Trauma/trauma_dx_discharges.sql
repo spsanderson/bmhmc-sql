@@ -4,18 +4,25 @@ DECLARE @END   DATETIME;
 SET @START = '2017-04-01';
 SET @END   = '2018-04-01';
 
-DECLARE @Trauma_MD AS TABLE (
-	ID CHAR(6)
-)
-INSERT INTO @Trauma_MD (ID)
-VALUES('019398'),('019372'),('019356'),('019380'),('008698')
-,('013813'),('017772'),('019364'),('018671')
-;
-
 SELECT DX.pt_id
 , DX.unit_seq_no
 , DX.dx_cd_prio
 , DX.dx_cd
+, LEFT(DX.dx_cd, 3) AS [Dx_Cd_Prefix]
+, CASE
+	WHEN LEFT(DX.DX_CD, 3) NOT IN (
+		'S00','S10','S20','S30','S40','S50','S60','S70','S80','S90'
+	)
+		THEN 1
+		ELSE 0
+  END AS [Outside_S_0_Range]
+, CASE
+	WHEN LEFT(DX.DX_CD, 3) IN (
+		'S00','S10','S20','S30','S40','S50','S60','S70','S80','S90'
+	)
+		THEN 1
+		ELSE 0
+  END AS [Inside_S_0_Range]
 , Dx_Code_Desc.alt_clasf_desc
 , DX.dx_cd_schm
 , DX.dx_cd_type
@@ -68,16 +75,23 @@ SELECT DX.pt_id
 , CASE
 	WHEN (
 		PAV.Atn_Dr_No IN (
-			'019398','019372','019356','019380','008698','013813','017772','019364','018671'
+			'019398','019372','019356','019380','008698','013813','017772','018671','013326','017772','019703','010108'
 		)
 		OR
 		PAV.Adm_Dr_No IN (
-			'019398','019372','019356','019380','008698','013813','017772','019364','018671'
+			'019398','019372','019356','019380','008698','013813','017772','018671','013326','017772','019703','010108'
 		)
 	)
 		THEN 1
 		ELSE 0
   END AS [Admit_Attend_Trauma_Svc]
+, CASE
+	WHEN PAV.Adm_Dr_No IN (
+			'019398','019372','019356','019380','008698','013813','017772','018671','013326','017772','019703','010108'
+		)
+		THEN 1
+		ELSE 0
+  END AS [Admit_To_Trauma_Svc]
 , PAV.dsch_disp
 , CASE
 	WHEN PAV.dsch_disp IN ('ATH', 'TH', ' TH')

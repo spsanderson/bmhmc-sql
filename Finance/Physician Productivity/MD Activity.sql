@@ -2,7 +2,7 @@ DECLARE @ACTV_CD_START  VARCHAR(10);
 DECLARE @ACTV_CD_END    VARCHAR(10);
 DECLARE @PROC_EFF_START DATETIME;
 DECLARE @PROC_EFF_END   DATETIME;
-DECLARE @PROC_CD_TYPE   VARCHAR(2); -- for icd-9 2 for icd-10 3
+DECLARE @PROC_CD_TYPE   VARCHAR(3); -- for icd-9 2 for icd-10 3
 DECLARE @ADMIT_START    DATETIME;
 DECLARE @ADMIT_END      DATETIME;
 DECLARE @PROC_SUMM_CAT  VARCHAR(15);
@@ -10,13 +10,11 @@ DECLARE @HCPCS_PROC_CAT VARCHAR(15);
 
 SET @ACTV_CD_START  = '07200000';
 SET @ACTV_CD_END    = '07299999';
-SET @PROC_EFF_START = '01/01/2015';
-SET @PROC_EFF_END   = '01/01/2016';
-SET @PROC_CD_TYPE   = 'PC'; -- for icd-9 pc for icd-10 pch
+SET @PROC_EFF_START = '04/01/2017';
+SET @PROC_EFF_END   = '10/01/2017';
+SET @PROC_CD_TYPE   = 'PC'; -- for inpatient pc for outpatient pch
 SET @ADMIT_START    = @PROC_EFF_START;
 SET @ADMIT_END      = @PROC_EFF_END;
---SET @PROC_SUMM_CAT  = '%eye%';
---SET @HCPCS_PROC_CAT = @PROC_SUMM_CAT;
 
 -- DECLARE MD LIST ----------------------------------------------------
 DECLARE @MD_LIST TABLE (
@@ -24,7 +22,7 @@ DECLARE @MD_LIST TABLE (
 )
 
 INSERT @MD_LIST (MD_ID)
-VALUES (''),(''),(''),(''),('')
+VALUES (''),(''),(''),(''),(''),(''),('')
 -----------------------------------------------------------------------
 
 --Pull Surgeon Information
@@ -99,14 +97,6 @@ LEFT OUTER JOIN SMSDSS.pract_dim_v                     AS ADM_DR
 ON D.Adm_Dr_No = ADM_DR.src_pract_no
 	AND ADM_DR.orgz_cd = 'S0X0'
 
--- add in only digestive procedures -----------------------------------
---LEFT JOIN smsdss.proc_dim_v                            AS f
---ON a.proc_cd = f.proc_cd
---	AND (
---		f.proc_summ_cat like @PROC_SUMM_CAT
---		or f.hcpcs_proc_dtl_cat like @HCPCS_PROC_CAT
---	)
------------------------------------------------------------------------
 WHERE a.resp_pty_cd IN (
 	SELECT * FROM @MD_LIST
 )
@@ -117,6 +107,9 @@ AND a.proc_cd_schm NOT IN ('!')
 AND a.proc_cd_type = @PROC_CD_TYPE
 AND a.pt_id BETWEEN '000010000000' AND '000099999999'
 AND d.tot_chg_amt > 0
+----- change to not equal to for pch
+AND d.plm_pt_acct_type = 'I'
+-----
 
 UNION
 /*Pull Outpatient PST & Ref Amb Data and IP Non-Surgical Cases*/
@@ -180,6 +173,9 @@ AND f.tot_chg_amt > 0
 AND h.src_sys_id='#PASS0X0'
 AND i.src_sys_id='#PASS0X0'
 AND f.hosp_svc <> 'bpc'
+----- change to not equal to for pch
+AND f.plm_pt_acct_type = 'I'
+-----
 AND (
 	f.adm_dr_no IN (
 		SELECT * FROM @MD_LIST
