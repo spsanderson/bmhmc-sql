@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [smsdss].[c_Lab_Rad_Order_Utilization_sp]    Script Date: 10/11/2017 1:04:54 PM ******/
+/****** Object:  StoredProcedure [smsdss].[c_Lab_Rad_Order_Utilization_sp]    Script Date: 5/22/2018 7:56:11 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -29,7 +29,10 @@ v1 - 2017-10-05 - Initial stored procedure creation
 v2 - 2017-10-09 - Fix code for Else statement to ELSE BEGIN ... END and re-declare date
                   variables inside of the ELSE BEGIN statement
 v3 - 2017-10-10 - Change from Admit Date to Discharge Date
-
+v4 - 2018-05-16 - Fix missing discharge date for outpatients, specifically ED
+				- this fix necessitated a back load of missing encounters filtered
+				- out by missing a discharge date.
+v5 - 2018-05-21 - Filter @T1 variable table to use the new discharge date column
 */
 
 IF NOT EXISTS (
@@ -151,8 +154,18 @@ BEGIN
        , C.ord_sts_modf  AS [Order_Status]
        , B.occr_sts_cd
        , B.occr_sts_modf AS [Order_Occ_Status]
-       , D.dsch_dtime
-       , YEAR(d.dsch_dtime) AS [Dsch_Year]
+	   -- FIX MISSING DISCHARGE DATES FOR OUTPATIENTS
+       , CASE
+			WHEN LEFT(A.EPISODE_NO, 1) = '1'
+				THEN D.dsch_dtime
+				ELSE D.adm_dtime
+	     END AS dsch_dtime
+	   -- FIX MISSING DISCHARGE YEAR FOR OUTPATIENTS
+	   , CASE
+			WHEN LEFT(A.EPISODE_NO, 1) = '1'
+				THEN YEAR(d.dsch_dtime)
+				ELSE YEAR(D.adm_dtime)
+	     END AS [Dsch_Year]
        , a.ovrd_dup_ind
 
        FROM smsdss.c_sr_orders_finance_rpt_v    AS A
@@ -175,8 +188,9 @@ BEGIN
 			  , '023' -- MRI
        )
        AND C.ord_sts_modf IN ('Complete', 'Discontinue')
-       AND D.dsch_date >= @start -- replace with @start for prod
-       AND D.dsch_date <  @end -- replace with @end for prod
+	   -- CHANGE TO ADMIT DATE
+	   AND D.adm_date >= @START
+	   AND D.adm_date < @END
 	   AND LEFT(A.episode_no, 1) IN ('1', '8')
 	   AND LEFT(A.episode_no, 4) != '1999'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
@@ -185,6 +199,9 @@ BEGIN
 
 	INSERT INTO @T1
 	SELECT * FROM T1
+	-- ADD DSCH_DATE BACK IN
+	WHERE T1.dsch_dtime >= @START
+	AND T1.dsch_dtime < @END
 	;
 
 	SELECT t1.MRN
@@ -373,8 +390,18 @@ ELSE BEGIN
        , C.ord_sts_modf  AS [Order_Status]
        , B.occr_sts_cd
        , B.occr_sts_modf AS [Order_Occ_Status]
-       , D.dsch_dtime
-       , YEAR(d.dsch_dtime) AS [Dsch_Year]
+	   -- FIX MISSING DISCHARGE DATES FOR OUTPATIENTS
+       , CASE
+			WHEN LEFT(A.EPISODE_NO, 1) = '1'
+				THEN D.dsch_dtime
+				ELSE D.adm_dtime
+	     END AS dsch_dtime
+	   -- FIX MISSING DISCHARGE YEAR FOR OUTPATIENTS
+	   , CASE
+			WHEN LEFT(A.EPISODE_NO, 1) = '1'
+				THEN YEAR(d.dsch_dtime)
+				ELSE YEAR(D.adm_dtime)
+	     END AS [Dsch_Year]
        , a.ovrd_dup_ind
 
        FROM smsdss.c_sr_orders_finance_rpt_v    AS A
@@ -397,8 +424,9 @@ ELSE BEGIN
 			  , '023' -- MRI
        )
        AND C.ord_sts_modf IN ('Complete', 'Discontinue')
-       AND D.dsch_date >= @START_b -- replace with @start for prod
-       AND D.dsch_date <  @END_b -- replace with @end for prod
+	   -- CHANGE TO ADMIT DATE
+	   AND D.adm_date >= @START_b
+	   AND D.adm_date < @END_b
 	   AND LEFT(A.episode_no, 1) IN ('1', '8')
 	   AND LEFT(A.episode_no, 4) != '1999'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
@@ -407,6 +435,9 @@ ELSE BEGIN
 
 	INSERT INTO @T2
 	SELECT * FROM T2
+	-- CHANGE BACK TO DSCH_DTIME
+	WHERE T2.dsch_dtime >= @START_b
+	AND T2.dsch_dtime < @END_b
 	;
 
 	SELECT T2.MRN

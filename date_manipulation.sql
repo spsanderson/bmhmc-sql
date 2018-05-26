@@ -2,7 +2,7 @@ declare @ThisDate datetime;
 set @ThisDate = getdate(); 
 
 /*
-http://www.sqlservercentral.com/blogs/lynnpettis/2009/03/25/some-common-date-routines/
+--http://www.sqlservercentral.com/blogs/lynnpettis/2009/03/25/some-common-date-routines/
 */ 
 
 select dateadd(dd, datediff(dd, 0, @ThisDate), 0)     -- Beginning of this day

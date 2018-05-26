@@ -1,14 +1,3 @@
-/*
-Author: Steven P Sanderson II, MPH
-Department: Finance, Reveue Cycle
-
-v1	- 2018-04-28	- Get insurance balances for:
-					'E12','E19','E18','K12','K19','I08','I18'
-					Previous IS Help Desk Ticket - I4PB215735
-v2	- 2018-05-18	- Only get those accounts that were admitted during
-					the previous week.
-					Help Desk Ticket - I5IC623349
-*/
 DECLARE @ThisDate DATETIME;
 DECLARE @START    DATETIME;
 DECLARE @END      DATETIME;
@@ -17,7 +6,7 @@ SET @ThisDate = getdate();
 -- Beginning of previous week (Sunday) 
 SET @START    = dateadd(wk, datediff(wk, 0, @ThisDate) - 1, -1); 
 -- Beginning of this week (Sunday)
-SET @END      = dateadd(wk, datediff(wk, 0, @ThisDate), -1);   
+SET @END      = dateadd(wk, datediff(wk, 0, @ThisDate), -1);     
 
 SELECT PYRPLAN.pt_id
 , VST.vst_start_date as [Admit_Date]
@@ -52,6 +41,8 @@ SELECT PYRPLAN.pt_id
        and PYRPLAN.unit_seq_no = apc.unit_seq_no
 ) AS [APC_Est_Net_Pay_Amt]
 
+INTO #TEMPA
+
 FROM SMSMIR.PYR_PLAN AS PYRPLAN
 LEFT JOIN smsmir.vst_rpt VST
 ON PYRPLAN.pt_id = VST.pt_id
@@ -77,7 +68,7 @@ ON PYRPLAN.pt_id = INS2.pt_id
        AND PYRPLAN.pyr_cd = INS2.pyr_cd
        AND PYRPLAN.from_file_ind = INS2.from_file_ind
        AND INS2.user_comp_id = '5C49IDNO'
-      AND PYRPLAN.pyr_seq_no = '2'
+       AND PYRPLAN.pyr_seq_no = '2'
 -- ADD INS3 FROM MIR_PYR_PLAN_USER '5C49IDNO'
 LEFT JOIN smsmir.mir_pyr_plan_user AS INS3
 ON PYRPLAN.pt_id = INS3.pt_id
@@ -100,14 +91,31 @@ ON PYRPLAN.PT_ID = INS_NAME.PT_ID
        AND INS_NAME.user_comp_id = '5C49NAME'
        AND PYRPLAN.pyr_seq_no = '1'
        AND INS_NAME.pyr_seq_no = '1'
-
 --WHERE VST.prim_pyr_cd = 'J15'
 WHERE VST.vst_end_date IS NOT NULL
-AND PYRPLAN.PYR_CD IN ('E12','E19','E18','K12','K19','I08','I18')
+AND PYRPLAN.PYR_CD IN ('E39')
 AND VST.tot_bal_amt > 0
 AND PYRPLAN.tot_amt_due > 0
+-- Exclude all accounts that have 09701590 pay code
+AND PYRPLAN.pt_id NOT IN (
+	SELECT DISTINCT(pt_id)
+	FROM smsmir.pay
+	WHERE pay_cd NOT IN (
+		'09701590', '09735036'
+	)
+)
+AND SUBSTRING(PYRPLAN.PT_ID, 5, 1) != '1'
 AND VST.vst_start_date >= @START
 AND VST.vst_start_date <  @END
+GO
+;
 
-ORDER BY PYRPLAN.pt_id
+SELECT A.*
+FROM #TEMPA AS A
+WHERE A.APC_Est_Net_Pay_Amt IS NULL
+GO
+;
+
+DROP TABLE #TEMPA
+GO
 ;

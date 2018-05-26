@@ -1,16 +1,22 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp]    Script Date: 09/26/2016 14:43:46 ******/
+/****** Object:  StoredProcedure [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp]    Script Date: 5/24/2018 9:56:14 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
--- =============================================
--- Author:		Steven Sanderson
--- Create date: 12/4/2015
--- Description:	Clean up results from smsdss.c_Wellsoft_Rpt_Tbl_sp
--- and insert results into smsdss.c_Wellsoft_Rpt_tbl
--- =============================================
+/*
+=============================================
+Author:		Steven P Sanderson II, MPH
+Department: Finance, Revenue Cycle
+Create date: 12/4/2015
+Description:	Clean up results from smsdss.c_Wellsoft_Rpt_Tbl_sp
+and insert results into smsdss.c_Wellsoft_Rpt_tbl
+
+v1	- 2015-12-04	- Initial Creation
+v2	- 2018-05-24	- Add TobaccoUse column
+=============================================
+*/
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp] 
 AS
 
@@ -145,6 +151,7 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 11, 2) + ':00',
 	  120)                                                                 AS [DateTime MLP Signature]
+	, TobaccoUse
 	  
 	INTO smsdss.c_Wellsoft_Rpt_tbl
 

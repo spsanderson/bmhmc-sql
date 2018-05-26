@@ -1,15 +1,19 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [smsdss].[c_Wellsoft_Rpt_Tbl_sp]    Script Date: 09/26/2016 13:59:17 ******/
+/****** Object:  StoredProcedure [smsdss].[c_Wellsoft_Rpt_Tbl_sp]    Script Date: 5/24/2018 9:56:10 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
--- =============================================
--- Author:		Steven Sanderson
--- Create date: 11-19-2015
--- Description:	Create a reportable wellsoft table bound to smsdss schema
--- =============================================
+/* =============================================
+Author:		Steven P Sanderson II, MPH
+Department: Finance, Revenue Cycle
+Create date: 11-19-2015
+Description:	Create a reportable wellsoft table bound to smsdss schema
+v1	-	2015-11-09	- Initial creation
+v2 	-	2018-05-24	- Add TobaccoUse Column to sp
+=============================================
+*/
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_sp]
 AS
 
@@ -62,6 +66,7 @@ BEGIN
 	, TriageMLP
 	, StatusMLPChart
 	, TimeMLPSignature
+	, TobaccoUse 
 	
 	INTO smsdss.c_Wellsoft_Rpt_tbl_tmp
 	
@@ -71,5 +76,5 @@ BEGIN
 		AND a.Slave_Rec_Id=b.Slave_Rec_Id
 
 	WHERE Account != '1234567890'
-	
+
 END
