@@ -19,8 +19,13 @@ Criteria:
 			1 pack = 20 cigarettes)
 	3. Current smoker OR quit within 15 years
 
+v1	- 2018-06-11	- Initial Creation
 */
 -- GET INPATIENTS IN AGE RANGE
+DECLARE @START DATE;
+
+SET @START = (GETDATE() - 1);
+-----
 SELECT PtNo_Num
 , Pt_Name
 , Pt_Age
@@ -34,7 +39,7 @@ FROM smsdss.BMH_PLM_PtAcct_V
 WHERE LEFT(PTNO_NUM, 1) IN ('1')
 AND LEFT(PTNO_NUM, 4) != '1999'
 AND Pt_Age BETWEEN 55 AND 77
-AND ADM_Date >= '2017-01-01'
+AND ADM_Date >= @START
 AND Dsch_Date IS NULL
 
 GO
@@ -175,7 +180,7 @@ GO
 SELECT A.PtNo_Num AS [Encounter]
 , A.Pt_Name
 , A.Pt_Age
-, A.Adm_Date
+, CAST(A.Adm_Date AS date) AS [Adm_Date]
 , A.Dsch_Date
 , B.dsply_val     AS [Stated_Smoking_Status]
 , C.nurs_sta      AS [Last_Nurse_Station]
@@ -187,15 +192,17 @@ ON A.PtNo_Num = B.episode_no
 LEFT OUTER JOIN #LASTROOM AS C
 ON A.PtNo_Num = C.PT_ID
 
+WHERE B.dsply_val IS NOT NULL
+
 ORDER BY A.PtNo_Num
 
 GO
 ;
 
 --DROP TEMP TABLES
---DROP TABLE #TEMPA;
---DROP TABLE #TEMPB;
---DROP TABLE #TEMPC;
---DROP TABLE #TEMPD;
---DROP TABLE #ROOMS;
---DROP TABLE #LASTROOM;
+DROP TABLE #TEMPA;
+DROP TABLE #TEMPB;
+DROP TABLE #TEMPC;
+DROP TABLE #TEMPD;
+DROP TABLE #ROOMS;
+DROP TABLE #LASTROOM;

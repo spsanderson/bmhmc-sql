@@ -9,8 +9,8 @@ This query aggregates by req_pty_cd, year, month
 DECLARE @START DATE;
 DECLARE @END   DATE;
 
-SET @START = '2016-12-01';
-SET @END   = '2018-05-01';
+SET @START = '2018-01-01';
+SET @END   = '2018-02-01';
 ---------------------------------------------------------------------------------------------------
 
 DECLARE @ALL_ORDERS TABLE (
@@ -25,7 +25,6 @@ DECLARE @ALL_ORDERS TABLE (
 WITH CTE AS (
 	SELECT req_pty_cd
 	, ord_src_modf_name
-	, ord_no
 	, MONTH(A.ent_date)      AS [Order Entry Month]
 	, YEAR(A.ent_date)       AS [Order Entry Year]
 
@@ -36,7 +35,7 @@ WITH CTE AS (
 
 	WHERE phys_req_ind = 1
 	AND A.ent_date >= @START
-	AND A.ent_date <= @END
+	AND A.ent_date < @END
 	AND A.req_pty_cd IS NOT NULL
 	AND A.req_pty_cd NOT IN (
 		'000000', '000059', '000099','000666','004337'
@@ -46,7 +45,8 @@ WITH CTE AS (
 
 INSERT INTO @ALL_ORDERS
 SELECT * FROM CTE
-SELECT * FROM @ALL_ORDERS 
+;
+--SELECT * FROM @ALL_ORDERS 
 ---------------------------------------------------------------------------------------------------
 
 DECLARE @TOTAL_ORD_COUNT TABLE (
