@@ -17,9 +17,7 @@ GO
 --	 	 @HSF_CONTEXT_PATIENTID	 - Patient ID  
 --	 	 @VisitOID             	 - Visit ID  
 --------------------------------------------------------------------------------
---	 Copyright 2014 Siemens
---	 This program is proprietary to Siemens AND may be used only
---	 as authorized in a license agreement controlling such use.
+--	
 --------------------------------------------------------------------------------
 --	 Purpose: 
 --
