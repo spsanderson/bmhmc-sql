@@ -27,8 +27,7 @@ GO
 --
 --	 Revision History: 
 --	 Date         Author             Description
---	 ----         ------             -----------
---	 04/29/2014	 Auto CRGen 1.0	 	 New Procedure
+--	 ----         ------             -----------	 07/02/2018   STeven	 	 New Procedure
 --------------------------------------------------------------------------------
 ALTER PROCEDURE [dbo].[ORE_BH_PatientHlthConcernsGoals]
 	 @HSF_CONTEXT_PATIENTID    VARCHAR(20) = null,
