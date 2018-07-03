@@ -15,6 +15,7 @@ Parameters :
 	@HSF_CONTEXT_PATIENTID	 - Patient ID  
 	@VisitOID             	 - Visit ID  
 --------------------------------------------------------------------------------
+<<<<<<< HEAD
 Purpose: Get data for Patient Discharge Plan/Instructions form. New Section
 	PATIENT HEALTH CONCERNS AND GOALS
 
@@ -48,6 +49,26 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-07-02	v1			Initial Creation
+=======
+--
+--	 File : ORE_BH_PhysicianDischInstPrc.sql
+--
+--	 Parameters : 
+--	 	 @HSF_CONTEXT_PATIENTID	 - Patient ID  
+--	 	 @VisitOID             	 - Visit ID  
+--------------------------------------------------------------------------------
+--	
+--------------------------------------------------------------------------------
+--	 Purpose: 
+--
+--	 Tables: 
+--	 Views: 
+--	 Functions: 
+--
+--	 Revision History: 
+--	 Date         Author             Description
+--	 ----         ------             -----------	 07/02/2018   STeven	 	 New Procedure
+>>>>>>> 849949f82c8225a01229cbe68f34cd1b2bf6a72d
 --------------------------------------------------------------------------------
 */
 ALTER PROCEDURE [dbo].[ORE_BH_PatientHlthConcernsGoals]
