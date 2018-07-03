@@ -1,289 +1,339 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BH_PatientHlthConcernsGoals]    Script Date: 6/29/2018 1:04:41 PM ******/
+
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
+/*
+--------------------------------------------------------------------------------
 
+File : ORE_BH_PatientHlthConcernsGoals.sql
 
+Parameters : 
+	@HSF_CONTEXT_PATIENTID	 - Patient ID  
+	@VisitOID             	 - Visit ID  
+--------------------------------------------------------------------------------
+Purpose: Get data for Patient Discharge Plan/Instructions form. New Section
+	PATIENT HEALTH CONCERNS AND GOALS
 
+Tables: HAssessment, HAssessmentCategory, HObservation
+Views: None
+Functions: None
+	
+Author: Steven P Sanderson II, MPH
+	
+Purpose:
+	Get Helath Concern:
+		A_BMH_DCHlthCncn
+	Get Other Health Concern
+		, 'A_BMH_DCGoal1'
+		, 'A_BMH_DCGoal2'
+		, 'A_BMH_DCGoal3'
+		, 'A_BMH_DCGoal4'
+		, 'A_BMH_DCGoal5'
+		, 'A_BMH_DCGoal6'
+		, 'A_BMH_DCGoal7'
+		, 'A_BMH_DCGoal8'
+		, 'A_BMH_DCGoal9'
+		, 'A_BMH_DCGoal10'
+		, 'A_BMH_DCGoal11'
+		, 'A_BMH_DCGoal12'
+		, 'A_BMH_DCGoal'
+	Get Other Goal
+		A_BMH_DCOthrGoal
+	
+Revision History: 
+Date		Version		Description
+----		----		----
+2018-07-02	v1			Initial Creation
 --------------------------------------------------------------------------------
---
---	 File : ORE_BH_PhysicianDischInstPrc.sql
---
---	 Parameters : 
---	 	 @HSF_CONTEXT_PATIENTID	 - Patient ID  
---	 	 @VisitOID             	 - Visit ID  
---------------------------------------------------------------------------------
---	 Copyright 2014 Siemens
---	 This program is proprietary to Siemens AND may be used only
---	 as authorized in a license agreement controlling such use.
---------------------------------------------------------------------------------
---	 Purpose: 
---
---	 Tables: 
---	 Views: 
---	 Functions: 
---
---	 Revision History: 
---	 Date         Author             Description
---	 ----         ------             -----------
---	 04/29/2014	 Auto CRGen 1.0	 	 New Procedure
---------------------------------------------------------------------------------
+*/
 ALTER PROCEDURE [dbo].[ORE_BH_PatientHlthConcernsGoals]
-	 @HSF_CONTEXT_PATIENTID    VARCHAR(20) = null,
-	 @VisitOID                 VARCHAR(20) = null
-	 --@AssessmentID				INT = null
-AS 
+	@HSF_CONTEXT_PATIENTID VARCHAR(20) = NULL,
+	@VisitOID VARCHAR(20) = NULL
+AS
+
 BEGIN
-DECLARE @iPatientOID	int,
-	    @iVisitOID		int,
-	    @AssessmentID   int
-	     
 
-DECLARE @tblPatientOID table (
-	 	 PatientOID    int, 
-	 	 VisitOID      int 
+	DECLARE @iPatientOID INT;
+	DECLARE @iVisitOID INT;
+	DECLARE @AssessmentID INT;
+
+	--SET @iPatientOID = '2131342';
+	--SET @iVisitOID = '152496';
+
+	DECLARE @tblPatientOID TABLE (
+		PatientOID INT
+		, VisitOID INT
 	)
 
-DECLARE @tblFormUsageNames table (
-	 	 FormUsageNames  VARCHAR(75)
+	DECLARE @AssessmentObsValueTbl TABLE (
+		PatientOID INT
+		, PatientVisitOID INT
+		, CollectedDate SMALLDATETIME
+		, CollectedTime VARCHAR(MAX)
+		, ScheduledDateTime SMALLDATETIME
+		, EnteredBy VARCHAR(MAX)
+		, [Status] VARCHAR(MAX)
+		, FormUsageDisplayName VARCHAR(MAX)
+		, AssessmentID INT
+		, FindingAbbr VARCHAR(MAX)
+		, FindingName VARCHAR(MAX)
+		, [Value] VARCHAR(MAX)
 	)
 
-DECLARE @assessmentObsValueTbl table ( 
-	PatientOID int,
-	PatientVisitOID int,
-	CollectedDate smalldatetime,  
-	CollectedTime VARCHAR(MAX),  
-	ScheduledDateTime smalldatetime,  
-	EnteredBy VARCHAR(MAX),  
-	Status VARCHAR(MAX)  ,
-	FormUsageDisplayName VARCHAR(MAX),
-	AssessmentID int,
-	FindingAbbr VARCHAR(MAX),
-	FindingName VARCHAR(MAX),
-	[Value] VARCHAR(MAX)
-	)
-
-	IF isnumeric(@HSF_CONTEXT_PATIENTID) = 1
-		SET @iPatientOID = cast(@HSF_CONTEXT_PATIENTID as int)
+	IF ISNUMERIC(@HSF_CONTEXT_PATIENTID) = 1
+		SET @iPatientOID = CAST(@HSF_CONTEXT_PATIENTID AS INT)
 	ELSE
 		SET @iPatientOID = -1
-	IF isnumeric(@VisitOID) = 1
-		SET @iVisitOID = cast(@VisitOID as int)
+	IF ISNUMERIC(@VisitOID) = 1
+		SET @iVisitOID = CAST(@VisitOID AS INT)
 	ELSE
 		SET @iVisitOID = -1
 
-INSERT INTO @tblFormUsageNames (FormUsageNames)
-SELECT DISTINCT * 
-FROM fn_GetStrParmTable('Physician Discharge Instructions')
-	 	 
-SET @AssessmentID = (
-	SELECT top 1 a.AssessmentID  
-	FROM HAssessment a 
-	WHERE a.Patient_oid = @HSF_CONTEXT_PATIENTID 
-	AND a.PatientVisit_oid = @VisitOID  
-	AND A.FormUsageDisplayName ='Physician Discharge Instructions' 
-) 	  	 
+	SET @AssessmentID = (
+		SELECT TOP 1 A.AssessmentID
+		FROM HAssessment AS A
+		WHERE A.Patient_oid = @HSF_CONTEXT_PATIENTID
+		AND A.PatientVisit_oid = @VisitOID
+		AND A.FormUsageDisplayName = 'Nursing Discharge Assessment'
+	)
 
-Declare @Assessment_oid VARCHAR(100)
+	-- GETS THAT LATEST COMPLETED ASSESSMENT_OID AND ASSESSMENTID
+	DECLARE @Assessment_OID VARCHAR(100)
 
-SELECT top 1 @Assessment_oid = hac.assessment_oid 
-, @AssessmentID = ha.AssessmentID
+	SELECT TOP 1 @Assessment_OID = HAC.ASSESSMENT_OID
+	, @AssessmentID = HA.AssessmentID
 
-FROM HAssessment ha
-INNER JOIN  HAssessmentCategory hac
-ON ha.AssessmentID = hac.AssessmentID
-	AND ha.Patient_oid = @HSF_CONTEXT_PATIENTID
-	AND ha.PatientVisit_oid = @VisitOID
+	FROM HAssessment AS HA
+	INNER JOIN HAssessmentCategory AS HAC
+	ON HA.AssessmentID = HAC.AssessmentID
+		AND HA.Patient_oid = @HSF_CONTEXT_PATIENTID
+		AND HA.PatientVisit_oid = @VisitOID
 
-WHERE ha.FormUsageDisplayName ='Physician Discharge Instructions'
-AND hac.FormUsageDisplayName IN ('Physician Discharge Instructions')
-AND hac.CategoryStatus NOT IN ( 0, 3 )
-AND hac.IsLatest = 1
-AND hac.FormVersion IS NOT NULL
-AND ha.AssessmentStatus = 'Complete'
+	WHERE HA.FormUsageDisplayName = 'Nursing Discharge Assessment'
+	AND HAC.FormUsageDisplayName = 'Nursing Discharge Assessment'
+	AND HAC.CategoryStatus NOT IN (0, 3)
+	AND HAC.IsLatest = 1
+	AND HAC.FormVersion IS NOT NULL
+	AND HA.AssessmentStatus = 'Complete'
 
-ORDER BY hac.FormDateTime DESC
-;
-   
-INSERT INTO @assessmentObsValueTbl 
+	ORDER BY HAC.FormDateTime DESC
+	;
 
-SELECT PatientOID = ha.Patient_OID
-, PatientVisitOID  = ha.PatientVisit_OID
-, CollectedDate  = cast(ha.collecteddt as datetime)
-, CollectedTime  = cast(ha.collecteddt as datetime)
-, ScheduledDateTime  = ha.ScheduledDT
-, EnteredBy  = ha.UserAbbrName
-, Status  = ha.AssessmentStatus
-, FormUsageDisplayName = ha.FormUsageDisplayName
-, AssessmentID = ha.AssessmentID
-, FindingAbbr = ho.FindingAbbr
-, FindingName = ho.FindingName
-, Value		= ho.Value
+	INSERT INTO @AssessmentObsValueTbl
 
-FROM Hassessment ha with (nolock)
-INNER JOIN HObservation Ho WITH (nolock)
-ON Ho.Patient_oid = ha.Patient_oid
-	AND Ho.AssessmentID = ha.AssessmentID
+	SELECT PatientOID = ha.Patient_oid
+	, PatientVisitOID = ha.PatientVisit_OID
+	, CollectedDate = CAST(ha.collecteddt AS datetime)
+	, CollectedTime = CAST(ha.collecteddt AS datetime)
+	, ScheduledDateTime = ha.ScheduledDT
+	, EnteredBy = ha.UserAbbrName
+	, [Status] = ha.AssessmentStatus
+	, FormUsageDisplayName = ha.FormUsageDisplayName
+	, AssessmentID = ha.AssessmentID
+	, FindingAbbr = ho.FindingAbbr
+	, FindingName = ho.FindingName
+	, [Value] = ho.Value
+
+	FROM HAssessment AS HA WITH (NOLOCK)
+	INNER JOIN HObservation AS HO WITH (NOLOCK)
+	ON HO.Patient_oid = HA.Patient_oid
+		AND HO.AssessmentID = HA.AssessmentID
+
+	WHERE HA.Patient_oid = @iPatientOID
+	AND HA.PatientVisit_oid = @iVisitOID
+	AND HA.AssessmentID = @AssessmentID
+	AND HO.EndDT IS NULL
+	AND HA.EndDT IS NULL
+	AND HO.FindingAbbr IN (
+		'A_BMH_DCHlthCncn'
+		, 'A_BMH_DCOtherHC'
+		, 'A_BMH_DCGoal1'
+		, 'A_BMH_DCGoal2'
+		, 'A_BMH_DCGoal3'
+		, 'A_BMH_DCGoal4'
+		, 'A_BMH_DCGoal5'
+		, 'A_BMH_DCGoal6'
+		, 'A_BMH_DCGoal7'
+		, 'A_BMH_DCGoal8'
+		, 'A_BMH_DCGoal9'
+		, 'A_BMH_DCGoal10'
+		, 'A_BMH_DCGoal11'
+		, 'A_BMH_DCGoal12'
+		, 'A_BMH_DCGoal'
+		, 'A_BMH_DCOthrGoal'
+	)
+	;
+
+	DECLARE @PivotObsValues TABLE (
+		PatientOID int
+		, PatientVisitOID int
+		, [Asmt.CollectedDate] smalldatetime
+		, [Asmt.CollectedTime] VARCHAR(MAX)
+		, [Asmt.ScheduledDateTime] smalldatetime
+		, [Asmt.EnteredBy] VARCHAR(MAX)
+		, [Asmt.Status] VARCHAR(MAX)
+		, [A_BMH_DCHlthCncn] VARCHAR(MAX)
+		, [A_BMH_DCOtherHC] VARCHAR(MAX)
+		, [A_BMH_DCGoal1] VARCHAR(MAX)
+		, [A_BMH_DCGoal2] VARCHAR(MAX)
+		, [A_BMH_DCGoal3] VARCHAR(MAX)
+		, [A_BMH_DCGoal4] VARCHAR(MAX)
+		, [A_BMH_DCGoal5] VARCHAR(MAX)
+		, [A_BMH_DCGoal6] VARCHAR(MAX)
+		, [A_BMH_DCGoal7] VARCHAR(MAX)
+		, [A_BMH_DCGoal8] VARCHAR(MAX)
+		, [A_BMH_DCGoal9] VARCHAR(MAX)
+		, [A_BMH_DCGoal10] VARCHAR(MAX)
+		, [A_BMH_DCGoal11] VARCHAR(MAX)
+		, [A_BMH_DCGoal12] VARCHAR(MAX)
+		, [A_BMH_DCGoal] VARCHAR(MAX)
+		, [A_BMH_DCOthrGoal] VARCHAR(MAX)
+
+	)
+
+	INSERT INTO @PivotObsValues
 	
-WHERE ha.Patient_OID = @iPatientOID
-AND ha.PatientVisit_oid = @iVisitOID
-AND ha.assessmentid = @AssessmentID
-AND ho.EndDt is null
-AND ha.EndDT is null
-;
+	SELECT T1.PatientOID
+	, T1.PatientVisitOID
+	, T1.CollectedDate
+	, T1.CollectedTime
+	, T1.ScheduledDateTime
+	, T1.EnteredBy
+	, T1.[Status]
+	, 'A_BMH_DCHlthCncn' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCHlthCncn'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCOtherHC' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCOtherHC'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal1' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal1'
+				THEN REPLACE(T1.[VALUE], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal2' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal2'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal3' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal3'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal4' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal4'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal5' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal5'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal6' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal6'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal7' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal7'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal8' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal8'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal9' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal9'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal10' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal10'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal11' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal11'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal12' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal12'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCGoal' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCGoal'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
+	, 'A_BMH_DCOthrGoal' = MAX(
+		CASE
+			WHEN T1.FindingAbbr = 'A_BMH_DCOthrGoal'
+				THEN REPLACE(T1.[Value], CHAR(30), CHAR(44))
+				ELSE ''
+			END
+		)
 
-DECLARE @pivotObsValues table (
-	PatientOID int
-	, PatientVisitOID int
-	, [Asmt.CollectedDate] smalldatetime
-	, [Asmt.CollectedTime] VARCHAR(MAX)
-	, [Asmt.ScheduledDateTime] smalldatetime
-	, [Asmt.EnteredBy] VARCHAR(MAX)
-	, [Asmt.Status] VARCHAR(MAX)
-	, [A_Activity] VARCHAR(MAX)
-	, [A_Discharge Date] VARCHAR(MAX)
-	, [A_Driving] VARCHAR(MAX)
-	, [A_OSActInstruct] VARCHAR(MAX)
-	, [A_OSBathing] VARCHAR(MAX)
-	, [A_OSDfWndCar] VARCHAR(MAX)
-	, [A_OSDietInstruc] VARCHAR(MAX)
-	, [A_OSIVSI] VARCHAR(MAX)
-	, [A_OSLifting] VARCHAR(MAX)
-	, [A_OSMedRefDt] VARCHAR(MAX)
-	, [A_OSMedRefDt2] VARCHAR(MAX)
-	, [A_OSMedRefDt3] VARCHAR(MAX)
-	, [A_OSMedRefWho] VARCHAR(MAX)
-	, [A_OSMedRefWho3] VARCHAR(MAX)
-	, [A_OSMedRefWith2] VARCHAR(MAX)
-	, [A_OSSpecDiet] VARCHAR(MAX)
-	, [A_OSSpecInst] VARCHAR(MAX)
-	, [A_OSWork] VARCHAR(MAX)
-	, [A_Stairs] VARCHAR(MAX)
-	, [A_ToCReferCmplt] VARCHAR(MAX)
-	, [A_Wound Care] VARCHAR(MAX)
-	, [J_ChgDress] VARCHAR(MAX)
-	, [J_ChgPack] VARCHAR(MAX)
-	, [A_OSRefNote] VARCHAR(MAX)
-	, [PA_Diagnosis] VARCHAR(MAX)
-	, [J_FollowUpAttned] VARCHAR(MAX)
-	, [Site1] VARCHAR(MAX)
-	, [Instructions1] VARCHAR(MAX)
-	, [Site2] VARCHAR(MAX)
-	, [Instructions2] VARCHAR(MAX)
-	, [Site3] VARCHAR(MAX)
-	, [Instructions3] VARCHAR(MAX)
-	, [SpecialInstructions] VARCHAR(MAX)
-	, [OtherInstructions] VARCHAR(MAX)
-	, [Alcohol] VARCHAR(MAX)
-	, [Sex] VARCHAR(MAX)
-	, [ChangeBandage] VARCHAR(MAX)
-	, [A_OSNotifyMD] VARCHAR(MAX)
+	FROM @AssessmentObsValueTbl AS T1
 
-)
+	GROUP BY T1.PatientOID
+	, T1.PatientVisitOID
+	, T1.CollectedDate
+	, T1.CollectedTime
+	, T1.ScheduledDateTime
+	, T1.EnteredBy
+	, T1.[Status]
+	;
 
-INSERT INTO @pivotObsValues
+	SELECT TOV.*
 
-SELECT t1.PatientOID
-, t1.PatientVisitOID
-, t1.CollectedDate
-, t1.collectedtime
-, t1.ScheduledDateTime
-, t1.EnteredBy,t1.status
-, 'A_Activity' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_Activity' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_Discharge Date' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_Discharge Date' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_Driving' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_Driving' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_OSActInstruct' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_OSActInstruct' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_OSBathing' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_OSBathing' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_OSDfWndCar' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_OSDfWndCar' 
-		THEN Convert(datetime,(REPLACE(t1.value,CHAR(30),CHAR(44))),120) 
-		ELSE '' 
-	END)
-, 'A_OSDietInstruc' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_OSDietInstruc' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_OSIVSI' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_OSIVSI' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_OSLifting' = MAX(CASE 
-	WHEN t1.FindingAbbr = 'A_OSLifting' 
-		THEN REPLACE(t1.value,CHAR(30),CHAR(44)) 
-		ELSE '' 
-	END)
-, 'A_OSMedRefDt' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSMedRefDt' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSMedRefDt2' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSMedRefDt2' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSMedRefDt3' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSMedRefDt3' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSMedRefWho' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSMedRefWho' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSMedRefWho3' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSMedRefWho3' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSMedRefWith2' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSMedRefWith2' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSSpecDiet' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSpecDiet' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSSpecInst' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSpecInst' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSWork' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSWork' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_Stairs' = MAX(CASE WHEN t1.FindingAbbr = 'A_Stairs' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_ToCReferCmplt' = MAX(CASE WHEN t1.FindingAbbr = 'A_ToCReferCmplt' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_Wound Care' = MAX(CASE WHEN t1.FindingAbbr = 'A_Wound Care' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'J_ChgDress' = MAX(CASE WHEN t1.FindingAbbr = 'J_ChgDress' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'J_ChgPack' = MAX(CASE WHEN t1.FindingAbbr = 'J_ChgPack' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSRefNote' = MAX(CASE WHEN t1.FindingAbbr = 'J_OSRefNote1' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'PA_Diagnosis' = MAX(CASE WHEN t1.FindingAbbr = 'PA_Diagnosis' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'J_FollowUpAttned' = MAX(CASE WHEN t1.FindingAbbr = 'J_FollowUpAttned' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Site1' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSteCre1' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Instructions2' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSteCarIns1' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Site2' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSteCre2' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Instructions2' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSteCarIns2' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Site3' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSteCre3' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Instructions3' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSSteCarIns3' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'SpecialInstructions' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSIVSI' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'OtherInstructions' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSOSecIns' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Alcohol' = MAX(CASE WHEN t1.FindingAbbr = 'A_BMH_Alcohol' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'Sex' = MAX(CASE WHEN t1.FindingAbbr = 'A_BMH_SexActivit' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'ChangeBandage' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSChgeBndge' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
-, 'A_OSNotifyMD' = MAX(CASE WHEN t1.FindingAbbr = 'A_OSNotifyMD' THEN REPLACE(t1.value,CHAR(30),CHAR(44)) ELSE '' END)
+	FROM @PivotObsValues AS TOV
 
-FROM @assessmentObsValueTbl t1 
-
-GROUP BY t1.PatientOID
-, t1.PatientVisitOID
-, t1.CollectedDate
-, t1.collectedtime
-, t1.ScheduledDateTime
-, t1.EnteredBy,t1.Status
-;
-
-SELECT  tov.*
-
-FROM @pivotObsValues tov
-
-WHERE tov.PatientOID = @iPatientOID 
-AND tov.PatientVisitOID = @ivisitoid
+	WHERE TOV.PatientOID = @iPatientOID
+	AND TOV.PatientVisitOID = @iVisitOID
 
 END
 ;
