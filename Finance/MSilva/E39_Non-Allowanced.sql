@@ -98,7 +98,7 @@ AND PYRPLAN.tot_amt_due > 0
 AND PYRPLAN.pt_id NOT IN (
 	SELECT DISTINCT(pt_id)
 	FROM smsmir.pay
-	WHERE pay_cd NOT IN (
+	WHERE pay_cd IN (
 		'09701590', '09735036'
 	)
 )

@@ -1,13 +1,3 @@
-DECLARE @ThisDate DATETIME;
-DECLARE @START    DATETIME;
-DECLARE @END      DATETIME;
-
-SET @ThisDate = getdate();
--- Beginning of previous week (Sunday) 
-SET @START    = dateadd(wk, datediff(wk, 0, @ThisDate) - 1, -1); 
--- Beginning of this week (Sunday)
-SET @END      = dateadd(wk, datediff(wk, 0, @ThisDate), -1);     
-
 SELECT PYRPLAN.pt_id
 , VST.vst_start_date as [Admit_Date]
 , VST.vst_end_date as [Discharge_Date]
@@ -91,7 +81,7 @@ ON PYRPLAN.PT_ID = INS_NAME.PT_ID
        AND INS_NAME.user_comp_id = '5C49NAME'
        AND PYRPLAN.pyr_seq_no = '1'
        AND INS_NAME.pyr_seq_no = '1'
---WHERE VST.prim_pyr_cd = 'J15'
+
 WHERE VST.vst_end_date IS NOT NULL
 AND PYRPLAN.PYR_CD IN ('E39')
 AND VST.tot_bal_amt > 0
@@ -100,13 +90,12 @@ AND PYRPLAN.tot_amt_due > 0
 AND PYRPLAN.pt_id NOT IN (
 	SELECT DISTINCT(pt_id)
 	FROM smsmir.pay
-	WHERE pay_cd NOT IN (
+	WHERE pay_cd IN (
 		'09701590', '09735036'
 	)
 )
 AND SUBSTRING(PYRPLAN.PT_ID, 5, 1) != '1'
-AND VST.vst_start_date >= @START
-AND VST.vst_start_date <  @END
+AND PYRPLAN.last_bl_dtime IS NOT NULL
 GO
 ;
 
