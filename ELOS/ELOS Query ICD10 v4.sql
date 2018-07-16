@@ -84,7 +84,7 @@ AND e.med_staff_dept NOT IN ('?', 'Anesthesiology', 'Emergency Department')
 OPTION(FORCE ORDER)
 ;
 
-SELECT A.Pt_No
+SELECT A.Pt_No AS pt_id
 , A.Dsch_Date
 , [Last_Rpt_Month] = CASE
 	WHEN DATEPART(MONTH, A.DSCH_DATE) < 10
@@ -94,9 +94,9 @@ SELECT A.Pt_No
 , A.Dsch_Yr
 , A.Dsch_Month
 , A.Atn_Dr_No
-, A.pract_rpt_name
+, A.pract_rpt_name AS [Atn_Dr_Name]
 , A.drg_no
-, A.LIHN_Svc_Line
+, A.LIHN_Svc_Line AS [LIHN_Service_Line]
 , A.hosim
 , A.APRDRGNO
 , A.SEVERITY_OF_ILLNESS

@@ -1,23 +1,43 @@
+USE [SMSPHDSSS0X0]
+GO
+
 /*
+***********************************************************************
+File: c_CPOE_rpt_tlb_sp.sql
+
+Input Parameters:
+
+Tables:
+	smsdss.QOC_Ord_v
+	smsdss.QOC_vst_summ_v
+	smsdss.pract_dim_v
+	smsdss.pract_dim_v
+	smsdss.pract_dim_v
+	smsdss.pract_dim_v
+	smsmir.pract_mstr
+	smsmir.pract_mstr
+	smsmir.pract_mstr	
+	smsmir.PHM_Ord
+
 Author: Steven P Sanderson II, MPH
+
 Department: Finance, Revenue CYCLE
 
 This query gets the detail behind the Orders_Verbal_Telephone.sql query as a stored procedure.
 
 Version:
 v1	- 2018-24-05	- Initial creation
-
+v2	- 2018-07-09	- Drop Phsy_req_ind = 1 from medication order sections
+v3	- 2018-07-11	- Change NULL values in CPOE_Flag to 'Unknown'
+					- Add lab_ord_CPOE_ind, med_ord_CPOE_ind, and rad_ord_CPOE_ind to table
 */
-
-USE [SMSPHDSSS0X0]
-GO
 
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE [smsdss].[c_CPOE_Rpt_Tbl_sp]
+ALTER PROCEDURE [smsdss].[c_CPOE_Rpt_Tbl_sp]
 AS
 
 IF NOT EXISTS (
@@ -56,6 +76,9 @@ BEGIN
 		Ord_Ent_Qtr  TINYINT,
 		Ord_Ent_Yr  SMALLINT,
 		Ord_No  INT,
+		lab_ord_CPOE_ind SMALLINT, 
+		med_ord_CPOE_ind SMALLINT,
+		rad_ord_CPOE_ind SMALLINT,
 		Cpoe_Flag  VARCHAR(75),
 		Ord_Src_Modf_Name  VARCHAR(75),
 		Med_Ord_Name_Modf  VARCHAR(255),
@@ -123,6 +146,9 @@ BEGIN
 	, DATEPART(QUARTER, A.ent_date) AS [Ord_Ent_Qtr]
 	, DATEPART(YEAR, A.ent_date) AS [Ord_Ent_Yr]
 	, A.ord_no
+	, A.lab_ord_CPOE_ind
+	, A.med_ord_CPOE_ind
+	, A.rad_ord_CPOE_ind
 	, CASE
 		WHEN COALESCE(a.lab_ord_CPOE_ind, a.med_ord_CPOE_ind, a.rad_ord_CPOE_ind) = 1
 			THEN 'CPOE'
@@ -219,8 +245,11 @@ BEGIN
 	, A.Ord_Ent_Qtr
 	, A.Ord_Ent_Yr
 	, A.ord_no
-	, A.CPOE_Flag
-	, a.ord_src_modf_name
+	, A.lab_ord_CPOE_ind
+	, A.med_ord_CPOE_ind
+	, A.rad_ord_CPOE_ind
+	, CASE WHEN A.CPOE_Flag IS NULL THEN 'Unknown' ELSE A.CPOE_Flag END AS CPOE_Flag
+	, CASE WHEN a.ord_src_modf_name IS NULL THEN 'Unknown' ELSE A.ord_src_modf_name END AS ord_src_modf_name
 	, A.med_ord_name_modf
 	, A.ord_type_abbr
 	, A.ord_sub_type_abbr
@@ -296,6 +325,9 @@ BEGIN
 	, DATEPART(QUARTER, B.ent_date) AS [Ord_Ent_Qtr]
 	, DATEPART(YEAR, B.ent_date) AS [Ord_Ent_Yr]
 	, B.ord_no
+	, B.lab_ord_CPOE_ind
+	, B.med_ord_CPOE_ind
+	, B.rad_ord_CPOE_ind
 	, CASE
 		WHEN COALESCE(B.lab_ord_CPOE_ind, B.med_ord_CPOE_ind, B.rad_ord_CPOE_ind) = 1
 			THEN 'CPOE'
@@ -339,7 +371,6 @@ BEGIN
 
 	WHERE B.ent_date >= @START
 	AND B.ent_date < @END
-	AND B.phys_req_ind = 1
 	-- ip_ord_ind = 1 means the encounter is for an inpatient visit
 	AND B.ip_ord_ind = 1
 	-- med_ord_ind = 1 means the order was for medication
@@ -436,6 +467,9 @@ BEGIN
 	, DATEPART(QUARTER, B.ent_date) AS [Ord_Ent_Qtr]
 	, DATEPART(YEAR, B.ent_date) AS [Ord_Ent_Yr]
 	, B.ord_no
+	, B.lab_ord_CPOE_ind
+	, B.med_ord_CPOE_ind
+	, B.rad_ord_CPOE_ind
 	, CASE
 		WHEN COALESCE(B.lab_ord_CPOE_ind, B.med_ord_CPOE_ind, B.rad_ord_CPOE_ind) = 1
 			THEN 'CPOE'
@@ -479,7 +513,6 @@ BEGIN
 
 	WHERE B.ent_date >= @START
 	AND B.ent_date < @END
-	AND B.phys_req_ind = 1
 	-- get inpatient visitis only
 	AND B.ip_ord_ind = 1
 	-- get medication orders only
@@ -572,6 +605,9 @@ BEGIN
 	, C.Ord_Ent_Qtr
 	, C.Ord_Ent_Yr
 	, C.ord_no
+	, C.lab_ord_CPOE_ind
+	, C.med_ord_CPOE_ind
+	, C.rad_ord_CPOE_ind
 	, C.CPOE_Flag
 	, C.ord_src_modf_name
 	, C.med_ord_name_modf
@@ -624,6 +660,9 @@ BEGIN
 	, A.Ord_Ent_Qtr
 	, A.Ord_Ent_Yr
 	, A.ord_no
+	, A.lab_ord_CPOE_ind
+	, A.med_ord_CPOE_ind
+	, A.rad_ord_CPOE_ind
 	, A.CPOE_Flag
 	, A.ord_src_modf_name
 	, A.med_ord_name_modf
@@ -712,6 +751,9 @@ ELSE BEGIN
 	, DATEPART(QUARTER, A.ent_date) AS [Ord_Ent_Qtr]
 	, DATEPART(YEAR, A.ent_date) AS [Ord_Ent_Yr]
 	, A.ord_no
+	, A.lab_ord_CPOE_ind
+	, A.med_ord_CPOE_ind
+	, A.rad_ord_CPOE_ind
 	, CASE
 		WHEN COALESCE(a.lab_ord_CPOE_ind, a.med_ord_CPOE_ind, a.rad_ord_CPOE_ind) = 1
 			THEN 'CPOE'
@@ -808,8 +850,11 @@ ELSE BEGIN
 	, A.Ord_Ent_Qtr
 	, A.Ord_Ent_Yr
 	, A.ord_no
-	, A.CPOE_Flag
-	, a.ord_src_modf_name
+	, A.lab_ord_CPOE_ind
+	, A.med_ord_CPOE_ind
+	, A.rad_ord_CPOE_ind
+	, CASE WHEN A.CPOE_Flag IS NULL THEN 'Unknown' ELSE A.CPOE_Flag END AS CPOE_Flag
+	, CASE WHEN a.ord_src_modf_name IS NULL THEN 'Unknown' ELSE A.ord_src_modf_name END AS ord_src_modf_name
 	, A.med_ord_name_modf
 	, A.ord_type_abbr
 	, A.ord_sub_type_abbr
@@ -885,6 +930,9 @@ ELSE BEGIN
 	, DATEPART(QUARTER, B.ent_date) AS [Ord_Ent_Qtr]
 	, DATEPART(YEAR, B.ent_date) AS [Ord_Ent_Yr]
 	, B.ord_no
+	, B.lab_ord_CPOE_ind
+	, B.med_ord_CPOE_ind
+	, B.rad_ord_CPOE_ind
 	, CASE
 		WHEN COALESCE(B.lab_ord_CPOE_ind, B.med_ord_CPOE_ind, B.rad_ord_CPOE_ind) = 1
 			THEN 'CPOE'
@@ -928,7 +976,6 @@ ELSE BEGIN
 
 	WHERE B.ent_date >= @START
 	AND B.ent_date < @END
-	AND B.phys_req_ind = 1
 	-- ip_ord_ind = 1 means the encounter is for an inpatient visit
 	AND B.ip_ord_ind = 1
 	-- med_ord_ind = 1 means the order was for medication
@@ -1025,6 +1072,9 @@ ELSE BEGIN
 	, DATEPART(QUARTER, B.ent_date) AS [Ord_Ent_Qtr]
 	, DATEPART(YEAR, B.ent_date) AS [Ord_Ent_Yr]
 	, B.ord_no
+	, B.lab_ord_CPOE_ind
+	, B.med_ord_CPOE_ind
+	, B.rad_ord_CPOE_ind
 	, CASE
 		WHEN COALESCE(B.lab_ord_CPOE_ind, B.med_ord_CPOE_ind, B.rad_ord_CPOE_ind) = 1
 			THEN 'CPOE'
@@ -1068,7 +1118,6 @@ ELSE BEGIN
 
 	WHERE B.ent_date >= @START
 	AND B.ent_date < @END
-	AND B.phys_req_ind = 1
 	-- get inpatient visitis only
 	AND B.ip_ord_ind = 1
 	-- get medication orders only
@@ -1163,6 +1212,9 @@ ELSE BEGIN
 	, C.Ord_Ent_Qtr
 	, C.Ord_Ent_Yr
 	, C.ord_no
+	, C.lab_ord_CPOE_ind
+	, C.med_ord_CPOE_ind
+	, C.rad_ord_CPOE_ind
 	, C.CPOE_Flag
 	, C.ord_src_modf_name
 	, C.med_ord_name_modf
@@ -1213,6 +1265,9 @@ ELSE BEGIN
 	, A.Ord_Ent_Qtr
 	, A.Ord_Ent_Yr
 	, A.ord_no
+	, A.lab_ord_CPOE_ind
+	, A.med_ord_CPOE_ind
+	, A.rad_ord_CPOE_ind
 	, A.CPOE_Flag
 	, A.ord_src_modf_name
 	, A.med_ord_name_modf

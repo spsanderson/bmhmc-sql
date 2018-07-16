@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-
+/****** Object:  StoredProcedure [dbo].[ORE_BH_DischargeInstructions_test_sp]    Script Date: 7/6/2018 10:51:48 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -13,7 +13,6 @@ File: ORE_BH_DischargeInstructions.sql
 Input  Parameters:
 	@Patient_oid  
     @Visit_oid  
-	@AssessmentID NOT USED
 
 Tables:   
 	HAssessment  
@@ -22,7 +21,8 @@ Tables:
     HOrder  
 	HPatient    
 	HPatientVisit  
-	HPatientIdentifiers  
+	HPatientIdentifiers 
+	HExtendedPatient 
   
 Functions:   
 	fn_ORE_GetPhysicianName
@@ -35,10 +35,12 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-07-03	v1			Initial Creation
+2018-07-06	v2			Add UserDefinedString15 and 16 from HExtendedPatient
+2018-07-09  v3			Change UDS.UserDefinedString16 into DATE format
 -------------------------------------------------------------------------------- 
 */
 
-CREATE PROCEDURE [dbo].[ORE_BH_DischargeInstructions_test_sp]  
+ALTER PROCEDURE [dbo].[ORE_BH_DischargeInstructions_test_sp]  
 	-- Input parameters  
 	@HSF_CONTEXT_PATIENTID VARCHAR(20),  
 	@VisitOID VARCHAR(20)  
@@ -307,6 +309,7 @@ SELECT X.AssessmentID
 , X.Patient_oid
 , X.PatientVisit_oid
 , X.FormUsage
+, x.UserAbbrName
 , X.CollectedDT
 , HO.FindingAbbr
 , REPLACE(HO.Value, CHAR(30), ', ')
@@ -501,4 +504,116 @@ AND OrderTypeAbbr = 'Laboratory'
 AND OrderStatusModifier = 'In Progress'
 
 ORDER BY EnteredDateTime DESC
+;
+
+DECLARE @UserAbbrName VARCHAR(100)
+DECLARE @CollectedDt DATETIME
+
+SELECT TOP 1 @UserAbbrName = HA.UserAbbrName
+, @CollectedDt = HA.CollectedDT
+
+FROM HAssessment AS HA
+INNER JOIN HAssessmentCategory AS HAC
+ON HA.AssessmentID = HAC.AssessmentID
+	AND HA.Patient_oid = @HSF_CONTEXT_PATIENTID
+	AND HA.PatientVisit_oid = @VisitOID
+
+WHERE HA.FormUsageDisplayName = 'Physician Discharge Instructions'
+AND hac.FormUsageDisplayName = 'Physician Discharge Instructions'
+AND HAC.CategoryStatus NOT IN (0, 3)
+AND HAC.IsLatest = 1
+AND HAC.FormVersion IS NOT NULL
+AND HA.AssessmentStatus = 'Complete'
+
+ORDER BY HA.CollectedDT DESC
+;
+
+DECLARE @UDS15_16 TABLE (
+	Patient_OID INTEGER
+	, PatientExtension_OID INTEGER
+	, PatientVisit_OID INTEGER
+	, PatientVisitExtension_OID INTEGER
+	, UDS15 VARCHAR(3000)
+	, UDS16 VARCHAR(3000)
+)
+
+INSERT INTO @UDS15_16
+
+SELECT TOP 1 Patient_oid = HP.ObjectID
+, PatientExtension_oid = HP.PatientExtension_oid
+, PatientVisit_oid = HPV.ObjectID
+, PatientVisitExtension_oid = HPV.PatientVisitExtension_oid
+, HEP.UserDefinedString15
+--, HEP.UserDefinedString16
+, CAST(
+	SUBSTRING(HEP.UserDefinedString16,1,2) 
+	+ '-' 
+	+ SUBSTRING(hep.userdefinedstring16,3,2) 
+	+ '-' 
+	+ substring(hep.userdefinedstring16,5,4)
+	AS date
+	) AS [UDS_Date]
+
+FROM HPatient AS HP
+INNER JOIN HPatientVisit AS HPV
+ON HP.ObjectID = HPV.Patient_oid
+	AND HP.RecordId = HPV.RecordId
+INNER JOIN HExtendedPatient AS HEP
+ON HP.PatientExtension_oid = HEP.ObjectID
+	AND HP.RecordId = HEP.RecordId
+
+WHERE HP.ObjectID = @intPatient_oid
+AND HPV.ObjectID = @intVisit_oid
+;
+
+
+SELECT DISTINCT T1.PatientReasonforSeekingHC
+, T1.LastName
+, T1.FirstName
+, T1.PatientName
+, T1.PatientAccountID
+, T1.PatientLocationName
+, T1.LatestBedName
+, T1.VisitStartDateTime
+, T1.MedicalRecordNumber
+, T1.EntityName
+, T1.BirthDate
+, T1.Age
+, T1.Sex
+, T1.CID
+, A.Allergies
+, IMM.InfluenzaImmun
+, IMM.InfluenzaImmunDt
+, IMM.PneumoIMmun
+, IMM.PneumoImmunDt
+, T2.*
+, Appt1 = ISNULL(t2.M_DCFUP1,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime1,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall1,'')
+, Appt2 = ISNULL(t2.M_DCFUP2,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime2,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall2,'')
+, Appt3 = ISNULL(t2.M_DCFUP3,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime3,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall3,'')
+, Appt4 = ISNULL(t2.M_DCFUP4,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime4,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall4,'')
+, Appt5 = ISNULL(t2.M_DCFUP5,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime5,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall5,'')
+, Appt6 = ISNULL(t2.M_DCFUP6,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime6,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall6,'')
+, Appt7 = ISNULL(t2.M_DCFUP7,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime7,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall7,'')
+, Appt8 = ISNULL(t2.M_DCFUP8,'')+'   '+ISNULL(CAST(Convert(datetime,t2.M_DCFUPDateTime8,109)AS Varchar(100)),'')+'   '+ISNULL(t2.M_DCFUPtCall8,'')
+, diagnosis = ISNULL(DCD.UserDefinedString22,'')
+, Provider = @UserAbbrName
+, CollectedDt_Phy = @collectedDt
+, NurseProvider = @Nurseprovider
+, PendingOrdersAtDischarge = @OrderDescAsWritten
+, UDS.UDS15
+, UDS.UDS16
+
+FROM @tblPatTemp AS T1
+LEFT OUTER JOIN #Temp_Final AS T2
+ON T1.Patient_oid = T2.Patient_oid
+	AND T2.PatientVisit_oid = T2.PatientVisit_oid
+LEFT OUTER JOIN @AlgPivot AS A
+ON A.Patient_oid = T1.Patient_oid
+LEFT OUTER JOIN #Imm_Final AS IMM
+ON IMM.Patient_oid = T1.Patient_oid
+LEFT OUTER JOIN #DCDiagnosis AS DCD
+ON DCD.Patient_oid = T2.Patient_oid
+LEFT OUTER JOIN @UDS15_16 AS UDS
+ON T1.Patient_oid = UDS.Patient_OID
+	AND T1.PatientVisit_oid = UDS.PatientVisit_OID
 ;

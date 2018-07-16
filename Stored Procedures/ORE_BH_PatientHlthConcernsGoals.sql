@@ -50,9 +50,12 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-07-02	v1			Initial Creation
+2018-07-05  v2			Add tov.[Asmt.Status] = 'Complete' as assessments of 
+						othere status were appearing
 --------------------------------------------------------------------------------
 */
-ALTER PROCEDURE [dbo].[ORE_BH_PatientHlthConcernsGoals]
+--ALTER PROCEDURE [dbo].[ORE_BH_PatientHlthConcernsGoals]
+ALTER PROCEDURE [dbo].[ORE_BH_PatientHlthConcernsGoals_test_sp]
 	@HSF_CONTEXT_PATIENTID VARCHAR(20) = NULL,
 	@VisitOID VARCHAR(20) = NULL
 AS
@@ -336,6 +339,8 @@ BEGIN
 
 	WHERE TOV.PatientOID = @iPatientOID
 	AND TOV.PatientVisitOID = @iVisitOID
+	-- only retrieve complete assessments
+	AND TOV.[Asmt.Status] = 'Complete'
 
 END
 ;
