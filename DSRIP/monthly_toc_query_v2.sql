@@ -9,6 +9,12 @@ Total number of unique medicaid patients admitted
 	2. Patients can have Mediciad Primary OR Secondary (ie dual eligible)
 
 Section 2
+Part A
+Total number of unique medicaid readmitted within 30 days
+	1. Medicaid patients that include FFS and Managed
+	2. Patients can have Medicaid Primary OR Secondary
+	3. Readmitted 30 days after initial discharge
+Part B
 Total number of unique medicaid readmitted within 30 days
 	1. Medicaid Patients that include FFS and Managed
 	2. Patients can have Medicaid Primary OR Secondary
@@ -50,6 +56,29 @@ AND A.Plm_Pt_Acct_Type = 'I'
 ;
 
 -- Section 2
+-- Part A
+SELECT A.Med_Rec_No
+, A.Pt_Name
+
+FROM smsdss.BMH_PLM_PtAcct_V AS A
+INNER JOIN smsdss.vReadmits AS B
+ON A.PtNo_Num = B.[INDEX]
+	AND B.[INTERIM] < 31
+
+WHERE A.ADM_DATE >= @START
+AND A.Adm_Date < @END
+AND (
+	-- This gets patients with primary insurance of FFS Caid or Managed Caid
+	A.User_Pyr1_Cat IN ('WWW','III')
+	OR
+	LEFT(A.Pyr2_Co_Plan_Cd, 1) IN ('W','I')
+)
+AND A.tot_chg_amt > 0
+AND LEFT(A.PTNO_NUM, 1) != '2'
+AND LEFT(A.PtNo_Num, 4) != '1999'
+AND A.Plm_Pt_Acct_Type = 'I'
+;
+-- Part B
 SELECT A.Med_Rec_No
 , A.Pt_Name
 

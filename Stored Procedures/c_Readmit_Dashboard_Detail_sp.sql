@@ -35,6 +35,9 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-07-13	v1			Initial Creation
+2018-07-18	v2			Add Discharge Month to table
+2018-07-19	v3			Add payor category
+						Fix to lag by one month
 ***********************************************************************
 */
 
@@ -52,8 +55,8 @@ BEGIN
 	DECLARE @TODAY DATETIME;
 
 	SET @TODAY = GETDATE();
-	SET @START = DATEADD(M, DATEDIFF(M, 0, @TODAY) - 18,0);
-	SET @END   = DATEADD(M, DATEDIFF(M, 0, @TODAY), 0);
+	SET @START = DATEADD(M, DATEDIFF(M, 0, @TODAY) - 19,0);
+	SET @END   = DATEADD(M, DATEDIFF(M, 0, @TODAY) - 1, 0);
 
 	CREATE TABLE smsdss.c_Readmit_Dashboard_Detail_Tbl (
 		Atn_Dr_No CHAR(6)
@@ -64,10 +67,12 @@ BEGIN
 		, Hospitaslit_Private_Flag TINYINT
 		, Med_Rec_No VARCHAR(10)
 		, PtNo_Num VARCHAR(8)
+		, Payor_Category VARCHAR(100)
 		, Adm_Date DATE
 		, Dsch_Date DATE
 		, Dsch_YR SMALLINT
 		, Dsch_Qtr TINYINT
+		, Dsch_Month TINYINT
 		, Rpt_Month INT
 		, Rpt_Qtr INT
 		, Dsch_Week INT
@@ -96,10 +101,12 @@ BEGIN
 	, [Hospitaslit_Private_Flag] = CASE WHEN B.src_spclty_cd = 'HOSIM' THEN 1 ELSE 0 END 
 	, A.Med_Rec_No
 	, A.PtNo_Num
+	, F.pyr_group2 AS [Payor_Category]
 	, CAST(A.ADM_DATE AS date) AS [Adm_Date]
 	, CAST(A.DSCH_DATE AS date) AS [Dsch_Date]
 	, DATEPART(YEAR, A.DSCH_DATE) AS [Dsch_YR]
 	, DATEPART(QUARTER, A.Dsch_Date) AS [Dsch_Qtr]
+	, DATEPART(MONTH, A.DSCH_DATE) AS [Dsch_Month]
 	, [Rpt_Month] = CASE
 		WHEN DATEPART(MONTH, A.DSCH_DATE) < 10
 			THEN CAST(DATEPART(YEAR, A.DSCH_DATE) AS VARCHAR) + '0' + CAST(DATEPART(MONTH, A.Dsch_Date) AS varchar)
@@ -141,6 +148,9 @@ BEGIN
 	ON A.PtNo_Num = E.[INDEX]
 		AND E.[INTERIM] < 31
 		AND E.[READMIT SOURCE DESC] != 'Scheduled Admission'
+	LEFT OUTER JOIN smsdss.pyr_dim_v AS F
+	ON A.Pyr1_Co_Plan_Cd = F.pyr_cd
+		AND A.Regn_Hosp = F.orgz_cd
 
 	WHERE A.DSCH_DATE >= @START
 	AND A.Dsch_Date < @END
@@ -176,10 +186,12 @@ ELSE BEGIN
 	, [Hospitaslit_Private_Flag] = CASE WHEN B.src_spclty_cd = 'HOSIM' THEN 1 ELSE 0 END 
 	, A.Med_Rec_No
 	, A.PtNo_Num
+	, F.pyr_group2 AS [Payor_Category]
 	, CAST(A.ADM_DATE AS date) AS [Adm_Date]
 	, CAST(A.DSCH_DATE AS date) AS [Dsch_Date]
 	, DATEPART(YEAR, A.DSCH_DATE) AS [Dsch_YR]
 	, DATEPART(QUARTER, A.Dsch_Date) AS [Dsch_Qtr]
+	, DATEPART(MONTH, A.DSCH_DATE) AS [Dsch_Month]
 	, [Rpt_Month] = CASE
 		WHEN DATEPART(MONTH, A.DSCH_DATE) < 10
 			THEN CAST(DATEPART(YEAR, A.DSCH_DATE) AS VARCHAR) + '0' + CAST(DATEPART(MONTH, A.Dsch_Date) AS varchar)
@@ -221,6 +233,9 @@ ELSE BEGIN
 	ON A.PtNo_Num = E.[INDEX]
 		AND E.[INTERIM] < 31
 		AND E.[READMIT SOURCE DESC] != 'Scheduled Admission'
+	LEFT OUTER JOIN smsdss.pyr_dim_v AS F
+	ON A.Pyr1_Co_Plan_Cd = F.pyr_cd
+		AND A.Regn_Hosp = F.orgz_cd
 
 	WHERE A.DSCH_DATE >= @STARTB
 	AND A.Dsch_Date < @ENDB
