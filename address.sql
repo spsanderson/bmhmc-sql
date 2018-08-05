@@ -35,7 +35,8 @@ SELECT * FROM @ADDRESS
 -- For R 
 DECLARE @ADDRESS TABLE (
 	Encounter VARCHAR(12)
-	,FullAddress VARCHAR(MAX) 
+	, FullAddress VARCHAR(MAX) 
+	, ZipCode VARCHAR(15)
 );
 DECLARE @TODAY AS DATE;
 DECLARE @YESTERDAY AS DATE;
@@ -46,11 +47,13 @@ SET @YESTERDAY = DATEADD(DAY, DATEDIFF(DAY, 0, @TODAY), - 1);
 INSERT INTO @ADDRESS 
  
 SELECT A.PtNo_Num
-, A.[FullAddress] 
+, A.[FullAddress]
+, a.Pt_Addr_Zip
  
 FROM ( 
     SELECT PtNo_Num
 	, a.addr_line1 + ', ' + a.Pt_Addr_City + ', ' + a.Pt_Addr_State AS [FullAddress]-- + ' ' + a.Pt_Addr_Zip AS [FULL_ADDRESS] 
+	, a.Pt_Addr_Zip
  
 	FROM smsdss.c_patient_demos_v AS A
 	LEFT OUTER JOIN smsdss.BMH_PLM_PtAcct_V AS B
@@ -65,9 +68,9 @@ FROM (
     AND b.tot_chg_amt > 0 
     AND LEFT(B.PTNO_NUM, 1) != '2' 
     AND LEFT(B.PTNO_NUM, 4) != '1999' 
-    --AND b.Dsch_Date = @YESTERDAY
-	AND B.Dsch_Date >= '2018-07-01'
-	and B.Dsch_Date < '2018-08-01'
+    AND b.Dsch_Date = @YESTERDAY
+	--AND B.Dsch_Date >= '2018-07-01'
+	--AND B.Dsch_Date < '2018-08-01'
 ) A 
 ; 
  
