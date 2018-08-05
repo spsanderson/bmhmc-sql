@@ -112,8 +112,14 @@ SELECT A.Pt_No AS pt_id
 , ROUND((A.LOS - A.Performance) / STDEV(a.los) over(), 4) as [z-score]
 , [zScore_UL] = 1.96
 , [zScore_LL] = -1.96
+--, GEO.FullAddress
+--, GEO.lat
+--, GEO.lon
+--, GEO.ZipCode
 
 FROM #TEMPA AS A
+--INNER JOIN smsdss.c_geocoded_address AS GEO
+--ON SUBSTRING(A.PT_NO, 5, 8) = GEO.Encounter
 
 ORDER BY A.Dsch_Date
 ;
