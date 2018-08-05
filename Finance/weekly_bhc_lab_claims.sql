@@ -114,8 +114,8 @@ FROM #TBL_4 AS A
 WHERE A.[BMP Flag] = 1
 -----------------------------------------------------------------------
 /*
-Create a flag for the child orders that cannot be charges becaus they
-are art of the panel and therefore should be excluded.
+Create a flag for the child orders that cannot be charges because they
+are part of the panel and therefore should be excluded.
 */
 SELECT *
 , CASE
