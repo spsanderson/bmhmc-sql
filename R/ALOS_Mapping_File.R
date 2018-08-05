@@ -1,0 +1,654 @@
+# ALOS Mapping File
+# Mapping a geocoded csv column of "addresses" in R
+
+#load ggmap
+library(ggmap)
+library(rworldmap)
+library(rworldxtra)
+library(leaflet)
+library(readxl)
+library(rgdal)
+library(htmltools)
+library(dplyr)
+library(magrittr)
+library(readr)
+library(knitr)
+
+# Select the file from the file chooser
+fileToLoad <- file.choose(new = TRUE)
+
+# Read in the CSV/xlsx data and store it in a variable 
+origAddress <- read_xlsx(fileToLoad, col_names = TRUE)
+
+# Add some structure to the data
+origAddress$LIHN_Line <- as.factor(origAddress$LIHN_Service_Line)
+origAddress$SOI <- as.factor(origAddress$SEVERITY_OF_ILLNESS)
+origAddress$Var[origAddress$Case_Var <= 0] <- 0
+origAddress$Var[origAddress$Case_Var > 0] <- 1
+
+# number of discharges
+discharges <- nrow(origAddress)
+MaxRpt <- max(origAddress$Last_Rpt_Month)
+MaxRptYr <- substr(MaxRpt, 1, 4)
+MaxRptMonth <- substr(MaxRpt, 5, 6)
+
+# at this point run the file get_usa_zipcode_level_2015.R Script
+# when done, inner join data together
+alos_join <- origAddress
+joined_data <- inner_join(alos_join, state_clean, by = c("ZipCode", "zipcode"))
+head(joined_data)
+dim(joined_data)
+
+# Test Map
+pal <- colorFactor(
+  palette = "BuPu"
+  , domain = alos_join$SOI
+)
+
+popup <- paste0(
+  "<strong>County: </strong>"
+  , STATE_SHP$County
+  , "<br><strong>City: </strong>"
+  , STATE_SHP$City
+  , "<br>Service Line: "
+  , alos_join$LIHN_Line
+)
+
+l <- leaflet(data = STATE_SHP) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    fillColor = ~pal(alos_join$SOI)
+    , fillOpacity = 0.7
+    , color = "#BDBDC3"
+    , weight = 1
+    , popup = popup
+    ) %>%
+  addCircleMarkers(
+    
+  )
+  addLegend(
+    "bottomleft"
+    , pal = pal
+    , values = ~alos_join$SOI
+    , title = "SOI"
+    , opacity = 1
+  )
+
+l
+# End Test Map
+
+# map ggplot2 style
+map <- get_map(location = 'Patchogue', zoom = 9, maptype = "roadmap")
+mapPoints <- ggmap(map) +
+  geom_point(
+    aes(
+      x = lon
+      , y = lat
+      , color = "red"
+      , alpha = 0.3
+    )
+    , data = origAddress
+  ) +
+  xlab("Longitude") +
+  ylab("Lattitude") +
+  ggtitle("Discharges") +
+  theme(legend.position = "none")
+mapPoints
+
+mapbin2d <- ggmap(map) +
+  geom_bin2d(
+    aes(
+      x = lon
+      , y = lat
+    )
+    , data = origAddress
+  )
+mapbin2d
+
+mapdensity2d <- ggmap(map) +
+  geom_density2d(
+    aes(
+      x = lon
+      , y = lat
+      , group = origAddress$SOI
+      , color = origAddress$SOI
+    )
+    , data = origAddress
+  )
+mapdensity2d
+
+######################################
+# leaflet maps
+# Cluster Map
+sv_lng <- -72.97659
+sv_lat <- 40.78007
+sv_zoom <- 9
+
+hospMarker <- makeAwesomeIcon(
+      icon = 'glyphicon-plus'
+    , markerColor = 'lightblue'
+    , iconColor = 'black'
+    , library = "glyphicon"
+  )
+
+mcluster <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles() %>% 
+  addMarkers(
+    lng = origAddress$lon
+    , lat = origAddress$lat
+    , clusterOptions = markerClusterOptions()
+  ) %>%
+  addControl("Discharges", position = "topright")
+
+mcluster <- mcluster %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = paste(
+      "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
+      , "<br>"
+      , "Discharges for: "
+      , "<dd>",MaxRptMonth,"/",MaxRptYr,"</dd>"
+      , "Discharges:"
+      , "<dd>",discharges,"</dd>"
+      , "<br>"
+    )      
+  )
+  
+mcluster
+
+#####################################
+# Service Line map
+# Get unique list of groups needed
+HospPopup <- paste(
+  "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
+  , "<br>"
+  , "Discharges for: "
+  , "<dd>",MaxRptMonth,"/",MaxRptYr,"</dd>"
+  , "Discharges:"
+  , "<dd>",discharges,"</dd>"
+  , "<br>"
+)
+Popup <- ~as.character(
+  paste(
+    "Hospitalist/Private:"
+    , hosim
+    , "<br>"
+    , "Address: "
+    , FullAddress
+    , "<br>"
+    , "Service Line: "
+    , LIHN_Line
+    , "<br>"
+    , "LOS: "
+    , LOS
+    , "<br>"
+    , "SOI: "
+    , SOI
+    , "<br>"
+    , "Encounter: "
+    , pt_id
+    ,"<br>"
+    , "Payer Group:"
+    , pyr_group2
+  )
+)
+lsl <- unique(origAddress$LIHN_Line)
+
+# Create color palette
+lihnpal <- colorFactor(
+  palette = 'Dark2'
+  , domain = origAddress$LIHN_Line
+)
+# create initial leaflet
+LIHNMap <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("LIHN Service Line Point Map", position = "topright")
+
+# for loop to cycle through adding layers
+for(i in 1:length(lsl)){
+  #l <- lsl[i]
+  LIHNMap <- LIHNMap %>%
+    addCircles(
+      data = subset(origAddress, origAddress$LIHN_Line == lsl[i])
+      , group = lsl[i]
+      , radius = 3
+      , fillOpacity = 1
+      , color = ~lihnpal(LIHN_Line)
+      , label = ~htmlEscape(LIHN_Line)
+      , popup = Popup
+    )
+}
+
+# add layercontrol
+LIHNMap <- LIHNMap %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
+    overlayGroups = lsl,
+    options = layersControlOptions(
+      collapsed = TRUE
+      , position = "topright"
+    )
+  )
+
+LIHNMap <- LIHNMap %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup     
+  )
+
+# print map
+LIHNMap
+
+# SOI Map
+# Get unique list of groups needed
+s <- unique(origAddress$SOI)
+
+# create SOI color palette
+soipal <- colorFactor(
+  c('purple', 'blue', 'red','black')
+  , domain = origAddress$SOI
+)
+# create initial leaflet
+mtsoi <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("Severity of Illness Point Map", position = "topright")
+
+# for loop to cycle through adding layers
+for(i in 1:length(s)){
+  #ss <- s[i]
+  mtsoi <- mtsoi %>%
+    addCircles(
+      data = subset(origAddress, origAddress$SOI == s[i])
+      , group = s[i]
+      , radius = 3
+      , fillOpacity = 1
+      , color = ~soipal(SOI)
+      , label = ~htmlEscape(SOI)
+      , popup = popup
+    )
+}
+
+# add layercontrol
+mtsoi <- mtsoi %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
+    overlayGroups = s,
+    options = layersControlOptions(
+      collapsed = TRUE
+      , position = "topright"
+    )
+  )
+
+mtsoi <- mtsoi %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup      
+  )
+
+# print map
+mtsoi
+
+# Test map with clusters
+LIHNCluster.df <- split(origAddress, origAddress$LIHN_Line)
+
+ClusterMapLIHN <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("LIHN Service Line Cluster Map", position = "topright")
+
+names(LIHNCluster.df) %>%
+  purrr::walk(function(df){
+    ClusterMapLIHN <<- ClusterMapLIHN %>%
+      addMarkers(
+        data = LIHNCluster.df[[df]]
+        , lng = ~lon
+        , lat = ~lat
+        , label = ~as.character(LIHN_Line)
+        , popup = popup
+        , group = df
+        , clusterOptions = markerClusterOptions(
+          removeOutsideVisibleBounds = F
+          , labelOptions = labelOptions(
+            noHide = F
+            , direction = 'auto'
+          )
+        )
+      )
+  }
+  )
+
+ClusterMapLIHN <- ClusterMapLIHN %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite")
+    , overlayGroups = names(LIHNCluster.df)
+    , options = layersControlOptions(collapsed = TRUE)
+  )
+
+ClusterMapLIHN <- ClusterMapLIHN %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup      
+  )
+
+ClusterMapLIHN
+
+# save output or just use export from the plot viewer
+#htmlwidgets::saveWidget(tmap, file = "LIHN_Service_Line_Clusters.html")
+ClusterMapSOI.df <- split(origAddress, origAddress$SOI)
+
+ClusterMapSOI <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("Severity of Illness Cluster Map", position = "topright")
+
+names(ClusterMapSOI.df) %>%
+  purrr::walk(function(df){
+    ClusterMapSOI <<- ClusterMapSOI %>%
+      addMarkers(
+        data = ClusterMapSOI.df[[df]]
+        , lng = ~lon
+        , lat = ~lat
+        , label = ~as.character(SOI)
+        , popup = Popup
+        , group = df
+        , clusterOptions = markerClusterOptions(
+          removeOutsideVisibleBounds = F
+          , labelOptions = labelOptions(
+            noHide = F
+            , direction = 'auto'
+          )
+        )
+      )
+  }
+)
+
+ClusterMapSOI <- ClusterMapSOI %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite")
+    , overlayGroups = names(ClusterMapSOI.df)
+    , options = layersControlOptions(collapsed = TRUE)
+  )
+
+ClusterMapSOI <- ClusterMapSOI %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup      
+  )
+
+ClusterMapSOI
+
+# Hospitalist / Private
+# Get unique list of groups
+HospPvtList <- unique(origAddress$hosim)
+
+# Create color palette
+HospPvtPal <- colorFactor(
+  palette = 'Dark2'
+  , domain = origAddress$hosim
+)
+
+# Create initial leaflet
+HospPvtMap <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles() %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("Hospitalist/Private Point Map", position = "topright")
+
+# for loop to add layers
+for(i in 1:length(HospPvtList)){
+  HospPvtMap <- HospPvtMap %>%
+    addCircles(
+      data = subset(origAddress, origAddress$hosim == HospPvtList[i])
+      , group = HospPvtList[i]
+      , radius = 3
+      , fillOpacity = 1
+      , color = ~HospPvtPal(hosim)
+      , label = ~htmlEscape(hosim)
+      , popup = Popup
+    )
+}
+
+# Add Layer Control
+HospPvtMap <- HospPvtMap %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)","Toner","Toner Lite")
+    , overlayGroups = HospPvtList
+    , options = layersControlOptions(
+      collapsed = TRUE
+      , position = 'topright'
+    )
+  )
+
+HospPvtMap <- HospPvtMap %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup
+  )
+
+HospPvtMap
+
+# Hospitalist / Private Cluster Map
+ClusterMapHospPvt.df <- split(origAddress, origAddress$hosim)
+
+ClusterMapHospPvt <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles() %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("Hospitalist/Private Cluster Map", position = "topright")
+
+names(ClusterMapHospPvt.df) %>%
+  purrr::walk(function(df){
+    ClusterMapHospPvt <<- ClusterMapHospPvt %>%
+      addMarkers(
+        data = ClusterMapHospPvt.df[[df]]
+        , lng = ~lon
+        , lat = ~lat
+        , label = ~as.character(hosim)
+        , popup = Popup
+        , group = df
+        , clusterOptions = markerClusterOptions(
+          removeOutsideVisibleBounds = F
+          , labelOptions = labelOptions(
+            noHide = F
+            , direction = 'auto'
+          )
+        )
+      )
+    }
+  )
+
+ClusterMapHospPvt <- ClusterMapHospPvt %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite")
+    , overlayGroups = names(ClusterMapHospPvt.df)
+    , options = layersControlOptions(collapsed = TRUE)
+  )
+
+ClusterMapHospPvt <- ClusterMapHospPvt %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup      
+  )
+
+ClusterMapHospPvt
+
+# Payer Group
+ClusterMapPayerGroup.df <- split(origAddress, origAddress$pyr_group2)
+
+ClusterMapPayerGroup <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles() %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("Payer Group Cluster Map", position = "topright")
+
+names(ClusterMapPayerGroup.df) %>%
+  purrr::walk(function(df){
+    ClusterMapPayerGroup <<- ClusterMapPayerGroup %>%
+      addMarkers(
+        data = ClusterMapPayerGroup.df[[df]]
+        , lng = ~lon
+        , lat = ~lat
+        , label = ~as.character(pyr_group2)
+        , popup = Popup
+        , group = df
+        , clusterOptions = markerClusterOptions(
+          removeOutsideVisibleBounds = F
+          , labelOptions = labelOptions(
+            noHide = F
+            , direction = 'auto'
+          )
+        )
+      )
+  }
+  )
+
+ClusterMapPayerGroup <- ClusterMapPayerGroup %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite")
+    , overlayGroups = names(ClusterMapPayerGroup.df)
+    , options = layersControlOptions(collapsed = TRUE)
+  )
+
+ClusterMapPayerGroup <- ClusterMapPayerGroup %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup      
+  )
+
+ClusterMapPayerGroup
+
+# ALOS Variance Map
+AVL <- unique(as.factor(origAddress$Var))
+
+AlosVarColor <- colorFactor(
+  c("red", "black")
+  , domain = origAddress$Var
+)
+
+AlosVarMap <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("ALOS Variance Point Map", position = "topright")
+
+for(i in 1:length(AVL)){
+  AlosVarMap <- AlosVarMap %>%
+    addCircles(
+      data = subset(origAddress, origAddress$Var == AVL[i])
+      , group = AVL[i]
+      , radius = 3
+      , fillOpacity = 1
+      , color = ~AlosVarColor(Var)
+      , label = ~as.character(Var)
+      , popup = Popup
+    )
+}
+
+AlosVarMap <- AlosVarMap %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite")
+    , overlayGroups = AVL
+    , options = layersControlOptions(
+      collapsed = TRUE
+      , position = "topright"
+    )
+  )
+
+AlosVarMap <- AlosVarMap %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup
+  )
+
+AlosVarMap
+
+# ALOS Variance Cluster Map
+AlosVarCluster.df <- split(origAddress, origAddress$Var)
+
+ClusterMapAlosVar <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
+  addControl("ALOS Variance Cluster Map", position = "topright")
+
+names(AlosVarCluster.df) %>%
+  purrr::walk(function(df){
+    ClusterMapAlosVar <<- ClusterMapAlosVar %>%
+      addMarkers(
+        data = AlosVarCluster.df[[df]]
+        , lng = ~lon
+        , lat = ~lat
+        , label = ~as.character(Var)
+        , popup = Popup
+        , group = df
+        , clusterOptions = markerClusterOptions(
+          removeOutsideVisibleBounds = F
+          , labelOptions = labelOptions(
+            noHide = F
+            , direction = 'auto'
+          )
+        )
+      )
+  }
+)
+
+ClusterMapAlosVar <- ClusterMapAlosVar %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "Toner", "Toner Lite")
+    , overlayGroups = names(AlosVarCluster.df)
+    , options = layersControlOptions(collapsed = TRUE)
+  )
+
+ClusterMapAlosVar <- ClusterMapAlosVar %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = "BMHMC"
+    , popup = HospPopup
+  )
+
+ClusterMapAlosVar
