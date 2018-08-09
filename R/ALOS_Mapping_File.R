@@ -23,6 +23,7 @@ origAddress <- read_xlsx(fileToLoad, col_names = TRUE)
 # Add some structure to the data
 origAddress$LIHN_Line <- as.factor(origAddress$LIHN_Service_Line)
 origAddress$SOI <- as.factor(origAddress$SEVERITY_OF_ILLNESS)
+origAddress$ZipCode <- as.factor(origAddress$ZipCode)
 origAddress$Var[origAddress$Case_Var <= 0] <- 0
 origAddress$Var[origAddress$Case_Var > 0] <- 1
 
@@ -35,47 +36,157 @@ MaxRptMonth <- substr(MaxRpt, 5, 6)
 # at this point run the file get_usa_zipcode_level_2015.R Script
 # when done, inner join data together
 alos_join <- origAddress
-joined_data <- inner_join(alos_join, state_clean, by = c("ZipCode", "zipcode"))
+alos_join$ZipCode <- as.character(alos_join$ZipCode)
+joined_data <- inner_join(alos_join, state_clean, by = c("ZipCode" = "zipcode"))
 head(joined_data)
 dim(joined_data)
 
+dsch_count_by_city <- joined_data %>%
+  group_by(
+    ZipCode
+    , AFFGEOID10
+    , GEOID10
+    , ALAND10
+    , AWATER10
+    , City
+    , County
+    ) %>%
+    summarize(
+      dsch_count = n()
+    )
+dsch_count_by_city <- as.data.frame(dsch_count_by_city)
+
+dsch_count_by_city <- dsch_count_by_city %>%
+  mutate(
+    dsch_bin = ntile(dsch_count, 5)
+    , dsch_bin_test = cut(
+      dsch_count, breaks = c(0,50,100,150,200)
+      )
+  )
+
+dsch_count_shp <- sp::merge(
+  x = usa
+  , y = dsch_count_by_city
+  , all.x = F
+)
+
 # Test Map
-pal <- colorFactor(
-  palette = "BuPu"
-  , domain = alos_join$SOI
+sv_lng <- -72.97659
+sv_lat <- 40.78007
+sv_zoom <- 9
+
+pal <- colorBin(
+  #palette = "BuPu"
+  palette = "Dark2"
+  #, domain = dsch_count_by_city$dsch_count
+  , domain = dsch_count_shp$dsch_count
+  , bins = 6
+  , reverse = TRUE
 )
 
-popup <- paste0(
+popup <- paste(
   "<strong>County: </strong>"
-  , STATE_SHP$County
+  , dsch_count_shp$County
   , "<br><strong>City: </strong>"
-  , STATE_SHP$City
-  , "<br>Service Line: "
-  , alos_join$LIHN_Line
+  , dsch_count_shp$City
+  # , "<br><strong>Bin: </strong>"
+  # , dsch_count_shp$dsch_bin_test
+  , "<br><strong>Discharges: </strong>"
+  , dsch_count_shp$dsch_count
 )
 
-l <- leaflet(data = STATE_SHP) %>%
-  addProviderTiles("CartoDB.Positron") %>%
+l <- leaflet(data = dsch_count_shp) %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  #addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    fillColor = ~pal(alos_join$SOI)
+    data = dsch_count_shp
+    #, fillColor = ~pal(dsch_count_by_city$dsch_count)
+    , fillColor = ~pal(dsch_count)
     , fillOpacity = 0.7
-    , color = "#BDBDC3"
-    , weight = 1
+    # , color = "#BDBDC3"
+    , weight = 0.7
     , popup = popup
     ) %>%
-  addCircleMarkers(
-    
-  )
+  addLayersControl(
+    baseGroups = c("OSM (default)")#, "CartoDB.Positron")
+    , options = layersControlOptions(
+        collapsed = FALSE
+        , position = "topright"
+      )
+    ) %>%
+  addControl(
+    paste("Discharges for:",MaxRptMonth,MaxRptYr)
+    , position = "bottomleft"
+    ) %>%
   addLegend(
-    "bottomleft"
+    "topright"
     , pal = pal
-    , values = ~alos_join$SOI
-    , title = "SOI"
+    , values = ~dsch_count
+    , title = "Discharge Bin"
     , opacity = 1
   )
 
 l
 # End Test Map
+# test map of ALOS
+dsch_alos_city <- joined_data %>%
+  group_by(
+    ZipCode
+    , AFFGEOID10
+    , GEOID10
+    , ALAND10
+    , AWATER10
+    , City
+    , County
+  ) %>%
+  summarize(
+    ALOS = mean(LOS)
+  )
+dsch_alos_city <- as.data.frame(dsch_alos_city)
+
+dsch_alos_shp <- sp::merge(
+  x = usa
+  , y = dsch_alos_city
+  , all.x = F
+)
+
+palAlos <- colorBin(
+  palette = "Dark2"
+  , domain = dsch_alos_shp$ALOS
+  , bins = 5
+  , reverse = TRUE
+)
+
+alosl <- leaflet(data = dsch_alos_shp) %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addPolygons(
+    data = dsch_alos_shp
+    , fillColor = ~palAlos(ALOS)
+    , fillOpacity = 0.7
+    , weight = 0.7
+    , popup = popup
+  ) %>%
+  addLayersControl(
+    baseGroups = ("OSM (default)")
+    , options = layersControlOptions(
+      collapsed = FALSE
+      , position = "topright"
+    )
+  ) %>%
+  addControl(
+    paste("ALOS Map for:",MaxRptMonth, MaxRptYr)
+    , position = "bottomleft"
+  ) %>%
+  addLegend(
+    "topright"
+    , pal = palAlos
+    , values = ~ALOS
+    , title = "ALOS Bin"
+    , opacity = 1
+  )
+alosl
 
 # map ggplot2 style
 map <- get_map(location = 'Patchogue', zoom = 9, maptype = "roadmap")
