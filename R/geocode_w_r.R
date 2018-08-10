@@ -17,7 +17,8 @@ geocoded <- data.frame(stringsAsFactors = FALSE)
 # origAddress data frame in new columns lat and lon
 for(i in 1:nrow(origAddress)) {
   print(paste("Working on geocoding:", origAddress$FullAddress[i]))
-  result <- geocode(origAddress$FullAddress[i], output = "latlon", source = "google")
+  # changed to dsk as google map api's keeps returning over_query_limit
+  result <- geocode(origAddress$FullAddress[i], output = "latlon", source = "dsk")
   origAddress$lon[i] <- as.numeric(result[1])
   origAddress$lat[i] <- as.numeric(result[2])
   #origAddress$geoAddress[i] <- as.character(result[3])
@@ -34,7 +35,7 @@ for(i in 1:nrow(origAddress)){
       , " geocding queries left"
       )
     )
-    result <- geocode(origAddress$FullAddress[i], output = "latlon", source = "google")
+    result <- geocode(origAddress$FullAddress[i], output = "latlon", source = "dsk")
     origAddress$lon[i] <- as.numeric(result[1])
     origAddress$lat[i] <- as.numeric(result[2])
     #origAddress$geoAddress <- as.character(result[3])

@@ -19,6 +19,7 @@ fileToLoad <- file.choose(new = TRUE)
 
 # Read in the CSV/xlsx data and store it in a variable 
 origAddress <- read_xlsx(fileToLoad, col_names = TRUE)
+rm(fileToLoad)
 
 # Add some structure to the data
 origAddress$LIHN_Line <- as.factor(origAddress$LIHN_Service_Line)
@@ -33,6 +34,8 @@ MaxRpt <- max(origAddress$Last_Rpt_Month)
 MaxRptYr <- substr(MaxRpt, 1, 4)
 MaxRptMonth <- substr(MaxRpt, 5, 6)
 
+optBin(origAddress$Case_Var)
+sshist(origAddress$Case_Var)
 # at this point run the file get_usa_zipcode_level_2015.R Script
 # when done, inner join data together
 alos_join <- origAddress
@@ -58,9 +61,9 @@ dsch_count_by_city <- as.data.frame(dsch_count_by_city)
 
 dsch_count_by_city <- dsch_count_by_city %>%
   mutate(
-    dsch_bin = ntile(dsch_count, 5)
-    , dsch_bin_test = cut(
-      dsch_count, breaks = c(0,50,100,150,200)
+    #dsch_bin = ntile(dsch_count, 5)
+     dsch_bin = cut(
+      dsch_count, breaks = c(0,25,50,75,100,125,150,Inf)
       )
   )
 
@@ -75,12 +78,9 @@ sv_lng <- -72.97659
 sv_lat <- 40.78007
 sv_zoom <- 9
 
-pal <- colorBin(
-  #palette = "BuPu"
+pal <- colorFactor(
   palette = "Dark2"
-  #, domain = dsch_count_by_city$dsch_count
-  , domain = dsch_count_shp$dsch_count
-  , bins = 6
+  , domain = dsch_count_shp$dsch_bin
   , reverse = TRUE
 )
 
@@ -89,46 +89,46 @@ popup <- paste(
   , dsch_count_shp$County
   , "<br><strong>City: </strong>"
   , dsch_count_shp$City
-  # , "<br><strong>Bin: </strong>"
-  # , dsch_count_shp$dsch_bin_test
   , "<br><strong>Discharges: </strong>"
   , dsch_count_shp$dsch_count
+  , "<br><strong>Discharge Bin: </strong>"
+  , dsch_count_shp$dsch_bin
 )
 
 l <- leaflet(data = dsch_count_shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
-  #addProviderTiles("CartoDB.Positron") %>%
+  addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
     data = dsch_count_shp
-    #, fillColor = ~pal(dsch_count_by_city$dsch_count)
-    , fillColor = ~pal(dsch_count)
+    , fillColor = ~pal(dsch_bin)
     , fillOpacity = 0.7
     # , color = "#BDBDC3"
     , weight = 0.7
     , popup = popup
     ) %>%
+  addControl(
+    paste("Discharges for:",MaxRptMonth,MaxRptYr)
+    , position = "topright"
+  ) %>%
   addLayersControl(
-    baseGroups = c("OSM (default)")#, "CartoDB.Positron")
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
     , options = layersControlOptions(
         collapsed = FALSE
         , position = "topright"
       )
     ) %>%
-  addControl(
-    paste("Discharges for:",MaxRptMonth,MaxRptYr)
-    , position = "bottomleft"
-    ) %>%
   addLegend(
     "topright"
     , pal = pal
-    , values = ~dsch_count
+    , values = ~dsch_bin
     , title = "Discharge Bin"
     , opacity = 1
   )
 
 l
 # End Test Map
+
 # test map of ALOS
 dsch_alos_city <- joined_data %>%
   group_by(
@@ -141,7 +141,7 @@ dsch_alos_city <- joined_data %>%
     , County
   ) %>%
   summarize(
-    ALOS = mean(LOS)
+    ALOS = round(mean(LOS), 2)
   )
 dsch_alos_city <- as.data.frame(dsch_alos_city)
 
@@ -158,9 +158,21 @@ palAlos <- colorBin(
   , reverse = TRUE
 )
 
+popup <- paste(
+  "<strong>County: </strong>"
+  , dsch_alos_shp$County
+  , "<br><strong>City: </strong>"
+  , dsch_alos_shp$City
+  , "<br><strong>Discharges: </strong>"
+  , dsch_count_shp$dsch_count
+  , "<br><strong>ALOS: </strong>"
+  , dsch_alos_shp$ALOS
+)
+
 alosl <- leaflet(data = dsch_alos_shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
     data = dsch_alos_shp
     , fillColor = ~palAlos(ALOS)
@@ -168,17 +180,18 @@ alosl <- leaflet(data = dsch_alos_shp) %>%
     , weight = 0.7
     , popup = popup
   ) %>%
+  addControl(
+    paste("ALOS Map for:",MaxRptMonth, MaxRptYr)
+    , position = "topright"
+  ) %>%
   addLayersControl(
-    baseGroups = ("OSM (default)")
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
     , options = layersControlOptions(
       collapsed = FALSE
       , position = "topright"
     )
   ) %>%
-  addControl(
-    paste("ALOS Map for:",MaxRptMonth, MaxRptYr)
-    , position = "bottomleft"
-  ) %>%
+
   addLegend(
     "topright"
     , pal = palAlos
@@ -187,53 +200,302 @@ alosl <- leaflet(data = dsch_alos_shp) %>%
     , opacity = 1
   )
 alosl
+# end of ALOS map
 
-# map ggplot2 style
-map <- get_map(location = 'Patchogue', zoom = 9, maptype = "roadmap")
-mapPoints <- ggmap(map) +
-  geom_point(
-    aes(
-      x = lon
-      , y = lat
-      , color = "red"
-      , alpha = 0.3
-    )
-    , data = origAddress
-  ) +
-  xlab("Longitude") +
-  ylab("Lattitude") +
-  ggtitle("Discharges") +
-  theme(legend.position = "none")
-mapPoints
-
-mapbin2d <- ggmap(map) +
-  geom_bin2d(
-    aes(
-      x = lon
-      , y = lat
-    )
-    , data = origAddress
+# SOI Map
+# Get the mean SOI
+dsch_soi_city <- joined_data %>%
+  group_by(
+    ZipCode
+    , AFFGEOID10
+    , GEOID10
+    , ALAND10
+    , AWATER10
+    , City
+    , County
+  ) %>%
+  summarize(
+    avgSOI = round(mean(as.numeric(SOI)), 2)
   )
-mapbin2d
+dsch_soi_city <- as.data.frame(dsch_soi_city)
 
-mapdensity2d <- ggmap(map) +
-  geom_density2d(
-    aes(
-      x = lon
-      , y = lat
-      , group = origAddress$SOI
-      , color = origAddress$SOI
+dsch_soi_shp <- sp::merge(
+  x = usa
+  , y = dsch_soi_city
+  , all.x = F
+)
+
+palSOI <- colorBin(
+  palette = "Dark2"
+  , domain = dsch_soi_shp$avgSOI
+  , bins = 8
+  , reverse = TRUE
+)
+
+popup <- paste(
+  "<strong>County: </strong>"
+  , dsch_soi_shp$County
+  , "<br><strong>City: </strong>"
+  , dsch_soi_shp$City
+  , "<br><strong>Discharges: </strong>"
+  , dsch_count_shp$dsch_count
+  , "<br><strong>Avg SOI: </strong>"
+  , dsch_soi_shp$avgSOI
+)
+
+soil <- leaflet(data = dsch_soi_shp) %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = dsch_soi_shp
+    , fillColor = ~palSOI(avgSOI)
+    , fillOpacity = 0.7
+    , weight = 0.7
+    , popup = popup
+  ) %>%
+  addControl(
+    paste("SOI Map for:",MaxRptMonth, MaxRptYr)
+    , position = "topright"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
+    , options = layersControlOptions(
+      collapsed = FALSE
+      , position = "topright"
     )
-    , data = origAddress
+  ) %>%
+  addLegend(
+    "topright"
+    , pal = palSOI
+    , values = ~avgSOI
+    , title = "SOI Bin"
+    , opacity = 1
   )
-mapdensity2d
+soil
+# End of SOI Map
+
+# Case Variance Map
+dsch_cvar_city <- joined_data %>%
+  group_by(
+    ZipCode
+    , AFFGEOID10
+    , GEOID10
+    , ALAND10
+    , AWATER10
+    , City
+    , County
+  ) %>%
+  summarize(
+    avgVar = round(mean(Case_Var), 2)
+  )
+dsch_cvar_city <- as.data.frame(dsch_cvar_city)
+
+dsch_cvar_shp <- sp::merge(
+  x = usa
+  , y = dsch_cvar_city
+  , all.x = F
+)
+
+palcvar <- colorBin(
+  palette = "Paired"
+  , domain = dsch_cvar_shp$avgVar
+  , bins = 5
+  , reverse = FALSE
+)
+
+popup <- paste(
+  "<strong>County: </strong>"
+  , dsch_cvar_shp$County
+  , "<br><strong>City: </strong>"
+  , dsch_cvar_shp$City
+  , "<br><strong>Discharges: </strong>"
+  , dsch_count_shp$dsch_count
+  , "<br><strong>Avg Case Variance: </strong>"
+  , dsch_cvar_shp$avgVar
+)
+
+cvarl <- leaflet(data = dsch_cvar_shp) %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = dsch_cvar_shp
+    , fillColor = ~palcvar(avgVar)
+    , fillOpacity = 0.7
+    , weight = 0.7
+    , popup = popup
+  ) %>%
+  addControl(
+    paste("Avg Variance Map for:",MaxRptMonth, MaxRptYr)
+    , position = "topright"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
+    , options = layersControlOptions(
+      collapsed = FALSE
+      , position = "topright"
+    )
+  ) %>%
+  addLegend(
+    "topright"
+    , pal = palcvar
+    , values = ~avgVar
+    , title = "SOI Bin"
+    , opacity = 1
+  )
+cvarl
+# End of Case Variance Map
+
+# Multi-layered Choropleth map
+popup <- paste(
+  "<strong>County: </strong>"
+  , dsch_cvar_shp$County
+  , "<br><strong>City: </strong>"
+  , dsch_cvar_shp$City
+  , "<br><strong>Discharges: </strong>"
+  , dsch_count_shp$dsch_count
+  , "<br><strong>ALOS: </strong>"
+  , dsch_alos_shp$ALOS
+  , "<br><strong>Avg SOI: </strong>"
+  , dsch_soi_shp$avgSOI
+  , "<br><strong>Avg Case Variance: </strong>"
+  , dsch_cvar_shp$avgVar
+)
+
+mlmap <- leaflet(data = dsch_cvar_shp) %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  addPolygons(
+    data = dsch_count_shp
+    , fillColor = ~pal(dsch_bin)
+    , fillOpacity = 0.7
+    , weight = 0.7
+    , popup = popup
+    , group = "Discharges"
+  ) %>%
+  
+  addPolygons(
+    data = dsch_alos_shp
+    , fillColor = ~palAlos(ALOS)
+    , fillOpacity = 0.7
+    , weight = 0.7
+    , popup = popup
+    , group = "ALOS"
+  ) %>%
+  
+  addPolygons(
+    data = dsch_soi_shp
+    , fillColor = ~palSOI(avgSOI)
+    , fillOpacity = 0.7
+    , weight = 0.7
+    , popup = popup
+    , group = "SOI"
+  ) %>%
+  
+  addPolygons(
+    data = dsch_cvar_shp
+    , fillColor = ~palcvar(avgVar)
+    , fillOpacity = 0.7
+    , weight = 0.7
+    , popup = popup
+    , group = "ALOS_Variance"
+  ) %>%
+  
+  addControl(
+    paste("Discharge Map for:",MaxRptMonth, MaxRptYr)
+    , position = "topright"
+  ) %>%
+  
+  addLayersControl(
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
+    , overlayGroups = c("Discharges", "ALOS", "SOI", "ALOS_Variance")
+    , options = layersControlOptions(
+      collapsed = FALSE
+      , position = "topright"
+    )
+  ) %>%
+  
+  addLegend(
+    "topright"
+    , pal = pal
+    , values = dsch_count_shp$dsch_bin
+    , title = "Dsch Bin"
+    , opacity = 1
+  ) %>%
+  
+  addLegend(
+    "topright"
+    , pal = palAlos
+    , values = dsch_alos_shp$ALOS
+    , title = "ALOS Bin"
+    , opacity = 1
+  ) %>%
+  
+  addLegend(
+    "topright"
+    , pal = palSOI
+    , values = dsch_soi_shp$avgSOI
+    , title = "SOI Bin"
+    , opacity = 1
+  ) %>%
+  
+  addLegend(
+    "topright"
+    , pal = palcvar
+    , values = dsch_cvar_shp$avgVar
+    , title = "Var Bin"
+    , opacity = 1
+  )
+
+mlmap
+# end of multi-layered choropleth
+
+# map ggplot2 style - again can be tough, google maps api sucks
+# map <- get_map(location = 'Patchogue', zoom = 9, maptype = "roadmap", source = "osm")
+# mapPoints <- ggmap(map) +
+#   geom_point(
+#     aes(
+#       x = lon
+#       , y = lat
+#       , color = "red"
+#       , alpha = 0.3
+#     )
+#     , data = origAddress
+#   ) +
+#   xlab("Longitude") +
+#   ylab("Lattitude") +
+#   ggtitle("Discharges") +
+#   theme(legend.position = "none")
+# mapPoints
+# 
+# mapbin2d <- ggmap(map) +
+#   geom_bin2d(
+#     aes(
+#       x = lon
+#       , y = lat
+#     )
+#     , data = origAddress
+#   )
+# mapbin2d
+# 
+# mapdensity2d <- ggmap(map) +
+#   geom_density2d(
+#     aes(
+#       x = lon
+#       , y = lat
+#       , group = origAddress$SOI
+#       , color = origAddress$SOI
+#     )
+#     , data = origAddress
+#   )
+# mapdensity2d
 
 ######################################
 # leaflet maps
-# Cluster Map
-sv_lng <- -72.97659
-sv_lat <- 40.78007
-sv_zoom <- 9
+# Cluster Maps
 
 hospMarker <- makeAwesomeIcon(
       icon = 'glyphicon-plus'
@@ -257,7 +519,7 @@ mcluster <- mcluster %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = "<strong>BMHMC</strong>"
     , popup = paste(
       "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
       , "<br>"
@@ -276,37 +538,31 @@ mcluster
 # Get unique list of groups needed
 HospPopup <- paste(
   "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
-  , "<br>"
-  , "Discharges for: "
-  , "<dd>",MaxRptMonth,"/",MaxRptYr,"</dd>"
-  , "Discharges:"
-  , "<dd>",discharges,"</dd>"
-  , "<br>"
+  , "<br><strong>Discharges for: </strong>"
+  , MaxRptMonth,"/",MaxRptYr
+  , "<br><strong>Discharges: </strong>"
+  , discharges
 )
+
 Popup <- ~as.character(
   paste(
-    "Hospitalist/Private:"
+    "<strong>Hospitalist/Private: </strong>"
     , hosim
-    , "<br>"
-    , "Address: "
+    , "<br><strong>Address: </strong>"
     , FullAddress
-    , "<br>"
-    , "Service Line: "
+    , "<br><strong>Service Line: </strong>"
     , LIHN_Line
-    , "<br>"
-    , "LOS: "
+    , "<br><strong>LOS: </strong>"
     , LOS
-    , "<br>"
-    , "SOI: "
+    , "<br><strong>SOI: </strong>"
     , SOI
-    , "<br>"
-    , "Encounter: "
+    , "<br><strong>Encounter: </strong>"
     , pt_id
-    ,"<br>"
-    , "Payer Group:"
+    , "<br><strong>Payer Group:</strong>"
     , pyr_group2
   )
 )
+
 lsl <- unique(origAddress$LIHN_Line)
 
 # Create color palette
