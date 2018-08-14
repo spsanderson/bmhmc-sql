@@ -46,6 +46,7 @@ SELECT b.Pt_No
   END AS [outlier_flag]
 , b.drg_cost_weight
 , G.pyr_group2
+, e.med_staff_dept
 
 INTO #TEMPA
 
@@ -112,6 +113,7 @@ SELECT A.Pt_No AS pt_id
 , ROUND((A.LOS - A.Performance) / STDEV(a.los) over(), 4) as [z-score]
 , [zScore_UL] = 1.96
 , [zScore_LL] = -1.96
+, A.med_staff_dept
 --, GEO.FullAddress
 --, GEO.lat
 --, GEO.lon

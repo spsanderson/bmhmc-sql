@@ -38,6 +38,7 @@ Date		Version		Description
 2018-07-18	v2			Add Discharge Month to table
 2018-07-19	v3			Add payor category
 						Fix to lag by one month
+2018-08-13  v4			Fix ELSE BEGIN start and end dates
 ***********************************************************************
 */
 
@@ -171,8 +172,8 @@ ELSE BEGIN
 	DECLARE @TODAYB DATETIME;
 
 	SET @TODAYB = GETDATE();
-	SET @STARTB = DATEADD(M, DATEDIFF(M, 0, @TODAYB) - 18,0);
-	SET @ENDB   = DATEADD(M, DATEDIFF(M, 0, @TODAYB), 0);
+	SET @STARTB = DATEADD(M, DATEDIFF(M, 0, @TODAYB) - 19,0);
+	SET @ENDB   = DATEADD(M, DATEDIFF(M, 0, @TODAYB) - 1, 0);
 
 	TRUNCATE TABLE SMSDSS.C_READMIT_DASHBOARD_DETAIL_TBL
 

@@ -453,46 +453,6 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
 mlmap
 # end of multi-layered choropleth
 
-# map ggplot2 style - again can be tough, google maps api sucks
-# map <- get_map(location = 'Patchogue', zoom = 9, maptype = "roadmap", source = "osm")
-# mapPoints <- ggmap(map) +
-#   geom_point(
-#     aes(
-#       x = lon
-#       , y = lat
-#       , color = "red"
-#       , alpha = 0.3
-#     )
-#     , data = origAddress
-#   ) +
-#   xlab("Longitude") +
-#   ylab("Lattitude") +
-#   ggtitle("Discharges") +
-#   theme(legend.position = "none")
-# mapPoints
-# 
-# mapbin2d <- ggmap(map) +
-#   geom_bin2d(
-#     aes(
-#       x = lon
-#       , y = lat
-#     )
-#     , data = origAddress
-#   )
-# mapbin2d
-# 
-# mapdensity2d <- ggmap(map) +
-#   geom_density2d(
-#     aes(
-#       x = lon
-#       , y = lat
-#       , group = origAddress$SOI
-#       , color = origAddress$SOI
-#     )
-#     , data = origAddress
-#   )
-# mapdensity2d
-
 ######################################
 # leaflet maps
 # Cluster Maps
@@ -522,12 +482,10 @@ mcluster <- mcluster %>%
     , label = "<strong>BMHMC</strong>"
     , popup = paste(
       "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
-      , "<br>"
-      , "Discharges for: "
-      , "<dd>",MaxRptMonth,"/",MaxRptYr,"</dd>"
-      , "Discharges:"
-      , "<dd>",discharges,"</dd>"
-      , "<br>"
+      , "<br><strong>Discharges for: </strong>"
+      , MaxRptMonth,"/",MaxRptYr
+      , "<br><strong>Discharges: </strong>"
+      , discharges
     )      
   )
   
@@ -542,25 +500,6 @@ HospPopup <- paste(
   , MaxRptMonth,"/",MaxRptYr
   , "<br><strong>Discharges: </strong>"
   , discharges
-)
-
-Popup <- ~as.character(
-  paste(
-    "<strong>Hospitalist/Private: </strong>"
-    , hosim
-    , "<br><strong>Address: </strong>"
-    , FullAddress
-    , "<br><strong>Service Line: </strong>"
-    , LIHN_Line
-    , "<br><strong>LOS: </strong>"
-    , LOS
-    , "<br><strong>SOI: </strong>"
-    , SOI
-    , "<br><strong>Encounter: </strong>"
-    , pt_id
-    , "<br><strong>Payer Group:</strong>"
-    , pyr_group2
-  )
 )
 
 lsl <- unique(origAddress$LIHN_Line)
@@ -585,11 +524,30 @@ for(i in 1:length(lsl)){
     addCircles(
       data = subset(origAddress, origAddress$LIHN_Line == lsl[i])
       , group = lsl[i]
+      , lat = ~lat
+      , lng = ~lon
       , radius = 3
       , fillOpacity = 1
       , color = ~lihnpal(LIHN_Line)
       , label = ~htmlEscape(LIHN_Line)
-      , popup = Popup
+      , popup = ~as.character(
+        paste(
+          "<strong>Hospitalist/Private: </strong>"
+          , hosim
+          , "<br><strong>Address: </strong>"
+          , FullAddress
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>LOS: </strong>"
+          , LOS
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , pt_id
+          , "<br><strong>Payer Group:</strong>"
+          , pyr_group2
+        )
+      )
     )
 }
 
@@ -640,11 +598,30 @@ for(i in 1:length(s)){
     addCircles(
       data = subset(origAddress, origAddress$SOI == s[i])
       , group = s[i]
+      , lat = ~lat
+      , lng = ~lon
       , radius = 3
       , fillOpacity = 1
       , color = ~soipal(SOI)
       , label = ~htmlEscape(SOI)
-      , popup = popup
+      , popup = ~as.character(
+        paste(
+          "<strong>Hospitalist/Private: </strong>"
+          , hosim
+          , "<br><strong>Address: </strong>"
+          , FullAddress
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>LOS: </strong>"
+          , LOS
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , pt_id
+          , "<br><strong>Payer Group:</strong>"
+          , pyr_group2
+        )
+      )
     )
 }
 
@@ -689,7 +666,24 @@ names(LIHNCluster.df) %>%
         , lng = ~lon
         , lat = ~lat
         , label = ~as.character(LIHN_Line)
-        , popup = popup
+        , popup = ~as.character(
+          paste(
+            "<strong>Hospitalist/Private: </strong>"
+            , hosim
+            , "<br><strong>Address: </strong>"
+            , FullAddress
+            , "<br><strong>Service Line: </strong>"
+            , LIHN_Line
+            , "<br><strong>LOS: </strong>"
+            , LOS
+            , "<br><strong>SOI: </strong>"
+            , SOI
+            , "<br><strong>Encounter: </strong>"
+            , pt_id
+            , "<br><strong>Payer Group:</strong>"
+            , pyr_group2
+          )
+        )
         , group = df
         , clusterOptions = markerClusterOptions(
           removeOutsideVisibleBounds = F
@@ -739,7 +733,24 @@ names(ClusterMapSOI.df) %>%
         , lng = ~lon
         , lat = ~lat
         , label = ~as.character(SOI)
-        , popup = Popup
+        , popup = ~as.character(
+          paste(
+            "<strong>Hospitalist/Private: </strong>"
+            , hosim
+            , "<br><strong>Address: </strong>"
+            , FullAddress
+            , "<br><strong>Service Line: </strong>"
+            , LIHN_Line
+            , "<br><strong>LOS: </strong>"
+            , LOS
+            , "<br><strong>SOI: </strong>"
+            , SOI
+            , "<br><strong>Encounter: </strong>"
+            , pt_id
+            , "<br><strong>Payer Group:</strong>"
+            , pyr_group2
+          )
+        )
         , group = df
         , clusterOptions = markerClusterOptions(
           removeOutsideVisibleBounds = F
@@ -795,10 +806,29 @@ for(i in 1:length(HospPvtList)){
       data = subset(origAddress, origAddress$hosim == HospPvtList[i])
       , group = HospPvtList[i]
       , radius = 3
+      , lng = ~lon
+      , lat = ~lat
       , fillOpacity = 1
       , color = ~HospPvtPal(hosim)
       , label = ~htmlEscape(hosim)
-      , popup = Popup
+      , popup = ~as.character(
+        paste(
+          "<strong>Hospitalist/Private: </strong>"
+          , hosim
+          , "<br><strong>Address: </strong>"
+          , FullAddress
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>LOS: </strong>"
+          , LOS
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , pt_id
+          , "<br><strong>Payer Group:</strong>"
+          , pyr_group2
+        )
+      )
     )
 }
 
@@ -842,7 +872,24 @@ names(ClusterMapHospPvt.df) %>%
         , lng = ~lon
         , lat = ~lat
         , label = ~as.character(hosim)
-        , popup = Popup
+        , popup = ~as.character(
+          paste(
+            "<strong>Hospitalist/Private: </strong>"
+            , hosim
+            , "<br><strong>Address: </strong>"
+            , FullAddress
+            , "<br><strong>Service Line: </strong>"
+            , LIHN_Line
+            , "<br><strong>LOS: </strong>"
+            , LOS
+            , "<br><strong>SOI: </strong>"
+            , SOI
+            , "<br><strong>Encounter: </strong>"
+            , pt_id
+            , "<br><strong>Payer Group:</strong>"
+            , pyr_group2
+          )
+        )
         , group = df
         , clusterOptions = markerClusterOptions(
           removeOutsideVisibleBounds = F
@@ -891,7 +938,24 @@ names(ClusterMapPayerGroup.df) %>%
         , lng = ~lon
         , lat = ~lat
         , label = ~as.character(pyr_group2)
-        , popup = Popup
+        , popup = ~as.character(
+          paste(
+            "<strong>Hospitalist/Private: </strong>"
+            , hosim
+            , "<br><strong>Address: </strong>"
+            , FullAddress
+            , "<br><strong>Service Line: </strong>"
+            , LIHN_Line
+            , "<br><strong>LOS: </strong>"
+            , LOS
+            , "<br><strong>SOI: </strong>"
+            , SOI
+            , "<br><strong>Encounter: </strong>"
+            , pt_id
+            , "<br><strong>Payer Group:</strong>"
+            , pyr_group2
+          )
+        )
         , group = df
         , clusterOptions = markerClusterOptions(
           removeOutsideVisibleBounds = F
@@ -943,10 +1007,29 @@ for(i in 1:length(AVL)){
       data = subset(origAddress, origAddress$Var == AVL[i])
       , group = AVL[i]
       , radius = 3
+      , lng = ~lon
+      , lat = ~lat
       , fillOpacity = 1
       , color = ~AlosVarColor(Var)
       , label = ~as.character(Var)
-      , popup = Popup
+      , popup = ~as.character(
+        paste(
+          "<strong>Hospitalist/Private: </strong>"
+          , hosim
+          , "<br><strong>Address: </strong>"
+          , FullAddress
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>LOS: </strong>"
+          , LOS
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , pt_id
+          , "<br><strong>Payer Group:</strong>"
+          , pyr_group2
+        )
+      )
     )
 }
 
@@ -989,7 +1072,24 @@ names(AlosVarCluster.df) %>%
         , lng = ~lon
         , lat = ~lat
         , label = ~as.character(Var)
-        , popup = Popup
+        , popup = ~as.character(
+          paste(
+            "<strong>Hospitalist/Private: </strong>"
+            , hosim
+            , "<br><strong>Address: </strong>"
+            , FullAddress
+            , "<br><strong>Service Line: </strong>"
+            , LIHN_Line
+            , "<br><strong>LOS: </strong>"
+            , LOS
+            , "<br><strong>SOI: </strong>"
+            , SOI
+            , "<br><strong>Encounter: </strong>"
+            , pt_id
+            , "<br><strong>Payer Group:</strong>"
+            , pyr_group2
+          )
+        )
         , group = df
         , clusterOptions = markerClusterOptions(
           removeOutsideVisibleBounds = F

@@ -46,8 +46,20 @@ GO
 
 SELECT A.*
 , [Z-Score] = ROUND((A.[Readmit_Count] - A.[READMIT_RATE_BENCH]) / STDEV(A.Readmit_Count) OVER(), 4)
+, GEO.LON
+, GEO.LAT
+, GEO.FullAddress
 
 FROM #TEMPA AS A
+LEFT OUTER JOIN smsdss.c_geocoded_address AS GEO
+ON A.PtNo_Num = GEO.Encounter
+
+WHERE A.Med_Rec_No != 'Emergency Department'
+AND A.pract_rpt_name != 'TEST DOCTOR X'
+-- UNHASH BELOW TO GET READMIT_MAPPING_FILE DATA ONLY
+--AND Rpt_Month = (SELECT MAX(ZZZ.Rpt_Month) FROM #TEMPA AS ZZZ)
+
+ORDER BY Dsch_Date
 
 GO
 ;
