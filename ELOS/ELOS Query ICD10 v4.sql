@@ -119,6 +119,8 @@ SELECT A.Pt_No AS pt_id
 --, GEO.lon
 --, GEO.ZipCode
 
+--INTO #TEMPB
+
 FROM #TEMPA AS A
 --INNER JOIN smsdss.c_geocoded_address AS GEO
 --ON SUBSTRING(A.PT_NO, 5, 8) = GEO.Encounter
@@ -126,5 +128,15 @@ FROM #TEMPA AS A
 ORDER BY A.Dsch_Date
 ;
 
+--SELECT *
+
+--FROM #TEMPB
+
+--WHERE Last_Rpt_Month = (SELECT MAX(ZZZ.LAST_RPT_MONTH) FROM #TEMPB AS ZZZ)
+
+--ORDER BY Dsch_Date
+--;
+
 DROP TABLE #TEMPA
+--DROP TABLE #TEMPB
 ;
