@@ -2,7 +2,7 @@
 # https://jasminedumas.shinyapps.io/Choropleth_Zipcodes/#reproducible-script
 
 # USA level zipcode for 2015
-file_loc = "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\USA_gis_files"
+file_loc = "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\USA_gis_files"
 usa <- readOGR(dsn = file_loc, layer = "cb_2015_us_zcta510_500k", encoding = "UTF-8")
 
 dim(usa)
