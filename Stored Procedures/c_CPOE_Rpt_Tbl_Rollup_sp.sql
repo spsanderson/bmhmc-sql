@@ -1,11 +1,10 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [smsdss].[c_CPOE_Rpt_Tble_Rollup_sp]    Script Date: 8/17/2018 9:35:23 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-
 /*
 *****************************************************************************  
 File: c_CPOE_Rpt_Tbl_Rollup_v.sql      
@@ -27,6 +26,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-07-11	v1			Initial Creation
+2018-08-17	v2			Add SET ANSI_PADDING and ANSI_WARNINGS to ON
 -------------------------------------------------------------------------------- 
 */
 --IF OBJECT_ID('smsdss.c_CPOE_Rpt_Tbl_Rollup_v', 'V') IS NOT NULL
@@ -43,6 +43,9 @@ ALTER PROCEDURE [smsdss].[c_CPOE_Rpt_Tble_Rollup_sp]
 AS
 
 BEGIN
+
+SET ANSI_PADDING ON
+SET ANSI_WARNINGS ON
 
 	DECLARE @cols AS NVARCHAR(MAX)
 	, @query AS NVARCHAR(MAX);
@@ -83,5 +86,3 @@ BEGIN
 	
 END
 
-GO
-;
