@@ -35,7 +35,7 @@ FROM (
 
 	FROM SMSMIR.PYR_PLAN_USER AS A
 	
-	WHERE A.user_comp_id = '5C49ADD3'
+	WHERE A.user_comp_id = '5C49ADD4'
 	AND A.pt_id IN (
 		SELECT A.PT_ID
 		FROM SMSDSS.c_HCRA_unique_pt_id_2016 AS A
