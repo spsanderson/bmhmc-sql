@@ -131,6 +131,7 @@ fit_lm %>%
   ggplot(aes(x = Time, y = .resid)) +
   geom_hline(yintercept = 0, color = "red") +
   geom_point(color = palette_light()[[1]], alpha = 0.5) +
+  geom_smooth(method = "loess") +
   theme_tq() +
   labs(title = "Training Set: lm() Model Residuals"
        , x = ""
@@ -142,6 +143,7 @@ fit %>%
   ggplot(aes(x = Time, y = .resid)) +
   geom_hline(yintercept = 0, color = "red") +
   geom_point(color = palette_light()[[1]], alpha = 0.5) +
+  geom_smooth(method = "loess") +
   theme_tq() +
   labs(title = "Training Set: lm() Model Residuals"
        , x = ""
@@ -151,6 +153,9 @@ fit %>%
 # RMSE
 sqrt(mean(fit_lm$residuals^2))
 sqrt(mean(fit$residuals^2))
+
+sw_glance(fit_lm)
+sw_glance(fit)
 
 # Add time series signature
 test_augmented <- test %>%
