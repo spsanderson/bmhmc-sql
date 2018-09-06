@@ -52,7 +52,7 @@ SELECT A.PtNo_Num
  
 FROM ( 
     SELECT PtNo_Num
-	, a.addr_line1 + ', ' + a.Pt_Addr_City + ', ' + a.Pt_Addr_State + ',' + a.Pt_Addr_Zip AS [FullAddress] 
+	, a.addr_line1 + ', ' + a.Pt_Addr_City + ', ' + a.Pt_Addr_State + ', ' + a.Pt_Addr_Zip AS [FullAddress] 
 	, a.Pt_Addr_Zip
  
 	FROM smsdss.c_patient_demos_v AS A
