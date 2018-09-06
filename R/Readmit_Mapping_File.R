@@ -1,18 +1,16 @@
 # Readmit Mapping File
 
+# Lib Load ####
 # load libraries
 library(ggmap)
-library(rworldmap)
-library(rworldxtra)
 library(leaflet)
 library(readxl)
 library(rgdal)
 library(htmltools)
 library(dplyr)
-library(magrittr)
 library(readr)
-library(knitr)
 
+# RA File ####
 # Select the file from the file chooser
 fileToLoad <- file.choose(new = TRUE)
 
@@ -26,11 +24,14 @@ origAddress$SOI <- as.factor(origAddress$SEVERITY_OF_ILLNESS)
 origAddress$ZipCode <- as.factor(origAddress$ZipCode)
 
 # Number of Discharges
-discharges <- nrow(origAddress)
 MaxRpt <- max(origAddress$Rpt_Month)
+MinRpt <- min(origAddress$Rpt_Month)
 MaxRptYr <- substr(MaxRpt, 1, 4)
 MaxRptMonth <- substr(MaxRpt, 5, 6)
+MinRptYr <- substr(MinRpt, 1, 4)
+MinRptMonth <- substr(MinRpt, 5, 6)
 
+# Make USA SHP File ####
 # At this point run the file get_usa_zipcode_level_2015.R Script
 # create a new df/tibble to work with data and leave origAddress alone
 ra_join <- origAddress
@@ -39,6 +40,19 @@ joined_data <- inner_join(ra_join, state_clean, by = c("ZipCode" = "zipcode"))
 head(joined_data)
 dim(joined_data)
 
+rm(STATE_SHP)
+rm(state_join)
+rm(all_usa_zip)
+rm(state_clean)
+rm(specific_state)
+
+discharges <- sum(joined_data$Pt_Count)
+readmits <- sum(joined_data$Readmit_Count)
+
+# readmits only data.frame
+ra.df <- subset(joined_data, joined_data$Readmit_Count == 1)
+
+# Choropleths ####
 # Discharge Count Choropleth
 dsch_count_city <- joined_data %>%
   group_by(
@@ -74,9 +88,9 @@ sv_lng <- -72.97659
 sv_lat <- 40.78007
 sv_zoom <- 9
 
-pal <- colorFactor(
+pal <- colorBin(
   palette = "Dark2"
-  , domain = dsch_count_shp$dsch_bin
+  , domain = dsch_count_shp$dsch_count
   , reverse = TRUE
 )
 
@@ -87,8 +101,6 @@ popup <- paste(
   , dsch_count_shp$City
   , "<br><strong>Discharges: </strong>"
   , dsch_count_shp$dsch_count
-  , "<br><strong>Discharge Bin: </strong>"
-  , dsch_count_shp$dsch_bin
 )
 
 l <- leaflet(data = dsch_count_shp) %>%
@@ -97,14 +109,22 @@ l <- leaflet(data = dsch_count_shp) %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
     data = dsch_count_shp
-    , fillColor = ~pal(dsch_bin)
+    , fillColor = ~pal(dsch_count)
     , fillOpacity = 0.7
     , weight = 0.7
     , popup = popup
   ) %>%
   
   addControl(
-    paste("Discharges for:",MaxRptMonth,MaxRptYr)
+    paste0("Discharges from: "
+          , MinRptMonth
+          , "-"
+          , MinRptYr
+          , " to "
+          , MaxRptMonth
+          , "-"
+          , MaxRptYr
+        )
     , position = "topright"
   ) %>%
   
@@ -119,12 +139,13 @@ l <- leaflet(data = dsch_count_shp) %>%
   addLegend(
     "topright"
     , pal = pal
-    , values = ~dsch_bin
+    , values = ~dsch_count
     , title = "Discharge Bin"
     , opacity = 1
   )
 
 l
+rm(l)
 
 # Avg Readmit Rate by City Map
 dsch_ra_city <- joined_data %>%
@@ -138,7 +159,12 @@ dsch_ra_city <- joined_data %>%
     , County
   ) %>%
   summarise(
-    RA_Rate = round(mean(Readmit_Count), 2)
+    dsch_count = n()
+    , RA_Rate = round(mean(Readmit_Count), 2)
+  ) %>%
+  # We want at least 10 discharges for the 6 months
+  filter(
+    dsch_count >= 10
   )
 dsch_ra_city <- as.data.frame(dsch_ra_city)
 
@@ -151,7 +177,7 @@ dsch_ra_shp <- sp::merge(
 palRA <- colorBin(
   palette = "Dark2"
   , domain = dsch_ra_shp$RA_Rate
-  , bins = 8
+  #, bins = 8
   , reverse = TRUE
 )
 
@@ -161,7 +187,7 @@ popupRA <- paste(
   , "<br><strong>City: </strong>"
   , dsch_ra_shp$City
   , "<br><strong>Discharges: </strong>"
-  , dsch_count_shp$dsch_count
+  , dsch_ra_shp$dsch_count
   , "<br><strong>Readmit Rate: </strong>"
   , 100 * dsch_ra_shp$RA_Rate
   , "Pct."
@@ -180,7 +206,16 @@ ral <- leaflet(data = dsch_ra_shp) %>%
   ) %>%
   
   addControl(
-    paste("Readmit Rate for:", MaxRptMonth, MaxRptYr)
+    paste0("Readmit Rate for: "
+          , MinRptMonth
+          , "-"
+          , MinRptYr
+          , " to "
+          , MaxRptMonth
+          , "-"
+          , MaxRptYr
+          , "<br>Min Discharge Count = 10"
+        )
     , position = "topright"
   ) %>%
   
@@ -201,7 +236,7 @@ ral <- leaflet(data = dsch_ra_shp) %>%
   )
 
 ral
-#
+rm(ral)
 
 # SOI Map
 # Get the mean SOI
@@ -216,7 +251,8 @@ dsch_soi_city <- joined_data %>%
     , County
   ) %>%
   summarize(
-    avgSOI = round(mean(as.numeric(SOI)), 2)
+    dsch_count = n()
+    , avgSOI = round(mean(as.numeric(SOI)), 2)
   )
 dsch_soi_city <- as.data.frame(dsch_soi_city)
 
@@ -235,13 +271,11 @@ palSOI <- colorBin(
 
 popupSOI <- paste(
   "<strong>County: </strong>"
-  , dsch_ra_shp$County
+  , dsch_soi_shp$County
   , "<br><strong>City: </strong>"
-  , dsch_ra_shp$City
+  , dsch_soi_shp$City
   , "<br><strong>Discharges: </strong>"
-  , dsch_count_shp$dsch_count
-  , "<br><strong>Readmit Rate: </strong>"
-  , 100 * dsch_ra_shp$RA_Rate
+  , dsch_soi_shp$dsch_count
   , "<br><strong>Avg SOI: </strong>"
   , dsch_soi_shp$avgSOI
 )
@@ -258,7 +292,15 @@ soil <- leaflet(data = dsch_soi_shp) %>%
     , popup = popupSOI
   ) %>%
   addControl(
-    paste("SOI Map for:",MaxRptMonth, MaxRptYr)
+    paste0("SOI Map for: "
+          , MinRptMonth
+          , "-"
+          , MinRptYr
+          , " to "
+          , MaxRptMonth
+          , "-"
+          , MaxRptYr
+       )
     , position = "topright"
   ) %>%
   addLayersControl(
@@ -276,6 +318,7 @@ soil <- leaflet(data = dsch_soi_shp) %>%
     , opacity = 1
   )
 soil
+rm(soil)
 # End of SOI Map
 
 # Readmit Variance Map
@@ -290,7 +333,11 @@ dsch_cvar_city <- joined_data %>%
     , County
   ) %>%
   summarize(
-    avgVar = round(mean(Readmit_Count - Readmit_Rate_Bench), 2)
+    dsch_count = n()
+    , avgVar = round(mean(Readmit_Count - Readmit_Rate_Bench), 2)
+  ) %>%
+  filter(
+    dsch_count >= 10
   )
 dsch_cvar_city <- as.data.frame(dsch_cvar_city)
 
@@ -303,21 +350,17 @@ dsch_cvar_shp <- sp::merge(
 palcvar <- colorBin(
   palette = "Paired"
   , domain = dsch_cvar_shp$avgVar
-  , bins = 5
+  #, bins = 5
   , reverse = FALSE
 )
 
 popupcvar <- paste(
   "<strong>County: </strong>"
-  , dsch_ra_shp$County
+  , dsch_cvar_shp$County
   , "<br><strong>City: </strong>"
-  , dsch_ra_shp$City
+  , dsch_cvar_shp$City
   , "<br><strong>Discharges: </strong>"
-  , dsch_count_shp$dsch_count
-  , "<br><strong>Readmit Rate: </strong>"
-  , 100 * dsch_ra_shp$RA_Rate
-  , "<br><strong>Avg SOI: </strong>"
-  , dsch_soi_shp$avgSOI
+  , dsch_cvar_shp$dsch_count
   ,"<br><strong>Avg Variance: </strong>"
   , dsch_cvar_shp$avgVar
 )
@@ -334,7 +377,16 @@ cvarl <- leaflet(data = dsch_cvar_shp) %>%
     , popup = popupcvar
   ) %>%
   addControl(
-    paste("Avg Variance Map for:",MaxRptMonth, MaxRptYr)
+    paste0("Avg Variance Map for: "
+          , MinRptMonth
+          , "-"
+          , MinRptYr
+          , " to "
+          , MaxRptMonth
+          , "-"
+          , MaxRptYr
+          , "<br>Min Discharge Count = 10"
+    )
     , position = "topright"
   ) %>%
   addLayersControl(
@@ -352,7 +404,9 @@ cvarl <- leaflet(data = dsch_cvar_shp) %>%
     , opacity = 1
   )
 cvarl
+rm(cvarl)
 
+# Multi Layer Heatmap ####
 # Multi layer choropleth map
 mlmap <- leaflet(data = dsch_cvar_shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
@@ -361,10 +415,10 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   
   addPolygons(
     data = dsch_count_shp
-    , fillColor = ~pal(dsch_bin)
+    , fillColor = ~pal(dsch_count)
     , fillOpacity = 0.7
     , weight = 0.7
-    , popup = popupcvar
+    , popup = popup
     , group = "Discharges"
   ) %>%
   
@@ -373,7 +427,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
     , fillColor = ~palRA(RA_Rate)
     , fillOpacity = 0.7
     , weight = 0.7
-    , popup = popupcvar
+    , popup = popupRA
     , group = "Readmit Rate"
   ) %>%
   
@@ -382,7 +436,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
     , fillColor = ~palSOI(avgSOI)
     , fillOpacity = 0.7
     , weight = 0.7
-    , popup = popupcvar
+    , popup = popupSOI
     , group = "SOI"
   ) %>%
   
@@ -396,7 +450,15 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   ) %>%
   
   addControl(
-    paste("Readmit Map for:", MaxRptMonth, MaxRptYr)
+    paste0("Readmit Map for: "
+           , MinRptMonth
+           , "-"
+           , MinRptYr
+           , " to "
+           , MaxRptMonth
+           , "-"
+           , MaxRptYr
+           )
     , position = "topright"
   ) %>%
   
@@ -413,13 +475,13 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   addLegend(
     "topright"
     , pal = pal
-    , values = dsch_count_shp$dsch_bin
+    , values = dsch_count_shp$dsch_count
     , title = "Dsch Bin"
     , opacity = 1
   ) %>%
   
   addLegend(
-    "topright"
+    "bottomright"
     , pal = palRA
     , values = dsch_ra_shp$RA_Rate
     , title = "Readmit Rate"
@@ -427,7 +489,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   ) %>%
   
   addLegend(
-    "topright"
+    "bottomleft"
     , pal = palSOI
     , values = dsch_soi_shp$avgSOI
     , title = "SOI Bin"
@@ -435,7 +497,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   ) %>%
   
   addLegend(
-    "topright"
+    "topleft"
     , pal = palcvar
     , values = dsch_cvar_shp$avgVar
     , title = "Variance"
@@ -443,8 +505,9 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   )
 
 mlmap
+rm(mlmap)
 
-#####
+# Comparison Heatmaps ####
 # Comparison choropleth maps
 # Hospitalist v Private
 hosp_ra <- joined_data %>%
@@ -465,6 +528,9 @@ hosp_ra <- joined_data %>%
     , avgSOI = round(mean(SEVERITY_OF_ILLNESS), 2)
     , avgCMI = round(mean(drg_cost_weight), 4)
     , alos = round(mean(LOS), 2)
+  ) %>%
+  filter(
+    dsch_count >= 10
   )
 
 hosp_ra <- as.data.frame(hosp_ra)
@@ -478,7 +544,7 @@ hosp_ra_shp <- sp::merge(
 palHRA <- colorBin(
   palette = "Dark2"
   , domain = hosp_ra_shp$ra_rate
-  , bins = 8
+  #, bins = 8
   , reverse = TRUE
 )
 
@@ -513,7 +579,17 @@ hral <- leaflet(data = hosp_ra_shp) %>%
   ) %>%
   
   addControl(
-    paste("Hospitalist Readmit Rate for: ", MaxRptMonth, MaxRptYr)
+    paste0(
+      "Hospitalist Readmit Rate for: "
+      , MinRptMonth
+      , "-"
+      , MinRptYr
+      , " to "
+      , MaxRptMonth
+      , "-"
+      , MaxRptYr
+      , "<br> Min Discharge Count = 10"
+      )
     , position = "topright"
   ) %>%
   
@@ -534,6 +610,7 @@ hral <- leaflet(data = hosp_ra_shp) %>%
   )
 
 hral
+rm(hral)
 
 pvt_ra <- joined_data %>%
   filter(
@@ -553,6 +630,9 @@ pvt_ra <- joined_data %>%
     , avgSOI = round(mean(SEVERITY_OF_ILLNESS), 2)
     , avgCMI = round(mean(drg_cost_weight), 4)
     , alos = round(mean(LOS), 2)
+  ) %>%
+  filter(
+    dsch_count >= 10
   )
 
 pvt_ra <- as.data.frame(pvt_ra)
@@ -566,7 +646,7 @@ pvt_ra_shp <- sp::merge(
 palPvtRA <- colorBin(
   palette = "Dark2"
   , domain = pvt_ra_shp$ra_rate
-  , bins = 8
+  #, bins = 8
   , reverse = TRUE
 )
 
@@ -601,7 +681,17 @@ pral <- leaflet(data = pvt_ra_shp) %>%
   ) %>%
   
   addControl(
-    paste("Private Provider Readmit Rates for:", MaxRptMonth, MaxRptYr)
+    paste0(
+      "Private Provider Readmit Rates for: "
+      , MinRptMonth
+      , "-"
+      , MinRptYr
+      , " to "
+      , MaxRptMonth
+      , "-"
+      , MaxRptYr
+      , "<br>Min Discharge Count = 10"
+      )
     , position = "topright"
   ) %>%
   
@@ -622,6 +712,7 @@ pral <- leaflet(data = pvt_ra_shp) %>%
   )
 
 pral
+rm(pral)
 
 # combined Hosp / Pvt readmit maps
 hpral <- leaflet() %>%
@@ -679,34 +770,31 @@ hpral <- leaflet() %>%
   )
 
 hpral
+rm(hpral)
 
+# Facility Marker ####
+hospMarker <- makeAwesomeIcon(
+  icon = 'glyphicon-plus'
+  , markerColor = 'lightblue'
+  , iconColor = 'black'
+  , library = "glyphicon"
+)
 
-#####################################
-# Service Line Point Map
-# Get unique list of groups needed
 HospPopup <- paste(
-  "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
-  , "<br><strong>Discharges for: </strong>"
+  "<b><a href='http://www.licommunityhospital.org/'>LI Community Hospital</a></b>"
+  , "<br><strong>Data as of: </strong>"
   , MaxRptMonth,"/",MaxRptYr
   , "<br><strong>Discharges: </strong>"
   , discharges
+  , "<br><strong>Readmits: </strong>"
+  , readmits
 )
 
-Popup <- paste(
-    "<strong>Hospitalist/Private: </strong>"
-    , joined_data$Hospitalist_Private
-    , "<br><strong>Service Line: </strong>"
-    , joined_data$LIHN_Line
-    , "<br><strong>Readmit: </strong>"
-    , joined_data$Readmit_Count
-    , "<br><strong>SOI: </strong>"
-    , joined_data$SOI
-    , "<br><strong>Encounter: </strong>"
-    , joined_data$PtNo_Num
-    , "<br><strong>Payer Group:</strong>"
-    , joined_data$Payor_Category
-  )
+HospLabel <- "LI Community Hospital"
 
+# Point Maps ####
+# Service Line Point Map
+# Create list of LIHN Service Line
 lsl <- unique(origAddress$LIHN_Line)
 
 # Create color palette
@@ -718,29 +806,49 @@ lihnpal <- colorFactor(
 LIHNMap <- leaflet() %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
-  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
-  addProviderTiles(providers$Stamen.TonerLite, group = "Toner Lite") %>%
-  addControl("LIHN Service Line Point Map", position = "topright")
+  addProviderTiles("CartoDB.Positron") %>%
+  addControl(
+    "LIHN Service Line Point Map - Last Six Months"
+    , position = "topright"
+    )
 
 # for loop to cycle through adding layers
 for(i in 1:length(lsl)){
-  #l <- lsl[i]
   LIHNMap <- LIHNMap %>%
     addCircles(
       data = subset(joined_data, joined_data$LIHN_Line == lsl[i])
       , group = lsl[i]
       , radius = 3
       , fillOpacity = 1
+      , lat = ~LAT
+      , lng = ~LON
       , color = ~lihnpal(LIHN_Line)
       , label = ~htmlEscape(LIHN_Line)
-      , popup = Popup
+      , popup = ~as.character(
+        paste(
+          "<strong>City :</strong>"
+          , City
+          , "<br><strong>Hospitalist/Private: </strong>"
+          , Hospitalist_Private
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>Readmit: </strong>"
+          , Readmit_Count
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , PtNo_Num
+          , "<br><strong>Payer Group:</strong>"
+          , Payor_Category
+        )
+      )
     )
 }
 
 # add layercontrol
 LIHNMap <- LIHNMap %>%
   addLayersControl(
-    baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
+    baseGroups = c("OSM (default)", "CartoDB.Positron"),
     overlayGroups = lsl,
     options = layersControlOptions(
       collapsed = TRUE
@@ -753,34 +861,109 @@ LIHNMap <- LIHNMap %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = HospLabel
     , popup = HospPopup     
   )
 
 # print map
 LIHNMap
+rm(LIHNMap)
 
-#############################
-# Cluster Maps
-#
-# Discharge Cluster Map
-hospMarker <- makeAwesomeIcon(
-  icon = 'glyphicon-plus'
-  , markerColor = 'lightblue'
-  , iconColor = 'black'
-  , library = "glyphicon"
+# MDC Point Map
+# Get unique list of MDC Categories
+mdcl <- unique(joined_data$MDCDescText)
+
+# Create Color Palette
+mdc.palette <- colorFactor(
+  palette = "Dark2"
+  , domain = joined_data$MDCDescText
 )
 
+# Create Initial Leaflet
+mdc.map <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addControl("MDC Category Point Map - Last Six Months", position = "topright")
+
+# for loop to cycle through adding layers
+for(i in 1:length(mdcl)){
+  mdc.map <- mdc.map %>%
+    addCircles(
+      data = subset(joined_data, joined_data$MDCDescText == mdcl[i])
+      , group = mdcl[i]
+      , radius = 3
+      , fillOpacity = 1
+      , lat = ~LAT
+      , lng = ~LON
+      , color = ~mdc.palette(MDCDescText)
+      , label = ~htmlEscape(MDCDescText)
+      , popup = ~as.character(
+        paste(
+          "<strong>City :</strong>"
+          , City
+          , "<br><strong>Hospitalist/Private: </strong>"
+          , Hospitalist_Private
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>Readmit: </strong>"
+          , Readmit_Count
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , PtNo_Num
+          , "<br><strong>Payer Group:</strong>"
+          , Payor_Category
+        )
+      )
+    )
+}
+
+# Add layercontrol
+mdc.map <- mdc.map %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "CartoDB.Positron"),
+    overlayGroups = mdcl,
+    options = layersControlOptions(
+      collapsed = TRUE
+      , position = "topright"
+    )
+  )
+
+mdc.map <- mdc.map %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = HospLabel
+    , popup = HospPopup
+  )
+
+# print map
+mdc.map
+rm(mdc.map)
+
+# Discharge Cluster Maps ####
+# Discharge Cluster Map
 mcluster <- leaflet() %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles() %>% 
   addMarkers(
-    lng = origAddress$LON
-    , lat = origAddress$LAT
+    lng = joined_data$LON
+    , lat = joined_data$LAT
     , clusterOptions = markerClusterOptions()
   ) %>%
   addControl(
-    paste("Discharges for:", MaxRptMonth, MaxRptYr)
+    paste0(
+      "Discharges for:"
+      , MinRptMonth
+      , "-"
+      , MinRptYr
+      , " to "
+      , MaxRptMonth
+      , "-"
+      , MaxRptYr
+      )
     , position = "topright"
   )
 
@@ -789,19 +972,13 @@ mcluster <- mcluster %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
-    , popup = paste(
-      "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
-      , "<br><strong>Discharges for: </strong>"
-      , MaxRptMonth,"/",MaxRptYr
-      , "<br><strong>Discharges: </strong>"
-      , discharges
-    )      
+    , label = HospLabel
+    , popup = HospPopup      
   )
 
 mcluster
 
-# Service Line Cluster Map
+# Service Line Cluster Map All Discharges
 LIHNCluster.df <- split(joined_data, joined_data$LIHN_Line)
 
 ClusterMapLIHN <- leaflet() %>%
@@ -810,7 +987,16 @@ ClusterMapLIHN <- leaflet() %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addControl(
-    paste("LIHN Service Line Cluster Map for:", MaxRptMonth, MaxRptYr)
+    paste0(
+      "LIHN Service Line Cluster Map for: "
+      , MinRptMonth
+      , "-"
+      , MinRptYr
+      , " to "
+      , MaxRptMonth
+      , "-"
+      , MaxRptYr
+      )
     , position = "topright"
     )
 
@@ -824,23 +1010,22 @@ names(LIHNCluster.df) %>%
         , label = ~as.character(LIHN_Line)
         , popup = ~as.character(
           paste(
-            sep = "<br/>"
-            , "<strong>Encounter: </strong>"
-            , PtNo_Num
-            , "<strong>Service Line: </strong>"
-            , LIHN_Line
-            , "<strong>Hospitalist/Private: </strong>"
+            "<strong>City :</strong>"
+            , City
+            , "<br><strong>Hospitalist/Private: </strong>"
             , Hospitalist_Private
-            , "<strong>Payor Category </strong>"
-            , Payor_Category
-            , "<strong>SOI: </strong>"
-            , SOI
-            , "<strong>Readmit: </strong>"
+            , "<br><strong>Service Line: </strong>"
+            , LIHN_Line
+            , "<br><strong>Readmit: </strong>"
             , Readmit_Count
-            # , "<strong>Address: </strong>"
-            # , FullAddress
-            )
+            , "<br><strong>SOI: </strong>"
+            , SOI
+            , "<br><strong>Encounter: </strong>"
+            , PtNo_Num
+            , "<br><strong>Payer Group:</strong>"
+            , Payor_Category
           )
+        )
         , group = df
         , clusterOptions = markerClusterOptions(
           removeOutsideVisibleBounds = F
@@ -867,8 +1052,250 @@ ClusterMapLIHN <- ClusterMapLIHN %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = HospLabel
     , popup = HospPopup      
   )
 
 ClusterMapLIHN
+
+rm(LIHNCluster.df)
+rm(ClusterMapLIHN)
+
+# MDC Cluster Map All Discharges
+mdc.cl <- sort(unique(joined_data$MDCDescText))
+
+ClusterMapMDC <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addControl(
+    paste0(
+      "MDC Cluster Map for: "
+      , MinRptMonth
+      , "-"
+      , MinRptYr
+      , " to "
+      , MaxRptMonth
+      , "-"
+      , MaxRptYr
+    )
+    , position = "topright"
+  )
+
+# for loop to cycle through adding layers
+for(i in 1:length(mdc.cl)){
+  ClusterMapMDC <- ClusterMapMDC %>%
+    addMarkers(
+      data = subset(joined_data, joined_data$MDCDescText == mdc.cl[i])
+      , group = mdc.cl[i]
+      , lng = ~LON
+      , lat = ~LAT
+      , label = ~MDCDescText
+      , popup = ~as.character(
+        paste(
+          "<strong>City :</strong>"
+          , City
+          , "<br><strong>Hospitalist/Private: </strong>"
+          , Hospitalist_Private
+          , "<br><strong>MDC Category: </strong>"
+          , MDCDescText
+          , "<br><strong>Readmit: </strong>"
+          , Readmit_Count
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , PtNo_Num
+          , "<br><strong>Payer Group:</strong>"
+          , Payor_Category
+        )
+      )
+      , clusterOptions = markerClusterOptions(
+        removeOutsideVisibleBounds = F
+        , labelOptions = labelOptions(
+          noHide = F
+          , direction = 'auto'
+        )
+      )
+    )
+}
+
+ClusterMapMDC <- ClusterMapMDC %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
+    , overlayGroups = mdc.cl
+    , options = layersControlOptions(
+      collapsed = T
+    )
+  )
+
+ClusterMapMDC <- ClusterMapMDC %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = HospLabel
+    , popup = HospPopup
+  )
+
+ClusterMapMDC
+
+rm(ClusterMapMDC)
+
+# RA Cluster Maps ####
+# LIHN Readmit Cluster Map
+lsl.ra <- sort(unique(ra.df$LIHN_Line))
+
+ClusterMapReadmitLIHN <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (defualt)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addControl(
+    paste0(
+      "LIHN Service Line Readmits Map for: "
+      , MinRptMonth
+      , "-"
+      , MinRptYr
+      , " to "
+      , MaxRptMonth
+      , "-"
+      , MaxRptYr
+    )
+    , position = "topright"
+  )
+
+# for loop to cycle through adding layers
+for(i in 1:length(lsl.ra)){
+  ClusterMapReadmitLIHN <- ClusterMapReadmitLIHN %>%
+    addMarkers(
+      data = subset(ra.df, ra.df$LIHN_Line == lsl.ra[i])
+      , group = lsl.ra[i]
+      , lng = ~LON
+      , lat = ~LAT
+      , label = ~LIHN_Line
+      , popup = ~as.character(
+        paste(
+          "<strong>City :</strong>"
+          , City
+          , "<br><strong>Hospitalist/Private: </strong>"
+          , Hospitalist_Private
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>Readmit: </strong>"
+          , Readmit_Count
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , PtNo_Num
+          , "<br><strong>Payer Group:</strong>"
+          , Payor_Category
+        )
+      )
+      , clusterOptions = markerClusterOptions(
+        removeOutsideVisibleBounds = F
+        , labelOptions = labelOptions(
+          noHide = F
+          , direction = 'auto'
+        )
+      )
+    )
+}
+
+ClusterMapReadmitLIHN <- ClusterMapReadmitLIHN %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
+    , overlayGroups = lsl.ra
+    , options = layersControlOptions(
+      collapsed = T
+    )
+  )
+
+ClusterMapReadmitLIHN <- ClusterMapReadmitLIHN %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = HospLabel
+    , popup = HospPopup
+  )
+
+ClusterMapReadmitLIHN
+rm(ClusterMapReadmitLIHN)
+
+# MDC Readmit Cluster Map
+mdc.ra <- sort(unique(ra.df$MDCDescText))
+
+ClusterMapReadmitMDC <- leaflet() %>%
+  setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
+  addTiles(group = "OSM (defualt)") %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addControl(
+    paste0(
+      "Readmits Map by MDC for: "
+      , MinRptMonth
+      , "-"
+      , MinRptYr
+      , " to "
+      , MaxRptMonth
+      , "-"
+      , MaxRptYr
+    )
+    , position = "topright"
+  )
+
+# for loop to cycle through adding layers
+for(i in 1:length(mdc.ra)){
+  ClusterMapReadmitMDC <- ClusterMapReadmitMDC %>%
+    addMarkers(
+      data = subset(ra.df, ra.df$MDCDescText == mdc.ra[i])
+      , group = mdc.ra[i]
+      , lng = ~LON
+      , lat = ~LAT
+      , label = ~MDCDescText
+      , popup = ~as.character(
+        paste(
+          "<strong>City :</strong>"
+          , City
+          , "<br><strong>Hospitalist/Private: </strong>"
+          , Hospitalist_Private
+          , "<br><strong>MDC Category: </strong>"
+          , MDCDescText
+          , "<br><strong>Readmit: </strong>"
+          , Readmit_Count
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , PtNo_Num
+          , "<br><strong>Payer Group:</strong>"
+          , Payor_Category
+        )
+      )
+      , clusterOptions = markerClusterOptions(
+        removeOutsideVisibleBounds = F
+        , labelOptions = labelOptions(
+          noHide = F
+          , direction = 'auto'
+        )
+      )
+    )
+}
+
+ClusterMapReadmitMDC <- ClusterMapReadmitMDC %>%
+  addLayersControl(
+    baseGroups = c("OSM (default)", "CartoDB.Positron")
+    , overlayGroups = mdc.ra
+    , options = layersControlOptions(
+      collapsed = T
+    )
+  )
+
+ClusterMapReadmitMDC <- ClusterMapReadmitMDC %>%
+  addAwesomeMarkers(
+    lng = sv_lng
+    , lat = sv_lat
+    , icon = hospMarker
+    , label = HospLabel
+    , popup = HospPopup
+  )
+
+ClusterMapReadmitMDC
+rm(ClusterMapReadmitMDC)
