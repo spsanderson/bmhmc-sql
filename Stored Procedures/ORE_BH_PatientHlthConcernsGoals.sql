@@ -52,6 +52,8 @@ Date		Version		Description
 2018-07-02	v1			Initial Creation
 2018-07-05  v2			Add tov.[Asmt.Status] = 'Complete' as assessments of 
 						othere status were appearing
+2018-09-04	v3			Allow for Assessments in status of In Progress OR Complete
+						Add in Shift Assessment
 --------------------------------------------------------------------------------
 */
 --ALTER PROCEDURE [dbo].[ORE_BH_PatientHlthConcernsGoals]
@@ -103,7 +105,10 @@ BEGIN
 		FROM HAssessment AS A
 		WHERE A.Patient_oid = @HSF_CONTEXT_PATIENTID
 		AND A.PatientVisit_oid = @VisitOID
-		AND A.FormUsageDisplayName = 'Nursing Discharge Assessment'
+		AND A.FormUsageDisplayName IN (
+			'Nursing Discharge Assessment'
+			, 'Shift Assessment'
+		)
 	)
 
 	-- GETS THAT LATEST COMPLETED ASSESSMENT_OID AND ASSESSMENTID
@@ -118,12 +123,23 @@ BEGIN
 		AND HA.Patient_oid = @HSF_CONTEXT_PATIENTID
 		AND HA.PatientVisit_oid = @VisitOID
 
-	WHERE HA.FormUsageDisplayName = 'Nursing Discharge Assessment'
-	AND HAC.FormUsageDisplayName = 'Nursing Discharge Assessment'
+	WHERE HA.FormUsageDisplayName IN (
+			'Nursing Discharge Assessment'
+			, 'Shift Assessment'
+		)
+	AND HAC.FormUsageDisplayName IN (
+			'Nursing Discharge Assessment'
+			, 'Shift Assessment'
+		)
 	AND HAC.CategoryStatus NOT IN (0, 3)
 	AND HAC.IsLatest = 1
 	AND HAC.FormVersion IS NOT NULL
-	AND HA.AssessmentStatus = 'Complete'
+	-- Change to IN (Complete, In Progress)
+	--AND HA.AssessmentStatus = 'Complete'
+	AND HA.AssessmentStatus IN (
+		'Complete'
+		, 'In Progress'
+	)
 
 	ORDER BY HAC.FormDateTime DESC
 	;
@@ -339,8 +355,11 @@ BEGIN
 
 	WHERE TOV.PatientOID = @iPatientOID
 	AND TOV.PatientVisitOID = @iVisitOID
-	-- only retrieve complete assessments
-	AND TOV.[Asmt.Status] = 'Complete'
+	-- Retrive those that are Complete or In Progress
+	AND TOV.[Asmt.Status] IN (
+		'Complete'
+		, 'In Progress'
+	)
 
 END
 ;
