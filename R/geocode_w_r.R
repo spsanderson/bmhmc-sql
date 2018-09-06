@@ -21,7 +21,7 @@ for(i in 1:nrow(origAddress)) {
   result <- geocode(
     origAddress$FullAddress[i]
     , output = "latlon"
-    , source = "google"
+    , source = "dsk"
     )
   origAddress$lon[i] <- as.numeric(result[1])
   origAddress$lat[i] <- as.numeric(result[2])
