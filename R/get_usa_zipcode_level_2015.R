@@ -4,6 +4,7 @@
 # USA level zipcode for 2015
 file_loc = "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\USA_gis_files"
 usa <- readOGR(dsn = file_loc, layer = "cb_2015_us_zcta510_500k", encoding = "UTF-8")
+rm(file_loc)
 
 dim(usa)
 class(usa) # the human data is located at usa@data
@@ -32,7 +33,7 @@ state_join <- full_join(usa@data, specific_state)
 state_clean <- na.omit(state_join)
 
 STATE_SHP <- sp::merge(x = usa, y = state_clean, all.x = F)
-head(STATE_SHP)
+#head(STATE_SHP)
 dim(STATE_SHP)
 
 # #####
