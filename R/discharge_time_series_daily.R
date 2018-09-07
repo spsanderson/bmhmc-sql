@@ -112,7 +112,7 @@ summary(fit_lm)
 plot(fit_lm)
 
 fit <- lm(cnt ~ Time
-          + year
+          # + year
           + quarter
           + month
           + wday
@@ -272,9 +272,6 @@ mae_a <- mean(abs(test_residuals_a), na.rm = TRUE)
 mape_a <- mean(abs(pct_err_a), na.rm = TRUE)
 mpe_a <- mean(pct_err_a, na.rm = TRUE)
 
-error_tbl_a <- tibble(me_a, rmse_a, mae_a, mape_a, mpe_a)
-#error_tbl_a
-
 # Model B
 test_residuals_b <- pred_test_fit$.resid
 pct_err_b <- test_residuals_b/pred_test_fit$cnt * 100 # percent error
@@ -285,13 +282,18 @@ mae_b <- mean(abs(test_residuals_b), na.rm = TRUE)
 mape_b <- mean(abs(pct_err_b), na.rm = TRUE)
 mpe_b <- mean(pct_err_b, na.rm = TRUE)
 
-error_tbl_b <- tibble(me_b, rmse_b, mae_b, mape_b, mpe_b)
-#error_tbl_b
+error.tbl.row.names <- c("Model A", "Model B")
+me <- c(me_a, me_b)
+rmse <- c(rmse_a, rmse_b)
+mae <- c(mae_a, mae_b)
+mape <- c(mape_a, mape_b)
+mpe <- c(mpe_a, mpe_b)
 
-error_tbl_a
-error_tbl_b
+error_tbl <- data.frame(me, rmse, mae, mape, mpe)
+rownames(error_tbl) <- error.tbl.row.names
+error_tbl
 
-#####
+# Viz Residuals ####
 # Visaulize the residuals of the test set
 # Model A
 ggplot(aes(x = Time, y = .resid), data = pred_test_fit_lm) +
@@ -300,8 +302,7 @@ ggplot(aes(x = Time, y = .resid), data = pred_test_fit_lm) +
   geom_smooth() +
   theme_tq() +
   labs(title = "Test Set: lm() Model Residuals", subtitle = "Model A - fit_lm"
-       ,x = "") +
-  scale_y_continuous(limits = c(-75,75))
+       ,x = "")
 
 # Model B
 ggplot(aes(x = Time, y = .resid), data = pred_test_fit) +
@@ -310,8 +311,7 @@ ggplot(aes(x = Time, y = .resid), data = pred_test_fit) +
   geom_smooth() +
   theme_tq() +
   labs(title = "Test Set: lm() Model Residuals", subtitle = "Model B - fit",
-       x = "") +
-  scale_y_continuous(limits = c(-75,75))
+       x = "") 
 
 #####
 # Forecasting
@@ -327,7 +327,7 @@ tk_qtr_summary[1:6]
 tk_qtr_summary[7:12]
 
 idx_future <- idx %>%
-  tk_make_future_timeseries(n_future = 12)
+  tk_make_future_timeseries(n_future = 6)
 
 data_future <- idx_future %>%
   tk_get_timeseries_signature() %>%
@@ -436,7 +436,7 @@ tk_qtr %>%
     aes(x = Time, y = cnt)
     , data = qtr_future_fit
     , method = 'loess') + 
-  labs(title = "Monthly Discharges Dataset: 12-Month Forecast"
+  labs(title = "Monthly Discharges Dataset: 6-Month Forecast"
        , subtitle = "Model B = fit"
        , x = "") +
   theme_tq()
@@ -528,7 +528,7 @@ class(dsch.count)
 
 dsch.count.xts <- as.xts(dsch.count)
 head(dsch.count.xts)
-dsch.count.sub.xts <- window(dsch.count, start = c(2010,1), end = c(2018,7))
+dsch.count.sub.xts <- window(dsch.count, start = c(2010,1), end = c(2018,8))
 dsch.count.sub.xts
 
 components <- decompose(dsch.count.sub.xts)
@@ -544,7 +544,7 @@ plot(dsch.count.predict.hw)
 plot.ts(dsch.count.predict.hw$fitted)
 dsch.count.predict.hw$SSE
 
-fit_hw <- hw(dsch.count.sub.xts, h = 12)
+fit_hw <- hw(dsch.count.sub.xts, h = 6)
 summary(fit_hw)
 plot(fit_hw)
 plot(fit_hw$residuals)
