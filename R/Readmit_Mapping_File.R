@@ -34,11 +34,11 @@ MinRptMonth <- substr(MinRpt, 5, 6)
 # Make USA SHP File ####
 # At this point run the file get_usa_zipcode_level_2015.R Script
 # create a new df/tibble to work with data and leave origAddress alone
-ra_join <- origAddress
-ra_join$ZipCode <- as.character(ra_join$ZipCode)
-joined_data <- inner_join(ra_join, state_clean, by = c("ZipCode" = "zipcode"))
-head(joined_data)
-dim(joined_data)
+ra.join <- origAddress
+ra.join$ZipCode <- as.character(ra.join$ZipCode)
+joined.data <- inner_join(ra.join, state_clean, by = c("ZipCode" = "zipcode"))
+head(joined.data)
+dim(joined.data)
 
 rm(STATE_SHP)
 rm(state_join)
@@ -46,15 +46,15 @@ rm(all_usa_zip)
 rm(state_clean)
 rm(specific_state)
 
-discharges <- sum(joined_data$Pt_Count)
-readmits <- sum(joined_data$Readmit_Count)
+discharges <- sum(joined.data$Pt_Count)
+readmits <- sum(joined.data$Readmit_Count)
 
 # readmits only data.frame
-ra.df <- subset(joined_data, joined_data$Readmit_Count == 1)
+ra.df <- subset(joined.data, joined.data$Readmit_Count == 1)
 
 # Choropleths ####
 # Discharge Count Choropleth
-dsch_count_city <- joined_data %>%
+dsch.count.city <- joined.data %>%
   group_by(
     ZipCode
     , AFFGEOID10
@@ -68,18 +68,18 @@ dsch_count_city <- joined_data %>%
     dsch_count = n()
   )
 
-dsch_count_city <- as.data.frame(dsch_count_city)
+dsch.count.city <- as.data.frame(dsch.count.city)
 
-dsch_count_city <- dsch_count_city %>%
+dsch.count.city <- dsch.count.city %>%
   mutate(
     dsch_bin = cut(
       dsch_count, breaks = c(0,25,50,75,100,125,150,Inf)
     )
   )
 
-dsch_count_shp <- sp::merge(
+dsch.count.shp <- sp::merge(
   x = usa
-  , y = dsch_count_city
+  , y = dsch.count.city
   , all.x = F
 )
 
@@ -90,25 +90,25 @@ sv_zoom <- 9
 
 pal <- colorBin(
   palette = "Dark2"
-  , domain = dsch_count_shp$dsch_count
+  , domain = dsch.count.shp$dsch_count
   , reverse = TRUE
 )
 
 popup <- paste(
   "<strong>County: </strong>"
-  , dsch_count_shp$County
+  , dsch.count.shp$County
   , "<br><strong>City: </strong>"
-  , dsch_count_shp$City
+  , dsch.count.shp$City
   , "<br><strong>Discharges: </strong>"
-  , dsch_count_shp$dsch_count
+  , dsch.count.shp$dsch_count
 )
 
-l <- leaflet(data = dsch_count_shp) %>%
+l <- leaflet(data = dsch.count.shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = dsch_count_shp
+    data = dsch.count.shp
     , fillColor = ~pal(dsch_count)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -148,7 +148,7 @@ l
 rm(l)
 
 # Avg Readmit Rate by City Map
-dsch_ra_city <- joined_data %>%
+dsch.ra.city <- joined.data %>%
   group_by(
     ZipCode
     , AFFGEOID10
@@ -166,39 +166,39 @@ dsch_ra_city <- joined_data %>%
   filter(
     dsch_count >= 10
   )
-dsch_ra_city <- as.data.frame(dsch_ra_city)
+dsch.ra.city <- as.data.frame(dsch.ra.city)
 
-dsch_ra_shp <- sp::merge(
+dsch.ra.shp <- sp::merge(
   x = usa
-  , y = dsch_ra_city
+  , y = dsch.ra.city
   , all.x = F
 )
 
 palRA <- colorBin(
   palette = "Dark2"
-  , domain = dsch_ra_shp$RA_Rate
+  , domain = dsch.ra.shp$RA_Rate
   #, bins = 8
   , reverse = TRUE
 )
 
 popupRA <- paste(
   "<strong>County: </strong>"
-  , dsch_ra_shp$County
+  , dsch.ra.shp$County
   , "<br><strong>City: </strong>"
-  , dsch_ra_shp$City
+  , dsch.ra.shp$City
   , "<br><strong>Discharges: </strong>"
-  , dsch_ra_shp$dsch_count
+  , dsch.ra.shp$dsch_count
   , "<br><strong>Readmit Rate: </strong>"
-  , 100 * dsch_ra_shp$RA_Rate
+  , 100 * dsch.ra.shp$RA_Rate
   , "Pct."
 )
 
-ral <- leaflet(data = dsch_ra_shp) %>%
+ral <- leaflet(data = dsch.ra.shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (defaul)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = dsch_ra_shp
+    data = dsch.ra.shp
     , fillColor = ~palRA(RA_Rate)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -240,7 +240,7 @@ rm(ral)
 
 # SOI Map
 # Get the mean SOI
-dsch_soi_city <- joined_data %>%
+dsch.soi.city <- joined.data %>%
   group_by(
     ZipCode
     , AFFGEOID10
@@ -254,38 +254,38 @@ dsch_soi_city <- joined_data %>%
     dsch_count = n()
     , avgSOI = round(mean(as.numeric(SOI)), 2)
   )
-dsch_soi_city <- as.data.frame(dsch_soi_city)
+dsch.soi.city <- as.data.frame(dsch.soi.city)
 
-dsch_soi_shp <- sp::merge(
+dsch.soi.shp <- sp::merge(
   x = usa
-  , y = dsch_soi_city
+  , y = dsch.soi.city
   , all.x = F
 )
 
 palSOI <- colorBin(
   palette = "Dark2"
-  , domain = dsch_soi_shp$avgSOI
+  , domain = dsch.soi.shp$avgSOI
   , bins = 8
   , reverse = TRUE
 )
 
 popupSOI <- paste(
   "<strong>County: </strong>"
-  , dsch_soi_shp$County
+  , dsch.soi.shp$County
   , "<br><strong>City: </strong>"
-  , dsch_soi_shp$City
+  , dsch.soi.shp$City
   , "<br><strong>Discharges: </strong>"
-  , dsch_soi_shp$dsch_count
+  , dsch.soi.shp$dsch_count
   , "<br><strong>Avg SOI: </strong>"
-  , dsch_soi_shp$avgSOI
+  , dsch.soi.shp$avgSOI
 )
 
-soil <- leaflet(data = dsch_soi_shp) %>%
+soil <- leaflet(data = dsch.soi.shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = dsch_soi_shp
+    data = dsch.soi.shp
     , fillColor = ~palSOI(avgSOI)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -322,7 +322,7 @@ rm(soil)
 # End of SOI Map
 
 # Readmit Variance Map
-dsch_cvar_city <- joined_data %>%
+dsch.cvar.city <- joined.data %>%
   group_by(
     ZipCode
     , AFFGEOID10
@@ -339,38 +339,38 @@ dsch_cvar_city <- joined_data %>%
   filter(
     dsch_count >= 10
   )
-dsch_cvar_city <- as.data.frame(dsch_cvar_city)
+dsch.cvar.city <- as.data.frame(dsch.cvar.city)
 
-dsch_cvar_shp <- sp::merge(
+dsch.cvar.shp <- sp::merge(
   x = usa
-  , y = dsch_cvar_city
+  , y = dsch.cvar.city
   , all.x = F
 )
 
 palcvar <- colorBin(
   palette = "Paired"
-  , domain = dsch_cvar_shp$avgVar
+  , domain = dsch.cvar.shp$avgVar
   #, bins = 5
   , reverse = FALSE
 )
 
 popupcvar <- paste(
   "<strong>County: </strong>"
-  , dsch_cvar_shp$County
+  , dsch.cvar.shp$County
   , "<br><strong>City: </strong>"
-  , dsch_cvar_shp$City
+  , dsch.cvar.shp$City
   , "<br><strong>Discharges: </strong>"
-  , dsch_cvar_shp$dsch_count
+  , dsch.cvar.shp$dsch_count
   ,"<br><strong>Avg Variance: </strong>"
-  , dsch_cvar_shp$avgVar
+  , dsch.cvar.shp$avgVar
 )
 
-cvarl <- leaflet(data = dsch_cvar_shp) %>%
+cvarl <- leaflet(data = dsch.cvar.shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = dsch_cvar_shp
+    data = dsch.cvar.shp
     , fillColor = ~palcvar(avgVar)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -408,13 +408,13 @@ rm(cvarl)
 
 # Multi Layer Heatmap ####
 # Multi layer choropleth map
-mlmap <- leaflet(data = dsch_cvar_shp) %>%
+mlmap <- leaflet(data = dsch.cvar.shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   
   addPolygons(
-    data = dsch_count_shp
+    data = dsch.count.shp
     , fillColor = ~pal(dsch_count)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -423,7 +423,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   ) %>%
   
   addPolygons(
-    data = dsch_ra_shp
+    data = dsch.ra.shp
     , fillColor = ~palRA(RA_Rate)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -432,7 +432,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   ) %>%
   
   addPolygons(
-    data = dsch_soi_shp
+    data = dsch.soi.shp
     , fillColor = ~palSOI(avgSOI)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -441,7 +441,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   ) %>%
   
   addPolygons(
-    data = dsch_cvar_shp
+    data = dsch.cvar.shp
     , fillColor = ~palcvar(avgVar)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -475,7 +475,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   addLegend(
     "topright"
     , pal = pal
-    , values = dsch_count_shp$dsch_count
+    , values = dsch.count.shp$dsch_count
     , title = "Dsch Bin"
     , opacity = 1
   ) %>%
@@ -483,7 +483,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   addLegend(
     "bottomright"
     , pal = palRA
-    , values = dsch_ra_shp$RA_Rate
+    , values = dsch.ra.shp$RA_Rate
     , title = "Readmit Rate"
     , opacity = 1
   ) %>%
@@ -491,7 +491,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   addLegend(
     "bottomleft"
     , pal = palSOI
-    , values = dsch_soi_shp$avgSOI
+    , values = dsch.soi.shp$avgSOI
     , title = "SOI Bin"
     , opacity = 1
   ) %>%
@@ -499,7 +499,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
   addLegend(
     "topleft"
     , pal = palcvar
-    , values = dsch_cvar_shp$avgVar
+    , values = dsch.cvar.shp$avgVar
     , title = "Variance"
     , opacity = 1
   )
@@ -510,7 +510,7 @@ rm(mlmap)
 # Comparison Heatmaps ####
 # Comparison choropleth maps
 # Hospitalist v Private
-hosp_ra <- joined_data %>%
+hosp.ra <- joined.data %>%
   filter(
     Hospitaslit_Private_Flag == 1
   ) %>%
@@ -533,45 +533,45 @@ hosp_ra <- joined_data %>%
     dsch_count >= 10
   )
 
-hosp_ra <- as.data.frame(hosp_ra)
+hosp.ra <- as.data.frame(hosp.ra)
 
-hosp_ra_shp <- sp::merge(
+hosp.ra.shp <- sp::merge(
   x = usa
-  , y = hosp_ra
+  , y = hosp.ra
   , all.x = F
 )
 
 palHRA <- colorBin(
   palette = "Dark2"
-  , domain = hosp_ra_shp$ra_rate
+  , domain = hosp.ra.shp$ra_rate
   #, bins = 8
   , reverse = TRUE
 )
 
-popupHRA <- paste(
+popupHRA <- paste0(
   "<strong>County: </strong>"
-  , hosp_ra_shp$County
+  , hosp.ra.shp$County
   , "<br><strong>City: </strong>"
-  , hosp_ra_shp$City
+  , hosp.ra.shp$City
   , "<br><strong>Discharges: </strong>"
-  , hosp_ra_shp$dsch_count
+  , hosp.ra.shp$dsch_count
   , "<br><strong>Readmit Rate: </strong>"
-  , 100 * hosp_ra_shp$ra_rate
-  , "Pct."
+  , 100 * hosp.ra.shp$ra_rate
+  , "%"
   , "<br><strong>Avg SOI: </strong>"
-  , hosp_ra_shp$avgSOI
+  , hosp.ra.shp$avgSOI
   , "<br><strong>Avg CMI: </strong>"
-  , hosp_ra_shp$avgCMI
+  , hosp.ra.shp$avgCMI
   , "<br><strong>ALOS: </strong>"
-  , hosp_ra_shp$alos
+  , hosp.ra.shp$alos
 )
 
-hral <- leaflet(data = hosp_ra_shp) %>%
+hral <- leaflet(data = hosp.ra.shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = hosp_ra_shp
+    data = hosp.ra.shp
     , fillColor = ~palHRA(ra_rate)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -612,7 +612,7 @@ hral <- leaflet(data = hosp_ra_shp) %>%
 hral
 rm(hral)
 
-pvt_ra <- joined_data %>%
+pvt.ra <- joined.data %>%
   filter(
     Hospitaslit_Private_Flag == 0
   ) %>%
@@ -635,45 +635,45 @@ pvt_ra <- joined_data %>%
     dsch_count >= 10
   )
 
-pvt_ra <- as.data.frame(pvt_ra)
+pvt.ra <- as.data.frame(pvt.ra)
 
-pvt_ra_shp <- sp::merge(
+pvt.ra.shp <- sp::merge(
   x = usa
-  , y = pvt_ra
+  , y = pvt.ra
   , all.x = F
 )
 
 palPvtRA <- colorBin(
   palette = "Dark2"
-  , domain = pvt_ra_shp$ra_rate
+  , domain = pvt.ra.shp$ra_rate
   #, bins = 8
   , reverse = TRUE
 )
 
-popupPvtRA <- paste(
+popupPvtRA <- paste0(
   "<strong>County: </strong>"
-  , pvt_ra_shp$County
+  , pvt.ra.shp$County
   , "<br><strong>City: </strong>"
-  , pvt_ra_shp$City
+  , pvt.ra.shp$City
   , "<br><strong>Discharges: </strong>"
-  , pvt_ra_shp$dsch_count
+  , pvt.ra.shp$dsch_count
   , "<br><strong>Readmit Rate: </strong>"
-  , 100 * pvt_ra_shp$ra_rate
-  , "Pct."
+  , 100 * pvt.ra.shp$ra_rate
+  , "%"
   , "<br><strong>Avg SOI: </strong>"
-  , pvt_ra_shp$avgSOI
+  , pvt.ra.shp$avgSOI
   , "<br><strong>Avg CMI: </strong>"
-  , pvt_ra_shp$avgCMI
+  , pvt.ra.shp$avgCMI
   , "<br><strong>ALOS: </strong>"
-  , pvt_ra_shp$alos
+  , pvt.ra.shp$alos
 )
 
-pral <- leaflet(data = pvt_ra_shp) %>%
+pral <- leaflet(data = pvt.ra.shp) %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = pvt_ra_shp
+    data = pvt.ra.shp
     , fillColor = ~palPvtRA(ra_rate)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -721,7 +721,7 @@ hpral <- leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   
   addPolygons(
-    data = hosp_ra_shp
+    data = hosp.ra.shp
     , fillColor = ~palHRA(ra_rate)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -730,7 +730,7 @@ hpral <- leaflet() %>%
   ) %>%
   
   addPolygons(
-    data = pvt_ra_shp
+    data = pvt.ra.shp
     , fillColor = ~palPvtRA(ra_rate)
     , fillOpacity = 0.7
     , weight = 0.7
@@ -756,7 +756,7 @@ hpral <- leaflet() %>%
   addLegend(
     "topright"
     , pal = palHRA
-    , values = hosp_ra_shp$ra_rate
+    , values = hosp.ra.shp$ra_rate
     , title = "Hospitalist Readmit Rate"
     , opacity = 1
   ) %>%
@@ -764,7 +764,7 @@ hpral <- leaflet() %>%
   addLegend(
     "topright"
     , pal = palPvtRA
-    , values = pvt_ra_shp$ra_rate
+    , values = pvt.ra.shp$ra_rate
     , title = "Private Readmit Rate"
     , opacity = 1
   )
@@ -795,7 +795,7 @@ HospLabel <- "LI Community Hospital"
 # Point Maps ####
 # Service Line Point Map
 # Create list of LIHN Service Line
-lsl <- unique(origAddress$LIHN_Line)
+lsl <- sort(unique(origAddress$LIHN_Line))
 
 # Create color palette
 lihnpal <- colorFactor(
@@ -816,7 +816,7 @@ LIHNMap <- leaflet() %>%
 for(i in 1:length(lsl)){
   LIHNMap <- LIHNMap %>%
     addCircles(
-      data = subset(joined_data, joined_data$LIHN_Line == lsl[i])
+      data = subset(joined.data, joined.data$LIHN_Line == lsl[i])
       , group = lsl[i]
       , radius = 3
       , fillOpacity = 1
@@ -871,12 +871,12 @@ rm(LIHNMap)
 
 # MDC Point Map
 # Get unique list of MDC Categories
-mdcl <- unique(joined_data$MDCDescText)
+mdcl <- sort(unique(joined.data$MDCDescText))
 
 # Create Color Palette
 mdc.palette <- colorFactor(
   palette = "Dark2"
-  , domain = joined_data$MDCDescText
+  , domain = joined.data$MDCDescText
 )
 
 # Create Initial Leaflet
@@ -890,7 +890,7 @@ mdc.map <- leaflet() %>%
 for(i in 1:length(mdcl)){
   mdc.map <- mdc.map %>%
     addCircles(
-      data = subset(joined_data, joined_data$MDCDescText == mdcl[i])
+      data = subset(joined.data, joined.data$MDCDescText == mdcl[i])
       , group = mdcl[i]
       , radius = 3
       , fillOpacity = 1
@@ -949,8 +949,8 @@ mcluster <- leaflet() %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
   addTiles() %>% 
   addMarkers(
-    lng = joined_data$LON
-    , lat = joined_data$LAT
+    lng = joined.data$LON
+    , lat = joined.data$LAT
     , clusterOptions = markerClusterOptions()
   ) %>%
   addControl(
@@ -979,11 +979,10 @@ mcluster <- mcluster %>%
 mcluster
 
 # Service Line Cluster Map All Discharges
-LIHNCluster.df <- split(joined_data, joined_data$LIHN_Line)
+lcl <- sort(unique(joined.data$LIHN_Line))
 
 ClusterMapLIHN <- leaflet() %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
-  addTiles() %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles("CartoDB.Positron") %>%
   addControl(
@@ -1000,51 +999,50 @@ ClusterMapLIHN <- leaflet() %>%
     , position = "topright"
     )
 
-names(LIHNCluster.df) %>%
-  purrr::walk( function(df) {
-    ClusterMapLIHN <<- ClusterMapLIHN %>%
-      addMarkers(
-        data = LIHNCluster.df[[df]]
-        , lng = ~LON
-        , lat = ~LAT
-        , label = ~as.character(LIHN_Line)
-        , popup = ~as.character(
-          paste(
-            "<strong>City :</strong>"
-            , City
-            , "<br><strong>Hospitalist/Private: </strong>"
-            , Hospitalist_Private
-            , "<br><strong>Service Line: </strong>"
-            , LIHN_Line
-            , "<br><strong>Readmit: </strong>"
-            , Readmit_Count
-            , "<br><strong>SOI: </strong>"
-            , SOI
-            , "<br><strong>Encounter: </strong>"
-            , PtNo_Num
-            , "<br><strong>Payer Group:</strong>"
-            , Payor_Category
-          )
-        )
-        , group = df
-        , clusterOptions = markerClusterOptions(
-          removeOutsideVisibleBounds = F
-          , labelOptions = labelOptions(
-            noHide = F
-            , direction = 'auto'
-          )
+# for loop to cycle through adding layers
+for(i in 1:length(lcl)){
+  ClusterMapLIHN <- ClusterMapLIHN %>%
+    addMarkers(
+      data = subset(joined.data, joined.data$LIHN_Line == lcl[i])
+      , group = lcl[i]
+      , lng = ~LON
+      , lat = ~LAT
+      , label = ~LIHN_Line
+      , popup = ~as.character(
+        paste(
+          "<strong>City :</strong>"
+          , City
+          , "<br><strong>Hospitalist/Private: </strong>"
+          , Hospitalist_Private
+          , "<br><strong>Service Line: </strong>"
+          , LIHN_Line
+          , "<br><strong>Readmit: </strong>"
+          , Readmit_Count
+          , "<br><strong>SOI: </strong>"
+          , SOI
+          , "<br><strong>Encounter: </strong>"
+          , PtNo_Num
+          , "<br><strong>Payer Group:</strong>"
+          , Payor_Category
         )
       )
-  }
-)
+      , clusterOptions = markerClusterOptions(
+        removeOutsideVisibleBounds = F
+        , labelOptions = labelOptions(
+          noHide = F
+          , direction = 'auto'
+        )
+      )
+    )
+}
 
 ClusterMapLIHN <- ClusterMapLIHN %>%
   addLayersControl(
     baseGroups = c("OSM (default)", "CartoDB.Positron")
-    , overlayGroups = names(LIHNCluster.df)
+    , overlayGroups = lcl
     , options = layersControlOptions(
-      collapsed = TRUE
-      )
+      collapsed = T
+    )
   )
 
 ClusterMapLIHN <- ClusterMapLIHN %>%
@@ -1052,17 +1050,14 @@ ClusterMapLIHN <- ClusterMapLIHN %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = HospLabel
-    , popup = HospPopup      
+    , popup = HospPopup
   )
 
 ClusterMapLIHN
-
-rm(LIHNCluster.df)
 rm(ClusterMapLIHN)
 
 # MDC Cluster Map All Discharges
-mdc.cl <- sort(unique(joined_data$MDCDescText))
+mdc.cl <- sort(unique(joined.data$MDCDescText))
 
 ClusterMapMDC <- leaflet() %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
@@ -1086,7 +1081,7 @@ ClusterMapMDC <- leaflet() %>%
 for(i in 1:length(mdc.cl)){
   ClusterMapMDC <- ClusterMapMDC %>%
     addMarkers(
-      data = subset(joined_data, joined_data$MDCDescText == mdc.cl[i])
+      data = subset(joined.data, joined.data$MDCDescText == mdc.cl[i])
       , group = mdc.cl[i]
       , lng = ~LON
       , lat = ~LAT
