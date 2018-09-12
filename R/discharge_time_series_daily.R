@@ -1,3 +1,4 @@
+# Lib Load ####
 # Time Series analysis on Daily Discharge Data - Inpatients
 library(tidyquant)
 library(broom)
@@ -11,10 +12,12 @@ library(forecast)
 library(lubridate)
 library(dplyr)
 
+# Get File ####
 fileToLoad <- file.choose(new = TRUE)
 discharges <- read.csv(fileToLoad)
 rm(fileToLoad)
 
+# Time Aware Tibble ####
 # Make a time aware tibble
 discharges$Time <- lubridate::mdy(discharges$Time)
 ta.discharges <- as_tbl_time(discharges, index = Time)
@@ -40,6 +43,7 @@ tk_qtr <- ta.discharges %>%
   )
 tk_qtr
 
+# Get some Params ####
 # get max and min discharges
 max.discharges <- max(tk_qtr$cnt)
 min.discharges <- min(tk_qtr$cnt)
@@ -50,6 +54,7 @@ test.region <- nrow(tk_qtr) - training.region
 training.stop.date <- as.Date(max(tk_qtr$Time)) %m-% months(
   as.numeric(test.region), abbreviate = F)
 
+# Plot intial Data ####
 tk_qtr %>%
   ggplot(
     aes(
@@ -83,15 +88,29 @@ tk_qtr %>%
     alpha = 0.5
     , color = palette_light()[[1]]
   ) +
+  geom_line(
+    alpha = 0.5
+  ) +
+  geom_smooth(
+    se = F
+    , method = 'auto'
+    , color = 'red'
+  ) +
   labs(
     title = "Discharges: Monthly Scale"
     , subtitle = "Source: DSS"
-    , caption = "Based on discharges from 2010-01-01 through 2018-07-31"
+    , caption = paste0(
+      "Based on discharges from: "
+      , start.date
+      , " through "
+      , end.date
+    )
     , y = "Count"
     , x = ""
   ) +
   theme_tq()
 
+# Train/Test Data Sets ####
 # split into training and testing sets
 train <- tk_qtr %>%
   filter(Time < training.stop.date)
@@ -106,6 +125,7 @@ train_augmented <- train %>%
   tk_augment_timeseries_signature()
 train_augmented
 
+# Linear Models of Data ####
 # Model using the augmented features
 fit_lm <- lm(cnt ~ ., data = train_augmented)
 summary(fit_lm)
@@ -131,12 +151,11 @@ fit_lm %>%
   ggplot(aes(x = Time, y = .resid)) +
   geom_hline(yintercept = 0, color = "red") +
   geom_point(color = palette_light()[[1]], alpha = 0.5) +
-  geom_smooth(method = "loess") +
+  geom_smooth(method = "auto") +
   theme_tq() +
   labs(title = "Training Set: lm() Model Residuals"
        , x = ""
-       , subtitle = "Model = fit_lm") + 
-  scale_y_continuous(limits = c(-75, 75))
+       , subtitle = "Model = fit_lm")
 
 fit %>%
   augment() %>%
@@ -147,8 +166,7 @@ fit %>%
   theme_tq() +
   labs(title = "Training Set: lm() Model Residuals"
        , x = ""
-       , subtitle = "Model = fit") + 
-  scale_y_continuous(limits = c(-75, 75))
+       , subtitle = "Model = fit")
 
 # RMSE
 sqrt(mean(fit_lm$residuals^2))
@@ -162,6 +180,7 @@ test_augmented <- test %>%
   tk_augment_timeseries_signature()
 test_augmented
 
+# LM on Test Data ####
 # apply the model to the test set
 yhat_test_fit_lm <- predict(fit_lm, newdata = test_augmented)
 summary(yhat_test_fit_lm)
@@ -175,7 +194,7 @@ pred_test_fit <- test %>%
   add_column(yhat = yhat_test_fit) %>%
   mutate(.resid = cnt - yhat)
 
-# Visualize the results
+# Viz Model on Test Data ####
 # Model 1 fit_lm
 ggplot(aes(x = Time), data = tk_qtr) +
   geom_rect(
@@ -212,6 +231,22 @@ ggplot(aes(x = Time), data = tk_qtr) +
              data = pred_test_fit_lm,
              alpha = 0.5,
              color = palette_light()[[2]]) +
+  geom_line(
+    data = tk_qtr
+    , aes(
+      x = Time
+      , y = cnt
+    )
+    , alpha = 0.5
+  ) +
+  geom_line(
+    data = pred_test_fit_lm
+    , aes(
+      x = Time
+      , y = yhat
+    )
+    , color = "blue"
+  ) +
   labs(title = "Prediction Set"
        , subtitle = "Model A = fit_lm - Predictions in Red"
        , x = ""
@@ -254,14 +289,29 @@ ggplot(aes(x = Time), data = tk_qtr) +
              data = pred_test_fit,
              alpha = 0.5,
              color = palette_light()[[2]]) +
+  geom_line(
+    data = tk_qtr
+    , aes(
+      x = Time
+      , y = cnt
+    )
+    , alpha = 0.5
+  ) +
+  geom_line(
+    data = pred_test_fit
+    , aes(
+      x = Time
+      , y = yhat
+    )
+    , color = "blue"
+  ) +
   labs(title = "Prediction Set"
        , subtitle = "Model B = fit - Predictions in Red"
        , x = ""
        , y = "") +
   theme_tq()
 
-##### 
-# Calculate forecast error
+# Calc Liner Model Forecast Err #### 
 # Model A
 test_residuals_a <- pred_test_fit_lm$.resid
 pct_err_a <- test_residuals_a/pred_test_fit_lm$cnt * 100 # percent error
@@ -293,7 +343,7 @@ error_tbl <- data.frame(me, rmse, mae, mape, mpe)
 rownames(error_tbl) <- error.tbl.row.names
 error_tbl
 
-# Viz Residuals ####
+# Viz lm() Forecast Res ####
 # Visaulize the residuals of the test set
 # Model A
 ggplot(aes(x = Time, y = .resid), data = pred_test_fit_lm) +
@@ -313,8 +363,7 @@ ggplot(aes(x = Time, y = .resid), data = pred_test_fit) +
   labs(title = "Test Set: lm() Model Residuals", subtitle = "Model B - fit",
        x = "") 
 
-#####
-# Forecasting
+# Forecast lm() ####
 # Extract the index
 idx <- tk_qtr %>%
   tk_index()
@@ -435,14 +484,13 @@ tk_qtr %>%
   geom_smooth(
     aes(x = Time, y = cnt)
     , data = qtr_future_fit
-    , method = 'loess') + 
+    , method = 'auto') +
   labs(title = "Monthly Discharges Dataset: 6-Month Forecast"
        , subtitle = "Model B = fit"
        , x = "") +
   theme_tq()
 
-#####
-# Forecasting Error
+# Forecasting Error lm() ####
 test_resid_sd_a <- sd(test_residuals_a)
 test_resid_sd_b <- sd(test_residuals_b)
 
@@ -501,6 +549,7 @@ tk_qtr %>%
   ) +
   theme_tq()
 
+# Forecast with FPP ####
 # Forecast with FPP, will need to convert data to an xts/ts object
 monthly.discharges <- as_tbl_time(discharges, index = Time)
 monthly.discharges <- monthly.discharges %>%
@@ -517,6 +566,7 @@ monthly.discharges <- read.csv(fileToLoad)
 rm(fileToLoad)
 str(monthly.discharges)
 
+# Create ts Object ####
 dsch.count <- ts(
   monthly.discharges$cnt
   , frequency = 12
@@ -531,22 +581,88 @@ head(dsch.count.xts)
 dsch.count.sub.xts <- window(dsch.count, start = c(2010,1), end = c(2018,8))
 dsch.count.sub.xts
 
+# Get time series components ####
 components <- decompose(dsch.count.sub.xts)
 names(components)
 components$seasonal
 plot(components)
 
+# Get stl object ####
 compl <- stl(dsch.count.sub.xts, s.window = "periodic")
 plot(compl)
+
+# Model using HoltWinters ####
 dsch.count.predict.hw <- HoltWinters(dsch.count.sub.xts)
 dsch.count.predict.hw
 plot(dsch.count.predict.hw)
 plot.ts(dsch.count.predict.hw$fitted)
 dsch.count.predict.hw$SSE
 
-fit_hw <- hw(dsch.count.sub.xts, h = 6)
+# Forecast using hw() ####
+fit_hw <- hw(
+  dsch.count.sub.xts
+  , h = 12
+  , alpha = dsch.count.predict.hw$alpha
+  , gamma = dsch.count.predict.hw$gamma
+  )
 summary(fit_hw)
-plot(fit_hw)
+
+# Vis hw() forecast ####
+sw_sweep(fit_hw) %>%
+  ggplot(
+    aes(
+      x = index
+      , y = value
+      , color = key)
+    ) +
+  geom_ribbon(
+    aes(
+      ymin = lo.95
+      , ymax = hi.95
+      )
+    , fill = "#D5DBFF"
+    , color = NA
+    , size = 0
+    ) +
+  geom_ribbon(
+    aes(
+      ymin = lo.80
+      , ymax = hi.80
+      , fill = key
+      )
+    , fill = "#596DD5"
+    , color = NA
+    , size = 0
+    , alpha = 0.8
+    ) +
+  geom_line(
+    size = 1
+    ) +
+  labs(
+    title = "IP Discharges: HoltsWinter Filtering Model"
+    , x = "Time"
+    , y = "Discharges"
+    , subtitle = "Regular Time Index"
+    ) +
+  scale_x_yearmon(n = 12, format = "%Y") +
+  scale_color_tq() +
+  scale_fill_tq() +
+  theme_tq() 
+
 plot(fit_hw$residuals)
 qqnorm(fit_hw$residuals)
 qqline(fit_hw$residuals)
+
+# Seasonal Naive Model ####
+fit.snaive <- snaive(dsch.count.sub.xts)
+autoplot(dsch.count.sub.xts) +
+  autolayer(snaive(dsch.count.sub.xts, h = 12),
+            series = "Seasonal naive", PI = T) +
+  ggtitle("Forecasts for IP Discharges") +
+  guides(colour = guide_legend(title="Forecast"))
+
+checkresiduals(snaive(dsch.count.sub.xts))
+checkresiduals(fit_hw)
+checkresiduals(fit)
+
+#https://cran.r-project.org/web/packages/sweep/vignettes/SW00_Introduction_to_sweep.html
