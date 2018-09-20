@@ -46,9 +46,6 @@ GO
 
 SELECT A.*
 , [Z-Score] = ROUND((A.[Readmit_Count] - A.[READMIT_RATE_BENCH]) / STDEV(A.Readmit_Count) OVER(), 4)
-, GEO.LON
-, GEO.LAT
-, GEO.FullAddress
 
 FROM #TEMPA AS A
 LEFT OUTER JOIN smsdss.c_geocoded_address AS GEO
