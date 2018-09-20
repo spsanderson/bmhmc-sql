@@ -120,10 +120,15 @@ test <- tk_qtr %>%
   filter(Time >= training.stop.date)
 test
 
-# Add time series signature
+# Add time series signature to train
 train_augmented <- train %>%
   tk_augment_timeseries_signature()
 train_augmented
+
+# Add time series signature to test
+test_augmented <- test %>%
+  tk_augment_timeseries_signature()
+test_augmented
 
 # Linear Models of Data ####
 # Model using the augmented features
@@ -162,7 +167,7 @@ fit %>%
   ggplot(aes(x = Time, y = .resid)) +
   geom_hline(yintercept = 0, color = "red") +
   geom_point(color = palette_light()[[1]], alpha = 0.5) +
-  geom_smooth(method = "loess") +
+  geom_smooth(method = "auto") +
   theme_tq() +
   labs(title = "Training Set: lm() Model Residuals"
        , x = ""
@@ -175,12 +180,7 @@ sqrt(mean(fit$residuals^2))
 sw_glance(fit_lm)
 sw_glance(fit)
 
-# Add time series signature
-test_augmented <- test %>%
-  tk_augment_timeseries_signature()
-test_augmented
-
-# LM on Test Data ####
+# Linear Model on Test Data ####
 # apply the model to the test set
 yhat_test_fit_lm <- predict(fit_lm, newdata = test_augmented)
 summary(yhat_test_fit_lm)
@@ -311,7 +311,7 @@ ggplot(aes(x = Time), data = tk_qtr) +
        , y = "") +
   theme_tq()
 
-# Calc Liner Model Forecast Err #### 
+# Calc Liner Model Test Err #### 
 # Model A
 test_residuals_a <- pred_test_fit_lm$.resid
 pct_err_a <- test_residuals_a/pred_test_fit_lm$cnt * 100 # percent error
@@ -343,7 +343,7 @@ error_tbl <- data.frame(me, rmse, mae, mape, mpe)
 rownames(error_tbl) <- error.tbl.row.names
 error_tbl
 
-# Viz lm() Forecast Res ####
+# Viz lm() Test Res ####
 # Visaulize the residuals of the test set
 # Model A
 ggplot(aes(x = Time, y = .resid), data = pred_test_fit_lm) +
@@ -376,7 +376,7 @@ tk_qtr_summary[1:6]
 tk_qtr_summary[7:12]
 
 idx_future <- idx %>%
-  tk_make_future_timeseries(n_future = 6)
+  tk_make_future_timeseries(n_future = 12)
 
 data_future <- idx_future %>%
   tk_get_timeseries_signature() %>%
@@ -490,9 +490,9 @@ tk_qtr %>%
        , x = "") +
   theme_tq()
 
-# Forecasting Error lm() ####
-test_resid_sd_a <- sd(test_residuals_a)
-test_resid_sd_b <- sd(test_residuals_b)
+# Prediction Error of lm() ####
+test_resid_sd_a <- sd(test_residuals_a, na.rm = T)
+test_resid_sd_b <- sd(test_residuals_b, na.rm = T)
 
 qtr_future_fit_lm <- qtr_future_fit_lm %>%
   mutate(
@@ -558,12 +558,12 @@ monthly.discharges <- monthly.discharges %>%
   summarize(
     cnt = sum(DSCH_COUNT)
   )
-# write file out
-write.csv(monthly.discharges, "monthly_discharges.csv", row.names = FALSE)
-# bring file back in
-fileToLoad <- file.choose(new = TRUE)
-monthly.discharges <- read.csv(fileToLoad)
-rm(fileToLoad)
+# # write file out
+# write.csv(monthly.discharges, "monthly_discharges.csv", row.names = FALSE)
+# # bring file back in
+# fileToLoad <- file.choose(new = TRUE)
+# monthly.discharges <- read.csv(fileToLoad)
+# rm(fileToLoad)
 str(monthly.discharges)
 
 # Create ts Object ####
@@ -665,4 +665,325 @@ checkresiduals(snaive(dsch.count.sub.xts))
 checkresiduals(fit_hw)
 checkresiduals(fit)
 
+
+# ETS Model ####
+# Sweep ####
 #https://cran.r-project.org/web/packages/sweep/vignettes/SW00_Introduction_to_sweep.html
+# Plt Data 
+head(monthly.discharges, 5)
+monthly.discharges %>%
+  ggplot(
+    aes(
+      x = Time
+      , y = cnt
+    )
+  ) +
+  geom_line(
+    size = 1
+    , color = palette_light()[[1]]
+  ) +
+  geom_smooth(
+    method = "auto"
+  ) +
+  labs(
+    title = "IP Discharges"
+    , x = "Time"
+    , y = "Count"
+  ) +
+  theme_tq()
+
+# Coerce to ts objects ####
+ets.train <- tk_ts(train)
+ets.test <- tk_ts(test)
+class(ets.train)
+class(ets.test)
+
+# ETS Model Train ####
+fit.ets.train <- ets.train %>%
+  ets()
+
+fit.ets.train.params <- sw_tidy(fit.ets.train)
+fit.ets.train.accuracy <- sw_glance(fit.ets.train)
+fit.ets.train.augment <- sw_augment(fit.ets.train)
+fit.ets.train.decomp <- sw_tidy_decomp(fit.ets)
+fit.ets.alpha.train = fit.ets.train$par[["alpha"]]
+
+fit.ets.train.augment %>%
+  ggplot(
+    aes(
+      x = index
+      , y = .resid
+    )
+  ) +
+  geom_hline(
+    yintercept = 0
+    , color = "grey40"
+  ) +
+  geom_point(
+    color = palette_light()[[1]]
+    , alpha = 0.5
+  ) +
+  geom_smooth(
+    method = "auto"
+  ) +
+  scale_x_yearmon(
+    n = 8
+  ) +
+  labs(
+    title = "IP Discharges ETS Training Model Residuals"
+    , x = ""
+    , y = "Residuals"
+  ) +
+  theme_tq()
+
+fit.ets.train.decomp %>%
+  gather(
+    key = key
+    , value = value
+    , -index
+  ) %>%
+  mutate(
+    key = forcats::as_factor(key)
+  ) %>%
+  ggplot(
+    aes(
+      x = index
+      , y = value
+      , group = key
+    )
+  ) +
+  geom_line(
+    color = palette_light()[[2]]
+  ) +
+  geom_ma(
+    ma_fun = SMA
+    , n = 12
+    , size = 1
+  ) +
+  facet_wrap(
+    ~ key
+    , scales = "free_y"
+  ) +
+  scale_x_yearmon(
+    n = 8
+  ) +
+  labs(
+    title = "IP Discharges ETS Training Model Decomposition"
+    , x = ""
+  ) +
+  theme_tq() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# ETS Model Test ####
+fit.ets.test <- ets.test %>%
+  ets()
+
+fit.ets.test.params <- sw_tidy(fit.ets.train)
+fit.ets.test.accuracy <- sw_glance(fit.ets.train)
+fit.ets.test.augment <- sw_augment(fit.ets.train)
+fit.ets.test.decomp <- sw_tidy_decomp(fit.ets)
+fit.ets.alpha.test = fit.ets.test$par[["alpha"]]
+
+fit.ets.test.augment %>%
+  ggplot(
+    aes(
+      x = index
+      , y = .resid
+    )
+  ) +
+  geom_hline(
+    yintercept = 0
+    , color = "grey40"
+  ) +
+  geom_point(
+    color = palette_light()[[1]]
+    , alpha = 0.5
+  ) +
+  geom_smooth(
+    method = "auto"
+  ) +
+  scale_x_yearmon(
+    n = 8
+  ) +
+  labs(
+    title = "IP Discharges ETS Test Model Residuals"
+    , x = ""
+    , y = "Residuals"
+  ) +
+  theme_tq()
+
+fit.ets.test.decomp %>%
+  gather(
+    key = key
+    , value = value
+    , -index
+  ) %>%
+  mutate(
+    key = forcats::as_factor(key)
+  ) %>%
+  ggplot(
+    aes(
+      x = index
+      , y = value
+      , group = key
+    )
+  ) +
+  geom_line(
+    color = palette_light()[[2]]
+  ) +
+  geom_ma(
+    ma_fun = SMA
+    , n = 12
+    , size = 1
+  ) +
+  facet_wrap(
+    ~ key
+    , scales = "free_y"
+  ) +
+  scale_x_yearmon(
+    n = 8
+  ) +
+  labs(
+    title = "IP Discharges ETS Testing Model Decomposition"
+    , x = ""
+  ) +
+  theme_tq() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# ETS Refine Model ####
+fit.ets <- monthly.discharges.tk.ts %>%
+  ets(model = "MAM", ic = "bic", alpha = fit.ets.alpha, gamma = fit.ets.gamma)
+
+sw_tidy(fit.ets)
+sw_glance(fit.ets)
+sw_augment(fit.ets)
+sw_tidy_decomp(fit.ets)
+augment.fit.ets.ref <- sw_augment(fit.ets)
+decomp.fit.ets.ref <- sw_tidy_decomp(fit.ets)
+
+augment.fit.ets.ref %>%
+  ggplot(
+    aes(
+      x = index
+      , y = .resid
+    )
+  ) +
+  geom_hline(
+    yintercept = 0
+    , color = "grey40"
+  ) +
+  geom_point(
+    color = palette_light()[[1]]
+    , alpha = 0.5
+  ) +
+  geom_smooth(
+    method = "auto"
+  ) +
+  scale_x_yearmon(
+    n = 8
+  ) +
+  labs(
+    title = "IP Discharges ETS Model Residuals"
+    , x = ""
+    , y = "Residuals"
+  ) +
+  theme_tq()
+
+decomp.fit.ets.ref %>%
+  gather(
+    key = key
+    , value = value
+    , -index
+  ) %>%
+  mutate(
+    key = forcats::as_factor(key)
+  ) %>%
+  ggplot(
+    aes(
+      x = index
+      , y = value
+      , group = key
+    )
+  ) +
+  geom_line(
+    color = palette_light()[[2]]
+  ) +
+  geom_ma(
+    ma_fun = SMA
+    , n = 12
+    , size = 1
+  ) +
+  facet_wrap(
+    ~ key
+    , scales = "free_y"
+  ) +
+  scale_x_yearmon(
+    n = 8
+  ) +
+  labs(
+    title = "IP Discharges ETS Decomposition"
+    , x = ""
+  ) +
+  theme_tq() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Forecast Model ####
+fcast.ets <- fit.ets %>%
+  forecast(h = 12)
+
+checkresiduals(fit.ets)
+
+# Tidy Foecast object ####
+sw_sweep(fcast.ets, fitted = T)
+
+# Visualize
+sw_sweep(fcast.ets) %>%
+  ggplot(
+    aes(
+      x = index
+      , y = cnt
+      , color = key
+    )
+  ) +
+  geom_ribbon(
+    aes(
+      ymin = lo.95
+      , ymax = hi.95
+    )
+    , fill = "#D5DBFF"
+    , color = NA
+    , size = 0
+  ) +
+  geom_ribbon(
+    aes(
+      ymin = lo.80
+      , ymax = hi.80
+      , fill = key
+    )
+    , fill = "#596DD5"
+    , color = NA
+    , size = 0
+    , alpha = 0.8
+  ) +
+  geom_line(
+    size = 1
+  ) +
+  labs(
+    title = "IP Discharges ETS Model Forecast"
+    , x = ""
+    , y = "Discharges"
+    , subtitle = "Regular Time Index"
+  ) +
+  scale_x_yearmon(
+    n = 12
+    , format = "%Y"
+  ) +
+  scale_color_tq() +
+  scale_fill_tq() +
+  theme_tq()
