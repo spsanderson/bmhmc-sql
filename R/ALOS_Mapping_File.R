@@ -154,7 +154,7 @@ dsch_alos_shp <- sp::merge(
 palAlos <- colorBin(
   palette = "Dark2"
   , domain = dsch_alos_shp$ALOS
-  , bins = 5
+  #, bins = 5
   , reverse = TRUE
 )
 
@@ -479,9 +479,9 @@ mcluster <- mcluster %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "<strong>BMHMC</strong>"
+    , label = "LI Community Hospital"
     , popup = paste(
-      "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
+      "<b><a href='http://www.licommunityhospital.org/'>LI Community Hospital</a></b>"
       , "<br><strong>Discharges for: </strong>"
       , MaxRptMonth,"/",MaxRptYr
       , "<br><strong>Discharges: </strong>"
@@ -495,7 +495,7 @@ mcluster
 # Service Line map
 # Get unique list of groups needed
 HospPopup <- paste(
-  "<b><a href='http://www.brookhavenhospital.org/'>BMHMC</a></b>"
+  "<b><a href='http://www.licommunityhospital.org/'>LI Community Hospital</a></b>"
   , "<br><strong>Discharges for: </strong>"
   , MaxRptMonth,"/",MaxRptYr
   , "<br><strong>Discharges: </strong>"
@@ -567,7 +567,7 @@ LIHNMap <- LIHNMap %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = "LI Community Hospital"
     , popup = HospPopup     
   )
 
@@ -641,7 +641,7 @@ mtsoi <- mtsoi %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = "LI Community Hospital"
     , popup = HospPopup      
   )
 
@@ -708,7 +708,7 @@ ClusterMapLIHN <- ClusterMapLIHN %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = "LI Community Hospital"
     , popup = HospPopup      
   )
 
@@ -848,7 +848,7 @@ HospPvtMap <- HospPvtMap %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = "LI Community Hospital"
     , popup = HospPopup
   )
 
@@ -914,7 +914,7 @@ ClusterMapHospPvt <- ClusterMapHospPvt %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = "LI Community Hospital"
     , popup = HospPopup      
   )
 
@@ -980,7 +980,7 @@ ClusterMapPayerGroup <- ClusterMapPayerGroup %>%
     lng = sv_lng
     , lat = sv_lat
     , icon = hospMarker
-    , label = "BMHMC"
+    , label = "LI Community Hospital"
     , popup = HospPopup      
   )
 
