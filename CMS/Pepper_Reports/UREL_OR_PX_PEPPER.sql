@@ -3,7 +3,7 @@ GO
 
 /*
 *****************************************************************************  
-File: Stroke_ICH_PEPPER.sql      
+File: UNREL_OR_PX_PEPPER.sql      
 
 Input  Parameters:
 	None
@@ -12,7 +12,6 @@ Tables/Views:
 	None
   
 Creates Tables/Views:
-	None
 
 Functions:
 	None
@@ -26,31 +25,24 @@ Purpose:
 	as defined by the ST PEPPER report.
 
 Definitions:
-N*: count of discharges for DRGs 
-	061 (ischemic stroke, precerebral occlusion or transient ischemia with thrombolytic agent with MCC)
-	062 (ischemic stroke, precerebral occlusion or transient ischemia  with thrombolytic agent with CC)
-	063 (ischemic stroke, precerebral occlusion or transient ischemia with thrombolytic agent without CC/MCC)
-	064 (intracranial hemorrhage or cerebral infarction with MCC)
-	065 (intracranial hemorrhage or cerebral infarction with CC or tPA in 24 hours)
-	066 (intracranial hemorrhage or cerebral infarction without CC/MCC)
+N* count of discharges for DRGs 
+	981 (extensive OR procedure unrelated to principal diagnosis with MCC)
+	982 (extensive OR procedure unrelated to principal diagnosis with CC)
+	983 (extensive OR procedure unrelated to principal diagnosis without CC/MCC)
+	987 (non-extensive OR procedure unrelated to principal diagnosis with MCC)
+	988 (non-extensive OR procedure unrelated to principal diagnosis with CC)
+	989 (non-extensive OR procedure unrelated to principal diagnosis without CC/MCC)
 
-D*: count of discharges for DRGs 
-	061 (ischemic stroke, precerebral occlusion or transient ischemia with thrombolytic agent with MCC)
-	062 (ischemic stroke, precerebral occlusion or transient ischemia  with thrombolytic agent with CC)
-	063 (ischemic stroke, precerebral occlusion or transient ischemia with thrombolytic agent without CC/MCC)
-	064 (intracranial hemorrhage or cerebral infarction with MCC)
-	065 (intracranial hemorrhage or cerebral infarction with CC or tPA in 24 hours)
-	066 (intracranial hemorrhage or cerebral infarction without CC/MCC)
-	067 (nonspecific CVA and precerebral occlusion without infarct with MCC)
-	068 (nonspecific CVA and precerebral occlusion without infarct without MCC)
-	069 (transient ischemia without thrombolytic)
+D: count of all discharges for surgical DRGs
+	SELECT drg_no
+	FROM smsdss.drg_dim_v
+	WHERE drg_vers = 'MS-V25'
+	AND drg_med_surg_group = 'Surgical'
 	      
 Revision History: 
 Date		Version		Description
 ----		----		----
-2018-08-31	v1			Initial Creation
-2018-09-12	v2			Add total pip payments must be pmts > 0
-						Add PEPPER_ITEM column i.e. STROKE_ICH
+2018-09-12	v1			Initial Creation
 -------------------------------------------------------------------------------- 
 */
 
@@ -85,19 +77,21 @@ SELECT A.Med_Rec_No
   ) AS [Time_Period]
 , CASE 
 	WHEN A.DRG_NO IN(
-		'061','062','063','064','065',
-		'066','067','068','069'
+		SELECT drg_no
+		FROM smsdss.drg_dim_v
+		WHERE drg_vers = 'MS-V25'
+		AND drg_med_surg_group = 'Surgical'
 	) 
 		THEN 1
   END AS [Denominator]
 , CASE 
 	WHEN A.DRG_NO IN (
-		'061','062','063','064','065','066'
+		'981','982','983','987','988','989'
 	) 
 	THEN 1 
 	ELSE 0
   END [Numerator]
-, 'STROKE_ICH' AS [PEPPER_ITEM]
+, 'UREL_OR_PX' AS [PEPPER_ITEM]
 
 FROM smsdss.BMH_PLM_PtAcct_V AS A
 LEFT OUTER JOIN smsdss.c_tot_pymts_w_pip_v AS B
@@ -105,7 +99,10 @@ ON A.Pt_No = B.pt_id
 	AND A.unit_seq_no = B.unit_seq_no
 
 WHERE A.drg_no IN (
-	'061','062','063','064','065','066','067','068','069'
+	SELECT drg_no
+	FROM smsdss.drg_dim_v
+	WHERE drg_vers = 'MS-V25'
+	AND drg_med_surg_group = 'Surgical'
 )
 AND A.User_Pyr1_Cat IN (
 	'AAA', 'ZZZ'
