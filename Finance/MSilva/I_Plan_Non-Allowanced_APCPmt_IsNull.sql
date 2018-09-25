@@ -1,3 +1,30 @@
+/*
+*****************************************************************************  
+File: I_Plan_Non-Allowanced_APCPmt_IsNull.sql      
+
+Input  Parameters:
+	None
+
+Tables:   
+	smsmir.pyr_plan
+	smsmir.vst_rpt
+	smsdss.c_guarantor_demos_v
+	smsmir.mir_pyr_plan_user 
+  
+Functions:   
+	None
+
+Author: Steve P Sanderson II, MPH
+
+Department: Finance, Revenue Cycle
+      
+Revision History: 
+Date		Version		Description
+----		----		----
+2018-09-24	v1			Initial Creation
+-------------------------------------------------------------------------------- 
+*/
+
 SELECT PYRPLAN.pt_id
 , VST.vst_start_date as [Admit_Date]
 , VST.vst_end_date as [Discharge_Date]
@@ -84,9 +111,7 @@ ON PYRPLAN.PT_ID = INS_NAME.PT_ID
 
 WHERE VST.vst_end_date IS NOT NULL
 AND PYRPLAN.PYR_CD IN (
-'E01','E08','E10','E12','E13','E14','E18','E19','E26','E27','E28','E39','E47', --100% OF APC
-'E09', --103.5% OF APC
-'E29'  --125% OF APC
+	'I01','I04','I06','I07','I10'
 )
 AND VST.tot_bal_amt > 0
 AND PYRPLAN.tot_amt_due > 0
@@ -95,7 +120,7 @@ AND PYRPLAN.pt_id NOT IN (
 	SELECT DISTINCT(pt_id)
 	FROM smsmir.pay
 	WHERE pay_cd IN (
-	'09701590', '09735036'
+		'09730078','09735077'
 	)
 )
 AND SUBSTRING(PYRPLAN.PT_ID, 5, 1) != '1'
@@ -103,30 +128,12 @@ AND PYRPLAN.last_bl_dtime IS NOT NULL
 GO
 ;
 
-SELECT A.pt_id
-, A.pyr_cd
-, a.ins_bal_amt
-, a.apc_est_net_pay_amt
-, CASE
-	WHEN A.pyr_cd IN ('E09')
-		THEN A.INS_BAL_AMT - (1.035 * A.APC_Est_Net_Pay_Amt)
-	WHEN A.pyr_cd IN ('E29')
-		THEN a.ins_bal_amt - (1.25 * A.APC_Est_Net_Pay_Amt)
-		ELSE (a.INS_BAL_AMT - A.APC_Est_Net_Pay_Amt)
-  END AS [Write_Down_Amt]
-, [write_down_code] = '09701590'
-INTO #TEMPB
+SELECT A.*
 FROM #TEMPA AS A
-WHERE A.APC_Est_Net_Pay_Amt IS NOT NULL
-AND A.APC_EST_NET_PAY_AMT > 0
+WHERE A.APC_Est_Net_Pay_Amt IS NULL
 GO
-;
-SELECT *
-FROM #TEMPB
-WHERE [Write_Down_Amt] >=0 
 ;
 
 DROP TABLE #TEMPA
-DROP TABLE #TEMPB
 GO
 ;
