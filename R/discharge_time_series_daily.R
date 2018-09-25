@@ -21,7 +21,7 @@ rm(fileToLoad)
 # Make a time aware tibble
 discharges$Time <- lubridate::mdy(discharges$Time)
 ta.discharges <- as_tbl_time(discharges, index = Time)
-ta.discharges
+head(ta.discharges, 5)
 
 #timetk Daily
 tk_d <- tk_ts(ta.discharges,
@@ -30,9 +30,9 @@ tk_d <- tk_ts(ta.discharges,
 )
 class(tk_d)
 
-timetk_index <- tk_index(tk_d, timetk_idx = TRUE)
-head(timetk_index)
-class(timetk_index)
+# timetk_index <- tk_index(tk_d, timetk_idx = TRUE)
+# head(timetk_index)
+# class(timetk_index)
 has_timetk_idx(tk_d)
 
 tk_qtr <- ta.discharges %>%
@@ -40,8 +40,9 @@ tk_qtr <- ta.discharges %>%
   group_by(Time, add = TRUE) %>%
   summarize(
     cnt = sum(DSCH_COUNT)
+    #, cnt.log = log(sum(DSCH_COUNT))
   )
-tk_qtr
+head(tk_qtr, 5)
 
 # Get some Params ####
 # get max and min discharges
@@ -114,28 +115,24 @@ tk_qtr %>%
 # split into training and testing sets
 train <- tk_qtr %>%
   filter(Time < training.stop.date)
-train
+head(train, 1)
 
 test <- tk_qtr %>%
   filter(Time >= training.stop.date)
-test
+head(test, 1)
 
 # Add time series signature to train
 train_augmented <- train %>%
   tk_augment_timeseries_signature()
-train_augmented
+head(train_augmented, 1)
 
 # Add time series signature to test
 test_augmented <- test %>%
   tk_augment_timeseries_signature()
-test_augmented
+head(test_augmented, 2)
 
 # Linear Models of Data ####
 # Model using the augmented features
-fit_lm <- lm(cnt ~ ., data = train_augmented)
-summary(fit_lm)
-plot(fit_lm)
-
 fit <- lm(cnt ~ Time
           # + year
           + quarter
@@ -151,17 +148,6 @@ plot(fit)
 
 # Visualize the residuals of the training set
 # http://www.learnbymarketing.com/tutorials/linear-regression-in-r/
-fit_lm %>%
-  augment() %>%
-  ggplot(aes(x = Time, y = .resid)) +
-  geom_hline(yintercept = 0, color = "red") +
-  geom_point(color = palette_light()[[1]], alpha = 0.5) +
-  geom_smooth(method = "auto") +
-  theme_tq() +
-  labs(title = "Training Set: lm() Model Residuals"
-       , x = ""
-       , subtitle = "Model = fit_lm")
-
 fit %>%
   augment() %>%
   ggplot(aes(x = Time, y = .resid)) +
@@ -174,20 +160,11 @@ fit %>%
        , subtitle = "Model = fit")
 
 # RMSE
-sqrt(mean(fit_lm$residuals^2))
 sqrt(mean(fit$residuals^2))
-
-sw_glance(fit_lm)
 sw_glance(fit)
 
 # Linear Model on Test Data ####
 # apply the model to the test set
-yhat_test_fit_lm <- predict(fit_lm, newdata = test_augmented)
-summary(yhat_test_fit_lm)
-pred_test_fit_lm <- test %>%
-  add_column(yhat = yhat_test_fit_lm) %>%
-  mutate(.resid = cnt - yhat)
-
 yhat_test_fit <- predict(fit, newdata = test_augmented)
 summary(yhat_test_fit)
 pred_test_fit <- test %>%
@@ -195,7 +172,7 @@ pred_test_fit <- test %>%
   mutate(.resid = cnt - yhat)
 
 # Viz Model on Test Data ####
-# Model 1 fit_lm
+# Model 1 fit
 ggplot(aes(x = Time), data = tk_qtr) +
   geom_rect(
     xmin = as.numeric(ymd(training.stop.date))
@@ -222,65 +199,7 @@ ggplot(aes(x = Time), data = tk_qtr) +
              data = train,
              alpha = 0.5,
              color = palette_light()[[1]]) +
-  # pred_test_fit_lm - model 1
-  geom_point(aes(x = Time, y = cnt),
-             data = pred_test_fit_lm,
-             alpha = 0.5,
-             color = palette_light()[[1]]) +
-  geom_point(aes(x = Time, y = yhat),
-             data = pred_test_fit_lm,
-             alpha = 0.5,
-             color = palette_light()[[2]]) +
-  geom_line(
-    data = tk_qtr
-    , aes(
-      x = Time
-      , y = cnt
-    )
-    , alpha = 0.5
-  ) +
-  geom_line(
-    data = pred_test_fit_lm
-    , aes(
-      x = Time
-      , y = yhat
-    )
-    , color = "blue"
-  ) +
-  labs(title = "Prediction Set"
-       , subtitle = "Model A = fit_lm - Predictions in Red"
-       , x = ""
-       , y = "") +
-  theme_tq()
-
-# Model 2 fit
-ggplot(aes(x = Time), data = tk_qtr) +
-  geom_rect(
-    xmin = as.numeric(ymd(training.stop.date))
-    , xmax = as.numeric(ymd(end.date))
-    , ymin = (min.discharges * 0.9), ymax = (max.discharges * 1.1)
-    , fill = palette_light()[[4]]
-    , alpha = 0.01
-  ) +
-  annotate(
-    "text"
-    , x = ymd("2012-01-01")
-    , y = 1000
-    , color = palette_light()[[1]]
-    , label = "Training Region"
-  ) +
-  annotate(
-    "text"
-    , x = ymd("2017-01-01")
-    , y = 1200
-    , color = palette_light()[[1]]
-    , label = "Testing Region"
-  ) +
-  geom_point(aes(x = Time, y = cnt),
-             data = train,
-             alpha = 0.5,
-             color = palette_light()[[1]]) +
-  # pred_test_fit - model 2
+  # pred_test_fit
   geom_point(aes(x = Time, y = cnt),
              data = pred_test_fit,
              alpha = 0.5,
@@ -308,21 +227,11 @@ ggplot(aes(x = Time), data = tk_qtr) +
   labs(title = "Prediction Set"
        , subtitle = "Model B = fit - Predictions in Red"
        , x = ""
-       , y = "") +
+       , y = "Discharges") +
   theme_tq()
 
 # Calc Liner Model Test Err #### 
-# Model A
-test_residuals_a <- pred_test_fit_lm$.resid
-pct_err_a <- test_residuals_a/pred_test_fit_lm$cnt * 100 # percent error
-
-me_a <- mean(test_residuals_a, na.rm = TRUE)
-rmse_a <- mean(test_residuals_a^2, na.rm = TRUE)
-mae_a <- mean(abs(test_residuals_a), na.rm = TRUE)
-mape_a <- mean(abs(pct_err_a), na.rm = TRUE)
-mpe_a <- mean(pct_err_a, na.rm = TRUE)
-
-# Model B
+# Model Error
 test_residuals_b <- pred_test_fit$.resid
 pct_err_b <- test_residuals_b/pred_test_fit$cnt * 100 # percent error
 
@@ -332,29 +241,9 @@ mae_b <- mean(abs(test_residuals_b), na.rm = TRUE)
 mape_b <- mean(abs(pct_err_b), na.rm = TRUE)
 mpe_b <- mean(pct_err_b, na.rm = TRUE)
 
-error.tbl.row.names <- c("Model A", "Model B")
-me <- c(me_a, me_b)
-rmse <- c(rmse_a, rmse_b)
-mae <- c(mae_a, mae_b)
-mape <- c(mape_a, mape_b)
-mpe <- c(mpe_a, mpe_b)
-
-error_tbl <- data.frame(me, rmse, mae, mape, mpe)
-rownames(error_tbl) <- error.tbl.row.names
-error_tbl
-
-# Viz lm() Test Res ####
+# Viz lm() Test Residuals ####
 # Visaulize the residuals of the test set
-# Model A
-ggplot(aes(x = Time, y = .resid), data = pred_test_fit_lm) +
-  geom_hline(yintercept = 0, color = "red") +
-  geom_point(color = palette_light()[[1]], alpha = 0.5) +
-  geom_smooth() +
-  theme_tq() +
-  labs(title = "Test Set: lm() Model Residuals", subtitle = "Model A - fit_lm"
-       ,x = "")
-
-# Model B
+# Model 
 ggplot(aes(x = Time, y = .resid), data = pred_test_fit) +
   geom_hline(yintercept = 0, color = "red") +
   geom_point(color = palette_light()[[1]], alpha = 0.5) +
@@ -372,9 +261,6 @@ idx <- tk_qtr %>%
 tk_qtr_summary <- idx %>%
   tk_get_timeseries_summary()
 
-tk_qtr_summary[1:6]
-tk_qtr_summary[7:12]
-
 idx_future <- idx %>%
   tk_make_future_timeseries(n_future = 12)
 
@@ -382,66 +268,13 @@ data_future <- idx_future %>%
   tk_get_timeseries_signature() %>%
   rename(Time = index)
 
-pred_future_fit_lm <- predict(fit_lm, newdata = data_future)
 pred_future_fit <- predict(fit, newdata = data_future)
-
-qtr_future_fit_lm <- data_future %>%
-  select(Time) %>%
-  add_column(cnt = pred_future_fit_lm * -1)
 
 qtr_future_fit <- data_future %>%
   select(Time) %>%
   add_column(cnt = pred_future_fit * -1)
 
-# Model A
-tk_qtr %>%
-  ggplot(aes(x = Time, y = cnt)) +
-  geom_rect(
-    xmin = as.numeric(ymd(training.stop.date))
-    , xmax = as.numeric(ymd(end.date))
-    , ymin = (min.discharges * 0.9)
-    , ymax = (max.discharges * 1.1)
-    , fill = palette_light()[[4]]
-    , alpha = 0.01
-  ) +
-  geom_rect(
-    xmin = as.numeric(ymd(end.date))
-    , xmax = as.numeric(ymd("2019-02-01"))
-    , ymin = 0, ymax = 100
-    , fill = palette_light()[[3]], alpha = 0.01) +
-  annotate(
-    "text"
-    , x = ymd("2011-10-01")
-    , y = 78
-    , color = palette_light()[[1]], label = "Train Region") +
-  annotate(
-    "text"
-    , x = ymd("2012-10-01")
-    , y = 150
-    , color = palette_light()[[1]], label = "Test Region") +
-  annotate(
-    "text"
-    , x = ymd("2013-4-01")
-    , y = 150
-    , color = palette_light()[[1]], label = "Forecast Region") +
-  geom_point(
-    alpha = 0.5
-    , color = palette_light()[[1]]) +
-  geom_point(
-    aes(x = Time, y = cnt)
-    , data = qtr_future_fit_lm
-    , alpha = 0.5
-    , color = palette_light()[[2]]) +
-  geom_smooth(
-    aes(x = Time, y = cnt)
-    , data = qtr_future_fit_lm
-    , method = 'loess') + 
-  labs(title = "Monthly Discharges Dataset: 6-Month Forecast"
-       , subtitle = "Model A - fit_lm"
-       , x = "") +
-  theme_tq()
-
-# Model B
+# Model
 tk_qtr %>%
   ggplot(aes(x = Time, y = cnt)) +
   geom_rect(
@@ -485,22 +318,13 @@ tk_qtr %>%
     aes(x = Time, y = cnt)
     , data = qtr_future_fit
     , method = 'auto') +
-  labs(title = "Monthly Discharges Dataset: 6-Month Forecast"
+  labs(title = "Monthly Discharges Dataset: 12-Month Forecast"
        , subtitle = "Model B = fit"
        , x = "") +
   theme_tq()
 
 # Prediction Error of lm() ####
-test_resid_sd_a <- sd(test_residuals_a, na.rm = T)
 test_resid_sd_b <- sd(test_residuals_b, na.rm = T)
-
-qtr_future_fit_lm <- qtr_future_fit_lm %>%
-  mutate(
-    lo.95 = cnt - 1.96 * test_resid_sd_a
-    , lo.80 = cnt - 1.28 * test_resid_sd_a
-    , hi.80 = cnt + 1.28 * test_resid_sd_a
-    , hi.95 = cnt + 1.96 * test_resid_sd_a
-  )
 
 qtr_future_fit <- qtr_future_fit %>%
   mutate(
@@ -511,7 +335,7 @@ qtr_future_fit <- qtr_future_fit %>%
   )
 
 # plot prediction intervals
-tk_qtr %>%
+lm.fcast.plt <- tk_qtr %>%
   ggplot(aes(x = Time, y = cnt)) +
   geom_point(
     alpha = 0.5
@@ -544,10 +368,15 @@ tk_qtr %>%
     , color = "white"
   ) +
   labs(
-    title = "Monthly Discharges Dataset: 12-Month Forecast with Prediction Intervals"
+    title = "Forecast for IP Discharges: 12-Month Forecast"
     , x = ""
+    , y = "Discharges"
+    , subtitle = ("Linear Model - 12 Month forecast with Prediction Intervals")
   ) +
   theme_tq()
+print(lm.fcast.plt)
+
+lm.predictions <- qtr_future_fit
 
 # Forecast with FPP ####
 # Forecast with FPP, will need to convert data to an xts/ts object
@@ -594,9 +423,10 @@ plot(compl)
 # Model using HoltWinters ####
 dsch.count.predict.hw <- HoltWinters(dsch.count.sub.xts)
 dsch.count.predict.hw
+sw_glance(dsch.count.predict.hw)
+sw_tidy(dsch.count.predict.hw)
 plot(dsch.count.predict.hw)
 plot.ts(dsch.count.predict.hw$fitted)
-dsch.count.predict.hw$SSE
 
 # Forecast using hw() ####
 fit_hw <- hw(
@@ -607,8 +437,17 @@ fit_hw <- hw(
   )
 summary(fit_hw)
 
+test_residuals_hw <- fit_hw$residuals
+pct_err_hw <- (test_residuals_hw / fit_hw$fitted) * 100 # percent error
+
+me_hw   <- mean(test_residuals_hw, na.rm = TRUE)
+rmse_hw <- mean(test_residuals_hw^2, na.rm = TRUE)
+mae_hw  <- mean(abs(test_residuals_hw), na.rm = TRUE)
+mape_hw <- mean(abs(pct_err_hw), na.rm = TRUE)
+mpe_hw  <- mean(pct_err_hw, na.rm = TRUE)
+
 # Vis hw() forecast ####
-sw_sweep(fit_hw) %>%
+hw.fcast.plt <- sw_sweep(fit_hw) %>%
   ggplot(
     aes(
       x = index
@@ -639,74 +478,65 @@ sw_sweep(fit_hw) %>%
     size = 1
     ) +
   labs(
-    title = "IP Discharges: HoltsWinter Filtering Model"
-    , x = "Time"
+    title = "Forecast for IP Discharges: 12-Month Forecast"
+    , x = ""
     , y = "Discharges"
-    , subtitle = "Regular Time Index"
-    ) +
+    , subtitle = "HoltWinters Model - 12 Month forecast with Prediction Intervals"
+  ) +
   scale_x_yearmon(n = 12, format = "%Y") +
   scale_color_tq() +
   scale_fill_tq() +
   theme_tq() 
+print(hw.fcast.plt)
 
-plot(fit_hw$residuals)
-qqnorm(fit_hw$residuals)
-qqline(fit_hw$residuals)
+hw.predictions <- sw_sweep(fit_hw)
+hw.predictions <- hw.predictions %>%
+  filter(hw.predictions$key == 'forecast')
 
 # Seasonal Naive Model ####
-fit.snaive <- snaive(dsch.count.sub.xts)
-autoplot(dsch.count.sub.xts) +
+fit.snaive <- snaive(dsch.count.sub.xts, h = 12)
+snaive.predictions <- sw_sweep(fit.snaive) 
+snaive.predictions <- snaive.predictions %>%
+  filter(snaive.predictions$key == 'forecast')
+
+snaive.fcast.plt <- autoplot(dsch.count.sub.xts) +
   autolayer(snaive(dsch.count.sub.xts, h = 12),
             series = "Seasonal naive", PI = T) +
   ggtitle("Forecasts for IP Discharges") +
+  labs(
+    title = "Forecast for IP Discharges: 12-Month Forecast"
+    , x = ""
+    , y = "Discharges"
+    , subtitle = "S-Naive Model - 12 Month forecast with Prediction Intervals"
+  ) +
+  theme(legend.position = "none") +
   guides(colour = guide_legend(title="Forecast"))
+print(snaive.fcast.plt)
 
-checkresiduals(snaive(dsch.count.sub.xts))
-checkresiduals(fit_hw)
-checkresiduals(fit)
+# Calculate Errors
+test_residuals_snaive <- fit.snaive$residuals
+pct_err_snaive <- (test_residuals_snaive / fit.snaive$fitted) * 100 # percent error
 
+me_snaive   <- mean(test_residuals_snaive, na.rm = TRUE)
+rmse_snaive <- mean(test_residuals_snaive^2, na.rm = TRUE)
+mae_snaive  <- mean(abs(test_residuals_snaive), na.rm = TRUE)
+mape_snaive <- mean(abs(pct_err_snaive), na.rm = TRUE)
+mpe_snaive  <- mean(pct_err_snaive, na.rm = TRUE)
 
 # ETS Model ####
 # Sweep ####
 #https://cran.r-project.org/web/packages/sweep/vignettes/SW00_Introduction_to_sweep.html
-# Plt Data 
-head(monthly.discharges, 5)
-monthly.discharges %>%
-  ggplot(
-    aes(
-      x = Time
-      , y = cnt
-    )
-  ) +
-  geom_line(
-    size = 1
-    , color = palette_light()[[1]]
-  ) +
-  geom_smooth(
-    method = "auto"
-  ) +
-  labs(
-    title = "IP Discharges"
-    , x = "Time"
-    , y = "Count"
-  ) +
-  theme_tq()
-
-# Coerce to ts objects ####
-ets.train <- tk_ts(train)
-ets.test <- tk_ts(test)
-class(ets.train)
-class(ets.test)
-
 # ETS Model Train ####
-fit.ets.train <- ets.train %>%
+fit.ets.train <- dsch.count %>%
   ets()
+summary(fit.ets.train)
 
-fit.ets.train.params <- sw_tidy(fit.ets.train)
+fit.ets.train.params   <- sw_tidy(fit.ets.train)
 fit.ets.train.accuracy <- sw_glance(fit.ets.train)
-fit.ets.train.augment <- sw_augment(fit.ets.train)
-fit.ets.train.decomp <- sw_tidy_decomp(fit.ets)
-fit.ets.alpha.train = fit.ets.train$par[["alpha"]]
+fit.ets.train.augment  <- sw_augment(fit.ets.train)
+fit.ets.train.decomp   <- sw_tidy_decomp(fit.ets.train)
+fit.ets.alpha.train    <- fit.ets.train$par[["alpha"]]
+fit.ets.gamma.train    <- fit.ets.train$par[["gamma"]]
 
 fit.ets.train.augment %>%
   ggplot(
@@ -776,94 +606,30 @@ fit.ets.train.decomp %>%
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-# ETS Model Test ####
-fit.ets.test <- ets.test %>%
-  ets()
-
-fit.ets.test.params <- sw_tidy(fit.ets.train)
-fit.ets.test.accuracy <- sw_glance(fit.ets.train)
-fit.ets.test.augment <- sw_augment(fit.ets.train)
-fit.ets.test.decomp <- sw_tidy_decomp(fit.ets)
-fit.ets.alpha.test = fit.ets.test$par[["alpha"]]
-
-fit.ets.test.augment %>%
-  ggplot(
-    aes(
-      x = index
-      , y = .resid
-    )
-  ) +
-  geom_hline(
-    yintercept = 0
-    , color = "grey40"
-  ) +
-  geom_point(
-    color = palette_light()[[1]]
-    , alpha = 0.5
-  ) +
-  geom_smooth(
-    method = "auto"
-  ) +
-  scale_x_yearmon(
-    n = 8
-  ) +
-  labs(
-    title = "IP Discharges ETS Test Model Residuals"
-    , x = ""
-    , y = "Residuals"
-  ) +
-  theme_tq()
-
-fit.ets.test.decomp %>%
-  gather(
-    key = key
-    , value = value
-    , -index
-  ) %>%
-  mutate(
-    key = forcats::as_factor(key)
-  ) %>%
-  ggplot(
-    aes(
-      x = index
-      , y = value
-      , group = key
-    )
-  ) +
-  geom_line(
-    color = palette_light()[[2]]
-  ) +
-  geom_ma(
-    ma_fun = SMA
-    , n = 12
-    , size = 1
-  ) +
-  facet_wrap(
-    ~ key
-    , scales = "free_y"
-  ) +
-  scale_x_yearmon(
-    n = 8
-  ) +
-  labs(
-    title = "IP Discharges ETS Testing Model Decomposition"
-    , x = ""
-  ) +
-  theme_tq() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-
 # ETS Refine Model ####
-fit.ets <- monthly.discharges.tk.ts %>%
-  ets(model = "MAM", ic = "bic", alpha = fit.ets.alpha, gamma = fit.ets.gamma)
+fit.ets.ref <- dsch.count %>%
+  ets(
+    ic = "bic"
+    , alpha = fit.ets.alpha.train
+    , gamma = fit.ets.gamma.train
+    )
 
-sw_tidy(fit.ets)
-sw_glance(fit.ets)
-sw_augment(fit.ets)
-sw_tidy_decomp(fit.ets)
-augment.fit.ets.ref <- sw_augment(fit.ets)
-decomp.fit.ets.ref <- sw_tidy_decomp(fit.ets)
+fit.ets.ref.params   <- sw_tidy(fit.ets.ref)
+fit.ets.ref.accuracy <- sw_glance(fit.ets.ref)
+fit.ets.ref.augment  <- sw_augment(fit.ets.ref)
+fit.ets.ref.decomp   <- sw_tidy_decomp(fit.ets.ref)
+augment.fit.ets.ref <- sw_augment(fit.ets.ref)
+decomp.fit.ets.ref <- sw_tidy_decomp(fit.ets.ref)
+
+# Calculate Errors
+test_residuals_ets <- fit.ets.ref$residuals
+pct_err_ets <- (test_residuals_ets / fit.ets.ref$fitted) * 100 # percent error
+
+me_ets   <- mean(test_residuals_ets, na.rm = TRUE)
+rmse_ets <- mean(test_residuals_ets^2, na.rm = TRUE)
+mae_ets  <- mean(abs(test_residuals_ets), na.rm = TRUE)
+mape_ets <- mean(abs(pct_err_ets), na.rm = TRUE)
+mpe_ets  <- mean(pct_err_ets, na.rm = TRUE)
 
 augment.fit.ets.ref %>%
   ggplot(
@@ -934,20 +700,20 @@ decomp.fit.ets.ref %>%
   )
 
 # Forecast Model ####
-fcast.ets <- fit.ets %>%
+fcast.ets <- fit.ets.ref %>%
   forecast(h = 12)
 
-checkresiduals(fit.ets)
-
-# Tidy Foecast object ####
-sw_sweep(fcast.ets, fitted = T)
+# Tidy Forecast object ####
+ets.predictions <- sw_sweep(fcast.ets, fitted = T)
+ets.predictions <- ets.predictions %>%
+  filter(ets.predictions$key == 'forecast')
 
 # Visualize
-sw_sweep(fcast.ets) %>%
+ets.fcast.plt <- sw_sweep(fcast.ets) %>%
   ggplot(
     aes(
       x = index
-      , y = cnt
+      , y = value
       , color = key
     )
   ) +
@@ -975,10 +741,10 @@ sw_sweep(fcast.ets) %>%
     size = 1
   ) +
   labs(
-    title = "IP Discharges ETS Model Forecast"
+    title = "Forecast for IP Discharges: 12-Month Forecast"
     , x = ""
     , y = "Discharges"
-    , subtitle = "Regular Time Index"
+    , subtitle = "ETS Model - 12 Month forecast with Prediction Intervals"
   ) +
   scale_x_yearmon(
     n = 12
@@ -987,3 +753,88 @@ sw_sweep(fcast.ets) %>%
   scale_color_tq() +
   scale_fill_tq() +
   theme_tq()
+print(ets.fcast.plt)
+
+# Compare Model Errors ####
+qqnorm(fit$residuals)
+qqline(fit$residuals)
+
+qqnorm(fit_hw$residuals)
+qqline(fit_hw$residuals)
+
+qqnorm(fit.snaive$residuals)
+qqline(fit.snaive$residuals)
+
+qqnorm(fit.ets.ref$residuals)
+qqline(fit.ets.ref$residuals)
+
+checkresiduals(fit.snaive)
+checkresiduals(fit_hw)
+checkresiduals(fit)
+checkresiduals(fit.ets.ref)
+
+me <- c(me_b, me_hw, me_snaive, me_ets)
+rmse <- c(rmse_b, rmse_hw, rmse_snaive, rmse_ets)
+mae <- c(mae_b, mae_hw, mae_snaive, mae_ets)
+mape <- c(mape_b, mape_hw, mape_snaive, mape_ets)
+mpe <- c(mpe_b, mpe_hw, mpe_snaive, mpe_ets)
+
+error.tbl.row.names <- c(
+  "LM Model"
+  , "HoltWinters"
+  , "Seasonal Naive"
+  , "ETS"
+  )
+error_tbl <- data.frame(me, rmse, mae, mape, mpe)
+rownames(error_tbl) <- error.tbl.row.names
+error_tbl <- tibble::rownames_to_column(error_tbl)
+error_tbl <- arrange(error_tbl, error_tbl$mape)
+error_tbl
+
+# Pick Model ####
+head(error_tbl, 1)
+
+print(lm.fcast.plt)
+print(snaive.fcast.plt)
+print(hw.fcast.plt)
+print(ets.fcast.plt)
+
+gridExtra::grid.arrange(
+  lm.fcast.plt
+  , snaive.fcast.plt
+  , hw.fcast.plt
+  , ets.fcast.plt
+  )
+
+# Predictions 1 Month Out ####
+ets.pred <- head(ets.predictions$value, 1)
+ets.pred.lo.95 <- head(ets.predictions$lo.95, 1)
+ets.pred.hi.95 <- head(ets.predictions$hi.95, 1)
+
+hw.pred  <- head(hw.predictions$value, 1)
+hw.pred.lo.95 <- head(hw.predictions$lo.95, 1)
+hw.pred.hi.95 <- head(hw.predictions$hi.95, 1)
+
+lm.pred  <- head(lm.predictions$cnt, 1)
+lm.pred.lo.95 <- head(lm.predictions$lo.95, 1)
+lm.pred.hi.95 <- head(lm.predictions$hi.95, 1)
+
+sn.pred  <- head(snaive.predictions$value, 1)
+sn.pred.lo.95 <- head(snaive.predictions$lo.95, 1)
+sn.pred.hi.95 <- head(snaive.predictions$hi.95, 1)
+
+mod.pred <- c(ets.pred, hw.pred, lm.pred, sn.pred)
+mod.pred.lo.95 <- c(ets.pred.lo.95, hw.pred.lo.95, lm.pred.lo.95, sn.pred.lo.95)
+mod.pred.hi.95 <- c(ets.pred.hi.95, hw.pred.hi.95, lm.pred.hi.95, sn.pred.hi.95)
+
+pred.tbl.row.names <- c(
+  "ETS"
+  , "HoltWinters"
+  , "Linear Model"
+  , "S-Naive"
+)
+
+pred.tbl <- data.frame(mod.pred, mod.pred.lo.95, mod.pred.hi.95)
+rownames(pred.tbl) <- pred.tbl.row.names
+pred.tbl <- tibble::rownames_to_column(pred.tbl)
+pred.tbl
