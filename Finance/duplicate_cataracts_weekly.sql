@@ -1,3 +1,33 @@
+/*
+--------------------------------------------------------------------------------
+
+File : duplicate_cataracts_weekly.sql
+
+Parameters : 
+	NONE
+--------------------------------------------------------------------------------
+Purpose: Daily observation discharges
+
+Tables: 
+	None
+	
+Views:
+	smsmir.sproc
+	smsdss.bmh_plm_ptacct_v
+	smsdss.c_bmh_coder_activity_v
+	
+Functions: None
+	
+Author: Steven P Sanderson II, MPH
+
+Department: Finance, Revenue Cycle
+	
+Revision History: 
+Date		Version		Description
+----		----		----
+2018-10-02	v1			Initial Creation
+--------------------------------------------------------------------------------
+*/
 SELECT B.Pt_Name
 , B.Pt_Birthdate
 , B.Med_Rec_No

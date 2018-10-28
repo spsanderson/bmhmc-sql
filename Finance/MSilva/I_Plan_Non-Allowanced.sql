@@ -112,13 +112,21 @@ WHERE VST.vst_end_date IS NOT NULL
 AND PYRPLAN.PYR_CD IN (
 	'I01','I04','I06','I07','I10'
 )
+AND LEFT(PYRPLAN.pt_id, 5) != '00007'
+AND PYRPLAN.pyr_seq_no = 1
 AND VST.tot_bal_amt > 0
 AND PYRPLAN.tot_amt_due > 0
+AND VST.ins_pay_amt = 0
 AND PYRPLAN.pt_id NOT IN (
 	SELECT DISTINCT(pt_id)
 	FROM smsmir.pay
 	WHERE pay_cd IN (
-		'09730078','09735077'
+		'09701509',
+		'09701558',
+		'09701608',
+		'09730078',
+		'09735077',
+		'09731084'
 	)
 )
 AND SUBSTRING(PYRPLAN.PT_ID, 5, 1) != '1'
