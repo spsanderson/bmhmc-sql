@@ -20,11 +20,16 @@ Criteria:
 	3. Current smoker OR quit within 15 years
 
 v1	- 2018-06-11	- Initial Creation
+v2	- 2018-10-25	- Change age range to 55 - 79
 */
 -- GET INPATIENTS IN AGE RANGE
 DECLARE @START DATE;
+DECLARE @MINAGE INT;
+DECLARE @MAXAGE INT;
 
 SET @START = (GETDATE() - 1);
+SET @MINAGE = 55;
+SET @MAXAGE = 79;
 -----
 SELECT PtNo_Num
 , Pt_Name
@@ -38,12 +43,9 @@ FROM smsdss.BMH_PLM_PtAcct_V
 
 WHERE LEFT(PTNO_NUM, 1) IN ('1')
 AND LEFT(PTNO_NUM, 4) != '1999'
-AND Pt_Age BETWEEN 55 AND 77
+AND Pt_Age BETWEEN @MINAGE AND @MAXAGE
 AND ADM_Date >= @START
 AND Dsch_Date IS NULL
-
-GO
-;
 
 -- GET ED TREAT AND RELEASE PATIENTS IN AGE RANGE
 SELECT Account
@@ -54,15 +56,14 @@ SELECT Account
 
 INTO #TEMPB
 
-FROM smsdss.c_Wellsoft_Rpt_tbl
+--FROM smsdss.c_Wellsoft_Rpt_tbl
+-- Change to well soft report server linked object
+FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
 
-WHERE DATEDIFF(YEAR, AgeDOB, ARRIVAL) BETWEEN 55 AND 77
+WHERE DATEDIFF(YEAR, AgeDOB, ARRIVAL) BETWEEN @MINAGE AND @MAXAGE
 AND CAST(ARRIVAL AS date) = CAST(GETDATE() - 1 AS date)
 AND LEFT(TimeLeftED, 1) != '-'
 AND LEFT(Account, 1) = '8'
-
-GO
-;
 
 -- GET INPATIENT ASSESSMENT FORM
 SELECT A.episode_no
@@ -108,16 +109,15 @@ FROM (
 	, '' AS [obsv_cd_name]
 	, TobaccoUse
 
-	FROM smsdss.c_Wellsoft_Rpt_tbl
+	--FROM smsdss.c_Wellsoft_Rpt_tbl
+	-- Change to well soft report server linked object
+	FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
 
 	WHERE Account IN (
 		SELECT Account
 		FROM #TEMPB
 	)
 ) A
-
-GO
-;
 
 -- PUT TEMPA AND B TOGETHER VIA UNION
 SELECT A.PtNo_Num
@@ -135,9 +135,6 @@ FROM (
 	SELECT *
 	FROM #TEMPB
 ) A
-
-GO
-;
 
 -- GET LAST KNOWN WARD AND ROOM LOCATION FOR IP
 SELECT SUBSTRING(DLY_CEN.pt_id, 5, 8) AS PT_ID
