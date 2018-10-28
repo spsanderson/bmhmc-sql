@@ -272,7 +272,7 @@ pred_future_fit <- predict(fit, newdata = data_future)
 
 qtr_future_fit <- data_future %>%
   select(Time) %>%
-  add_column(cnt = pred_future_fit * -1)
+  add_column(cnt = pred_future_fit * 1)
 
 # Model
 tk_qtr %>%
@@ -407,7 +407,7 @@ class(dsch.count)
 
 dsch.count.xts <- as.xts(dsch.count)
 head(dsch.count.xts)
-dsch.count.sub.xts <- window(dsch.count, start = c(2010,1), end = c(2018,8))
+dsch.count.sub.xts <- window(dsch.count, start = c(2010,1), end = c(2018,9))
 dsch.count.sub.xts
 
 # Get time series components ####
