@@ -1,11 +1,13 @@
-USE [SMSPHDSSS0X0];
+USE [SMSPHDSSS0X0]
 GO
 
---SET THE OPTIONS TO SUPPORT INDEXED VIEWS.
-SET NUMERIC_ROUNDABORT OFF;
-SET ANSI_PADDING, ANSI_WARNINGS, CONCAT_NULL_YIELDS_NULL, ARITHABORT,
-	QUOTED_IDENTIFIER, ANSI_NULLS ON;
+/****** Object:  View [smsdss].[c_charity_care_v]    Script Date: 9/28/2018 3:05:35 PM ******/
+SET ANSI_NULLS ON
 GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
 
 ALTER VIEW [smsdss].[c_charity_care_v]
 AS
@@ -39,6 +41,9 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-09-27	v1			Initial Creation
+2018-09-28	v2			Add days from discharge to adjustment date
+						Add days buckets
+2018-10-05	v3			Add unit_seq_no, from_file_ind to column list
 -------------------------------------------------------------------------------- 
 */
 
@@ -48,6 +53,8 @@ SELECT LTRIM(RTRIM(VST.vst_med_rec_no)) AS [MRN]
 , CAST(VST.vst_end_date AS DATE) AS [Dsch_Date]
 , YEAR(VST.vst_end_date) AS [Dsch_Yr]
 , A.pt_id
+, A.unit_seq_no
+, A.from_file_ind
 , A.hosp_svc
 , A.fc
 , A.pay_cd AS [Pay_Cd]
@@ -109,6 +116,18 @@ SELECT LTRIM(RTRIM(VST.vst_med_rec_no)) AS [MRN]
 , A.tot_pay_adj_amt
 , A.pay_entry_date
 , A.pay_dtime
+, DATEDIFF(DAY, VST.vst_end_date, A.pay_dtime) AS [Days_To_Adj]
+, CASE
+	WHEN DATEDIFF(DAY, VST.vst_end_date, A.pay_dtime) < 91
+		THEN '0 - 90'
+	WHEN DATEDIFF(DAY, VST.vst_end_date, A.pay_dtime) BETWEEN 91 AND 180
+		THEN '91 - 180'
+	WHEN DATEDIFF(DAY, VST.vst_end_date, A.pay_dtime) BETWEEN 181 AND 270
+		THEN '181 - 270'
+	WHEN DATEDIFF(DAY, VST.vst_end_date, A.pay_dtime) BETWEEN 271 AND 360
+		THEN '271 - 360'
+		ELSE '360+'
+  END AS [Days_Bucket]
 , PT.rpt_name
 , PT.nhs_id_no
 , PT.birth_date
@@ -161,3 +180,7 @@ WHERE A.pay_cd IN (
 		)
 	)
 )
+
+GO
+
+
