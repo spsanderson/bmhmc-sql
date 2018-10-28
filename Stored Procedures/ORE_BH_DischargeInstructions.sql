@@ -37,10 +37,13 @@ Date		Version		Description
 2018-07-03	v1			Initial Creation
 2018-07-06	v2			Add UserDefinedString15 and 16 from HExtendedPatient
 2018-07-09  v3			Change UDS.UserDefinedString16 into DATE format
+2018-10-22	v4			Add fields from the Care Management Post Hospital Plan
+						Form
 -------------------------------------------------------------------------------- 
 */
 
 ALTER PROCEDURE [dbo].[ORE_BH_DischargeInstructions_test_sp]  
+-- ALTER PROCEDURE [dbo].[ORE_BH_DischargeInstructions]
 	-- Input parameters  
 	@HSF_CONTEXT_PATIENTID VARCHAR(20),  
 	@VisitOID VARCHAR(20)  
@@ -408,6 +411,131 @@ FROM (
 	) as P
 ) pl
 
+--DECLARE @INTPATIENT_OID VARCHAR(20);
+--DECLARE @INTVISIT_OID VARCHAR(20);
+
+--SET @INTPATIENT_OID = '2151351';
+--SET @INTVISIT_OID = '164213';
+
+-- Insert records for Form Care Management Post Hospital Plan
+DECLARE @CMPHP TABLE (
+	Patient_OID				INTEGER
+	, PatientVisit_OID		INTEGER
+	, AssessmentID			INTEGER
+	, FormUsage				VARCHAR(1000)
+	, FormUsageDisplayName	VARCHAR(1000)
+	, UserAbbrName			VARCHAR(1000)
+	, CollectedDT			DATETIME
+	, FindingAbbr			VARCHAR(20)
+	, [Value]				VARCHAR(1500)
+)
+
+INSERT INTO @CMPHP (
+	Patient_OID
+	, PatientVisit_OID
+	, AssessmentID
+	, FormUsage
+	, FormUsageDisplayName
+	, UserAbbrName
+	, CollectedDT
+	, FindingAbbr
+	, [Value]
+)
+
+SELECT x.Patient_oid
+, x.PatientVisit_oid
+, x.AssessmentID
+, x.FormUsage
+, X.FormUsageDisplayName
+, x.UserAbbrName
+, x.CollectedDT
+, ho.FindingAbbr
+, ho.[Value]
+--, REPLACE(HO.Value, CHAR(30), ', ')
+
+FROM (
+	SELECT HA.Patient_oid
+	, HA.PatientVisit_oid
+	, HA.AssessmentID
+	, HA.FormUsage
+	, HA.FormUsageDisplayName
+	, HA.UserAbbrName
+	, HA.CollectedDT
+	, ROW_NUMBER() OVER(PARTITION BY HA.FORMUSAGE ORDER BY HA.CREATIONTIME DESC) AS [RN]
+
+	FROM HAssessment AS HA WITH(NOLOCK)
+	INNER JOIN HAssessmentCategory AS HAC
+	ON HA.AssessmentID = HAC.AssessmentID
+
+	WHERE HA.Patient_oid = @intPatient_oid
+	AND HA.PatientVisit_oid = @intVisit_oid
+	AND HA.FormUsageDisplayName = 'Care Management Post Hospital Plan'
+	AND HA.AssessmentStatusCode IN (1, 3)
+	AND HA.AssessmentStatus IN (
+		'Complete'
+		, 'In Progress'
+	)
+	AND ENDDT IS NULL
+	AND HAC.IsLatest = 1
+	AND HAC.FormVersion IS NOT NULL
+	AND HAC.CategoryStatus NOT IN (0, 3)
+) AS X
+LEFT OUTER JOIN HObservation AS HO WITH(NOLOCK)
+ON HO.Patient_oid = @intPatient_oid
+	AND X.AssessmentID = HO.AssessmentID
+	AND HO.EndDT IS NULL
+
+WHERE X.RN = 1
+;
+
+SELECT *
+
+INTO #CMPHP_FINAL
+
+FROM (
+	SELECT *
+	FROM @CMPHP
+	PIVOT (
+		MAX([Value])
+		FOR FindingAbbr IN (
+			[A_BMH_CMSELFCARE]
+			, [A_BMH_CMHMCRSER]
+			, [A_BMH_CMSNF]
+			, [A_BMH_CMSUBACUT]
+			, [A_BMH_CMHOSPICE]
+			, [A_BMH_CMACUTERE]
+			, [A_BMH_CMASSTLIV]
+			, [A_BMH_CMPsychCr]
+			, [A_BMH_CMDIALYSIS]
+			, [A_BMH_CMWNDCR]
+			, [A_BMH_CMEMEHS]
+			, [A_BMH_CMSUBSTAB]
+			, [A_BMH_CMPALCARE]
+			, [A_BMH_CMOTHPHS]
+			, [A_BMH_CMCERTHC]
+			, [A_BMH_CMPRIVAG]
+			, [A_BMH_CMLTHC]
+			, [A_BMH_CMOTHHCA]
+			, [A_BMH_CMSKLDNRS]
+			, [A_BMH_CMHHA]
+			, [A_BMH_CMPHYTHRPY]
+			, [A_BMH_CMSOCWRK]
+			, [A_BMH_CMSPCHTHER]
+			, [A_BMH_CMHOMEINF]
+			, [A_BMH_CMOCCTHRPY]
+			, [A_BMH_CMMEDICADE]
+			, [A_BMH_CMTELEHLTH]
+			, [A_BMH_CMSKLDTCH]
+			, [A_BMH_CMOTHHCS]
+			, [A_BMH_CMEQUIPVND]
+			, [A_BMH_CMEQUIP]
+			, [A_BMH_CMOTHEQUIP]
+			, [A_BMH_CMPTATTEST]
+		)
+	) AS PVT
+) A
+;
+
 -- RETRIEVE IMMUNIZATION STATUS
 DECLARE @tblImmun TABLE (
 	FindingAbbr VARCHAR(64)
@@ -602,6 +730,39 @@ SELECT DISTINCT T1.PatientReasonforSeekingHC
 , PendingOrdersAtDischarge = @OrderDescAsWritten
 , UDS.UDS15
 , UDS.UDS16
+, CMPHP.A_BMH_CMACUTERE
+, CMPHP.A_BMH_CMASSTLIV
+, CMPHP.A_BMH_CMCERTHC
+, CMPHP.A_BMH_CMDIALYSIS
+, CMPHP.A_BMH_CMEMEHS
+, CMPHP.A_BMH_CMEQUIP
+, cmphp.A_BMH_CMEQUIPVND
+, cmphp.A_BMH_CMHHA
+, CMPHP.A_BMH_CMHMCRSER
+, CMPHP.A_BMH_CMHOMEINF
+, CMPHP.A_BMH_CMHOSPICE
+, CMPHP.A_BMH_CMLTHC
+, CMPHP.A_BMH_CMMEDICADE
+, CMPHP.A_BMH_CMOCCTHRPY
+, CMPHP.A_BMH_CMOTHEQUIP
+, CMPHP.A_BMH_CMOTHHCA
+, CMPHP.A_BMH_CMOTHHCS
+, CMPHP.A_BMH_CMOTHPHS
+, CMPHP.A_BMH_CMPALCARE
+, CMPHP.A_BMH_CMPHYTHRPY
+, CMPHP.A_BMH_CMPRIVAG
+, CMPHP.A_BMH_CMPsychCr
+, CMPHP.A_BMH_CMPTATTEST
+, CMPHP.A_BMH_CMSELFCARE
+, CMPHP.A_BMH_CMSKLDNRS
+, CMPHP.A_BMH_CMSKLDTCH
+, CMPHP.A_BMH_CMSNF
+, CMPHP.A_BMH_CMSOCWRK
+, CMPHP.A_BMH_CMSPCHTHER
+, CMPHP.A_BMH_CMSUBACUT
+, cmphp.A_BMH_CMSUBSTAB
+, CMPHP.A_BMH_CMTELEHLTH
+, CMPHP.A_BMH_CMWNDCR
 
 FROM @tblPatTemp AS T1
 LEFT OUTER JOIN #Temp_Final AS T2
@@ -616,4 +777,7 @@ ON DCD.Patient_oid = T2.Patient_oid
 LEFT OUTER JOIN @UDS15_16 AS UDS
 ON T1.Patient_oid = UDS.Patient_OID
 	AND T1.PatientVisit_oid = UDS.PatientVisit_OID
+LEFT OUTER JOIN #CMPHP_FINAL AS CMPHP
+ON T1.Patient_oid = CMPHP.Patient_OID
+	AND T1.PatientVisit_oid = CMPHP.PatientVisit_OID
 ;
