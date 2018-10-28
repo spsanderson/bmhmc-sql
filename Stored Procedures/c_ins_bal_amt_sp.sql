@@ -76,7 +76,7 @@ BEGIN
 		WHEN PYRPLAN.PYR_CD = '*' THEN 0
 		ELSE CAST(PYRPLAN.tot_amt_due AS money)
 		END                                              AS [Ins_Bal_Amt]
-	, CAST(VST.tot_pay_amt AS money) AS [tot_pay_amt]
+	, CAST(VST.tot_pay_amt AS money)                     AS [tot_pay_amt]
 	, CAST((VST.tot_pay_amt - VST.ins_pay_amt) AS money) AS [pt_pay_amt]
 	, CAST(guar.GuarantorDOB as date)                    AS [GuarantorDOB]
 	, guar.GuarantorFirst
@@ -130,7 +130,7 @@ ELSE BEGIN
 		WHEN PYRPLAN.PYR_CD = '*' THEN 0
 		ELSE CAST(PYRPLAN.tot_amt_due AS money)
 		END                                              AS [Ins_Bal_Amt]
-	, CAST(VST.tot_pay_amt AS money) AS [tot_pay_amt]
+	, CAST(VST.tot_pay_amt AS money)                     AS [tot_pay_amt]
 	, CAST((VST.tot_pay_amt - VST.ins_pay_amt) AS money) AS [pt_pay_amt]
 	, CAST(guar.GuarantorDOB as date)                    AS [GuarantorDOB]
 	, guar.GuarantorFirst
