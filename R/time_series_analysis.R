@@ -13,13 +13,18 @@ rm(file.to.load)
 # Run time_series_eda file ####
 # Run time_series_eda file, after it is done make a new df
 df.trans <- df2
+df.trans$Time <- lubridate::mdy(df.trans$Time)
 head(df.trans)
 
 # Create ts() object ####
 # Turn df.trans into a ts object
-df.ts <- ts(df.trans, frequency = 52, start = c(2010, 1))
+df.ts <- msts(df.trans, seasonal.periods = c(7,365.25))
+fit <- tbats(df.ts)
+fc <- forecast(fit)
+plot(fc)
 class(df.ts)
 head(df.ts, 3)
+tail(df.ts, 3)
 
 # Time Series Plots ####
 # Auto plot
