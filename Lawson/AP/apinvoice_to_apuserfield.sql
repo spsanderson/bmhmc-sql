@@ -197,4 +197,8 @@ SELECT [COMPANY]
   WHERE A.[INVOICE] = '1027990181'
 GO
 
+select top 1 *
 
+from [SC_server].[Soarian_Clin_Prd_1].[dbo].[HProcedure] as a
+
+order by A.creationTime desc
