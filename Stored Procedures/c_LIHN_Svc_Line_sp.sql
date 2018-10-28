@@ -1,12 +1,12 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [smsdss].[c_Home_Care_sp]    Script Date: 1/23/2018 9:45:53 AM ******/
+/****** Object:  StoredProcedure [smsdss].[c_LIHN_Svc_Line_sp]    Script Date: 10/17/2018 9:44:40 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE [smsdss].[c_LIHN_Svc_Line_sp]
+ALTER PROCEDURE [smsdss].[c_LIHN_Svc_Line_sp]
 AS
 
 SET NOCOUNT ON;
@@ -22,6 +22,7 @@ v1	- 2018-06-12	- Initial Creation
 v2	- 2018-06-25	- Fix Dx_Cd no match, used REPLACE(C.dx_cd, '.', '') & REPLACE(D.proc_cd, '.', '')
 					  Rename table to smsdss.c_LIHN_Svc_Line_Tbl
 					  Initial Load of ICD9 done
+v3	- 2018-10-17	- Added DRG_SCHEME MC18
 */
 
 IF NOT EXISTS (
@@ -203,7 +204,7 @@ BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17'
+		'MCT4','MC16','MC17','MC18'
 	)
 	
 	INSERT INTO smsdss.c_LIHN_Svc_Line_Tbl
@@ -373,7 +374,7 @@ BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17'
+		'MCT4','MC16','MC17','MC18'
 	)
 	
 END
@@ -547,7 +548,7 @@ ELSE BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17'
+		'MCT4','MC16','MC17','MC18'
 	)
 	AND A.PT_ID NOT IN (
 		SELECT DISTINCT(ZZZ.Encounter)
