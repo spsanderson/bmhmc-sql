@@ -1,5 +1,28 @@
 /*
+File: Lung_CA_LDCT_potentials.sql
+
+Input Parameters:
+	None
+
+Tables/Views:
+	smsdss.BMH_PLM_PtAcct_V
+	[SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
+	smsmir.trn_sr_obsv
+	smsdss.dly_cen_occ_fct_v
+	smsdss.rm_bed_mstr_v
+	smsmir.hl7_msg_hdr
+	smsmir.hl7_ins
+	smsdss.pract_dim_v
+	smsdss.pyr_dim_v
+	
+Creates Table:
+	None
+
+Functions:
+	None
+
 Author: Steven P Sanderson II, MPH
+
 Department: Finance, Revenue Cycle
 
 LDCT - Low Dose CT for lung cancer screening
@@ -19,8 +42,15 @@ Criteria:
 			1 pack = 20 cigarettes)
 	3. Current smoker OR quit within 15 years
 
-v1	- 2018-06-11	- Initial Creation
-v2	- 2018-10-25	- Change age range to 55 - 79
+Revision History:
+Date		Version		Description
+----		----		----
+2018-06-11	v1			Initial Creation
+2018-10-25	v2			Change age range to 55 - 79
+2018-11-05	v3			Add:
+							Attending (Name and ID)
+							Insurance (Code and Name)
+							Phone
 */
 -- GET INPATIENTS IN AGE RANGE
 DECLARE @START DATE;
@@ -173,21 +203,70 @@ WHERE RN = 1
 GO
 ;
 
+-- Attending, Insurance, Phone
+SELECT MSG_HDR.pt_id
+, INS.ins_plan_no
+, PYR.pyr_name
+, PYR.pyr_group2
+, PT.pt_phone_area_city_cd
+, PT.pt_phone_no
+, PLM.PtNo_Num
+, COALESCE(PLM.ATN_DR_NO, VST.atn_pract_no) AS Atn_Dr_No
+, COALESCE(PDV.pract_rpt_name, PDV2.PRACT_RPT_NAME) AS pract_rpt_name
+
+INTO #INS_PHONE_ATN
+
+FROM smsmir.hl7_msg_hdr                 AS MSG_HDR
+INNER JOIN smsmir.hl7_pt                AS PT
+ON MSG_HDR.pt_id = PT.pt_id
+	AND MSG_HDR.msg_cntrl_id = PT.last_msg_cntrl_id
+INNER JOIN smsmir.hl7_ins               AS INS
+ON MSG_HDR.msg_cntrl_id = INS.last_msg_cntrl_id
+	AND MSG_HDR.pt_id = INS.pt_id
+INNER JOIN smsmir.hl7_vst               AS VST
+ON MSG_HDR.PT_ID = VST.PT_ID
+	AND MSG_HDR.msg_cntrl_id = VST.last_msg_cntrl_id
+LEFT OUTER JOIN smsdss.BMH_PLM_PtAcct_V AS PLM
+ON MSG_HDR.pt_id = PLM.Pt_No
+LEFT OUTER JOIN smsdss.pract_dim_v      AS PDV
+ON PLM.Atn_Dr_No = PDV.src_pract_no
+	AND PLM.Regn_Hosp = PDV.orgz_cd
+LEFT OUTER JOIN smsdss.pyr_dim_v        AS PYR
+ON INS.ins_plan_no = PYR.pyr_cd
+	AND PYR.orgz_cd = 'S0X0'
+LEFT OUTER JOIN smsdss.pract_dim_v      AS PDV2
+ON VST.atn_pract_no = PDV2.src_pract_no
+	AND PDV2.orgz_cd = 'S0X0'
+
+WHERE INS.ins_plan_prio_no = 1
+AND MSG_HDR.pt_id IN (
+	SELECT PTNO_NUM
+	FROM #TEMPD
+)
+
 -- GET IP ADMISSION FORM DISPLAY VALUE FOR SMOKING STATUS
-SELECT A.PtNo_Num AS [Encounter]
+SELECT A.PtNo_Num   AS [Encounter]
 , A.Pt_Name
 , A.Pt_Age
 , CAST(A.Adm_Date AS date) AS [Adm_Date]
 , A.Dsch_Date
-, B.dsply_val     AS [Stated_Smoking_Status]
-, C.nurs_sta      AS [Last_Nurse_Station]
-, C.rm_no         AS [Last_Room_No]
+, B.dsply_val       AS [Stated_Smoking_Status]
+, C.nurs_sta        AS [Last_Nurse_Station]
+, C.rm_no           AS [Last_Room_No]
+, D.Atn_Dr_No       AS [Attending_ID]
+, D.pract_rpt_name  AS [Attending_Name]
+, D.ins_plan_no     AS [Primiary_Ins_Cd]
+, D.pyr_name        AS [Primiary_Ins_Name]
+, D.pyr_group2      AS [Ins_Fin_Class]
+, CAST(D.pt_phone_area_city_cd AS varchar) + CAST(D.Pt_Phone_No AS varchar) AS [PT_Phone]
 
 FROM #TEMPD AS A
 LEFT OUTER JOIN #TEMPC AS B
 ON A.PtNo_Num = B.episode_no
 LEFT OUTER JOIN #LASTROOM AS C
 ON A.PtNo_Num = C.PT_ID
+LEFT OUTER JOIN #INS_PHONE_ATN AS D
+ON A.PtNo_Num = D.pt_id
 
 WHERE B.dsply_val IS NOT NULL
 
@@ -203,3 +282,4 @@ DROP TABLE #TEMPC;
 DROP TABLE #TEMPD;
 DROP TABLE #ROOMS;
 DROP TABLE #LASTROOM;
+DROP TABLE #INS_PHONE_ATN;
