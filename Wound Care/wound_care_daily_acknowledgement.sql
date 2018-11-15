@@ -123,4 +123,4 @@ GROUP BY A.[File_Date]
 , D.[Count]
 , E.[Count]
 
-ORDER BY CAST(a.[File_Date] AS DATE);
+ORDER BY CAST(a.[File_Date] AS DATE) DESC;
