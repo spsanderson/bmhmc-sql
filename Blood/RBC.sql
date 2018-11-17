@@ -11,7 +11,8 @@ SET @ENDATE =    '2016-02-01';
 
 -- COLUMN SELECTION
 SELECT PAV.PtNo_Num           AS [PAV PTNO_NUM]
-, PAV.Med_Rec_No, PAV.pt_type AS [PAV PT TYPE]
+, PAV.Med_Rec_No
+, PAV.pt_type                 AS [PAV PT TYPE]
 , PAPV.Bl_Drg_No              AS [NYS DRG NO]
 , DRGM.DRGDesc                AS [DRG DESC]
 , PSVH.Chg_Qty                AS [QUANTITY]
