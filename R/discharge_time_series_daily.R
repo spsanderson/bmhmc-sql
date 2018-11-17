@@ -399,7 +399,7 @@ str(monthly.discharges)
 dsch.count <- ts(
   monthly.discharges$cnt
   , frequency = 12
-  , start = c(2010,1)
+  , start = c(2001,1)
 )
 
 plot.ts(dsch.count)
@@ -407,7 +407,7 @@ class(dsch.count)
 
 dsch.count.xts <- as.xts(dsch.count)
 head(dsch.count.xts)
-dsch.count.sub.xts <- window(dsch.count, start = c(2010,1), end = c(2018,9))
+dsch.count.sub.xts <- window(dsch.count, start = c(2001,1), end = c(2018,10))
 dsch.count.sub.xts
 
 # Get time series components ####
