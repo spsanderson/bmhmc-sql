@@ -33,13 +33,14 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-11-13	v1			Initial Creation
+2018-11-16	v2			Add General Outpatient line
 ***********************************************************************
 */
 
---ALTER PROCEDURE [smsdss].[c_LIHN_Svc_Line_sp]
---AS
-CREATE PROCEDURE [smsdss].[c_LIHN_OP_Svc_Line_sp]
+ALTER PROCEDURE [smsdss].[c_LIHN_OP_Svc_Line_sp]
 AS
+--CREATE PROCEDURE [smsdss].[c_LIHN_OP_Svc_Line_sp]
+--AS
 
 SET NOCOUNT ON;
 SET ANSI_WARNINGS OFF;
@@ -200,15 +201,58 @@ BEGIN
 	AND VST.vst_type_cd != 'I'
 
 	/*
+		General Outpatient
+	*/
+	SELECT DISTINCT(SPROC.pt_id)
+	, SPROC.proc_cd_schm
+	, 'General Outpatient' AS [SVC_LINE]
+
+	INTO #GOP
+
+	FROM smsmir.sproc AS SPROC
+	LEFT OUTER JOIN smsmir.vst AS VST
+	ON SPROC.PT_ID = VST.PT_ID
+		AND SPROC.UNIT_SEQ_NO = VST.unit_seq_no
+		AND SPROC.from_file_ind = VST.from_file_ind
+
+	WHERE SPROC.pt_id NOT IN (
+		SELECT A.pt_id
+		FROM #BSOO AS A
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT B.PT_ID
+		FROM #CC AS B
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT C.PT_ID
+		FROM #CE AS C
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT D.PT_ID
+		FROM #CR AS D
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT E.PT_ID
+		FROM #LC AS E
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT F.PT_ID
+		FROM #PTCAOP AS F
+	)
+	AND VST.vst_type_cd != 'I'
+
+	/*
 		Union all tables and take distinct records, account
 		cannot have more than one line assignment
 	*/
 
-	INSERT INTO smsdss.c_LIHN_OP_Svc_Line_Tbl
-
-	SELECT DISTINCT(OPLINE.pt_id)
-	, OPLINE.proc_cd_schm
-	, OPLINE.SVC_LINE
+	SELECT DISTINCT(OPLINE.pt_id) AS PT_ID
+	, OPLINE.proc_cd_schm AS PROC_CD_SCHM
+	, OPLINE.SVC_LINE AS SVC_LINE
+	, [RN] = ROW_NUMBER() OVER(PARTITION BY OPLINE.PT_ID ORDER BY OPLINE.PT_ID)
+	
+	INTO #TEMP_REC_A
+	
 	FROM (
 		SELECT *
 		FROM #BSOO AS A
@@ -237,10 +281,25 @@ BEGIN
 
 		SELECT *
 		FROM #PTCAOP
+
+		UNION
+
+		SELECT *
+		FROM #GOP
 	) AS OPLINE
 	;
 
-	DROP TABLE #BSOO, #CC, #CE, #CR, #LC, #PTCAOP
+	INSERT INTO smsdss.c_LIHN_OP_Svc_Line_Tbl
+	
+	SELECT A.PT_ID
+	, A.PROC_CD_SCHM
+	, A.SVC_LINE
+	
+	FROM #TEMP_REC_A AS A
+	
+	WHERE A.RN = 1
+	;
+	DROP TABLE #BSOO, #CC, #CE, #CR, #LC, #PTCAOP, #TEMP_REC_A
 	;
 
 END
@@ -390,16 +449,60 @@ ELSE BEGIN
 	)
 	AND VST.vst_type_cd != 'I'
 
+	
+	/*
+		General Outpatient
+	*/
+	SELECT DISTINCT(SPROC.pt_id)
+	, SPROC.proc_cd_schm
+	, 'General Outpatient' AS [SVC_LINE]
+
+	INTO #GOP2
+
+	FROM smsmir.sproc AS SPROC
+	LEFT OUTER JOIN smsmir.vst AS VST
+	ON SPROC.PT_ID = VST.PT_ID
+		AND SPROC.UNIT_SEQ_NO = VST.unit_seq_no
+		AND SPROC.from_file_ind = VST.from_file_ind
+
+	WHERE SPROC.pt_id NOT IN (
+		SELECT A.pt_id
+		FROM #BSOO2 AS A
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT B.PT_ID
+		FROM #CC2 AS B
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT C.PT_ID
+		FROM #CE2 AS C
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT D.PT_ID
+		FROM #CR2 AS D
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT E.PT_ID
+		FROM #LC2 AS E
+	)
+	AND SPROC.pt_id NOT IN (
+		SELECT F.PT_ID
+		FROM #PTCAOP2 AS F
+	)
+	AND VST.vst_type_cd != 'I'
+
 	/*
 		Union all tables and take distinct records, account
 		cannot have more than one line assignment
 	*/
 
-	INSERT INTO smsdss.c_LIHN_OP_Svc_Line_Tbl
+	SELECT DISTINCT(OPLINE.pt_id) AS PT_ID
+	, OPLINE.proc_cd_schm AS PROC_CD_SCHM
+	, OPLINE.SVC_LINE AS SVC_LINE
+	, [RN] = ROW_NUMBER() OVER(PARTITION BY OPLINE.PT_ID ORDER BY OPLINE.PT_ID)
 
-	SELECT DISTINCT(OPLINE.pt_id)
-	, OPLINE.proc_cd_schm
-	, OPLINE.SVC_LINE
+	INTO #TEMP_REC_B
+
 	FROM (
 		SELECT *
 		FROM #BSOO2 AS A
@@ -428,6 +531,11 @@ ELSE BEGIN
 
 		SELECT *
 		FROM #PTCAOP2
+
+		UNION
+		
+		SELECT *
+		FROM #GOP2
 	) AS OPLINE
 	WHERE OPLINE.pt_id NOT IN (
 		SELECT DISTINCT(pt_id)
@@ -435,7 +543,18 @@ ELSE BEGIN
 	)
 	;
 
-	DROP TABLE #BSOO2, #CC2, #CE2, #CR2, #LC2, #PTCAOP2
+	INSERT INTO smsdss.c_LIHN_OP_Svc_Line_Tbl
+
+	SELECT B.PT_ID
+	, B.PROC_CD_SCHM
+	, B.SVC_LINE
+
+	FROM #TEMP_REC_B AS B
+
+	WHERE B.RN = 1
+	;
+
+	DROP TABLE #BSOO2, #CC2, #CE2, #CR2, #LC2, #PTCAOP2, #TEMP_REC_B
 	;
 
 END
