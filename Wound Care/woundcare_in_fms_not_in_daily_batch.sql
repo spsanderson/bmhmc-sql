@@ -28,6 +28,8 @@ Date		Version		Description
 ----		----		----
 2018-11-16	v1			Initial Creation
 2018-11-16	v2			Add hosp_svc column
+2018-11-26	v3			Add from_file_ind != '0H'
+2018-11-30	v4			Fix age bucket to prevent auto-format in excel
 ***********************************************************************
 */
 
@@ -44,11 +46,11 @@ SELECT A.PtNo_Num             AS [Encounter]
 	WHEN DATEDIFF(DAY, A.Adm_Date, CAST(GETDATE() AS date)) > 90
 		THEN '> 90'
 	WHEN DATEDIFF(DAY, A.Adm_Date, CAST(GETDATE() AS date)) BETWEEN 61 AND 90
-		THEN '61 - 90'
+		THEN '61 to 90'
 	WHEN DATEDIFF(DAY, A.Adm_Date, CAST(GETDATE() AS date)) BETWEEN 31 AND 60
-		THEN '31 - 60'
+		THEN '31 to 60'
 	WHEN DATEDIFF(DAY, A.Adm_Date, CAST(GETDATE() AS date)) BETWEEN 7 AND 30
-		THEN '7 - 30'
+		THEN '7 to 30'
 		ELSE '< 7'
   END
 , A.Pyr1_Co_Plan_Cd           AS [Primary_Ins_Cd]
@@ -65,6 +67,7 @@ WHERE A.PtNo_Num NOT IN (
 )
 AND A.hosp_svc IN ('WCC', 'WCH')
 AND A.Adm_Date >= '2018-07-01'
+AND A.from_file_ind != '0H'
 
 ORDER BY DATEDIFF(DAY, A.Adm_Date, CAST(GETDATE() AS date)) DESC
 ;
