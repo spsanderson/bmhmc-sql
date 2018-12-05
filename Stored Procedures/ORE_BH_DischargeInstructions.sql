@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BH_DischargeInstructions_test_sp]    Script Date: 7/6/2018 10:51:48 AM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BH_DischargeInstructions_test_sp]    Script Date: 11/30/2018 3:13:10 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -37,8 +37,7 @@ Date		Version		Description
 2018-07-03	v1			Initial Creation
 2018-07-06	v2			Add UserDefinedString15 and 16 from HExtendedPatient
 2018-07-09  v3			Change UDS.UserDefinedString16 into DATE format
-2018-10-22	v4			Add fields from the Care Management Post Hospital Plan
-						Form
+2018-11-30	v4			Add Care Mgmt Post Hosp Plan Collected By CMPHP_CollectedBy
 -------------------------------------------------------------------------------- 
 */
 
@@ -730,6 +729,7 @@ SELECT DISTINCT T1.PatientReasonforSeekingHC
 , PendingOrdersAtDischarge = @OrderDescAsWritten
 , UDS.UDS15
 , UDS.UDS16
+, [CMPHP_CollectedBy]  = CMPHP.UserAbbrName
 , CMPHP.A_BMH_CMACUTERE
 , CMPHP.A_BMH_CMASSTLIV
 , CMPHP.A_BMH_CMCERTHC
