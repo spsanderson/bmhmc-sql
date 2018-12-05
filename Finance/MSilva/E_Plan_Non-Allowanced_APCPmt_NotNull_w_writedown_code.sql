@@ -84,9 +84,10 @@ ON PYRPLAN.PT_ID = INS_NAME.PT_ID
 
 WHERE VST.vst_end_date IS NOT NULL
 AND PYRPLAN.PYR_CD IN (
-'E01','E08','E10','E12','E13','E14','E18','E19','E26','E27','E28','E39','E47', --100% OF APC
+'E01','E08','E10','E12','E13','E14','E18','E19','E26','E27','E28','E39', --100% OF APC
 'E09', --103.5% OF APC
-'E29'  --125% OF APC
+'E29',  --125% OF APC
+'E47' --102% OF APC
 )
 AND VST.tot_bal_amt > 0
 AND PYRPLAN.tot_amt_due > 0
@@ -112,6 +113,8 @@ SELECT A.pt_id
 		THEN A.INS_BAL_AMT - (1.035 * A.APC_Est_Net_Pay_Amt)
 	WHEN A.pyr_cd IN ('E29')
 		THEN a.ins_bal_amt - (1.25 * A.APC_Est_Net_Pay_Amt)
+	WHEN A.PYR_CD IN ('E47')
+		THEN A.INS_BAL_AMT - (1.02 * A.APC_Est_Net_Pay_Amt)
 		ELSE (a.INS_BAL_AMT - A.APC_Est_Net_Pay_Amt)
   END AS [Write_Down_Amt]
 , [write_down_code] = '09701590'
