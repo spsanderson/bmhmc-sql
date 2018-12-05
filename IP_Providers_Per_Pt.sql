@@ -26,7 +26,8 @@ Author: Steven P Sanderson II, MPH
 Department: Finance, Revenue Cycle
 
 Purpose/Description
-	Get a list of all providers on a case that are not the attending or admitting
+	Get a list of all providers on a case that are not the attending or admitting.
+	This will work for coded patients.
 
 Revision History:
 Date		Version		Description
