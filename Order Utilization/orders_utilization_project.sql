@@ -1,4 +1,4 @@
-DROP TABLE smsdss.c_Lab_Rad_Order_Utilization
+--DROP TABLE smsdss.c_Lab_Rad_Order_Utilization
 
 DECLARE @T1 TABLE (
        PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
@@ -69,8 +69,8 @@ WITH T1 AS (
               '004', '005', '006', '013', '014', '023'
        )
        AND C.ord_sts_modf IN ('Complete', 'Discontinue')
-       AND D.adm_date >= '2013-01-01'
-       AND D.adm_date <  '2017-01-01'
+       AND D.adm_date >= '2018-11-01'
+       AND D.adm_date <  '2018-12-01'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
        --AND LEFT(A.episode_no, 1) != '7'
        AND (
@@ -86,6 +86,8 @@ WITH T1 AS (
 
 INSERT INTO @T1
 SELECT * FROM T1
+
+INSERT INTO smsdss.c_Lab_Rad_Order_Utilization
 
 SELECT t1.MRN
 , t1.Encounter
@@ -154,7 +156,6 @@ SELECT t1.MRN
 , t1.Dup_Order
 , T1.Admit_Year
 
-INTO smsdss.c_Lab_Rad_Order_Utilization
 FROM @T1 T1
 WHERE T1.Order_Occ_sts_cd = '4'
 AND T1.SVC_SUB_DEPT NOT IN ('133','117')

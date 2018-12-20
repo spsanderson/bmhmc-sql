@@ -51,7 +51,7 @@ FROM #TEMPA AS A
 LEFT OUTER JOIN smsdss.c_geocoded_address AS GEO
 ON A.PtNo_Num = GEO.Encounter
 
-WHERE A.Med_Rec_No != 'Emergency Department'
+WHERE A.med_staff_dept != 'Emergency Department'
 AND A.pract_rpt_name != 'TEST DOCTOR X'
 
 ORDER BY Dsch_Date

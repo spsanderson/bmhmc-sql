@@ -5,7 +5,8 @@ library(ggmap)
 library(readxl)
 
 # Select the file from the file chooser
-fileToLoad <- file.choose(new = TRUE)
+#fileToLoad <- file.choose(new = TRUE)
+fileToLoad <- "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\daily_geocode_file.xlsx"
 
 # Read in the CSV data and store it in a variable 
 origAddress <- read_xlsx(fileToLoad, col_names = TRUE)

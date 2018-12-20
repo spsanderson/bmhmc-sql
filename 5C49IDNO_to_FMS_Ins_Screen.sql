@@ -33,7 +33,7 @@ Date		Version		Description
 */
 DECLARE @START DATE;
 
-SET @START = CAST(GETDATE() - 1 AS date);
+SET @START = CAST(GETDATE() - 7 AS date);
 
 SELECT ptno_num
 , Pyr1_Co_Plan_Cd

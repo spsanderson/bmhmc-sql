@@ -63,7 +63,7 @@ ac.plot <- ggAcf(df.ts[,"DSCH_COUNT"])
 ac.plot
 
 # Forecasting Methods ####
-df.ts.sub <- window(df.ts, start = c(2010, 1), end = c(2018, 1))
+df.ts.sub <- window(df.ts, start = c(2010, 1), end = c(2018, 11))
 multi.forecast.plot <- autoplot(df.ts.sub[,"DSCH_COUNT"]) +
   autolayer(meanf(df.ts.sub[,"DSCH_COUNT"], h = 12)
             , series = "Mean", PI = F) +

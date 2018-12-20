@@ -67,8 +67,13 @@ FROM (
     AND b.Plm_Pt_Acct_Type = 'I' 
     AND b.tot_chg_amt > 0 
     AND LEFT(B.PTNO_NUM, 1) != '2' 
-    AND LEFT(B.PTNO_NUM, 4) != '1999' 
-    AND b.Dsch_Date = @YESTERDAY
+    AND LEFT(B.PTNO_NUM, 4) != '1999'
+	AND B.PtNo_Num NOT IN (
+		SELECT Encounter
+		FROM smsdss.c_geocoded_address
+	)
+	AND B.Dsch_Date >= '2018-01-01'
+    --AND b.Dsch_Date = @YESTERDAY
 	--AND B.Dsch_Date >= '2018-07-01'
 	--AND B.Dsch_Date < '2018-08-01'
 ) A 

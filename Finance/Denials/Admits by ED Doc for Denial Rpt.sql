@@ -1,8 +1,8 @@
 DECLARE @START DATE;
 DECLARE @END DATE;
 
-SET @START = '2016-01-01';
-SET @END = '2016-07-01';
+SET @START = '2018-01-01';
+SET @END = '2018-11-01';
 
 SELECT COUNT(ED_MD) [Inpatient Count]
 , ED_MD
@@ -16,7 +16,7 @@ SELECT COUNT(ED_MD) [Inpatient Count]
      ELSE 'Other'
   END as 'Payer Category'
 
-FROM SMSDSS.c_Wellsoft_Rpt_tbl     AS A
+FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS A
 INNER JOIN SMSDSS.BMH_PLM_PtAcct_V AS B
 ON A.Account = B.PtNo_Num
 
