@@ -30,6 +30,7 @@ Date		Version		Description
 2018-11-16	v2			Add hosp_svc column
 2018-11-26	v3			Add from_file_ind != '0H'
 2018-11-30	v4			Fix age bucket to prevent auto-format in excel
+2018-12-24	v5			Add A.prin_dx_cd IS NULL
 ***********************************************************************
 */
 
@@ -68,6 +69,7 @@ WHERE A.PtNo_Num NOT IN (
 AND A.hosp_svc IN ('WCC', 'WCH')
 AND A.Adm_Date >= '2018-07-01'
 AND A.from_file_ind != '0H'
+AND A.prin_dx_cd IS NULL
 
 ORDER BY DATEDIFF(DAY, A.Adm_Date, CAST(GETDATE() AS date)) DESC
 ;
