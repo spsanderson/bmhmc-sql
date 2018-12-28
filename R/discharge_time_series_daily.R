@@ -74,14 +74,14 @@ tk_qtr %>%
   annotate(
     "text"
     , x = ymd("2012-01-01")
-    , y = 1000
+    , y = min.discharges
     , color = palette_light()[[1]]
     , label = "Training Region"
   ) +
   annotate(
     "text"
     , x = ymd("2017-01-01")
-    , y = 1200
+    , y = max.discharges
     , color = palette_light()[[1]]
     , label = "Testing Region"
   ) +
@@ -184,14 +184,14 @@ ggplot(aes(x = Time), data = tk_qtr) +
   annotate(
     "text"
     , x = ymd("2012-01-01")
-    , y = 1000
+    , y = min.discharges
     , color = palette_light()[[1]]
     , label = "Training Region"
   ) +
   annotate(
     "text"
     , x = ymd("2017-01-01")
-    , y = 1200
+    , y = max.discharges
     , color = palette_light()[[1]]
     , label = "Testing Region"
   ) +
@@ -294,17 +294,17 @@ tk_qtr %>%
   annotate(
     "text"
     , x = ymd("2011-10-01")
-    , y = 1000
+    , y = min.discharges
     , color = palette_light()[[1]], label = "Train Region") +
   annotate(
     "text"
     , x = ymd("2016-12-01")
-    , y = 1200
+    , y = max.discharges
     , color = palette_light()[[1]], label = "Test Region") +
   annotate(
     "text"
     , x = ymd("2019-01-01")
-    , y = 1400
+    , y = 1.2 * max.discharges
     , color = palette_light()[[1]], label = "Forecast Region") +
   geom_point(
     alpha = 0.5
@@ -407,7 +407,7 @@ class(dsch.count)
 
 dsch.count.xts <- as.xts(dsch.count)
 head(dsch.count.xts)
-dsch.count.sub.xts <- window(dsch.count, start = c(2001,1), end = c(2018,10))
+dsch.count.sub.xts <- window(dsch.count, start = c(2001,1), end = c(2018,11))
 dsch.count.sub.xts
 
 # Get time series components ####
