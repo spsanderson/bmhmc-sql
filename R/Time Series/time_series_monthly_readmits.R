@@ -24,10 +24,17 @@ readmits$Time <- lubridate::mdy(readmits$Time)
 ta.readmits <- as_tbl_time(readmits, index = Time)
 head(ta.readmits)
 
+min.date  <- min(ta.readmits$Time)
+min.year  <- year(min.date)
+min.month <- month(min.date)
+max.date  <- max(ta.readmits$Time)
+max.year  <- year(max.date)
+max.month <- month(max.date)
+
 ta.readmits.ts <- tk_ts(
   ta.readmits
-  , start = c(2014,1)
-  , end = c(2018,10)
+  , start = c(min.year, min.month)
+  , end = c(max.year, max.month)
   , frequency = 365
   )
 has_timetk_idx(ta.readmits.ts)
@@ -135,13 +142,18 @@ head(test.monthly.augmented, 1)
 monthly.rr.ts <- ts(
   tk.monthly$readmit.rate
   , frequency = 12
-  , start = c(2014,1)
+  , start = c(min.year, min.month)
+  , end = c(max.year, max.month)
 )
 plot.ts(monthly.rr.ts)
 class(monthly.rr.ts)
 monthly.rr.xts <- as.xts(monthly.rr.ts)
 head(monthly.rr.xts)
-monthly.rr.sub.xts <- window(monthly.rr.ts, start = c(2014,1), end=c(2018,10))
+monthly.rr.sub.xts <- window(
+	monthly.rr.ts
+	, start = c(min.year, min.month)
+  , end = c(max.year, max.month)
+)
 monthly.rr.sub.xts
 
 # TS components ####
@@ -166,7 +178,7 @@ monthly.hw.fcast <- hw(
   monthly.rr.sub.xts
   , h = 12
   , alpha = monthly.fit.hw$alpha
-  # , gamma = monthly.fit.hw$gamma
+  , gamma = monthly.fit.hw$gamma
 )
 summary(monthly.hw.fcast)
 
@@ -178,6 +190,7 @@ mape.hw <- monthly.hw.perf$MAPE
 monthly.hw.pred <- sw_sweep(monthly.hw.fcast) %>%
   filter(sw_sweep(monthly.hw.fcast)$key == 'forecast')
 print(monthly.hw.pred)
+hw.pred <- head(monthly.hw.pred$value, 1)
 
 # Vis HW predict ####
 monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
@@ -218,6 +231,8 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     , subtitle = paste0(
       "HoltWinters Model - 12 Month forecast - MAPE = "
       , round(mape.hw, 2)
+      , " - Forecast = "
+      , round(hw.pred, 2)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -231,6 +246,8 @@ monthly.snaive.fit <- snaive(monthly.rr.sub.xts, h = 12)
 monthly.sn.pred <- sw_sweep(monthly.snaive.fit) %>%
   filter(sw_sweep(monthly.snaive.fit)$key == 'forecast')
 print(monthly.sn.pred)
+
+sn.pred <- head(monthly.sn.pred$value, 1)
 
 # Calculate Errors
 test.residuals.snaive <- monthly.snaive.fit$residuals
@@ -275,6 +292,8 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     , subtitle = paste0(
      "S-Naive Model - 12 Month forecast - MAPE = "
      , round(mape.snaive, 2)
+     , " - Forecast = "
+     , round(sn.pred, 2)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -317,6 +336,8 @@ monthly.ets.fcast <- monthly.ets.ref %>%
 monthly.ets.pred <- sw_sweep(monthly.ets.fcast) %>%
   filter(sw_sweep(monthly.ets.fcast)$key == 'forecast')
 
+ets.pred <- head(monthly.ets.pred$value, 1)
+
 # Visualize
 monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
   ggplot(
@@ -356,6 +377,8 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     , subtitle = paste0(
       "ETS Model - 12 Month forecast - MAPE = "
       , round(mape.ets, 2)
+      , " - Forecast = "
+      , round(ets.pred, 2)
     )
   ) +
   scale_x_yearmon(
@@ -393,6 +416,8 @@ tail(sw_sweep(monthly.aa.fcast), 12)
 monthly.aa.pred <- sw_sweep(monthly.aa.fcast) %>%
   filter(sw_sweep(monthly.aa.fcast)$key == 'forecast')
 print(monthly.aa.pred)
+
+aa.pred <- head(monthly.aa.pred$value, 1)
 
 # AA Errors
 monthly.aa.perf <- sw_glance(monthly.aa.fit)
@@ -437,6 +462,8 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     , subtitle = paste0(
       "Auto Arima Model - 12 Month forecast - MAPE = "
       , round(mape.aa, 2)
+      , " - Forecast = "
+      , round(aa.pred, 2)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -474,9 +501,9 @@ gridExtra::grid.arrange(
 )
 
 # 1 Month Pred
-hw.pred <- head(monthly.ets.pred$value, 1)
-hw.pred.lo.95 <- head(monthly.ets.pred$lo.95, 1)
-hw.pred.hi.95 <- head(monthly.ets.pred$hi.95, 1)
+hw.pred <- head(monthly.hw.pred$value, 1)
+hw.pred.lo.95 <- head(monthly.hw.pred$lo.95, 1)
+hw.pred.hi.95 <- head(monthly.hw.pred$hi.95, 1)
 
 sn.pred <- head(monthly.sn.pred$value, 1)
 sn.pred.lo.95 <- head(monthly.sn.pred$lo.95, 1)
@@ -546,3 +573,57 @@ valid.tbl <- tk.monthly.tbl.clean %>% filter(year == 2017)
 test.tbl  <- tk.monthly.tbl.clean %>% filter(year == 2018)
 
 h2o.init()
+
+train.h2o <- as.h2o(train.tbl)
+valid.h2o <- as.h2o(valid.tbl)
+test.h2o <- as.h2o(test.tbl)
+
+y <- "readmit.rate"
+x <- setdiff(names(train.h2o), y)
+
+automl.models.h2o <- h2o.automl(
+  x = x
+  , y = y
+  , training_frame = train.h2o
+  , validation_frame = valid.h2o
+  , leaderboard_frame = test.h2o
+  , max_runtime_secs = 60
+  , stopping_metric = "deviance"
+)
+
+automl.leader <- automl.models.h2o@leader
+
+pred.h2o <- h2o.predict(
+  automl.leader
+  , newdata = test.h2o
+)
+
+h2o.performance(
+  automl.leader
+  , newdata = test.h2o
+)
+
+# get mape
+automl.error.tbl <- tk.monthly %>%
+  filter(lubridate::year(Time) == 2018) %>%
+  add_column(
+    pred = pred.h2o %>%
+      as.tibble() %>%
+      pull(predict)
+    ) %>%
+  rename(actual = readmit.rate) %>%
+  mutate(
+    error = actual - pred
+    , error.pct = error / actual
+  )
+print(automl.error.tbl)
+
+automl.error.tbl %>%
+  summarize(
+    me = mean(error)
+    , rmse = mean(error^2)^0.5
+    , mae = mean(abs(error))
+    , mape = mean(abs(error))
+    , mpe = mean(error.pct)
+  ) %>%
+  glimpse()

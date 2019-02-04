@@ -1,9 +1,8 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [smsdss].[c_lihn_svc_dept_desc_bench_sp]    Script Date: 1/17/2019 8:13:10 AM ******/
 SET ANSI_NULLS ON
 GO
-
 SET QUOTED_IDENTIFIER ON
 GO
 
@@ -33,9 +32,11 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2018-10-11	v1			Initial Creation
-2018-11-1	v2			Take out glucometer readings per discussion with CQMO
+2018-11-01	v2			Take out glucometer readings per discussion with CQMO
 						Change Order_Year to Benchmark_Year
 						Add Report Year (Benchmark_Year + 1)
+2019-01-17	v3			Fix Order_Year > in ELSE statement to use MAX(ZZZ.Benchmark_Year)		
+						NOT MAX(ZZZ.Order_Year)
 -------------------------------------------------------------------------------- 
 */
 
@@ -114,8 +115,8 @@ BEGIN
 	, ROUND(A.[ORDER COUNT] / CAST(A.PT_COUNT AS float), 2)
 	, Rundate = CAST(GETDATE() AS date)
 	, RunDTime = GETDATE()
-	, Order_Year
-	, (Order_Year + 1)
+	, a.Order_Year
+	, (a.Order_Year + 1)
 
 	FROM #TEMP_A AS A
 
@@ -184,7 +185,7 @@ ELSE BEGIN
 	FROM #TEMP_B AS A
 
 	WHERE Order_Year > (
-		SELECT MAX(ZZZ.Order_Year)
+		SELECT MAX(ZZZ.Benchmark_Year)
 		FROM smsdss.c_order_utilization_lihn_svc_w_order_dept_desc_bench AS ZZZ
 	)
 

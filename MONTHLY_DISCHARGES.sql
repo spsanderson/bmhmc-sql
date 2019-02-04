@@ -8,3 +8,6 @@ WHERE Dsch_Date >= '2012-01-01'
 AND Dsch_Date < '2014-06-01'
 AND Plm_Pt_Acct_Type = 'I'
 AND PtNo_Num < '20000000'
+AND Tot_Chg_Amt > 0
+AND LEFT(PtNo_Num, 1) != '2'
+AND LEFT(PtNo_Num, 4) != '1999'

@@ -1,18 +1,15 @@
 # ALOS Mapping File
 # Mapping a geocoded csv column of "addresses" in R
 
-#load ggmap
+# Lib Load ####
+# load libraries
 library(ggmap)
-library(rworldmap)
-library(rworldxtra)
 library(leaflet)
 library(readxl)
 library(rgdal)
 library(htmltools)
 library(dplyr)
-library(magrittr)
 library(readr)
-library(knitr)
 
 # Select the file from the file chooser
 fileToLoad <- file.choose(new = TRUE)

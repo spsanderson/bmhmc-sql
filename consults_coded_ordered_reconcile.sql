@@ -1,3 +1,36 @@
+/*
+***********************************************************************
+File: consults_coded_ordered_reconscile.sql
+
+Input Parameters:
+	None
+
+Tables/Views:
+	smsdss.c_Coaded_Consults_v
+	smsmir.sr_ord AS SO
+	smsmir.sr_ord_sts_hist AS SOSH
+	smsdss.BMH_PLM_PtAcct_V AS PAV
+	smsdss.pract_dim_v AS PDV
+
+Creates Table:
+	Enter Here
+
+Functions:
+	Enter Here
+
+Author: Steven P Sanderson II, MPH
+
+Department: Finance, Revenue Cycle
+
+Purpose/Description
+	Entere Here
+
+Revision History:
+Date		Version		Description
+----		----		----
+2018-12-20	v1			Initial Creation
+***********************************************************************
+*/
 DECLARE @TODAY DATE;
 DECLARE @START DATE;
 DECLARE @END   DATE;

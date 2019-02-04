@@ -1,3 +1,41 @@
+/*
+***********************************************************************
+File: wound_care_daily_acknowledgement.sql
+
+Input Parameters:
+	None
+
+Tables/Views:
+	smsdss.c_wound_care_daily_batch
+
+Creates Table:
+	None
+
+Functions:
+	None
+
+Author: Steven P Sanderson II, MPH
+
+Department: Finance, Revenue Cycle
+
+Purpose/Description
+	Capture files arrived by date, show null for those dates no files
+	had arrived
+
+Revision History:
+Date		Version		Description
+----		----		----
+2019-01-22	v1			Initial Creation
+2019-01-25	v2			Change @ENDDATE to CAST(GETDATE() -1 AS date)
+***********************************************************************
+*/
+DECLARE @STARTDATE DATETIME;
+DECLARE @ENDDATE   DATETIME;
+
+SET @STARTDATE = (SELECT MIN(CAST([FILE ARRIVED] AS date)) FROM smsdss.c_wound_care_daily_batch);
+--SET @ENDDATE   = (SELECT MAX(CAST([FILE ARRIVED] AS date)) FROM smsdss.c_wound_care_daily_batch);
+SET @ENDDATE   = CAST(GETDATE() -1 AS date);
+
 DECLARE @SVC_DATES TABLE (
        [File_Date] DATE
 );
@@ -92,8 +130,15 @@ WITH CTE1 AS (
 INSERT INTO @BWC_LOADED
 SELECT * FROM CTE1;
 -----------------------------------------------------------------------
+WITH CALENDARDATES AS (
+	SELECT SVC_DATE = @STARTDATE
+	UNION ALL
+	SELECT DATEADD(DAY, 1, SVC_DATE)
+	FROM CALENDARDATES
+	WHERE DATEADD(DAY, 1, SVC_DATE) <= @ENDDATE
+)
 
-SELECT CAST(A.[File_Date] AS DATE) AS [File_Date]
+SELECT ZZZ.SVC_DATE                   AS [File_Date]
 , ISNULL(B.[Count], 0)                AS [Hauppauge Arrived Count]
 , ISNULL(C.[Count], 0)                AS [Patchogue Arrived Count]
 , (
@@ -116,11 +161,17 @@ LEFT JOIN @HAUPP_LOADED AS D
 ON A.[File_Date] = D.[File Loaded]
 LEFT JOIN @BWC_LOADED   AS E
 ON A.[File_Date] = E.[File Loaded]
+RIGHT OUTER JOIN CALENDARDATES AS ZZZ
+ON A.File_Date = ZZZ.SVC_DATE
 
-GROUP BY A.[File_Date]
+GROUP BY ZZZ.SVC_DATE
+, A.[File_Date]
 , B.[Count]
 , C.[Count]
 , D.[Count]
 , E.[Count]
 
-ORDER BY CAST(a.[File_Date] AS DATE) DESC;
+ORDER BY CAST(ZZZ.SVC_DATE AS DATE) DESC
+
+OPTION (MAXRECURSION 0)
+;

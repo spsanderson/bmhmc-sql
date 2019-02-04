@@ -3,7 +3,6 @@ DECLARE @START DATE;
 DECLARE @END   DATE;
 
 SET @TODAY = CAST(GETDATE() AS date);
-SET @TODAY = DATEADD(MM, DATEDIFF(MM, 0, @TODAY), 0);
 SET @START = DATEADD(MM, DATEDIFF(MM, 0, @TODAY) - 18, 0);
 SET @END   = dateadd(mm, datediff(mm, 0, @TODAY), 0);
 
@@ -50,18 +49,18 @@ SELECT b.Pt_No
 
 INTO #TEMPA
 
-FROM smsdss.c_LIHN_Svc_Line_tbl     AS a
-LEFT JOIN smsdss.BMH_PLM_PtAcct_V             AS b
+FROM smsdss.c_LIHN_Svc_Line_tbl                   AS a
+LEFT JOIN smsdss.BMH_PLM_PtAcct_V                 AS b
 ON a.Encounter = b.Pt_No
-LEFT JOIN Customer.Custom_DRG                 AS c
+LEFT JOIN Customer.Custom_DRG                     AS c
 ON b.PtNo_Num = c.PATIENT#
-LEFT JOIN smsdss.c_LIHN_SPARCS_BenchmarkRates AS d
+LEFT JOIN smsdss.c_LIHN_SPARCS_BenchmarkRates     AS d
 ON c.APRDRGNO = d.[APRDRG Code]
 	AND c.SEVERITY_OF_ILLNESS = d.SOI
 	AND d.[Measure ID] = 4
 	AND d.[Benchmark ID] = 3
 	AND a.LIHN_Svc_Line = d.[LIHN Service Line]
-LEFT JOIN smsdss.pract_dim_v                  AS e
+LEFT JOIN smsdss.pract_dim_v                      AS e
 ON b.Atn_Dr_No = e.src_pract_no
 	AND e.orgz_cd = 's0x0'
 LEFT JOIN smsdss.c_LIHN_APR_DRG_OutlierThresholds AS f

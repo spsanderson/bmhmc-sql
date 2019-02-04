@@ -36,6 +36,7 @@ Date		Version		Description
 ----		----		----
 2018-12-05	v1			Initial Creation
 2018-12-18	v2			Fix table scheme from dbo to smsdss
+2019-01-07	v3			Drop "J" accounts
 ***********************************************************************
 */
 
@@ -144,6 +145,7 @@ BEGIN
 		)
 	)
 	AND A.[START_DATE] >= '2010-01-01'
+	AND RIGHT(c.FACILITY_ACCOUNT_NO, 1) != 'J'
 	;
 
 END
@@ -216,6 +218,7 @@ ELSE BEGIN
 		SELECT XXX.ORSOS_Case_No
 		FROM smsdss.c_ORSOS_Post_Case_Rpt_Tbl AS XXX
 	)
+	AND RIGHT(c.FACILITY_ACCOUNT_NO, 1) != 'J'
 	;
 
 END

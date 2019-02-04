@@ -1,5 +1,5 @@
-# Readmit TS Analysis
 # Lib Load ####
+# Time Series analysis on Daily ALOS ELOS
 library(tidyquant)
 library(broom)
 library(timetk)
@@ -15,83 +15,87 @@ library(urca)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
-readmits <- read.csv(fileToLoad)
+discharges <- read.csv(fileToLoad)
 rm(fileToLoad)
 
 # Time Aware Tibble ####
 # Make a time aware tibble
-readmits$Time <- lubridate::mdy(readmits$Time)
-ta.readmits <- as_tbl_time(readmits, index = Time)
-head(ta.readmits)
+discharges$Time <- lubridate::mdy(discharges$Time)
+ta.discharges <- as_tbl_time(discharges, index = Time)
+head(ta.discharges)
 
-min.date  <- min(ta.readmits$Time)
+min.date  <- min(ta.discharges$Time)
 min.year  <- year(min.date)
 min.month <- month(min.date)
-max.date  <- max(ta.readmits$Time)
+max.date  <- max(ta.discharges$Time)
 max.year  <- year(max.date)
 max.month <- month(max.date)
 
-ta.readmits.ts <- tk_ts(
-  ta.readmits
+#timetk Daily
+ta.discharges.ts <- tk_ts(
+  ta.discharges
   , start = c(min.year, min.month)
   , end = c(max.year, max.month)
   , frequency = 365
 )
-has_timetk_idx(ta.readmits.ts)
+has_timetk_idx(ta.discharges.ts)
 
-
-# Make Monthly objects
-tk.monthly <- ta.readmits %>%
+# Make Monthly objets
+tk.monthly <- ta.discharges %>%
   collapse_by("monthly") %>%
   group_by(Time, add = TRUE) %>%
   summarize(
-    excess.rate = round(mean(EXCESS), 4)
+    cnt = sum(DSCH_COUNT)
+    , total.days = sum(SUM_DAYS)
+    , total.exp.days = sum(SUM_EXP_DAYS)
+    , alos = total.days / cnt
+    , elos = total.exp.days / cnt
+    , total.excess = total.days - total.exp.days
+    , avg.daily.excess = alos - elos
   )
-head(tk.monthly)
-tail(tk.monthly)
+head(tk.monthly, 5)
+tail(tk.monthly, 5)
 
 # Get Parameters ####
-max.readmitrate.monthly <- max(tk.monthly$excess.rate)
-min.readmitrate.monthly <- min(tk.monthly$excess.rate)
+max.discharges.monthly <- max(tk.monthly$total.excess)
+min.discharges.monthly <- min(tk.monthly$total.excess)
 
 start.date.monthly <- min(tk.monthly$Time)
-end.date.monthly <- max(tk.monthly$Time)
+end.date.monthly   <- max(tk.monthly$Time)
 
 training.region.monthly <- round(nrow(tk.monthly) * 0.7, 0)
-test.region.monthly <- nrow(tk.monthly) - training.region.monthly
+test.region.monthly     <- nrow(tk.monthly) - training.region.monthly
 
-training.stop.date.monthly <- as.Date(max(tk.monthly$Time)) %m-% 
-  months(as.numeric(test.region.monthly), abbreviate = F)
+training.stop.date.monthly <- as.Date(max(tk.monthly$Time)) %m-% months(
+  as.numeric(test.region.monthly), abbreviate = F)
 
-# Plot initial data ####
-# Monthly
+# Plot intial Data ####
 tk.monthly %>%
   ggplot(
     aes(
       x = Time
-      , y = excess.rate
+      , y = total.excess
     )
-  ) + 
+  ) +
   geom_rect(
     xmin = as.numeric(ymd(training.stop.date.monthly))
     , xmax = as.numeric(ymd(end.date.monthly))
-    , ymin = (0.9 * min.readmitrate.monthly)
-    , ymax = (1.1 * max.readmitrate.monthly)
+    , ymin = (min.discharges.monthly * 0.9)
+    , ymax = (max.discharges.monthly * 1.1)
     , fill = palette_light()[[4]]
     , alpha = 0.01
   ) +
   annotate(
     "text"
-    , x = ymd("2017-01-01")
-    , y = min.readmitrate.monthly
+    , x = ymd("2015-01-01")
+    , y = min.discharges.monthly
     , color = palette_light()[[1]]
     , label = "Training Region"
   ) +
   annotate(
     "text"
-    #, x = ymd("2018-01-01")
-    , x = training.stop.date.monthly
-    , y = max.readmitrate.monthly
+    , x = ymd("2018-06-01")
+    , y = max.discharges.monthly
     , color = palette_light()[[1]]
     , label = "Testing Region"
   ) +
@@ -108,7 +112,7 @@ tk.monthly %>%
     , color = 'red'
   ) +
   labs(
-    title = "Excess Readmit Rate: Monthly Scale"
+    title = "Excess Days for IP Discharges: Monthly Scale"
     , subtitle = "Source: DSS"
     , caption = paste0(
       "Based on discharges from: "
@@ -116,41 +120,61 @@ tk.monthly %>%
       , " through "
       , end.date.monthly
     )
-    , y = "Readmit Rate"
+    , y = "Excess Days"
     , x = ""
   ) +
   theme_tq()
 
+# Train / Test Data Sets ####
+# Monthly train/test
+train.monthly <- tk.monthly %>%
+  filter(Time < training.stop.date.monthly)
+head(train.monthly, 1)
+
+test.monthly <- tk.monthly %>%
+  filter(Time >= training.stop.date.monthly)
+head(test.monthly, 1)
+
+# Monthly
+train.monthly.augmented <- train.monthly %>%
+  tk_augment_timeseries_signature()
+head(train.monthly.augmented, 1)
+
+test.monthly.augmented <- test.monthly %>%
+  tk_augment_timeseries_signature()
+head(test.monthly.augmented, 1)
+
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object
-monthly.rr.ts <- ts(
-  tk.monthly$excess.rate
+monthly.dsch.ts <- ts(
+  tk.monthly$total.excess
   , frequency = 12
   , start = c(min.year, min.month)
+  , end   = c(max.year, max.month)
 )
-plot.ts(monthly.rr.ts)
-class(monthly.rr.ts)
-monthly.rr.xts <- as.xts(monthly.rr.ts)
-head(monthly.rr.xts)
-monthly.rr.sub.xts <- window(
-  monthly.rr.ts
+plot.ts(monthly.dsch.ts)
+class(monthly.dsch.ts)
+monthly.dsch.xts <- as.xts(monthly.dsch.ts)
+head(monthly.dsch.xts)
+monthly.dsch.sub.xts <- window(
+  monthly.dsch.ts
   , start = c(min.year, min.month)
   , end = c(max.year, max.month)
   )
-monthly.rr.sub.xts
+monthly.dsch.sub.xts
 
 # TS components ####
-monthly.components <- decompose(monthly.rr.sub.xts)
+monthly.components <- decompose(monthly.dsch.sub.xts)
 names(monthly.components)
 monthly.components$seasonal
 plot(monthly.components)
 
 # Get stl object ####
-monthly.compl <- stl(monthly.rr.sub.xts, s.window = "periodic")
+monthly.compl <- stl(monthly.dsch.sub.xts, s.window = "periodic")
 plot(monthly.compl)
 
 # HW Model ####
-monthly.fit.hw <- HoltWinters(monthly.rr.sub.xts)
+monthly.fit.hw <- HoltWinters(monthly.dsch.sub.xts)
 monthly.fit.hw
 monthly.hw.est.params <- sw_tidy(monthly.fit.hw)
 plot(monthly.fit.hw)
@@ -158,10 +182,11 @@ plot.ts(monthly.fit.hw$fitted)
 
 # Forecast HW ####
 monthly.hw.fcast <- hw(
-  monthly.rr.sub.xts
+  monthly.dsch.sub.xts
   , h = 12
   , alpha = monthly.fit.hw$alpha
-  # , gamma = monthly.fit.hw$gamma
+  , gamma = monthly.fit.hw$gamma
+  # , beta  = monthly.fit.hw$beta
 )
 summary(monthly.hw.fcast)
 
@@ -208,14 +233,14 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "IP Excess Readmit Rate Forecast - HW"
+    title = "Forecast for Excess IP Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
       "HoltWinters Model - 12 Month forecast - MAPE = "
       , round(mape.hw, 2)
       , " - Forecast = "
-      , round(hw.pred, 2)
+      , round(hw.pred, 0)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -225,11 +250,10 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
 print(monthly.hw.fcast.plt)
 
 # S-Naive Model ####
-monthly.snaive.fit <- snaive(monthly.rr.sub.xts, h = 12)
+monthly.snaive.fit <- snaive(monthly.dsch.sub.xts, h = 12)
 monthly.sn.pred <- sw_sweep(monthly.snaive.fit) %>%
   filter(sw_sweep(monthly.snaive.fit)$key == 'forecast')
 print(monthly.sn.pred)
-
 sn.pred <- head(monthly.sn.pred$value, 1)
 
 # Calculate Errors
@@ -269,14 +293,14 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     size = 1
   ) +
   labs(
-    title = "IP Excess Readmit Rate Forecast - S-Naive"
+    title = "Forecast for Excess IP Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
       "S-Naive Model - 12 Month forecast - MAPE = "
       , round(mape.snaive, 2)
       , " - Forecast = "
-      , round(sn.pred, 2)
+      , round(sn.pred, 0)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -286,7 +310,7 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
 print(monthly.snaive.plt)
 
 # ETS Model #####
-monthly.ets.fit <- monthly.rr.sub.xts %>%
+monthly.ets.fit <- monthly.dsch.sub.xts %>%
   ets()
 summary(monthly.ets.fit)
 
@@ -296,10 +320,12 @@ monthly.ets.train.augment  <- sw_augment(monthly.ets.fit)
 monthly.ets.train.decomp   <- sw_tidy_decomp(monthly.ets.fit)
 monthly.ets.alpha.train    <- monthly.ets.fit$par[["alpha"]]
 
-monthly.ets.ref <- monthly.rr.sub.xts %>%
+monthly.ets.ref <- monthly.dsch.sub.xts %>%
   ets(
     ic = "bic"
-    , alpha = monthly.ets.alpha.train
+    , alpha = monthly.ets.fit$par[["alpha"]]
+    # , beta  = monthly.ets.fit$par[["beta"]]
+    # , gamma = monthly.ets.fit$par[["gamma"]]
   )
 monthly.ets.ref.params   <- sw_tidy(monthly.ets.ref)
 monthly.ets.ref.accuracy <- sw_glance(monthly.ets.ref)
@@ -319,7 +345,6 @@ monthly.ets.fcast <- monthly.ets.ref %>%
 monthly.ets.pred <- sw_sweep(monthly.ets.fcast) %>%
   filter(sw_sweep(monthly.ets.fcast)$key == 'forecast')
 print(monthly.ets.pred)
-
 ets.pred <- head(monthly.ets.pred$value, 1)
 
 # Visualize
@@ -355,14 +380,14 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "IP Excess Readmit Rate Forecast - ETS"
+    title = "Forecast for Excess IP Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
       "ETS Model - 12 Month forecast - MAPE = "
       , round(mape.ets, 2)
       , " - Forecast = "
-      , round(ets.pred, 2)
+      , round(ets.pred, 0)
     )
   ) +
   scale_x_yearmon(
@@ -376,22 +401,22 @@ print(monthly.ets.fcast.plt)
 
 # Auto Arima ####
 # Is the data stationary?
-monthly.rr.ts %>% ur.kpss() %>% summary()
+monthly.dsch.ts %>% ur.kpss() %>% summary()
 # Is the data stationary after differencing
-monthly.rr.ts %>% diff() %>% ur.kpss() %>% summary()
+monthly.dsch.ts %>% diff() %>% ur.kpss() %>% summary()
 # How many differences make it stationary
-ndiffs(monthly.rr.ts)
-rr.diffs <- ndiffs(monthly.rr.ts)
+ndiffs(monthly.dsch.ts)
+dsch.diffs <- ndiffs(monthly.dsch.ts)
 # Seasonal differencing?
-nsdiffs(monthly.rr.ts)
+nsdiffs(monthly.dsch.ts)
 # Re-plot
-monthly.rr.ts.diff <- diff(monthly.rr.ts)#, differences = rr.diffs)
-plot.ts(monthly.rr.ts.diff)
-acf(monthly.rr.ts.diff, lag.max = 20)
-acf(monthly.rr.ts.diff, plot = F)
+monthly.dsch.ts.diff <- diff(monthly.dsch.ts)#, differences = rr.diffs)
+plot.ts(monthly.dsch.ts.diff)
+acf(monthly.dsch.ts.diff, lag.max = 20)
+acf(monthly.dsch.ts.diff, plot = F)
 
 # Auto Arima
-monthly.aa.fit <- auto.arima(monthly.rr.ts)
+monthly.aa.fit <- auto.arima(monthly.dsch.ts)
 sw_glance(monthly.aa.fit)
 monthly.aa.fcast <- forecast(monthly.aa.fit, h = 12)
 tail(sw_sweep(monthly.aa.fcast), 12)
@@ -400,7 +425,6 @@ tail(sw_sweep(monthly.aa.fcast), 12)
 monthly.aa.pred <- sw_sweep(monthly.aa.fcast) %>%
   filter(sw_sweep(monthly.aa.fcast)$key == 'forecast')
 print(monthly.aa.pred)
-
 aa.pred <- head(monthly.aa.pred$value, 1)
 
 # AA Errors
@@ -440,14 +464,14 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "IP Readmit Rate Forecast - Auto Arima"
+    title = "Forecast for Excess IP Day: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
       "Auto Arima Model - 12 Month forecast - MAPE = "
       , round(mape.aa, 2)
       , " - Forecast = "
-      , round(aa.pred, 2)
+      , round(aa.pred, 0)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -562,7 +586,7 @@ train.h2o <- as.h2o(train.tbl)
 valid.h2o <- as.h2o(valid.tbl)
 test.h2o <- as.h2o(test.tbl)
 
-y <- "excess.rate"
+y <- "total.excess"
 x <- setdiff(names(train.h2o), y)
 
 automl.models.h2o <- h2o.automl(
@@ -595,7 +619,7 @@ automl.error.tbl <- tk.monthly %>%
       as.tibble() %>%
       pull(predict)
   ) %>%
-  rename(actual = excess.rate) %>%
+  rename(actual = cnt) %>%
   mutate(
     error = actual - pred
     , error.pct = error / actual
@@ -611,5 +635,3 @@ automl.error.tbl %>%
     , mpe = mean(error.pct)
   ) %>%
   glimpse()
-
-h2o::h2o.shutdown()

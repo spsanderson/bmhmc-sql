@@ -1,11 +1,11 @@
 -- this is used to create the smsdss.c_ed_e_and_m_order_utilization_project table
-DROP TABLE smsdss.c_ed_e_and_m_order_utilization_project
+--DROP TABLE smsdss.c_ed_e_and_m_order_utilization_project
 
 DECLARE @START DATE;
 DECLARE @END   DATE;
 
-SET @START = '2013-01-01';
-SET @END   = '2016-07-01';
+SET @START = '2018-12-01';
+SET @END   = '2019-01-01';
 -----------------------------------------------------------------------
 DECLARE @EDRad TABLE (
 PK INT IDENTITY(1, 1) NOT NULL PRIMARY KEY
@@ -25,7 +25,7 @@ SELECT A.Account
 , A.Arrival
 , COUNT(B.Encounter) AS [Total ED Rad Orders]
 
-FROM smsdss.c_Wellsoft_Rpt_tbl               AS A
+FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS A
 LEFT JOIN SMSDSS.c_Lab_Rad_Order_Utilization AS B
 ON A.Account = B.Encounter
 AND B.ED_IP_FLAG = 'ED'
@@ -64,7 +64,7 @@ SELECT A.Account
 , A.Arrival
 , COUNT(C.Encounter) AS [Total ED Lab Orders]
 
-FROM smsdss.c_Wellsoft_Rpt_tbl               AS A
+FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS A
 LEFT JOIN smsdss.c_Lab_Rad_Order_Utilization AS C
 ON A.Account = C.Encounter
 AND C.ED_IP_FLAG = 'ED'
@@ -85,6 +85,8 @@ INSERT INTO @EDLab
 SELECT * FROM CTE1
 --SELECT * FROM @EDLab
 -----------------------------------------------------------------------
+INSERT INTO smsdss.c_ed_e_and_m_order_utilization_project
+
 SELECT A.Encounter
 , A.EDMDID
 , A.ED_MD
@@ -98,8 +100,6 @@ ISNULL(A.Total_ED_Lab_Orders, 0)
 ISNULL(B.Total_ED_Rad_Orders, 0)
 )                                  AS [Total_ED_Orders]
 , C.er_level
-
-INTO smsdss.c_ed_e_and_m_order_utilization_project
 
 FROM @EDLab                  AS A
 LEFT OUTER MERGE JOIN @EDRad AS B

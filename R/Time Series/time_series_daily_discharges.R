@@ -22,18 +22,22 @@ rm(fileToLoad)
 # Make a time aware tibble
 discharges$Time <- lubridate::mdy(discharges$Time)
 ta.discharges <- as_tbl_time(discharges, index = Time)
-head(ta.discharges, 5)
+head(ta.discharges)
+
+min.date  <- min(ta.discharges$Time)
+min.year  <- year(min.date)
+min.month <- month(min.date)
+max.date  <- max(ta.discharges$Time)
+max.year  <- year(max.date)
+max.month <- month(max.date)
 
 #timetk Daily
-ta.discharges.ts <- tk_ts(ta.discharges,
-              start = 2010,
-              frequency = 365
+ta.discharges.ts <- tk_ts(
+  ta.discharges
+  , start = c(min.year, min.month)
+  , end = c(max.year, max.month)
+  , frequency = 365
 )
-class(ta.discharges.ts)
-
-# timetk_index <- tk_index(tk_d, timetk_idx = TRUE)
-# head(timetk_index)
-# class(timetk_index)
 has_timetk_idx(ta.discharges.ts)
 
 # Make Monthly objets
@@ -42,14 +46,13 @@ tk.monthly <- ta.discharges %>%
   group_by(Time, add = TRUE) %>%
   summarize(
     cnt = sum(DSCH_COUNT)
-    #, cnt.log = log(sum(DSCH_COUNT))
   )
-head(tk.monthly)
-tail(tk.monthly)
+head(tk.monthly, 5)
+tail(tk.monthly, 5)
 
 # Get Parameters ####
-max.discharges <- max(tk.monthly$cnt)
-min.discharges <- min(tk.monthly$cnt)
+max.discharges.monthly <- max(tk.monthly$cnt)
+min.discharges.monthly <- min(tk.monthly$cnt)
 
 start.date.monthly <- min(tk.monthly$Time)
 end.date.monthly   <- max(tk.monthly$Time)
@@ -71,22 +74,22 @@ tk.monthly %>%
   geom_rect(
     xmin = as.numeric(ymd(training.stop.date.monthly))
     , xmax = as.numeric(ymd(end.date.monthly))
-    , ymin = (min.discharges * 0.9)
-    , ymax = (max.discharges * 1.1)
+    , ymin = (min.discharges.monthly * 0.9)
+    , ymax = (max.discharges.monthly * 1.1)
     , fill = palette_light()[[4]]
     , alpha = 0.01
   ) +
   annotate(
     "text"
     , x = ymd("2012-01-01")
-    , y = min.discharges
+    , y = min.discharges.monthly
     , color = palette_light()[[1]]
     , label = "Training Region"
   ) +
   annotate(
     "text"
     , x = ymd("2017-01-01")
-    , y = max.discharges
+    , y = max.discharges.monthly
     , color = palette_light()[[1]]
     , label = "Testing Region"
   ) +
@@ -116,32 +119,56 @@ tk.monthly %>%
   ) +
   theme_tq()
 
+# Train / Test Data Sets ####
+# Monthly train/test
+train.monthly <- tk.monthly %>%
+  filter(Time < training.stop.date.monthly)
+head(train.monthly, 1)
+
+test.monthly <- tk.monthly %>%
+  filter(Time >= training.stop.date.monthly)
+head(test.monthly, 1)
+
+# Monthly
+train.monthly.augmented <- train.monthly %>%
+  tk_augment_timeseries_signature()
+head(train.monthly.augmented, 1)
+
+test.monthly.augmented <- test.monthly %>%
+  tk_augment_timeseries_signature()
+head(test.monthly.augmented, 1)
+
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object
-monthly.rr.ts <- ts(
+monthly.dsch.ts <- ts(
   tk.monthly$cnt
   , frequency = 12
-  , start = c(2001,1)
+  , start = c(min.year, min.month)
+  , end = c(max.year, max.month)
 )
-plot.ts(monthly.rr.ts)
-class(monthly.rr.ts)
-monthly.rr.xts <- as.xts(monthly.rr.ts)
-head(monthly.rr.xts)
-monthly.rr.sub.xts <- window(monthly.rr.ts, start = c(2001,1), end=c(2018,11))
-monthly.rr.sub.xts
+plot.ts(monthly.dsch.ts)
+class(monthly.dsch.ts)
+monthly.dsch.xts <- as.xts(monthly.dsch.ts)
+head(monthly.dsch.xts)
+monthly.dsch.sub.xts <- window(
+	monthly.dsch.ts
+	, start = c(min.year, min.month)
+	, end = c(max.year, max.month)
+)
+monthly.dsch.sub.xts
 
 # TS components ####
-monthly.components <- decompose(monthly.rr.sub.xts)
+monthly.components <- decompose(monthly.dsch.sub.xts)
 names(monthly.components)
 monthly.components$seasonal
 plot(monthly.components)
 
 # Get stl object ####
-monthly.compl <- stl(monthly.rr.sub.xts, s.window = "periodic")
+monthly.compl <- stl(monthly.dsch.sub.xts, s.window = "periodic")
 plot(monthly.compl)
 
 # HW Model ####
-monthly.fit.hw <- HoltWinters(monthly.rr.sub.xts)
+monthly.fit.hw <- HoltWinters(monthly.dsch.sub.xts)
 monthly.fit.hw
 monthly.hw.est.params <- sw_tidy(monthly.fit.hw)
 plot(monthly.fit.hw)
@@ -149,7 +176,7 @@ plot.ts(monthly.fit.hw$fitted)
 
 # Forecast HW ####
 monthly.hw.fcast <- hw(
-  monthly.rr.sub.xts
+  monthly.dsch.sub.xts
   , h = 12
   , alpha = monthly.fit.hw$alpha
   , gamma = monthly.fit.hw$gamma
@@ -165,6 +192,7 @@ mape.hw <- monthly.hw.perf$MAPE
 monthly.hw.pred <- sw_sweep(monthly.hw.fcast) %>%
   filter(sw_sweep(monthly.hw.fcast)$key == 'forecast')
 print(monthly.hw.pred)
+hw.pred <- head(monthly.hw.pred$value, 1)
 
 # Vis HW predict ####
 monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
@@ -205,6 +233,8 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     , subtitle = paste0(
       "HoltWinters Model - 12 Month forecast - MAPE = "
       , round(mape.hw, 2)
+      , " - Forecast = "
+      , round(hw.pred, 0)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -214,10 +244,11 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
 print(monthly.hw.fcast.plt)
 
 # S-Naive Model ####
-monthly.snaive.fit <- snaive(monthly.rr.sub.xts, h = 12)
+monthly.snaive.fit <- snaive(monthly.dsch.sub.xts, h = 12)
 monthly.sn.pred <- sw_sweep(monthly.snaive.fit) %>%
   filter(sw_sweep(monthly.snaive.fit)$key == 'forecast')
 print(monthly.sn.pred)
+sn.pred <- head(monthly.sn.pred$value, 1)
 
 # Calculate Errors
 test.residuals.snaive <- monthly.snaive.fit$residuals
@@ -262,6 +293,8 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     , subtitle = paste0(
       "S-Naive Model - 12 Month forecast - MAPE = "
       , round(mape.snaive, 2)
+      , " - Forecast = "
+      , round(sn.pred, 0)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -271,7 +304,7 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
 print(monthly.snaive.plt)
 
 # ETS Model #####
-monthly.ets.fit <- monthly.rr.sub.xts %>%
+monthly.ets.fit <- monthly.dsch.sub.xts %>%
   ets()
 summary(monthly.ets.fit)
 
@@ -281,12 +314,13 @@ monthly.ets.train.augment  <- sw_augment(monthly.ets.fit)
 monthly.ets.train.decomp   <- sw_tidy_decomp(monthly.ets.fit)
 monthly.ets.alpha.train    <- monthly.ets.fit$par[["alpha"]]
 
-monthly.ets.ref <- monthly.rr.sub.xts %>%
+monthly.ets.ref <- monthly.dsch.sub.xts %>%
   ets(
     ic = "bic"
     , alpha = monthly.ets.fit$par[["alpha"]]
     , beta  = monthly.ets.fit$par[["beta"]]
     , gamma = monthly.ets.fit$par[["gamma"]]
+    , phi   = monthly.ets.fit$par[["phi"]]
   )
 monthly.ets.ref.params   <- sw_tidy(monthly.ets.ref)
 monthly.ets.ref.accuracy <- sw_glance(monthly.ets.ref)
@@ -305,6 +339,8 @@ monthly.ets.fcast <- monthly.ets.ref %>%
 # Tidy Forecast Object
 monthly.ets.pred <- sw_sweep(monthly.ets.fcast) %>%
   filter(sw_sweep(monthly.ets.fcast)$key == 'forecast')
+print(monthly.ets.pred)
+ets.pred <- head(monthly.ets.pred$value, 1)
 
 # Visualize
 monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
@@ -345,6 +381,8 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     , subtitle = paste0(
       "ETS Model - 12 Month forecast - MAPE = "
       , round(mape.ets, 2)
+      , " - Forecast = "
+      , round(ets.pred, 0)
     )
   ) +
   scale_x_yearmon(
@@ -358,22 +396,22 @@ print(monthly.ets.fcast.plt)
 
 # Auto Arima ####
 # Is the data stationary?
-monthly.rr.ts %>% ur.kpss() %>% summary()
+monthly.dsch.ts %>% ur.kpss() %>% summary()
 # Is the data stationary after differencing
-monthly.rr.ts %>% diff() %>% ur.kpss() %>% summary()
+monthly.dsch.ts %>% diff() %>% ur.kpss() %>% summary()
 # How many differences make it stationary
-ndiffs(monthly.rr.ts)
-rr.diffs <- ndiffs(monthly.rr.ts)
+ndiffs(monthly.dsch.ts)
+dsch.diffs <- ndiffs(monthly.dsch.ts)
 # Seasonal differencing?
-nsdiffs(monthly.rr.ts)
+nsdiffs(monthly.dsch.ts)
 # Re-plot
-monthly.rr.ts.diff <- diff(monthly.rr.ts)#, differences = rr.diffs)
-plot.ts(monthly.rr.ts.diff)
-acf(monthly.rr.ts.diff, lag.max = 20)
-acf(monthly.rr.ts.diff, plot = F)
+monthly.dsch.ts.diff <- diff(monthly.dsch.ts)#, differences = rr.diffs)
+plot.ts(monthly.dsch.ts.diff)
+acf(monthly.dsch.ts.diff, lag.max = 20)
+acf(monthly.dsch.ts.diff, plot = F)
 
 # Auto Arima
-monthly.aa.fit <- auto.arima(monthly.rr.ts)
+monthly.aa.fit <- auto.arima(monthly.dsch.ts)
 sw_glance(monthly.aa.fit)
 monthly.aa.fcast <- forecast(monthly.aa.fit, h = 12)
 tail(sw_sweep(monthly.aa.fcast), 12)
@@ -382,6 +420,7 @@ tail(sw_sweep(monthly.aa.fcast), 12)
 monthly.aa.pred <- sw_sweep(monthly.aa.fcast) %>%
   filter(sw_sweep(monthly.aa.fcast)$key == 'forecast')
 print(monthly.aa.pred)
+aa.pred <- head(monthly.aa.pred$value, 1)
 
 # AA Errors
 monthly.aa.perf <- sw_glance(monthly.aa.fit)
@@ -426,6 +465,8 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     , subtitle = paste0(
       "Auto Arima Model - 12 Month forecast - MAPE = "
       , round(mape.aa, 2)
+      , " - Forecast = "
+      , round(aa.pred, 0)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -463,9 +504,9 @@ gridExtra::grid.arrange(
 )
 
 # 1 Month Pred
-hw.pred <- head(monthly.ets.pred$value, 1)
-hw.pred.lo.95 <- head(monthly.ets.pred$lo.95, 1)
-hw.pred.hi.95 <- head(monthly.ets.pred$hi.95, 1)
+hw.pred <- head(monthly.hw.pred$value, 1)
+hw.pred.lo.95 <- head(monthly.hw.pred$lo.95, 1)
+hw.pred.hi.95 <- head(monthly.hw.pred$hi.95, 1)
 
 sn.pred <- head(monthly.sn.pred$value, 1)
 sn.pred.lo.95 <- head(monthly.sn.pred$lo.95, 1)
@@ -516,3 +557,76 @@ pred.tbl <- tibble::rownames_to_column(pred.tbl)
 pred.tbl <- arrange(pred.tbl, pred.tbl$err.mape)
 print(pred.tbl)
 
+# h2o ####
+library(h2o)
+tk.monthly %>% glimpse()
+tk.monthly.aug <- tk.monthly %>%
+  tk_augment_timeseries_signature()
+tk.monthly.aug %>% glimpse()
+
+tk.monthly.tbl.clean <- tk.monthly.aug %>%
+  select_if(~ !is.Date(.)) %>%
+  select_if(~ !any(is.na(.))) %>%
+  mutate_if(is.ordered, ~ as.character(.) %>% as.factor)
+
+tk.monthly.tbl.clean %>% glimpse()
+
+train.tbl <- tk.monthly.tbl.clean %>% filter(year < 2017)
+valid.tbl <- tk.monthly.tbl.clean %>% filter(year == 2017)
+test.tbl  <- tk.monthly.tbl.clean %>% filter(year == 2018)
+
+h2o.init()
+
+train.h2o <- as.h2o(train.tbl)
+valid.h2o <- as.h2o(valid.tbl)
+test.h2o <- as.h2o(test.tbl)
+
+y <- "cnt"
+x <- setdiff(names(train.h2o), y)
+
+automl.models.h2o <- h2o.automl(
+  x = x
+  , y = y
+  , training_frame = train.h2o
+  , validation_frame = valid.h2o
+  , leaderboard_frame = test.h2o
+  , max_runtime_secs = 60
+  , stopping_metric = "deviance"
+)
+
+automl.leader <- automl.models.h2o@leader
+
+pred.h2o <- h2o.predict(
+  automl.leader
+  , newdata = test.h2o
+)
+
+h2o.performance(
+  automl.leader
+  , newdata = test.h2o
+)
+
+# get mape
+automl.error.tbl <- tk.monthly %>%
+  filter(lubridate::year(Time) == 2018) %>%
+  add_column(
+    pred = pred.h2o %>%
+      as.tibble() %>%
+      pull(predict)
+  ) %>%
+  rename(actual = cnt) %>%
+  mutate(
+    error = actual - pred
+    , error.pct = error / actual
+  )
+print(automl.error.tbl)
+
+automl.error.tbl %>%
+  summarize(
+    me = mean(error)
+    , rmse = mean(error^2)^0.5
+    , mae = mean(abs(error))
+    , mape = mean(abs(error))
+    , mpe = mean(error.pct)
+  ) %>%
+  glimpse()
