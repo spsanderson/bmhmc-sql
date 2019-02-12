@@ -12,6 +12,7 @@ Create date: 11-19-2015
 Description:	Create a reportable wellsoft table bound to smsdss schema
 v1	-	2015-11-09	- Initial creation
 v2 	-	2018-05-24	- Add TobaccoUse Column to sp
+v3	-	2019-02-01	- Fix AdmittingDxTranscribed column due to Application Upgrade
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_sp]
@@ -32,7 +33,7 @@ BEGIN
 	, ICD9
 	, TransferEMTALAFormsCmpltd
 	, Disposition
-	, AdmittingDxTranscribed
+	, [AdmittingObvDx] AS [AdmittingDxTranscribed]
 	, AxisIPrimaryDx
 	, AgeDOB
 	, sex
