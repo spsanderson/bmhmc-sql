@@ -32,8 +32,8 @@ DECLARE @END   DATETIME;
 DECLARE @TODAY DATETIME;
 
 SET @TODAY = GETDATE();
-SET @START = dateadd(mm, datediff(mm, 0, @TODAY) - 1, 0);
-SET @END   = dateadd(mm, datediff(mm, 0, @TODAY), 0);
+SET @START = dateadd(mm, datediff(mm, 0, @TODAY) - 2, 0);
+SET @END   = dateadd(mm, datediff(mm, 0, @TODAY) - 1, 0);
 ----------
 -- Section 1
 SELECT A.Med_Rec_No
@@ -139,8 +139,8 @@ AND A.Med_Rec_No IN (
 	SELECT ZZZ.MED_REC_NO
 	FROM #TEMPA AS ZZZ
 )
-AND A.Adm_Date >= DATEADD(MM, DATEDIFF(MM, 0, @START) - 12, 0)
-AND A.Adm_Date < DATEADD(MM, DATEDIFF(MM, 0, @END) -1 , 0)
+AND A.Adm_Date >= DATEADD(MM, DATEDIFF(MM, 0, @START) - 13, 0)
+AND A.Adm_Date < DATEADD(MM, DATEDIFF(MM, 0, @END) - 1 , 0)
 
 GROUP BY A.Med_Rec_No
 ;
@@ -159,8 +159,8 @@ AND B.MRN IN (
 	SELECT ZZZ.MED_REC_NO
 	FROM #TEMPA AS ZZZ
 )
-AND B.[READMIT DATE] >= DATEADD(MM, DATEDIFF(MM, 0, @START) - 12, 0)
-AND B.[READMIT DATE] < DATEADD(MM, DATEDIFF(MM, 0, @END) -1 , 0)
+AND B.[READMIT DATE] >= DATEADD(MM, DATEDIFF(MM, 0, @START) - 13, 0)
+AND B.[READMIT DATE] < DATEADD(MM, DATEDIFF(MM, 0, @END) - 1 , 0)
 
 GROUP BY B.MRN
 ;
