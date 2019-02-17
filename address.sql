@@ -35,8 +35,9 @@ SELECT * FROM @ADDRESS
 -- For R 
 DECLARE @ADDRESS TABLE (
 	Encounter VARCHAR(12)
-	, FullAddress VARCHAR(MAX) 
+	, FullAddress VARCHAR(MAX)
 	, ZipCode VARCHAR(15)
+	, ParticalAddress VARCHAR(MAX)
 );
 DECLARE @TODAY AS DATE;
 DECLARE @YESTERDAY AS DATE;
@@ -48,12 +49,14 @@ INSERT INTO @ADDRESS
  
 SELECT A.PtNo_Num
 , A.[FullAddress]
-, a.Pt_Addr_Zip
+, A.Pt_Addr_Zip
+, A.PartialAddress
  
 FROM ( 
     SELECT PtNo_Num
 	, a.addr_line1 + ', ' + a.Pt_Addr_City + ', ' + a.Pt_Addr_State + ', ' + a.Pt_Addr_Zip AS [FullAddress] 
 	, a.Pt_Addr_Zip
+	, a.Pt_Addr_City + ', ' + a.Pt_Addr_State + ', ' + a.Pt_Addr_Zip AS [PartialAddress]
  
 	FROM smsdss.c_patient_demos_v AS A
 	LEFT OUTER JOIN smsdss.BMH_PLM_PtAcct_V AS B
