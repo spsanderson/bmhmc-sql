@@ -29,7 +29,7 @@ for(i in 1:nrow(origAddress)) {
     ) {
     print(
       paste(
-        "Coult not get record for: "
+        "Could not get record for: "
         , origAddress$FullAddress[i]
         , ". Trying next record..."
         )
@@ -52,6 +52,40 @@ for(i in 1:nrow(origAddress)) {
     origAddress$lat[i] <- as.numeric(result[2])
   }
 }
+
+# Get all records that were not found and geocode on city/town, state, zip
+for(i in 1:nrow(origAddress)) {
+  if(origAddress[i,'lon'] == ""){
+    print(
+      paste(
+        "Working on geocoding:"
+        , origAddress$PartialAddress[i]
+        )
+      )
+    result <- tryCatch(
+      suppressWarnings(
+        geocode_OSM(
+          origAddress$PartialAddress[i]
+          , return.first.only = T
+          , as.data.frame = T
+          )
+        )
+      , warning = function(w) {
+        print("Can't get record"); geocode_OSM(origAddress$PartialAddress[i])
+      }
+      , error = function(e) {
+        print("geocode_OSM() function failed to produce result");
+        NaN
+      }
+    )
+    origAddress$lon[i] <- as.numeric(result[3])
+    origAddress$lat[i] <- as.numeric(result[2])
+  } else {
+    print("Trying next record...")
+  }
+}
+
+
 # Loop through the addresses to get the latitude and longitude of each address and add it to the
 # origAddress data frame in new columns lat and lon
 # Google requires an API key and it is paid
@@ -94,5 +128,7 @@ for(i in 1:nrow(origAddress)) {
 geocoded <- origAddress %>%
   dplyr::filter(
     origAddress$lat != "" | origAddress$lon != ""
-  )
+  ) %>%
+  dplyr::select(Encounter, FullAddress,ZipCode, lon, lat)
+
 write.csv(geocoded, "geocoded_addresses.csv", row.names=FALSE)
