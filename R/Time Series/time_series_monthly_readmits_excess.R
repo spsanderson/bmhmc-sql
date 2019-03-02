@@ -116,7 +116,7 @@ tk.monthly %>%
       , " through "
       , end.date.monthly
     )
-    , y = "Readmit Rate"
+    , y = "Excess Readmit Rate"
     , x = ""
   ) +
   theme_tq()
