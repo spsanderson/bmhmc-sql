@@ -85,44 +85,6 @@ for(i in 1:nrow(origAddress)) {
   }
 }
 
-
-# Loop through the addresses to get the latitude and longitude of each address and add it to the
-# origAddress data frame in new columns lat and lon
-# Google requires an API key and it is paid
-# for(i in 1:nrow(origAddress)) {
-#   print(paste("Working on geocoding:", origAddress$FullAddress[i]))
-#   result <- geocode(
-#     origAddress$FullAddress[i]
-#     , output = "latlon"
-#     , source = "google"
-#     )
-#   origAddress$lon[i] <- as.numeric(result[1])
-#   origAddress$lat[i] <- as.numeric(result[2])
-# }
-
-# since the map api sucks you may need to run the below a few times
-# for(i in 1:nrow(origAddress)){
-#   if(is.na(origAddress[i,'lon'])){
-#     print(paste("Working on geocoding:"
-#       , origAddress$FullAddress[i]
-#       , "there are: "
-#       , geocodeQueryCheck()
-#       , " geocding queries left"
-#       )
-#     )
-#     result <- geocode(
-#       origAddress$FullAddress[i]
-#       , output = "latlon"
-#       , source = "dsk"
-#       )
-#     origAddress$lon[i] <- as.numeric(result[1])
-#     origAddress$lat[i] <- as.numeric(result[2])
-#     #origAddress$geoAddress <- as.character(result[3])
-#   } else {
-#     print("Trying next record...")
-#   }
-# }
-
 # Write a CSV file containing origAddress to the working directory
 # Clean up origAddress file if lat and/or lon are missing
 geocoded <- origAddress %>%
