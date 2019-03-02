@@ -72,6 +72,7 @@ Tables:
 	HObservation_Category  
 	HObservation  
 	HSUser  
+	HObsExtraInfo
 
 Functions:   
 	fn_GetStrParmTable  
@@ -87,31 +88,7 @@ Revision History:
 Date        Author            	Description  
 ----        ------            	----------- 
 2019-01-25	Sanderson, Steven	Add Field ObsTextVal from HObsExtraInfo
-09-Sep-09   Matt Heilman       	Added code to remove Patient Acuity chapter FROM final select.  
-30-May-08   Chris Jolly       	Charm 175156 - Fix issue with the WHERE the Chapter Sequence AND the Tab Order have been switch  
-26-Feb-08   chris jolly       	Charm  166390  fix to address findings being saved to internvalue column  
-04-Feb-08   Chris Jolly       	Charm 161028 - Sparse Data Model - Additional change to pull findingname FROM  
-                                HAssessmentformelement table WHEN showing NULL findings  
-01-Feb-08   Chris Jolly       	Charm 163189 - Fix Issue with Revised Clinical notes not printing on assessment report  
-18-Dec-07   Rajeev            	charm 161028 - modify procedure to include new assessment tables.  
-08-Nov-07   chris jolly      	charm 158679 - bug fix to address chapters/findings repeating for a given collected date/time.  
-                               	also applied additional performance improvements.  
-29-Oct-07   Chris Jolly       	charm 15125  -- Peformance Improvements  
-25-Oct-07   Ken Hanke         	Charm 157551 - Removing temp tables to eliminate performance issues.  
-15-Jun-07   chris jolly       	charm 150366 - Fix issue with bad column name   
-05-Apr-07   chris jolly       	charm 146276 -- Bug fix to correct issue with incorrect chapter names displaying  
-01-Feb-06   Shilpa B          	Charm - HCIS_00141528 - Change hard coded time part to 23:58:59 to 23:59:59  
-17-Jan-07   Chris Jolly       	Enhancement -- Check for findingdatatype of finding AND IF DateTime datatype, format finding value INTO  
-                               	datetime format.  
-19-Sep-06   Tharik            	@pchDateSort parameter added for displaying assessment collectiondate in chronological 
-								OR reverse chronological order  
-								@pchShowNullFindings parameter added to include/exclude Null findings in the report                
-14-Aug-06   Chris Jolly       	Increase size of formusage AND collectedbyabbrname  
-08-Aug-06   Chris Jolly       	Add code to process Yesterday AND # of hours logic  
-05-Aug-06   chris jolly       	Add Assessment Clinical Notes to SP  
-02-Aug-06   chris jolly       	Fix to correct issue WHEN running report by collected date AND getting grouping by visit oid.   
-19-Jul-06   Chris Jolly     	Add Cross patient support  
-16-May-06   Chris Jolly 	    New Procedure -- Will fetch only page style assessments - FormTypeID = 6  
+
 -------------------------------------------------------------------------------  
 */
    
@@ -968,6 +945,36 @@ AS
     WHERE  Formusagename = 'Med Surg Shift Assessment' 
            AND Chaptername = 'Patient Acuity' 
 
+	/*
+	Get ObsTextVal from HObsExtraInfo
+	*/
+	DECLARE @ObsTextVal TABLE (
+		Patient_OID INT
+		, PatientVisit_OID INT
+		, FormUsageDisplayName VARCHAR(MAX)
+		, ObsTextVal VARCHAR(MAX)
+	)
+
+	INSERT INTO @ObsTextVal
+
+	SELECT HA.Patient_oid
+	, HA.PatientVisit_oid
+	, HA.FormUsageDisplayName
+	, HOE.ObsTextVal
+
+	FROM HAssessment AS HA
+	INNER JOIN HObservation AS HO
+	ON HA.AssessmentID = HA.AssessmentID
+		AND HA.Patient_oid = HO.Patient_oid
+	INNER JOIN HObsExtraInfo AS HOE
+	ON HO.ObservationID = HOE.Observation_oid
+		AND HOE.EndDT IS NULL
+
+	WHERE ha.Patient_oid = @pvchPatientOID
+	AND ha.PatientVisit_oid = @pvchVisitOID
+	AND hoe.ObsTextVal IS NOT NULL
+	AND ha.FormUsageDisplayName = @pvcFormUsageName
+
     --****************************************************************************************************   
     -- Final Select   
     --****************************************************************************************************   
@@ -1010,8 +1017,14 @@ AS
                    Assessmentid, 
                    Assessmentoid, 
                    Observationoid, 
-                   Clinicalnote 
-            FROM   @tmpAssessment V1 
+                   Clinicalnote,
+				   OBST.ObsTextVal
+
+            FROM   @tmpAssessment V1
+			LEFT OUTER JOIN @ObsTextVal AS OBST
+			ON V1.Patientoid = OBST.Patient_OID
+			AND V1.Patientvisitoid = OBST.PatientVisit_OID
+			 
             ORDER  BY V1.Patientoid, 
                       V1.Patientvisitoid, 
                       V1.Collecteddatetime ASC, 
@@ -1046,8 +1059,14 @@ AS
                    Assessmentid, 
                    Assessmentoid, 
                    Observationoid, 
-                   Clinicalnote 
-            FROM   @tmpAssessment V1 
+                   Clinicalnote,
+				   OBST.ObsTextVal
+
+            FROM   @tmpAssessment V1
+			LEFT OUTER JOIN @ObsTextVal AS OBST
+			ON V1.Patientoid = OBST.Patient_OID
+			AND V1.Patientvisitoid = OBST.PatientVisit_OID 
+
             ORDER  BY V1.Patientoid, 
                       V1.Patientvisitoid DESC, 
                       V1.Collecteddatetime DESC, 
@@ -1086,8 +1105,9 @@ AS
                        Assessmentid, 
                        Assessmentoid, 
                        Observationoid, 
-                       Clinicalnote, 
+                       Clinicalnote,
                        Formoid) 
+
           SELECT Patientoid =-1, 
                  PatientVisitoid = -1, 
                  FormUsageName = '', 
@@ -1115,7 +1135,7 @@ AS
                  Assessmentoid = -1, 
                  Observationoid = -1, 
                  ClinicalNote = '', 
-                 formoid = -1 
+                 formoid = -1
 
           -- return record set    
           SELECT Patientoid, 
@@ -1145,7 +1165,10 @@ AS
                  Assessmentoid, 
                  Observationoid, 
                  Clinicalnote 
+
           FROM   @tmpAssessment V1 
+
+
           ORDER  BY V1.Patientoid, 
                     V1.Patientvisitoid, 
                     V1.Collecteddatetime DESC, 
