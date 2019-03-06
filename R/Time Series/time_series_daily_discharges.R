@@ -475,6 +475,56 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
   theme_tq()
 print(monthly.aa.fcast.plt)
 
+# Bagged Model ####
+monthly.bagged.model <- baggedModel(monthly.dsch.ts)
+
+# Forecast Bagged ETS Model
+monthly.bagged.fcast <- forecast(bagmod, h = 12)
+
+# Tidy Forecast Object
+monthly.bagged.pred <- sw_sweep(monthly.bagged.fcast) %>%
+  filter(sw_sweep(monthly.bagged.fcast)$key == 'forecast')
+print(monthly.bagged.pred)
+
+# Visualize
+plot(monthly.bagged.fcast)
+monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
+  ggplot(
+    aes(
+      x = index
+      , y = value
+      , color = key
+    )
+  ) +
+  geom_ribbon(
+    aes(
+      ymin = lo.100
+      , ymax = hi.100
+      , fill = key
+    )
+    , fill = "#596DD5"
+    , color = NA
+    , size = 0
+    , alpha = 0.8
+  ) +
+  geom_line(
+    size = 1
+  ) +
+  labs(
+    title = "Forecast for IP Discharges: 12-Month Forecast"
+    , x = ""
+    , y = ""
+  ) +
+  scale_x_yearmon(
+    n = 12
+    , format = "%Y"
+  ) +
+  scale_color_tq() +
+  scale_fill_tq() +
+  theme_tq()
+print(monthly.bagged.fcast.plt)
+
+
 # Compare models ####
 qqnorm(monthly.hw.fcast$residuals)
 qqline(monthly.hw.fcast$residuals)
