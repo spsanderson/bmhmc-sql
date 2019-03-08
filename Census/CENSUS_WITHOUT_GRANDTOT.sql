@@ -2,13 +2,13 @@
 DECLARE @DAY INT, @MONTH INT, @YEAR INT;
 
 -- VARIABLE INITIALIZATION
-SET @DAY = 12;
-SET @MONTH = 5;
-SET @YEAR = 2013;
+SET @DAY = 1;
+SET @MONTH = 1;
+SET @YEAR = 2019;
 
 -- COLUMN SELECTION
-SELECT DISTINCT nurs_sta
-, COUNT(NURS_STA)AS [# PTS]
+SELECT DISTINCT(nurs_sta) as 'Nursting Station'
+, COUNT(NURS_STA) as 'Census'
 
 FROM smsdss.dly_cen_occ_fct
 
