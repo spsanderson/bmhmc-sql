@@ -187,6 +187,7 @@ summary(monthly.hw.fcast)
 # HW Errors
 monthly.hw.perf <- sw_glance(monthly.fit.hw)
 mape.hw <- monthly.hw.perf$MAPE
+model.desc.hw <- monthly.hw.perf$model.desc
 
 # Monthly HW predictions
 monthly.hw.pred <- sw_sweep(monthly.hw.fcast) %>%
@@ -231,7 +232,9 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "HoltWinters Model - 12 Month forecast - MAPE = "
+      "Model Desc - "
+      , model.desc.hw
+      , " - MAPE = "
       , round(mape.hw, 2)
       , " - Forecast = "
       , round(hw.pred, 0)
@@ -291,7 +294,7 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "S-Naive Model - 12 Month forecast - MAPE = "
+      "Model Desc - S-Naive - MAPE = "
       , round(mape.snaive, 2)
       , " - Forecast = "
       , round(sn.pred, 0)
@@ -308,12 +311,6 @@ monthly.ets.fit <- monthly.dsch.sub.xts %>%
   ets()
 summary(monthly.ets.fit)
 
-monthly.ets.train.params   <- sw_tidy(monthly.ets.fit)
-monthly.ets.train.accuracy <- sw_glance(monthly.ets.fit)
-monthly.ets.train.augment  <- sw_augment(monthly.ets.fit)
-monthly.ets.train.decomp   <- sw_tidy_decomp(monthly.ets.fit)
-monthly.ets.alpha.train    <- monthly.ets.fit$par[["alpha"]]
-
 monthly.ets.ref <- monthly.dsch.sub.xts %>%
   ets(
     ic = "bic"
@@ -322,15 +319,10 @@ monthly.ets.ref <- monthly.dsch.sub.xts %>%
     , gamma = monthly.ets.fit$par[["gamma"]]
     , phi   = monthly.ets.fit$par[["phi"]]
   )
-monthly.ets.ref.params   <- sw_tidy(monthly.ets.ref)
-monthly.ets.ref.accuracy <- sw_glance(monthly.ets.ref)
-monthly.ets.ref.augment  <- sw_augment(monthly.ets.ref)
-monthly.ets.ref.decomop  <- sw_tidy_decomp(monthly.ets.ref)
 
 # Caclulate errors
-test.residuals.ets <- monthly.ets.ref$residuals
-pct.err.ets <- (test.residuals.ets / monthly.ets.ref$fitted) * 100
-mape.ets <- mean(abs(pct.err.ets), na.rm = TRUE)
+mape.ets <- sw_glance(monthly.ets.ref)$MAPE
+monthly.ets.ref.model.desc <- sw_glance(monthly.ets.ref)$model.desc
 
 # Forecast ets model
 monthly.ets.fcast <- monthly.ets.ref %>%
@@ -379,7 +371,9 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "ETS Model - 12 Month forecast - MAPE = "
+      "Model Desc - "
+      , monthly.ets.ref.model.desc
+      , " - MAPE = "
       , round(mape.ets, 2)
       , " - Forecast = "
       , round(ets.pred, 0)
@@ -423,8 +417,8 @@ print(monthly.aa.pred)
 aa.pred <- head(monthly.aa.pred$value, 1)
 
 # AA Errors
-monthly.aa.perf <- sw_glance(monthly.aa.fit)
-mape.aa <- monthly.aa.perf$MAPE
+monthly.aa.perf.model.desc <- sw_glance(monthly.aa.fit)$model.desc
+mape.aa <- sw_glance(monthly.aa.fit)$MAPE
 
 # Plot fitted aa model
 monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
@@ -463,7 +457,9 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "Auto Arima Model - 12 Month forecast - MAPE = "
+      "Model Desc - "
+      , monthly.aa.perf.model.desc
+      , " - MAPE = "
       , round(mape.aa, 2)
       , " - Forecast = "
       , round(aa.pred, 0)
@@ -479,15 +475,21 @@ print(monthly.aa.fcast.plt)
 monthly.bagged.model <- baggedModel(monthly.dsch.ts)
 
 # Forecast Bagged ETS Model
-monthly.bagged.fcast <- forecast(bagmod, h = 12)
+monthly.bagged.fcast <- forecast(monthly.bagged.model, h = 12)
 
 # Tidy Forecast Object
 monthly.bagged.pred <- sw_sweep(monthly.bagged.fcast) %>%
   filter(sw_sweep(monthly.bagged.fcast)$key == 'forecast')
 print(monthly.bagged.pred)
+bagged.pred <- head(monthly.bagged.pred$value, 1)
+
+# Baggd Model Errors
+pct.err.bagged <- (
+  monthly.bagged.fcast$residuals / monthly.bagged.fcast$fitted
+) * 100
+mape.bagged <- mean(abs(pct.err.bagged), na.rm = T)
 
 # Visualize
-plot(monthly.bagged.fcast)
 monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
   ggplot(
     aes(
@@ -514,6 +516,12 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
     title = "Forecast for IP Discharges: 12-Month Forecast"
     , x = ""
     , y = ""
+    , subtitle = paste0(
+      "Model Desc - Bagged ETS - MAPE = "
+      , round(mape.bagged, 2)
+      , " - Forecast = "
+      , round(bagged.pred, 0)
+    )
   ) +
   scale_x_yearmon(
     n = 12
@@ -538,10 +546,14 @@ qqline(monthly.ets.fcast$residuals)
 qqnorm(monthly.aa.fcast$residuals)
 qqline(monthly.aa.fcast$residuals)
 
+qqnorm(monthly.bagged.fcast$residuals)
+qqline(monthly.bagged.fcast$residuals)
+
 checkresiduals(monthly.hw.fcast)
 checkresiduals(monthly.snaive.fit)
 checkresiduals(monthly.ets.fcast)
 checkresiduals(monthly.aa.fcast)
+checkresiduals(monthly.bagged.fcast)
 
 # Pick Model ####
 gridExtra::grid.arrange(
@@ -549,7 +561,8 @@ gridExtra::grid.arrange(
   , monthly.snaive.plt
   , monthly.ets.fcast.plt
   , monthly.aa.fcast.plt
-  , nrow = 2
+  , monthly.bagged.fcast.plt
+  , nrow = 3
   , ncol = 2
 )
 
@@ -570,24 +583,31 @@ aa.pred <- head(monthly.aa.pred$value, 1)
 aa.pred.lo.95 <- head(monthly.aa.pred$lo.95, 1)
 aa.pred.hi.95 <- head(monthly.aa.pred$hi.95, 1)
 
-mod.pred <- c(hw.pred, sn.pred, ets.pred, aa.pred)
+bagged.pred <- head(monthly.bagged.pred$value, 1)
+bagged.pred.lo.100 <- head(monthly.bagged.pred$lo.100, 1)
+bagged.pred.hi.10 <- head(monthly.bagged.pred$hi.100, 1)
+
+mod.pred <- c(hw.pred, sn.pred, ets.pred, aa.pred, bagged.pred)
 mod.pred.lo.95 <- c(
   hw.pred.lo.95
   , sn.pred.lo.95
   , ets.pred.lo.95
   , aa.pred.lo.95
+  , bagged.pred.lo.100
 )
 mod.pred.hi.95 <- c(
   hw.pred.hi.95
   , sn.pred.hi.95
   , ets.pred.hi.95
   , aa.pred.hi.95
+  , bagged.pred.hi.10
 )
 err.mape <- c(
   mape.hw
   , mape.snaive
   , mape.ets
   , mape.aa
+  , mape.bagged
 )
 
 pred.tbl.row.names <- c(
@@ -595,6 +615,7 @@ pred.tbl.row.names <- c(
   , "Seasonal Naive"
   , "ETS"
   , "Auto ARIMA"
+  , "Bagged ETS"
 )
 pred.tbl <- data.frame(
   mod.pred
