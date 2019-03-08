@@ -1,30 +1,31 @@
 /*
 ***********************************************************************
-File: name_here.sql
+File: ED_Avg_Weekly_Arrivals_LOS_by_Hour.sql
 
 Input Parameters:
-	Enter Here
+	None
 
 Tables/Views:
-	Start Here
+	[SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
 
 Creates Table:
-	Enter Here
+	None
 
 Functions:
-	Enter Here
+	None
 
 Author: Steven P Sanderson II, MPH
 
 Department: Finance, Revenue Cycle
 
 Purpose/Description
-	Entere Here
+	Get arrivals and avg_time_here by hour of arrival to the ed for
+	some specified period of time
 
 Revision History:
 Date		Version		Description
 ----		----		----
-2018-07-13	v1			Initial Creation
+2019-03-05	v1			Initial Creation
 ***********************************************************************
 */
 
