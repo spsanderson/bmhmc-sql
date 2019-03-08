@@ -28,15 +28,17 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2019-03-01	v1			Initial Creation
+2019-03-07	v2			CAST datetime columns to date
 ***********************************************************************
 */
 DECLARE @START DATETIME;
 DECLARE @END   DATETIME;
 
-SET @START = '2017-08-01';
-SET @END   = '2019-02-27';
+SET @START = GETDATE()-9; --Run on Mondays Looking at the weeks prior to Sat to the last friday ie starting 9 days from Monday.
+SET @END   = GETDate()-2;
 
 SELECT VISIT.episode_no
+, visit.vst_start_dtime
 , A.FormUsage
 , B.[CreationTime] AS 'Assessment Completed'
 , B.[InternalValue]
@@ -79,7 +81,8 @@ AND (
 	)
 )
 AND B.EndDT IS NULL
-AND B.CreationTime BETWEEN @START AND @END
+AND B.CreationTime > @START
+AND B.CreationTime < @END
 AND A.[Version] = (
 					SELECT MAX(zzz.[Version]) 
 					FROM [SMSPHDSSS0X0].[smsmir].[mir_sc_Assessment] AS zzz 
@@ -87,10 +90,12 @@ AND A.[Version] = (
 					AND zzz.PatientVisit_oid = A.patientvisit_oid
 					AND zzz.AssessmentID = A.AssessmentID
 					)
+--GO
 ;
 
 -- NUTRIIONAL ASSESSMENT ---------------------------------------------------------------------
 SELECT VISIT.episode_no
+, visit.vst_start_dtime
 , A.FormUsage
 , A.CollectedDT AS 'Nutritional Consult Completed'
 , [RN] = ROW_NUMBER() OVER(PARTITION BY VISIT.EPISODE_NO ORDER BY B.[CREATIONTIME] ASC)
@@ -106,7 +111,8 @@ ON A.PATIENTVISIT_OID = VISIT.vst_no
 WHERE A.FormUsage = 'Nutritional Assessment'
 --AND Visit.episode_no = 
 AND B.EndDT IS NULL
-AND B.CreationTime BETWEEN @START AND @END
+AND B.CreationTime > @START
+AND B.CreationTime < @END
 AND A.CollectedDT < B.CreationTime
 AND A.[Version] = (
 					SELECT MAX(zzz.[Version]) 
@@ -115,23 +121,40 @@ AND A.[Version] = (
 					AND zzz.PatientVisit_oid = A.patientvisit_oid
 					AND zzz.AssessmentID = A.AssessmentID
 					)
+
+--GO
 ;
 
 SELECT A.episode_no
+, A.vst_start_dtime
 , A.[Assessment Completed]
 , A.Order_Type
 , A.[Assessment Value]
-, B.[Nutritional Consult Completed]
+, B.[Nutritional Consult Completed] AS [Nutritional Consult Completed]
 , DATEDIFF(MINUTE, A.[Assessment Completed], B.[Nutritional Consult Completed]) AS [Elapsed_Minutes]
+, CASE
+	WHEN B.[Nutritional Consult Completed] IS NULL
+		THEN 0
+		ELSE 1
+  END AS [Nutritional Consult Flag]
+, CASE
+	WHEN datediff(minute,a.[Assessment Completed], b.[Nutritional Consult Completed]) < 0
+		THEN 'Negative Number'
+	WHEN b.[Nutritional Consult Completed] IS NULL
+		THEN 'Nutrition Assessment Not Done'
+		ELSE 'Positive Number'
+  END AS [Negative Elapsed Minutes]
 
 FROM #TEMPA AS A
 LEFT OUTER JOIN #TEMPB AS B
 ON A.episode_no = B.episode_no
 	AND B.RN = 1
+	--AND B.[Nutritional Consult Completed] >= A.CreationTime  --"Removes Negatives from Elasped Minutes"
 
 WHERE A.episode_no IS NOT NULL
+--AND B.[Nutritional Consult Completed] >= A.CreationTime "KEEPS negatives in elasped minutes"
 
-ORDER BY A.episode_no
+ORDER BY a.[Assessment Completed]
 ;
 
 DROP TABLE #TEMPA
