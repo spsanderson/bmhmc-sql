@@ -55,12 +55,15 @@ hourly.orders <- hourly.orders %>%
   )
 head(hourly.orders, 5)
 
+colnames(hourly.orders) <- c("ds","y")
+head(hourly.orders, 5)
+
 # Plot Initial Data ####
 hourly.orders %>%
   ggplot(
     aes(
-      x = processed_hour
-      , y = Arrival_Count
+      x = ds
+      , y = y
     )
   ) +
   geom_point(
@@ -75,6 +78,17 @@ hourly.orders %>%
     , method = 'auto'
     , color = 'red'
   )
+
+# FBProphet Model ####
+m <- prophet(hourly.orders)
+
+future <- make_future_dataframe(m, periods = 24)
+tail(future)
+
+forecast <- predict(m, future)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+
+plot(m, forecast)
 
 # Make XTS object ####
 hourly.ts <- ts(
