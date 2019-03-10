@@ -82,7 +82,7 @@ hourly.orders %>%
 # FBProphet Model ####
 m <- prophet(hourly.orders)
 
-future <- make_future_dataframe(m, periods = 24)
+future <- make_future_dataframe(m, periods = 24, freq = 3600)
 tail(future)
 
 forecast <- predict(m, future)
