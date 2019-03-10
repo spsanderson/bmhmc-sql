@@ -86,9 +86,12 @@ future <- make_future_dataframe(m, periods = 24, freq = 3600)
 tail(future)
 
 forecast <- predict(m, future)
-tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')],24)
+forecast.cut <- forecast %>%
+  filter(ds >= '2019-03-01') %>%
+  select(ds, yhat, yhat_lower, yhat_upper)
 
-plot(m, forecast)
+# plot(m, forecast)
 
 prophet_plot_components(m, forecast)
 
