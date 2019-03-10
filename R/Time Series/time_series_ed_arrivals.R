@@ -90,6 +90,8 @@ tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
 
 plot(m, forecast)
 
+prophet_plot_components(m, forecast)
+
 # Make XTS object ####
 hourly.ts <- ts(
   hourly.orders$Arrival_Count
