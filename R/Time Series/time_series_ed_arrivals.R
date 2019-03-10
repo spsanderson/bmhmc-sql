@@ -12,6 +12,7 @@ library(forecast)
 library(lubridate)
 library(dplyr)
 library(urca)
+library(prophet)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
