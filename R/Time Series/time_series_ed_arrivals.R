@@ -60,6 +60,7 @@ head(hourly.orders, 5)
 
 # Plot Initial Data ####
 hourly.orders %>%
+  filter(ds >= "2019-02-24") %>%
   ggplot(
     aes(
       x = ds
@@ -118,6 +119,5 @@ ggplot(
   ) +
   scale_color_tq() +
   theme_tq()
-
 
 prophet_plot_components(m, forecast)
