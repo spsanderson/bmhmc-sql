@@ -87,116 +87,37 @@ tail(future)
 
 forecast <- predict(m, future)
 tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')],24)
-forecast.cut <- forecast %>%
-  filter(ds >= '2019-03-01') %>%
-  select(ds, yhat, yhat_lower, yhat_upper)
+forecast.cut <- tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')],24)
+# forecast.cut <- forecast %>%
+#   filter(ds >= '2019-03-01') %>%
+#   select(ds, yhat, yhat_lower, yhat_upper)
 
 # plot(m, forecast)
+plot(forecast.cut$yhat)
+plt.date <- min(forecast.cut$ds)
+
+ggplot(
+  data = forecast.cut
+  , aes(
+    x = ds
+   , y = yhat
+  )
+) +
+  geom_point(
+    alpha = 0.5
+    , color = palette_light()[[1]]
+) +
+  geom_line(
+    alpha = 0.5
+) +
+  labs(
+    title = paste0("Arrivals by Hour to ED: 24 Hours Prediction for ", plt.date)
+    , subtitle = "Source: DSS"
+    , y = "Arrivals by Hour"
+    , x = "Hour of Arrival"
+  ) +
+  scale_color_tq() +
+  theme_tq()
+
 
 prophet_plot_components(m, forecast)
-
-# Make XTS object ####
-hourly.ts <- ts(
-  hourly.orders$Arrival_Count
-  , frequency = 24*365
-  , start = c(min.year, min.month)
-  , end = c(max.year, max.month)
-)
-plot.ts(hourly.ts)
-class(hourly.ts)
-head(hourly.ts)
-hourly.xts <- window(
-  hourly.ts
-  , start = c(min.year, min.month)
-  , end = c(max.year, max.month)
-)
-hourly.xts
-
-# TS Componenets ####
-hourly.componenets <- decompose(hourly.xts)
-names(hourly.componenets)
-hourly.componenets$seasonal
-plot(hourly.componenets)
-
-# Get STL object ####
-hourly.compl <- stl(hourly.xts, s.window = "periodic")
-plot(hourly.compl)
-
-# HW Model ####
-hour.fit.hw <- HoltWinters(hourly.xts)
-hour.fit.hw
-hour.hw.est.params <- sw_tidy(hour.fit.hw)
-plot(hour.fit.hw)
-plot.ts(hour.fit.hw$fitted)
-
-# Forecast HW ####
-hour.hw.fcast <- hw(
-  hourly.xts
-  , h = 1
-  # , alpha = hour.fit.hw$alpha
-  # , gamma = hour.fit.hw$gamma
-  # , beta = hour.fit.hw$beta
-)
-summary(hour.hw.fcast)
-
-# HW Errors
-hour.hw.perf <- sw_glance(hour.fit.hw)
-mape.hw <- hour.hw.perf$MAPE
-model.desc.hw <- hour.hw.perf$model.desc
-
-# Hour HW Predictions
-hour.hw.pred <- sw_sweep(hour.hw.fcast) %>%
-  filter(sw_sweep(hour.hw.fcast)$key == 'forecast')
-print(hour.hw.pred)
-hw.pred <- head(hour.hw.pred$value, 1)
-
-# Vis HW predict ####
-hour.hw.fcast.plt <- sw_sweep(hour.hw.fcast) %>%
-  ggplot(
-    aes(
-      x = index
-      , y = value
-      , color = key
-    )
-  ) +
-  geom_ribbon(
-    aes(
-      ymin = lo.95
-      , ymax = hi.95
-    )
-    , fill = "#D5DBFF"
-    , color = NA
-    , size = 0
-  ) +
-  geom_ribbon(
-    aes(
-      ymin = lo.80
-      , ymax = hi.80
-      , fill = key
-    )
-    , fill = "#596DD5"
-    , color = NA
-    , size = 0
-    , alpha = 0.8
-  ) +
-  geom_line(
-    size = 1
-  ) +
-  labs(
-    title = "Forecast for ED Arrivals: 24-Hour Forecast"
-    , x = ""
-    , y = ""
-    , subtitle = paste0(
-      "Model Desc - "
-      , model.desc.hw
-      , " - MAPE = "
-      , round(mape.hw, 2)
-      , " - Forecast = "
-      , round(hw.pred, 0)
-    )
-  ) +
-  scale_x_yearmon(n = 12, format = "%Y") +
-  scale_color_tq() +
-  scale_fill_tq() +
-  theme_tq()
-print(hour.hw.fcast.plt)
