@@ -19,3 +19,12 @@ AND LEFT(A.PtNo_Num, 4) != '1999'
 AND Adm_Date >= '2018-10-01'
 AND Adm_Date < '2018-11-01'
 
+;
+
+SELECT COUNT(PAV.PTNO_NUM)
+FROM smsdss.BMH_PLM_PtAcct_V AS PAV
+WHERE PAV.Adm_Date >= '2019-02-01'
+AND PAV.Adm_Date < '2019-03-01'
+AND PAV.tot_chg_amt > 0
+AND LEFT(PAV.PTNO_NUM, 1) != '2'
+AND LEFT(PAV.PTNO_NUM, 4) != '1999'
