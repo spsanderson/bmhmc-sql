@@ -12,6 +12,7 @@ library(forecast)
 library(lubridate)
 library(dplyr)
 library(urca)
+library(prophet)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
@@ -161,7 +162,7 @@ monthly.hw.fcast <- hw(
   monthly.rr.sub.xts
   , h = 12
   , alpha = monthly.fit.hw$alpha
-  # , gamma = monthly.fit.hw$gamma
+  , gamma = monthly.fit.hw$gamma
 )
 summary(monthly.hw.fcast)
 
@@ -215,10 +216,11 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     , subtitle = paste0(
       "Model Desc - "
       , model.desc.hw
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.hw, 2)
       , " - Forecast = "
-      , round(hw.pred, 0)
+      , round(hw.pred, 3)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -275,10 +277,12 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "Model Desc - S-Naive - MAPE = "
+      "Model Desc - S-Naive"
+      , "\n"
+      ,"MAPE = "
       , round(mape.snaive, 2)
       , " - Forecast = "
-      , round(sn.pred, 0)
+      , round(sn.pred, 3)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -351,10 +355,11 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     , subtitle = paste0(
       "Model Desc - "
       , monthly.ets.ref.model.desc
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.ets, 2)
       , " - Forecast = "
-      , round(ets.pred, 0)
+      , round(ets.pred, 3)
     )
   ) +
   scale_x_yearmon(
@@ -437,10 +442,11 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     , subtitle = paste0(
       "Model Desc - "
       , monthly.aa.perf.model.desc
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.aa, 2)
       , " - Forecast = "
-      , round(aa.pred, 0)
+      , round(aa.pred, 3)
     )
   ) +
   scale_x_yearmon(n = 12, format = "%Y") +
@@ -495,10 +501,12 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "Model Desc - Bagged ETS - MAPE = "
+      "Model Desc - Bagged ETS" 
+      , "\n"
+      , "MAPE = "
       , round(mape.bagged, 2)
       , " - Forecast = "
-      , round(bagged.pred, 0)
+      , round(bagged.pred, 3)
     )
   ) +
   scale_x_yearmon(
@@ -509,6 +517,48 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
   scale_fill_tq() +
   theme_tq()
 print(monthly.bagged.fcast.plt)
+
+# Prohpet ####
+df.ts.monthly.prophet <- tk.monthly
+colnames(df.ts.monthly.prophet) <- c("ds","y")
+
+# Pophet Model
+prophet.model <- prophet(df.ts.monthly.prophet)
+prophet.future <- make_future_dataframe(
+  prophet.model
+  , periods = 12
+  , freq = "month"
+  )
+tail(prophet.future, 12)
+
+# Prophet Forecast
+prophet.forecast <- predict(prophet.model, prophet.future)
+prophet.one.month.pred <- tail(
+  prophet.forecast[c('ds','yhat','yhat_lower','yhat_upper')]
+  , 12
+)
+prophet.pred <- head(prophet.one.month.pred$yhat, 1)
+print(prophet.pred)
+
+prophet.model.plt <- plot(
+  prophet.model
+  , prophet.forecast
+) +
+  labs(
+    title = "IP Readmit Rate Forecast: 12-Month Forecast"
+    , subtitle = paste0(
+      "Model Desc - fbProphet"
+      , "\n"
+      , "Forecast = "
+      , round(prophet.pred, 3)
+    )
+    , x = ""
+    , y = ""
+  ) +
+  scale_color_tq() +
+  scale_fill_tq() +
+  theme_tq()
+print(prophet.model.plt)
 
 # Compare models ####
 qqnorm(monthly.hw.fcast$residuals)
@@ -539,10 +589,10 @@ gridExtra::grid.arrange(
   , monthly.ets.fcast.plt
   , monthly.aa.fcast.plt
   , monthly.bagged.fcast.plt
+  , prophet.model.plt
   , nrow = 3
   , ncol = 2
 )
-
 
 # 1 Month Pred
 hw.pred <- head(monthly.hw.pred$value, 1)

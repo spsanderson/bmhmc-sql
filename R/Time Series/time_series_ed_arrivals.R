@@ -16,25 +16,25 @@ library(prophet)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
-discharges <- read.csv(fileToLoad)
-rm(fileToLoad)
+arrivals <- read.csv(fileToLoad)
+# rm(fileToLoad)
 
 # Time Aware Tibble ####
 # Format Arrival_Date and make time aware tibble
-discharges$Arrival_Date <- lubridate::mdy_hm(discharges$Arrival_Date)
-hourly.orders <- discharges %>%
+arrivals$Arrival_Date <- lubridate::mdy_hm(arrivals$Arrival_Date)
+hourly.orders <- arrivals %>%
   mutate(processed_hour = floor_date(Arrival_Date, "hour")) %>%
   group_by(processed_hour) %>%
   summarise(Arrival_Count = sum(Arrival_Count))
 head(hourly.orders, 5)
 
-ta.discharges <- as_tbl_time(hourly.orders, index = processed_hour)
-head(ta.discharges)
+ta.arrivals <- as_tbl_time(hourly.orders, index = processed_hour)
+head(ta.arrivals)
 
-min.date  <- min(ta.discharges$processed_hour)
+min.date  <- min(ta.arrivals$processed_hour)
 min.year  <- year(min.date)
 min.month <- month(min.date)
-max.date  <- max(ta.discharges$processed_hour)
+max.date  <- max(ta.arrivals$processed_hour)
 max.year  <- year(max.date)
 max.month <- month(max.date)
 
@@ -58,66 +58,69 @@ head(hourly.orders, 5)
 colnames(hourly.orders) <- c("ds","y")
 head(hourly.orders, 5)
 
-# Plot Initial Data ####
-hourly.orders %>%
-  filter(ds >= "2019-02-24") %>%
-  ggplot(
-    aes(
-      x = ds
-      , y = y
-    )
-  ) +
-  geom_point(
-    alpha = 0.5
-    , color = palette_light()[[1]]
-  ) +
-  geom_line(
-    alpha = 0.5
-  ) +
-  geom_smooth(
-    se = F
-    , method = 'auto'
-    , color = 'red'
-  )
+# FB Prophet Model ####
+# may have trouble getting forecast model due to vector create size
+# shrink data down
+hourly.orders <- hourly.orders %>% 
+  filter(ds >= '2018-01-01')
 
-# FBProphet Model ####
 m <- prophet(hourly.orders)
 
-future <- make_future_dataframe(m, periods = 24, freq = 3600)
-tail(future)
+future <- make_future_dataframe(
+  m
+  , periods = 24
+  , freq = 3600
+  )
+tail(future, 24)
 
-forecast <- predict(m, future)
-tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')],24)
-forecast.cut <- tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')],24)
-# forecast.cut <- forecast %>%
-#   filter(ds >= '2019-03-01') %>%
-#   select(ds, yhat, yhat_lower, yhat_upper)
+m.forecast <- predict(m, future)
+tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 24)
 
-# plot(m, forecast)
-plot(forecast.cut$yhat)
-plt.date <- min(forecast.cut$ds)
+m.forecast.cut <- tail(
+  m.forecast[c('ds','yhat','yhat_lower','yhat_upper')]
+  , 24
+  )
+plt.date <- min(m.forecast.cut$ds)
 
 ggplot(
-  data = forecast.cut
+  data = m.forecast.cut
   , aes(
     x = ds
-   , y = yhat
-  )
-) +
+    , y = yhat
+    , size = yhat
+    )
+  ) +
+  geom_ribbon(
+    aes(
+      ymin = yhat_lower
+      , ymax = yhat_upper
+    )
+    , fill = "#D5DBFF"
+    , color = NA
+    , size = 0
+    , alpha = 0.618
+  ) +
   geom_point(
     alpha = 0.5
-    , color = palette_light()[[1]]
-) +
-  geom_line(
-    alpha = 0.5
-) +
-  labs(
-    title = paste0("Arrivals by Hour to ED: 24 Hours Prediction for ", plt.date)
-    , subtitle = "Source: DSS"
-    , y = "Arrivals by Hour"
-    , x = "Hour of Arrival"
+    , color = "red"
+    , fill = "red"
   ) +
-  scale_color_tq() +
-  theme_tq()
+  geom_line(
+     size = 1
+     , alpha = 0.8
+  ) +
+  labs( 
+    title = paste0(
+      "Arrivals by Hour to ED: 24 Hours Prediction for "
+      , plt.date
+      ) 
+    , subtitle = "Source: DSS" 
+    , y = "Arrivals by Hour" 
+    , x = "Hour of Arrival" 
+    , size = "Predicted Arrivals"
+    ) + 
+  scale_fill_tq() +
+  scale_color_tq() + 
+  theme_tq() 
 
-prophet_plot_components(m, forecast)
+prophet_plot_components(m, m.forecast)

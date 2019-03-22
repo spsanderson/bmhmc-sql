@@ -16,44 +16,44 @@ library(prophet)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
-discharges <- read.csv(fileToLoad)
-rm(fileToLoad)
+days <- read.csv(fileToLoad)
+# rm(fileToLoad)
 
 # Time Aware Tibble ####
 # Make a time aware tibble
-discharges$Time <- lubridate::mdy(discharges$Time)
-ta.discharges <- as_tbl_time(discharges, index = Time)
-head(ta.discharges)
+days$Time <- lubridate::mdy(days$Time)
+ta.days <- as_tbl_time(days, index = Time)
+head(ta.days)
 
-min.date  <- min(ta.discharges$Time)
+min.date  <- min(ta.days$Time)
 min.year  <- year(min.date)
 min.month <- month(min.date)
-max.date  <- max(ta.discharges$Time)
+max.date  <- max(ta.days$Time)
 max.year  <- year(max.date)
 max.month <- month(max.date)
 
 #timetk Daily
-ta.discharges.ts <- tk_ts(
-  ta.discharges
+ta.days.ts <- tk_ts(
+  ta.days
   , start = c(min.year, min.month)
   , end = c(max.year, max.month)
   , frequency = 365
 )
-has_timetk_idx(ta.discharges.ts)
+has_timetk_idx(ta.days.ts)
 
 # Make Monthly objets
-tk.monthly <- ta.discharges %>%
+tk.monthly <- ta.days %>%
   collapse_by("monthly") %>%
   group_by(Time, add = TRUE) %>%
   summarize(
-    cnt = sum(DSCH_COUNT)
+    Total_Days = sum(Total_Days)
   )
 head(tk.monthly, 5)
 tail(tk.monthly, 5)
 
 # Get Parameters ####
-max.discharges.monthly <- max(tk.monthly$cnt)
-min.discharges.monthly <- min(tk.monthly$cnt)
+max.days.monthly <- max(tk.monthly$Total_Days)
+min.days.monthly <- min(tk.monthly$Total_Days)
 
 start.date.monthly <- min(tk.monthly$Time)
 end.date.monthly   <- max(tk.monthly$Time)
@@ -69,14 +69,14 @@ tk.monthly %>%
   ggplot(
     aes(
       x = Time
-      , y = cnt
+      , y = Total_Days
     )
   ) +
   geom_rect(
     xmin = as.numeric(ymd(training.stop.date.monthly))
     , xmax = as.numeric(ymd(end.date.monthly))
-    , ymin = (min.discharges.monthly * 0.9)
-    , ymax = (max.discharges.monthly * 1.1)
+    , ymin = (min.days.monthly * 0.9)
+    , ymax = (max.days.monthly * 1.1)
     , fill = palette_light()[[4]]
     , alpha = 0.01
   ) +
@@ -107,7 +107,7 @@ tk.monthly %>%
     , color = 'red'
   ) +
   labs(
-    title = "OP Discharges: Monthly Scale"
+    title = "IP Discharge Days: Monthly Scale"
     , subtitle = "Source: DSS"
     , caption = paste0(
       "Based on discharges from: "
@@ -142,7 +142,7 @@ head(test.monthly.augmented, 1)
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object
 monthly.dsch.ts <- ts(
-  tk.monthly$cnt
+  tk.monthly$Total_Days
   , frequency = 12
   , start = c(min.year, min.month)
   , end = c(max.year, max.month)
@@ -229,7 +229,7 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharges: 12-Month Forecast"
+    title = "Forecast for OP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -292,7 +292,7 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharges: 12-Month Forecast"
+    title = "Forecast for OP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -319,9 +319,9 @@ monthly.ets.ref <- monthly.dsch.sub.xts %>%
   ets(
     ic = "bic"
     , alpha = monthly.ets.fit$par[["alpha"]]
-    , beta  = monthly.ets.fit$par[["beta"]]
+    # , beta  = monthly.ets.fit$par[["beta"]]
     , gamma = monthly.ets.fit$par[["gamma"]]
-    , phi   = monthly.ets.fit$par[["phi"]]
+    # , phi   = monthly.ets.fit$par[["phi"]]
   )
 
 # Caclulate errors
@@ -371,7 +371,7 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharges: 12-Month Forecast"
+    title = "Forecast for OP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -458,7 +458,7 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharges: 12-Month Forecast"
+    title = "Forecast for OP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -519,7 +519,7 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharges: 12-Month Forecast"
+    title = "Forecast for OP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -677,77 +677,3 @@ rownames(pred.tbl) <- pred.tbl.row.names
 pred.tbl <- tibble::rownames_to_column(pred.tbl)
 pred.tbl <- arrange(pred.tbl, pred.tbl$err.mape)
 print(pred.tbl)
-
-# h2o ####
-library(h2o)
-tk.monthly %>% glimpse()
-tk.monthly.aug <- tk.monthly %>%
-  tk_augment_timeseries_signature()
-tk.monthly.aug %>% glimpse()
-
-tk.monthly.tbl.clean <- tk.monthly.aug %>%
-  select_if(~ !is.Date(.)) %>%
-  select_if(~ !any(is.na(.))) %>%
-  mutate_if(is.ordered, ~ as.character(.) %>% as.factor)
-
-tk.monthly.tbl.clean %>% glimpse()
-
-train.tbl <- tk.monthly.tbl.clean %>% filter(year < 2017)
-valid.tbl <- tk.monthly.tbl.clean %>% filter(year == 2017)
-test.tbl  <- tk.monthly.tbl.clean %>% filter(year == 2018)
-
-h2o.init()
-
-train.h2o <- as.h2o(train.tbl)
-valid.h2o <- as.h2o(valid.tbl)
-test.h2o <- as.h2o(test.tbl)
-
-y <- "cnt"
-x <- setdiff(names(train.h2o), y)
-
-automl.models.h2o <- h2o.automl(
-  x = x
-  , y = y
-  , training_frame = train.h2o
-  , validation_frame = valid.h2o
-  , leaderboard_frame = test.h2o
-  , max_runtime_secs = 60
-  , stopping_metric = "deviance"
-)
-
-automl.leader <- automl.models.h2o@leader
-
-pred.h2o <- h2o.predict(
-  automl.leader
-  , newdata = test.h2o
-)
-
-h2o.performance(
-  automl.leader
-  , newdata = test.h2o
-)
-
-# get mape
-automl.error.tbl <- tk.monthly %>%
-  filter(lubridate::year(Time) == 2018) %>%
-  add_column(
-    pred = pred.h2o %>%
-      as.tibble() %>%
-      pull(predict)
-  ) %>%
-  rename(actual = cnt) %>%
-  mutate(
-    error = actual - pred
-    , error.pct = error / actual
-  )
-print(automl.error.tbl)
-
-automl.error.tbl %>%
-  summarize(
-    me = mean(error)
-    , rmse = mean(error^2)^0.5
-    , mae = mean(abs(error))
-    , mape = mean(abs(error))
-    , mpe = mean(error.pct)
-  ) %>%
-  glimpse()

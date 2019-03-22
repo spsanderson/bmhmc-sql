@@ -12,6 +12,7 @@ library(forecast)
 library(lubridate)
 library(dplyr)
 library(urca)
+library(prophet)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
@@ -234,7 +235,8 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     , subtitle = paste0(
       "Model Desc - "
       , model.desc.hw
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.hw, 2)
       , " - Forecast = "
       , round(hw.pred, 0)
@@ -294,7 +296,9 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "Model Desc - S-Naive - MAPE = "
+      "Model Desc - S-Naive"
+      , "\n"
+      , "MAPE = "
       , round(mape.snaive, 2)
       , " - Forecast = "
       , round(sn.pred, 0)
@@ -373,7 +377,8 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     , subtitle = paste0(
       "Model Desc - "
       , monthly.ets.ref.model.desc
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.ets, 2)
       , " - Forecast = "
       , round(ets.pred, 0)
@@ -459,7 +464,8 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     , subtitle = paste0(
       "Model Desc - "
       , monthly.aa.perf.model.desc
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.aa, 2)
       , " - Forecast = "
       , round(aa.pred, 0)
@@ -517,7 +523,9 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "Model Desc - Bagged ETS - MAPE = "
+      "Model Desc - Bagged ETS"
+      , "\n"
+      , "MAPE = "
       , round(mape.bagged, 2)
       , " - Forecast = "
       , round(bagged.pred, 0)
@@ -532,6 +540,47 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
   theme_tq()
 print(monthly.bagged.fcast.plt)
 
+# Prohpet ####
+df.ts.monthly.prophet <- tk.monthly
+colnames(df.ts.monthly.prophet) <- c("ds","y")
+
+# Pophet Model
+prophet.model <- prophet(df.ts.monthly.prophet)
+prophet.future <- make_future_dataframe(
+  prophet.model
+  , periods = 12
+  , freq = "month"
+)
+tail(prophet.future, 12)
+
+# Prophet Forecast
+prophet.forecast <- predict(prophet.model, prophet.future)
+prophet.one.month.pred <- tail(
+  prophet.forecast[c('ds','yhat','yhat_lower','yhat_upper')]
+  , 12
+)
+prophet.pred <- head(prophet.one.month.pred$yhat, 1)
+print(prophet.pred)
+
+prophet.model.plt <- plot(
+  prophet.model
+  , prophet.forecast
+) +
+  labs(
+    title = "IP Readmit Rate Forecast: 12-Month Forecast"
+    , subtitle = paste0(
+      "Model Desc - fbProphet"
+      , "\n"
+      , "Forecast = "
+      , round(prophet.pred, 0)
+    )
+    , x = ""
+    , y = ""
+  ) +
+  scale_color_tq() +
+  scale_fill_tq() +
+  theme_tq()
+print(prophet.model.plt)
 
 # Compare models ####
 qqnorm(monthly.hw.fcast$residuals)
@@ -562,6 +611,7 @@ gridExtra::grid.arrange(
   , monthly.ets.fcast.plt
   , monthly.aa.fcast.plt
   , monthly.bagged.fcast.plt
+  , prophet.model.plt
   , nrow = 3
   , ncol = 2
 )
