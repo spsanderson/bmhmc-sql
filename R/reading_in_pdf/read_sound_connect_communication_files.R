@@ -2,6 +2,7 @@
 library(tidyverse)
 library(tabulizer)
 library(data.table)
+library(shiny)
 
 # Doc List ####
 file.vector <- list.files(path = getwd())
@@ -15,8 +16,11 @@ pdf.list <- file.vector[grepl(".pdf", file.vector)]
 print(pdf.list)
 
 # Create DF ####
-documents <- data.frame()
-error.page.df <- data.frame()
+documents <- data.frame(stringsAsFactors = FALSE)
+error.page.df <- data.frame(
+  Error_Message = character()
+  ,stringsAsFactors = FALSE
+  )
 
 # For Loop ####
 for(i in 1:length(pdf.list)){
@@ -58,11 +62,13 @@ for(i in 1:length(pdf.list)){
         , "for file -"
         , pdf.list[i]
       )
+      error.msg <- as.data.frame(as.character(error.msg))
       error.page.df <- rbind(error.page.df, error.msg)
       next 
     } else {
       documents <-rbind(documents, df)
       possible.error <- NA
+      error.msg <- NA
     }
   }
 }
@@ -80,17 +86,58 @@ column.names <- c(
 colnames(documents) <- column.names
 
 documents <- filter(
-  documents
-  , Room_Number != "Room #"
-) %>%
+    documents
+    , Room_Number != "Room #"
+  ) %>%
   filter(
     !(Patient %like% "Confidentiality Notice")
-) %>%
+  ) %>%
   filter(
-    MRN != "" | Room_Number != "" | Physician != "" | Team != "" 
+    MRN != "", Room_Number != "", Physician != "", Team != "" 
   )
 
-documents <- as_tibble(documents)
+# Get Error Pages ####
+all.documents <- data.frame(stringsAsFactors = FALSE)
+all.documents <- documents
+
+f <- tryCatch(file.choose(new = T), error = function(e) "")
+f.data <- extract_areas(f, 4)
+f.data.df <- as.data.frame(f.data, stringsAsFactors = FALSE)
+f.data.df$X5 <- NA
+f.data.df$FileName = 'SoundConnectCommunication_2019_03_29_04_30.pdf'
+#View(f.data.df)
+# is mrn column blank
+f.data.df$MRN <- str_sub(f.data.df$X1, -6, -1)
+f.data.df <- f.data.df %>%
+  select(
+    X1
+    #, MRN
+    , X2
+    , X3
+    , X4
+    , X5
+    , FileName
+  )
+
+colnames(f.data.df) <- column.names
+
+f.data.df <- f.data.df %>%
+  filter(
+    Room_Number != "Room #"
+  ) %>%
+  filter(
+    !(Patient %like% "Confidentiality Notice")
+  ) %>%
+  filter(
+    MRN != ""
+    , Room_Number != ""
+    , Physician != ""
+    # , Team != "" 
+  )
+
+# rbind errors to doc ####
+#all.documents <- data.frame(stringsAsFactors = FALSE)
+all.documents <- bind_rows(all.documents, f.data.df)
 
 # Write file ####
-write.csv(documents, "Sound_Connect_Communication.csv")
+write.csv(all.documents, "Sound_Connect_Communication.csv")
