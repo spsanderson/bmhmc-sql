@@ -3,6 +3,7 @@
 library(tidyverse)
 library(glue)
 library(forcats)
+library(lubridate)
 
 # Time Series
 library(timetk)
@@ -24,29 +25,50 @@ library(keras)
 
 # Get file ####
 file.to.choose <- file.choose(new = T)
+
+# TA Tibble ####
 df <- read.csv(file.to.choose)
-df <- df %>%
-  mutate(index = mdy(Time)) %>%
-  as_tbl_time(index = index)
+df$Arrival_Date <- mdy_hm(df$Arrival_Date)
+
+hourly.arrivals <- df %>%
+  mutate(processed.hour = floor_date(Arrival_Date, "hour")) %>%
+  group_by(processed.hour) %>%
+  summarise(Arrival_Count = sum(Arrival_Count)) %>%
+  as_tbl_time(index = processed.hour)
 head(df)
 
-# make a monthly object
-df.monthly <- df %>%
-  collapse_by("monthly") %>%
-  group_by(index, add = TRUE) %>%
-  summarize(
-    excess.rate = round(mean(EXCESS), 4)
-  )
-head(df.monthly)
-# Get start and end dates
-min.date <- min(df.monthly$index)
-max.date <- max(df.monthly$index)
+# Get missing hours if they exist
+min.date <- min(hourly.arrivals$processed.hour)
+min.year <- year(min.date)
+min.month <- month(min.date)
+max.date <- max(hourly.arrivals$processed.hour)
+max.year <- year(max.date)
+max.month <- month(max.date)
 
-p1 <- df.monthly %>%
+# Make a time.frame data.frame for missing hours if they exist
+time.frame <- as_datetime(c(min.date, max.date))
+all.hours <- data.frame(
+  processed.hour = seq(time.frame[1], time.frame[2], by = "hour")
+)
+
+# Make the full hourly.arrivals tibble
+hourly.arrivals <- hourly.arrivals %>%
+  right_join(all.hours, by = "processed.hour") %>%
+  mutate(
+    Arrival_Count = ifelse(
+      test = is.na(Arrival_Count)
+      , yes = 0
+      , no = Arrival_Count
+    )
+  )
+head(hourly.arrivals, 5)
+
+# Plot Data
+p1 <- hourly.arrivals %>%
   ggplot(
     aes(
-      index
-      , excess.rate
+      processed.hour
+      , Arrival_Count
     )
   ) +
   geom_point(
@@ -64,14 +86,16 @@ p1 <- df.monthly %>%
   )
 print(p1)
 
-p2 <- df.monthly %>%
+filter.date.value <- "2019-03-01"
+
+p2 <- hourly.arrivals %>%
   filter_time(
-    "2018" ~ "end"
+    filter.date.value ~ "end"
   ) %>%
   ggplot(
     aes(
-      index
-      , excess.rate
+      processed.hour
+      , Arrival_Count
     )
   ) +
   geom_line(
@@ -89,17 +113,18 @@ p2 <- df.monthly %>%
   theme_tq() +
   labs(
     title = paste0(
-      "From 2018-01-01 to "
+      "From "
+      , filter.date.value
+      , " to "
       , max.date
     )
-    , caption = "Excess Readmits Data"
+    , caption = "ED Arrivals by Hour"
   )
-
 print(p2)
 
 p.title <- ggdraw() +
   draw_label(
-    "Excess Readmits"
+    "ED Arrivals by Hour"
     , size = 18
     , fontface = "bold"
     , colour = palette_light()[[1]]
@@ -107,11 +132,11 @@ p.title <- ggdraw() +
 plot_grid(p.title, p1, p2, ncol = 1, rel_heights = c(0.1,1,1))
 
 # is lstm good?
-tidy.acf <- function(data, excess.rate, lags = 0:20){
-  value.expr <- enquo(excess.rate)
+tidy.acf <- function(data, Arrival_Count, lags = 0:20){
+  value.expr <- enquo(Arrival_Count)
   
   acf.values <- data %>%
-    pull(excess.rate) %>%
+    pull(Arrival_Count) %>%
     acf(lag.max = tail(lags, 1), plot = F) %>%
     .$acf %>%
     .[,,1]
@@ -124,44 +149,206 @@ tidy.acf <- function(data, excess.rate, lags = 0:20){
   return(ret)
 }
 
-max.lag <- 12 * 2
+max.lag <- 24 * 7
 
-df.monthly %>%
+hourly.arrivals %>%
   tidy.acf(
-    excess.rate
+    Arrival_Count
     , lags = 0:max.lag
   )
 
-df.monthly %>%
-  tidy.acf(excess.rate, lags = 0:max.lag) %>%
+hourly.arrivals %>%
+  tidy.acf(Arrival_Count, lags = 0:max.lag) %>%
   ggplot(aes(lag, acf)) +
   geom_segment(aes(xend = lag, yend = 0), color = palette_light()[[1]]) +
-  geom_vline(xintercept = 12, size = 3, color = palette_light()[[2]])
+  geom_vline(xintercept = 24, size = 3, color = palette_light()[[2]])
 
-df.monthly %>%
-  tidy.acf(excess.rate, lags = 6:24) %>%
+hourly.arrivals %>%
+  tidy.acf(excess.rate, lags = 12:36) %>%
   ggplot(aes(lag, acf)) +
-  geom_vline(xintercept = 12, size = 3, color = palette_light()[[2]]) +
+  geom_vline(xintercept = 24, size = 3, color = palette_light()[[2]]) +
   geom_segment(aes(xend = lag, yend = 0), color = palette_light()[[1]]) +
   geom_point(color = palette_light()[[1]], size = 2) +
   geom_label(aes(label = acf %>% round(2)), vjust = -1, color = palette_light()[[1]])
 
-optimal.lag.setting <- df.monthly %>%
-  tidy.acf(excess.rate, lags = 10:24) %>%
+optimal.lag.setting <- hourly.arrivals %>%
+  tidy.acf(excess.rate, lags = 12:36) %>%
   filter(acf == max(acf)) %>%
   pull(lag)
 
 print(optimal.lag.setting)
 
-periods.train <- 12 * 2
-periods.test <- 12 * 1
-skip.span <- 6 
+periods.train <- 24 * 150
+periods.test <- 24 * 30
+skip.span <- 24 * 7
 
 rolling_origin_resamples <- rolling_origin(
-  df.monthly
+  hourly.arrivals
   , initial = periods.train
   , assess = periods.test
   , cumulative = F
   , skip = skip.span
 )
 rolling_origin_resamples
+
+# Viz Backtest Strat ####
+plot.split <- function(
+  split
+  , expand_y_axis = T
+  , alpha = 1
+  , size = 1
+  , base_size = 14) {
+  # Manipulate Data
+  train.tbl <- training(split) %>%
+    add_column(key = "training")
+  
+  test.tbl <- testing(split) %>%
+    add_column(key = "testing")
+  
+  data.manipulated <- bind_rows(
+    train.tbl
+    , test.tbl
+  ) %>%
+    as_tbl_time(index = processed.hour) %>%
+    mutate(key = fct_relevel(key, "training", "testing"))
+  
+  # Collect attributes
+  train.time.summary <- train.tbl %>%
+    tk_index() %>%
+    tk_get_timeseries_summary()
+  
+  test.time.summary <- test.tbl %>%
+    tk_index() %>%
+    tk_get_timeseries_summary()
+  
+  # Viz
+  g <- data.manipulated %>%
+    ggplot(
+      aes(
+        x = processed.hour
+        , y = Arrival_Count
+        , color = key
+      )
+    ) +
+    geom_line(
+      size = size
+      , alpha = alpha
+    ) +
+    theme_tq(
+      base_size = base_size
+    ) +
+    scale_color_tq() +
+    labs(
+      title = glue("Split: {split$id}")
+      , subtitle = glue(
+        "{train.time.summary$start} to {test.time.summary$end}"
+        )
+      , y = ""
+      , x = ""
+    ) +
+    theme(legend.position = "none")
+  
+  if(expand_y_axis){
+    hourly.arrivals.time.summary <- hourly.arrivals %>%
+      tk_index() %>%
+      tk_get_timeseries_summary()
+    
+    g <- g +
+      scale_x_datetime(
+        limits = c(
+          hourly.arrivals.time.summary$start
+          , hourly.arrivals.time.summary$end
+        )
+      )
+  }
+  return(g)
+}
+
+rolling_origin_resamples$splits[[1]] %>%
+  plot.split(expand_y_axis = T) +
+  theme(legend.position = "bottom")
+
+# Plotting function that scales to all splits 
+plot_sampling_plan <- function(
+  sampling_tbl
+  , expand_y_axis = TRUE
+  , ncol = 3
+  , alpha = 1
+  , size = 1
+  , base_size = 14
+  , title = "Sampling Plan") {
+  
+  # Map plot_split() to sampling_tbl
+  sampling_tbl_with_plots <- sampling_tbl %>%
+    mutate(gg_plots = map(splits, plot.split, 
+                          expand_y_axis = expand_y_axis,
+                          alpha = alpha, base_size = base_size))
+  
+  # Make plots with cowplot
+  plot_list <- sampling_tbl_with_plots$gg_plots 
+  
+  p_temp <- plot_list[[1]] + theme(legend.position = "bottom")
+  legend <- get_legend(p_temp)
+  
+  p_body  <- plot_grid(plotlist = plot_list, ncol = ncol)
+  
+  p_title <- ggdraw() + 
+    draw_label(title, size = 18, fontface = "bold", colour = palette_light()[[1]])
+  
+  g <- plot_grid(p_title, p_body, legend, ncol = 1, rel_heights = c(0.05, 1, 0.05))
+  
+  return(g)
+  
+}
+
+rolling_origin_resamples %>%
+  plot.sampling.plan(
+    expand_y_axis = T
+    , ncol = 3
+    , alpha = 1
+    , size = 1
+    , base_size = 10
+    , title = "Backtesting Strategy: Rolling Origin Sampling Plan"
+    )
+
+split <- rolling_origin_resamples$splits
+split_id <- rolling_origin_resamples$id
+
+df_trn <- training(split)
+df_tst <- testing(split)
+
+df.su <- bind_rows(
+  df_trn %>% add_column(key = "training")
+  , df_tst %>% add_column(key = "testing")
+) %>%
+  as_tbl_time(index = Arrival_Date)
+
+rec_obj <- recipe(
+  Arrival_Count ~ ., hourly.arrivals
+) %>%
+  step_sqrt(Arrival_Count) %>%
+  step_center(Arrival_Count) %>%
+  step_scale(Arrival_Count) %>%
+  prep()
+
+df_processed_tbl <- bake(rec_obj, hourly.arrivals)
+head(df_processed_tbl)
+
+center_history <- rec_obj$steps[[2]]$means
+scale_history <- rec_obj$steps[[3]]$sds
+c("center"=center_history, "scale"=scale_history)
+
+# LSTM Model ####
+# Model Inputs
+lag.setting <- 120
+batch.size <- 40
+train.length <- 440
+tsteps <- 1
+epochs <- 300
+
+# Training Set
+lag.train.tbl <- df_processed_tbl %>%
+  mutate(value_lag = lag(Arrival_Count, n = lag.setting)) %>%
+  filter(!is.na(value_lag)) %>%
+  filter(key == "training") %>%
+  tail(train.length)
