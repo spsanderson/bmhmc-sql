@@ -94,3 +94,8 @@ geocoded <- origAddress %>%
   dplyr::select(Encounter, FullAddress,ZipCode, lon, lat)
 
 write.csv(geocoded, "geocoded_addresses.csv", row.names=FALSE)
+
+origAddress %>%
+  dplyr::filter(
+    is.na(origAddress$lat)
+  )
