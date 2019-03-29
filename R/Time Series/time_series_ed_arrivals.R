@@ -68,17 +68,17 @@ m <- prophet(hourly.orders)
 
 future <- make_future_dataframe(
   m
-  , periods = 24
+  , periods = 72
   , freq = 3600
   )
 tail(future, 24)
 
 m.forecast <- predict(m, future)
-tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 24)
+tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 72)
 
 m.forecast.cut <- tail(
   m.forecast[c('ds','yhat','yhat_lower','yhat_upper')]
-  , 24
+  , 72
   )
 plt.date <- min(m.forecast.cut$ds)
 
@@ -111,7 +111,7 @@ ggplot(
   ) +
   labs( 
     title = paste0(
-      "Arrivals by Hour to ED: 24 Hours Prediction for "
+      "Arrivals by Hour to ED: 72 Hours Prediction starting on "
       , plt.date
       ) 
     , subtitle = "Source: DSS" 
