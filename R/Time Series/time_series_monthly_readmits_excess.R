@@ -162,7 +162,7 @@ monthly.hw.fcast <- hw(
   monthly.rr.sub.xts
   , h = 12
   , alpha = monthly.fit.hw$alpha
-  , gamma = monthly.fit.hw$gamma
+  , gamma = monthly.fit.hw$beta
 )
 summary(monthly.hw.fcast)
 

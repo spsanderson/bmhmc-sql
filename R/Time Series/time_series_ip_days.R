@@ -1,14 +1,14 @@
 # Lib Load ####
 # Time Series analysis on Daily Discharge Data - Inpatients
 library(tidyquant)
-library(broom)
+#library(broom)
 library(timetk)
 library(sweep)
 library(tibbletime)
 library(anomalize)
 library(xts)
 library(fpp)
-library(forecast)
+#library(forecast)
 library(lubridate)
 library(dplyr)
 library(urca)
@@ -31,6 +31,7 @@ min.month <- month(min.date)
 max.date  <- max(ta.days$Time)
 max.year  <- year(max.date)
 max.month <- month(max.date)
+last.18.months <- as.Date(max.date) %m-% months(18, abbreviate = F)
 
 #timetk Daily
 ta.days.ts <- tk_ts(
@@ -83,14 +84,14 @@ tk.monthly %>%
   annotate(
     "text"
     , x = ymd("2012-01-01")
-    , y = min.discharges.monthly
+    , y = min.days.monthly
     , color = palette_light()[[1]]
     , label = "Training Region"
   ) +
   annotate(
     "text"
     , x = ymd("2017-01-01")
-    , y = max.discharges.monthly
+    , y = max.days.monthly
     , color = palette_light()[[1]]
     , label = "Testing Region"
   ) +
@@ -229,7 +230,7 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharge Days: 12-Month Forecast"
+    title = "Forecast for IP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -292,7 +293,7 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharge Days: 12-Month Forecast"
+    title = "Forecast for IP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -371,7 +372,7 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharge Days: 12-Month Forecast"
+    title = "Forecast for IP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -458,7 +459,7 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharge Days: 12-Month Forecast"
+    title = "Forecast for IP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -519,7 +520,7 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for OP Discharge Days: 12-Month Forecast"
+    title = "Forecast for IP Discharge Days: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -567,7 +568,7 @@ prophet.model.plt <- plot(
   , prophet.forecast
 ) +
   labs(
-    title = "IP Readmit Rate Forecast: 12-Month Forecast"
+    title = "Forecast for IP Discharge Days: 12-Month Forecast"
     , subtitle = paste0(
       "Model Desc - fbProphet"
       , "\n"

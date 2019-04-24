@@ -178,9 +178,10 @@ optimal.lag.setting <- hourly.arrivals %>%
 
 print(optimal.lag.setting)
 
-periods.train <- 24 * 150
-periods.test <- 24 * 30
-skip.span <- 24 * 7
+periods.train <- 24 * 90
+periods.test <- 24 * 7
+#skip.span <- 24 * 7
+skip.span <- round( (nrow(hourly.arrivals) / 12), 0 )
 
 rolling_origin_resamples <- rolling_origin(
   hourly.arrivals
@@ -302,8 +303,8 @@ plot_sampling_plan <- function(
 }
 
 rolling_origin_resamples %>%
-  plot.sampling.plan(
-    expand_y_axis = T
+  plot_sampling_plan(
+    expand_y_axis = F
     , ncol = 3
     , alpha = 1
     , size = 1
@@ -311,8 +312,12 @@ rolling_origin_resamples %>%
     , title = "Backtesting Strategy: Rolling Origin Sampling Plan"
     )
 
-split <- rolling_origin_resamples$splits
-split_id <- rolling_origin_resamples$id
+split <- rolling_origin_resamples$splits[[11]]
+split_id <- rolling_origin_resamples$id[[11]]
+
+plot.split(split, expand_y_axis = F, size = 0.5) +
+  theme(legend.position = "bottom") +
+  ggtitle(glue("Split: {split_id}"))
 
 df_trn <- training(split)
 df_tst <- testing(split)
@@ -321,17 +326,17 @@ df.su <- bind_rows(
   df_trn %>% add_column(key = "training")
   , df_tst %>% add_column(key = "testing")
 ) %>%
-  as_tbl_time(index = Arrival_Date)
+  as_tbl_time(index = processed.hour)
 
 rec_obj <- recipe(
-  Arrival_Count ~ ., hourly.arrivals
+  Arrival_Count ~ ., df.su
 ) %>%
   step_sqrt(Arrival_Count) %>%
   step_center(Arrival_Count) %>%
   step_scale(Arrival_Count) %>%
   prep()
 
-df_processed_tbl <- bake(rec_obj, hourly.arrivals)
+df_processed_tbl <- bake(rec_obj, df.su)
 head(df_processed_tbl)
 
 center_history <- rec_obj$steps[[2]]$means
@@ -340,9 +345,9 @@ c("center"=center_history, "scale"=scale_history)
 
 # LSTM Model ####
 # Model Inputs
-lag.setting <- 120
-batch.size <- 40
-train.length <- 440
+lag.setting <- nrow(df_tst)
+batch.size <- 12
+train.length <- nrow(df_trn)
 tsteps <- 1
 epochs <- 300
 
@@ -352,3 +357,40 @@ lag.train.tbl <- df_processed_tbl %>%
   filter(!is.na(value_lag)) %>%
   filter(key == "training") %>%
   tail(train.length)
+
+x.train.vec <- lag.train.tbl$value_lag
+x.train.arr <- array(data = x.train.vec, dim = c(length(x.train.vec), 1, 1))
+
+y.train.vec <- lag.train.tbl$value_lag
+y.train.arr <- array(data = y.train.vec, dim = c(length(y.train.vec), 1))
+
+# Testing Set
+lag.test.tbl <- df_processed_tbl %>%
+  mutate(value_lag = Arrival_Count, n = lag.setting) %>%
+  filter(!is.na(value_lag)) %>%
+  filter(key == "testing")
+
+x.test.vec <- lag.test.tbl$value_lag
+x.test.arr <- array(data = x.test.vec, dim = c(length(x.test.vec), 1, 1))
+
+y.test.vec <- lag.test.tbl$value_lag
+y.test.arr <- array(data = y.test.vec, dim = c(length(y.test.vec), 1))
+
+model <- keras::keras_model_sequential()
+
+model %>%
+  layer_lstm(
+    units = 50
+    , input_shape = c(tsteps, 1)
+    , batch_size =batch.size
+    , return_sequences = TRUE
+    , stateful = TRUE
+  ) %>%
+  layer_lstm(
+    units = 50
+    , return_sequences = FALSE
+    , stateful = TRUE
+  ) %>%
+  layer_dense(
+    units = 1
+  )
