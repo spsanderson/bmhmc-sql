@@ -2,7 +2,7 @@ DECLARE @ACTV_CD_START  VARCHAR(10);
 DECLARE @ACTV_CD_END    VARCHAR(10);
 DECLARE @PROC_EFF_START DATETIME;
 DECLARE @PROC_EFF_END   DATETIME;
-DECLARE @PROC_CD_TYPE   VARCHAR(3); -- for icd-9 2 for icd-10 3
+--DECLARE @PROC_CD_TYPE   VARCHAR(3); -- for icd-9 2 for icd-10 3
 DECLARE @ADMIT_START    DATETIME;
 DECLARE @ADMIT_END      DATETIME;
 DECLARE @PROC_SUMM_CAT  VARCHAR(15);
@@ -10,9 +10,9 @@ DECLARE @HCPCS_PROC_CAT VARCHAR(15);
 
 SET @ACTV_CD_START  = '07200000';
 SET @ACTV_CD_END    = '07299999';
-SET @PROC_EFF_START = '04/01/2017';
-SET @PROC_EFF_END   = '10/01/2017';
-SET @PROC_CD_TYPE   = 'PC'; -- for inpatient pc for outpatient pch
+SET @PROC_EFF_START = '2018-01-01';
+SET @PROC_EFF_END   = '2019-01-01';
+--SET @PROC_CD_TYPE   = 'PC'; -- for inpatient pc for outpatient pch
 SET @ADMIT_START    = @PROC_EFF_START;
 SET @ADMIT_END      = @PROC_EFF_END;
 
@@ -104,11 +104,11 @@ AND a.proc_cd_prio IN ('01','1')
 AND a.proc_eff_dtime >= @PROC_EFF_START
 AND a.proc_eff_dtime < @PROC_EFF_END
 AND a.proc_cd_schm NOT IN ('!')
-AND a.proc_cd_type = @PROC_CD_TYPE
+--AND a.proc_cd_type = @PROC_CD_TYPE
 AND a.pt_id BETWEEN '000010000000' AND '000099999999'
 AND d.tot_chg_amt > 0
 ----- change to not equal to for pch
-AND d.plm_pt_acct_type = 'I'
+--AND d.plm_pt_acct_type = 'I'
 -----
 
 UNION
@@ -174,7 +174,7 @@ AND h.src_sys_id='#PASS0X0'
 AND i.src_sys_id='#PASS0X0'
 AND f.hosp_svc <> 'bpc'
 ----- change to not equal to for pch
-AND f.plm_pt_acct_type = 'I'
+--AND f.plm_pt_acct_type = 'I'
 -----
 AND (
 	f.adm_dr_no IN (
@@ -199,7 +199,7 @@ AND f.Pt_No NOT IN (
 	AND a.proc_cd_prio IN ('01','1')
 	AND a.proc_eff_dtime >= @PROC_EFF_START 
 	AND a.proc_eff_dtime < @PROC_EFF_END
-	AND a.proc_cd_type = @PROC_CD_TYPE
+	--AND a.proc_cd_type = @PROC_CD_TYPE
 	AND a.proc_cd_schm NOT IN ('!')
 	AND a.pt_id BETWEEN '000010000000' AND '000099999999'
 	AND d.tot_chg_amt > 0
