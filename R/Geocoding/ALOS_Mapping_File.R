@@ -24,6 +24,13 @@ origAddress$SOI <- as.factor(origAddress$SEVERITY_OF_ILLNESS)
 origAddress$ZipCode <- as.factor(origAddress$ZipCode)
 origAddress$Var[origAddress$Case_Var <= 0] <- 0
 origAddress$Var[origAddress$Case_Var > 0] <- 1
+origAddress <- origAddress %>%
+  filter(is.na(lat) == F) %>%
+  filter(is.na(lon) == F) %>%
+  filter(lat != 'NULL') %>%
+  filter(lon != 'NULL')
+origAddress$lat <- as.numeric(origAddress$lat)
+origAddress$lon <- as.numeric(origAddress$lon)
 
 # number of discharges
 discharges <- nrow(origAddress)
@@ -463,7 +470,7 @@ hospMarker <- makeAwesomeIcon(
 
 mcluster <- leaflet() %>%
   setView(lng = sv_lng, lat = sv_lat, zoom = sv_zoom) %>%
-  addTiles() %>% 
+  addTiles() %>%
   addMarkers(
     lng = origAddress$lon
     , lat = origAddress$lat
