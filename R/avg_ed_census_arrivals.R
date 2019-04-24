@@ -155,7 +155,7 @@ arrivals.boxplt <- df.arrivals.gathered %>% ggplot(
     , subtitle = "Source: DSS"
     , x = ""
     , y = ""
-    , caption = "From 12-30-2018 to 3-23-2019"
+    , caption = "From 12-30-2018 to 4-21-2019"
   )
 print(arrivals.boxplt)
 
@@ -175,15 +175,15 @@ census.boxplt <- df.census.gathered %>% ggplot(
     , subtitle = "Source: DSS"
     , x = ""
     , y = ""
-    , caption = "From 12-30-2018 to 3-23-2019"
+    , caption = "From 12-30-2018 to 4-21-2019"
   )
 print(census.boxplt)
 
 gridExtra::grid.arrange(
   arrivals.boxplt
   , census.boxplt
-  , nrow = 1
-  , ncol = 2
+  , nrow = 2
+  , ncol = 1
 )
 
 # Animate ####
