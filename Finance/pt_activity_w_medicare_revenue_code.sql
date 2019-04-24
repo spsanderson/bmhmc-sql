@@ -54,3 +54,22 @@ ON A.actv_cd = D.actv_cd
 		
 WHERE a.chg_tot_amt != 0				
 		
+SELECT DISTINCT A.*
+, CLAIM.pay_desc
+, CLAIM.pay_entry_date
+
+FROM #TEMPA AS A
+LEFT OUTER JOIN smsmir.pay AS CLAIM
+ON A.pt_id = CLAIM.pt_id
+AND CLAIM.pay_cd = '10501435'
+
+WHERE rev_code = '510'
+
+ORDER BY A.pt_id
+, A.rev_cd
+;
+
+DROP TABLE #TEMPA;
+
+
+
