@@ -23,6 +23,7 @@ DECLARE @END DATE;
 
 SET @START = '2016-01-01';
 SET @END = '2017-01-01';
+
 -----
 SELECT a.pt_no
 , a.ord_no
