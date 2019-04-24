@@ -97,7 +97,8 @@ FROM (
 	, ED_MD
 	, EDMDID
 	
-	FROM SMSDSS.c_Wellsoft_Rpt_tbl
+	--FROM SMSDSS.c_Wellsoft_Rpt_tbl
+	FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
 ) D
 
 --SELECT * FROM @EDTBL
@@ -247,7 +248,8 @@ FROM (
 
 	FROM smsdss.c_Softmed_Denials_Detail_v
 	
-	WHERE patient_type IN ('E', 'O')
+	--WHERE patient_type IN ('E', 'O')
+	WHERE patient_type != 'I'
 	AND admission_date >= @SD
 	AND admission_date < @ED
 
