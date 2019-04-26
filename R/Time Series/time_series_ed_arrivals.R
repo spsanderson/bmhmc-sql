@@ -1,18 +1,20 @@
 # Lib Load ####
 # Time Series analysis on Daily Discharge Data - Inpatients
-library(tidyquant)
-library(broom)
-library(timetk)
-library(sweep)
-library(tibbletime)
-library(anomalize)
-library(xts)
-library(fpp)
-library(forecast)
-library(lubridate)
-library(dplyr)
-library(urca)
-library(prophet)
+install.load::install_load(
+  "tidyquant"
+  , "broom"
+  , "timetk"
+  , "sweep"
+  , "tibbletime"
+  , "anomalize"
+  , "xts"
+  , "fpp"
+  , "forecast"
+  , "lubridate"
+  , "dplyr"
+  , "urca"
+  , "prophet"
+)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
@@ -61,24 +63,24 @@ head(hourly.orders, 5)
 # FB Prophet Model ####
 # may have trouble getting forecast model due to vector create size
 # shrink data down
-hourly.orders <- hourly.orders %>% 
+hourly.orders <- hourly.arrivals %>% 
   filter(ds >= '2018-01-01')
 
 m <- prophet(hourly.orders)
 
 future <- make_future_dataframe(
   m
-  , periods = 72
+  , periods = 96
   , freq = 3600
   )
 tail(future, 24)
 
 m.forecast <- predict(m, future)
-tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 72)
+tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 48)
 
 m.forecast.cut <- tail(
   m.forecast[c('ds','yhat','yhat_lower','yhat_upper')]
-  , 72
+  , 48
   )
 plt.date <- min(m.forecast.cut$ds)
 
@@ -111,10 +113,10 @@ ggplot(
   ) +
   labs( 
     title = paste0(
-      "Arrivals by Hour to ED: 72 Hours Prediction starting on "
+      "Arrivals by Hour to ED: 48 Hours Prediction starting on "
       , plt.date
       ) 
-    , subtitle = "Source: DSS" 
+    , subtitle = "Source: DSS - Model fbProphet" 
     , y = "Arrivals by Hour" 
     , x = "Hour of Arrival" 
     , size = "Predicted Arrivals"
