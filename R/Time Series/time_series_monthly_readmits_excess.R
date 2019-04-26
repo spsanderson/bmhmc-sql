@@ -710,7 +710,7 @@ automl.error.tbl <- tk.monthly %>%
   filter(lubridate::year(Time) == 2018) %>%
   add_column(
     pred = pred.h2o %>%
-      as.tibble() %>%
+      as_tibble() %>%
       pull(predict)
   ) %>%
   rename(actual = excess.rate) %>%
