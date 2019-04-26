@@ -46,6 +46,7 @@ SELECT b.Pt_No
 , b.drg_cost_weight
 , G.pyr_group2
 , e.med_staff_dept
+, H.ward_cd
 
 INTO #TEMPA
 
@@ -65,9 +66,11 @@ ON b.Atn_Dr_No = e.src_pract_no
 	AND e.orgz_cd = 's0x0'
 LEFT JOIN smsdss.c_LIHN_APR_DRG_OutlierThresholds AS f
 ON c.APRDRGNO = f.[apr-drgcode]
-LEFT JOIN smsdss.pyr_dim_v AS G
+LEFT JOIN smsdss.pyr_dim_v                        AS G
 ON B.Pyr1_Co_Plan_Cd = G.pyr_cd
 	AND b.Regn_Hosp = G.orgz_cd
+LEFT JOIN SMSMIR.vst_rpt                          AS H
+ON B.PT_NO = H.PT_ID
 
 WHERE b.Dsch_Date >= @start
 AND b.Dsch_Date < @end
@@ -113,6 +116,7 @@ SELECT A.Pt_No AS pt_id
 , [zScore_UL] = 1.96
 , [zScore_LL] = -1.96
 , A.med_staff_dept
+, A.ward_cd
 --, GEO.FullAddress
 --, GEO.lat
 --, GEO.lon
