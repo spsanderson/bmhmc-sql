@@ -14,6 +14,7 @@ library(RColorBrewer)
 library(infotheo)
 library(AppliedPredictiveModeling)
 library(fitdistrplus)
+library(timetk)
 
 # Get File ####
 fileToLoad <- file.choose(new = T)
