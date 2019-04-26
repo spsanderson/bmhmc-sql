@@ -37,6 +37,7 @@ SELECT A.Med_Rec_No
 , A.RA_Flag AS [Readmit_Count]
 , B.BENCH_YR
 , B.READMIT_RATE AS [Readmit_Rate_Bench]
+, D.WARD_CD
 
 INTO #TEMPA
 
@@ -48,6 +49,8 @@ ON A.LIHN_Svc_Line = B.LIHN_SVC_LINE
 LEFT OUTER JOIN smsdss.drg_dim_v AS C
 ON A.drg_no = C.drg_no
 	AND C.drg_vers = 'MS-V25'
+LEFT OUTER JOIN SMSMIR.VST_RPT AS D 
+ON A.PTNO_NUM = SUBSTRING(D.PT_ID, 5, 8)
 
 WHERE B.SOI IS NOT NULL
 

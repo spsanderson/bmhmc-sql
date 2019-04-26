@@ -28,6 +28,7 @@ SELECT A.Med_Rec_No
 , A.RA_Flag AS [Readmit_Count]
 , B.BENCH_YR
 , B.READMIT_RATE AS [Readmit_Rate_Bench]
+, C.ward_cd
 
 INTO #TEMPA
 
@@ -36,6 +37,8 @@ LEFT OUTER JOIN smsdss.c_Readmit_Dashboard_Bench_Tbl AS B
 ON A.LIHN_Svc_Line = B.LIHN_SVC_LINE
 	AND (A.Dsch_YR - 1) = B.BENCH_YR
 	AND A.SEVERITY_OF_ILLNESS = B.SOI
+LEFT OUTER JOIN SMSMIR.VST_RPT AS C
+ON A.PtNo_Num = SUBSTRING(C.PT_ID, 5, 8)
 
 WHERE B.SOI IS NOT NULL
 
