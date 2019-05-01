@@ -101,7 +101,7 @@ all.documents <- data.frame(stringsAsFactors = FALSE)
 all.documents <- documents
 
 f <- tryCatch(file.choose(new = T), error = function(e) "")
-f.data <- extract_areas(f, 3)
+f.data <- extract_areas(f, 2)
 f.data.df <- as.data.frame(f.data, stringsAsFactors = FALSE)
 f.data.df$X5 <- NA
 f.data.df$FileName = 'SoundConnectCommunication_2019_04_04_04_30.pdf'
@@ -111,8 +111,8 @@ f.data.df$MRN <- str_sub(f.data.df$X1, -6, -1)
 f.data.df <- f.data.df %>%
   select(
     X1
-    , MRN
-    #, X2
+    #, MRN
+    , X2
     , X3
     , X4
     , X5
