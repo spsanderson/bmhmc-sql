@@ -75,7 +75,7 @@ FROM (
 		SELECT Encounter
 		FROM smsdss.c_geocoded_address
 	)
-	AND B.Dsch_Date >= '2018-01-01'
+	AND B.Dsch_Date >= '2019-01-01'
     --AND b.Dsch_Date = @YESTERDAY
 	--AND B.Dsch_Date >= '2018-07-01'
 	--AND B.Dsch_Date < '2018-08-01'
