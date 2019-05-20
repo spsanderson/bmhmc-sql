@@ -19,7 +19,7 @@ install.load::install_load(
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
 arrivals <- read.csv(fileToLoad)
-# rm(fileToLoad)
+rm(fileToLoad)
 
 # Time Aware Tibble ####
 # Format Arrival_Date and make time aware tibble
@@ -63,8 +63,8 @@ head(hourly.orders, 5)
 # FB Prophet Model ####
 # may have trouble getting forecast model due to vector create size
 # shrink data down
-hourly.orders <- hourly.arrivals %>% 
-  filter(ds >= '2018-01-01')
+# hourly.orders <- hourly.arrivals %>% 
+#   filter(ds >= '2018-01-01')
 
 m <- prophet(hourly.orders)
 
@@ -73,10 +73,10 @@ future <- make_future_dataframe(
   , periods = 96
   , freq = 3600
   )
-tail(future, 24)
+tail(future, 96)
 
 m.forecast <- predict(m, future)
-tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 48)
+tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 96)
 
 m.forecast.cut <- tail(
   m.forecast[c('ds','yhat','yhat_lower','yhat_upper')]

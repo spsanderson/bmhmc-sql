@@ -88,7 +88,7 @@ p1 <- hourly.arrivals %>%
   )
 print(p1)
 
-filter.date.value <- "2019-03-01"
+filter.date.value <- "2019-05-01"
 
 p2 <- hourly.arrivals %>%
   filter_time(
@@ -932,7 +932,7 @@ future_ed_arrivals_tbl <- predict_keras_lstm_future(
 tail(future_ed_arrivals_tbl, 5)
 
 future_ed_arrivals_tbl %>%
-  filter_time("2019-04-20" ~ "end") %>%
+  filter_time("2019-05-18" ~ "2019-05-19") %>%
   plot_prediction(id = NULL, alpha = 0.4, size = 1.5) +
   geom_line(size = 1, alpha = 0.618) +
   theme(legend.position = "bottom") +
