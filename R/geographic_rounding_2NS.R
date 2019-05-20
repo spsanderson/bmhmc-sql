@@ -8,8 +8,10 @@ file.to.load <- file.choose(new = T)
 df <- read_xlsx(path = file.to.load, sheet = "data")
 df %>% glimpse()
 
-# Add excess days
+# Add excess days - positive number is bad
 df$excess.days <- df$DAYS_STAY - df$Index_ELOS
+# Add excess readmission rate - positive number is bad
+df$excess.rr <- (df$RA_Flag / df$Enc_Flag ) - df$RR_Bench
 
 # Frequencies ####
 freq(
@@ -75,8 +77,59 @@ readmit.plt <- df %>%
 # Print Graph
 print(readmit.plt)
 
+# Data and Aes
+# Excess Readmit Rate
+readmit.excess.plt <- df %>%
+  group_by(DSCH_YYYYqN, ward_cd, HOSPITALIST_Pvt_CD_FLAG) %>%
+  summarise(
+    err = round(mean(excess.rr, na.rm = T) * 100, 2)
+  ) %>%
+  ggplot(
+    aes(
+      x = as.factor(DSCH_YYYYqN)
+      , y = err
+      , fill = HOSPITALIST_Pvt_CD_FLAG
+    )
+  ) +
+  # Geometries
+  geom_bar(
+    stat = "identity"
+    , color = "black"
+    , position = "dodge"
+    , alpha = 0.5
+  ) +
+  # Facets
+  facet_grid(. ~ ward_cd) +
+  # Statistics
+  # Coordinates
+  geom_text(
+    aes(
+      label = err
+    )
+    , vjust = 1.5
+    , color = "black"
+    , position = position_dodge(0.9)
+    , size = 3
+  ) +
+  # Theme
+  labs(
+    title = "Excess Readmit Rate by Hospitalist / Pvt"
+    , subtitle = "Patients discharged from 2SOU & 2NOR"
+    , x = ""
+    , y = ""
+    , fill = "Hosp / Pvt"
+  ) +
+  theme(
+    legend.background = element_blank()
+  ) +
+  theme(
+    legend.key = element_blank()
+  ) +
+  tidyquant::theme_tq()
+print(readmit.excess.plt)
+
 # Data and AES
-# Patient had to have telemetr
+# Patient had to have telemetry
 appropriate.tele.plt <- df %>%
   filter(TELE_FLAG == 1) %>%
   group_by(DSCH_YYYYqN, ward_cd, HOSPITALIST_Pvt_CD_FLAG) %>%
@@ -283,6 +336,58 @@ readmit.plt <- df %>%
   tidyquant::theme_tq()
 # Print Graph
 print(readmit.plt)
+
+# Data and Aes
+# Excess readmit rate err
+excess.readmit.plt <- df %>%
+  group_by(DSCH_YYYYqN, ward_cd) %>%
+  summarise(
+    err = round(mean(excess.rr, na.rm = T) * 100, 2)
+  ) %>%
+  ggplot(
+    aes(
+      x = as.factor(DSCH_YYYYqN)
+      , y = err
+      , fill = DSCH_YYYYqN
+    )
+  ) +
+  # Geometries
+  geom_bar(
+    stat = "identity"
+    , color = "black"
+    , position = "dodge"
+    , alpha = 0.5
+  ) +
+  # Facets
+  facet_grid(. ~ ward_cd) +
+  # Statistics
+  # Coordinates
+  geom_text(
+    aes(
+      label = err
+    )
+    , vjust = 1.5
+    , color = "black"
+    , position = position_dodge(0.9)
+    , size = 3
+  ) +
+  # Theme
+  labs(
+    title = "Excess Readmit Rate by Discharge Year and Quarter"
+    , subtitle = "Patients discharged from 2SOU & 2NOR"
+    , x = ""
+    , y = ""
+    , fill = "YYYYqN"
+  ) +
+  theme(
+    legend.background = element_blank()
+  ) +
+  theme(
+    legend.key = element_blank()
+  ) +
+  tidyquant::theme_tq()
+# Print Graph
+print(excess.readmit.plt)
 
 # Data and AES
 # Patient had to have telemetr
