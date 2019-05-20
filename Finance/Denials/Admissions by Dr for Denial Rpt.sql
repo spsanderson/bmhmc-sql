@@ -101,7 +101,8 @@ left outer join smsdss.pract_dim_v    as g
 on a.Atn_Dr_No = g.src_pract_no
 	and g.orgz_cd = 's0x0'
 
-WHERE Adm_Date BETWEEN '2014-01-01 00:00:00.000' AND '2016-03-31 23:59:59.000' 
+WHERE Adm_Date >= '2019-03-01 00:00:00.000' 
+AND Adm_Date <    '2019-04-01 00:00:00.000' 
 AND tot_chg_amt > '0'
 AND Plm_Pt_Acct_Type='I'
 AND Atn_Dr_No != '000059' -- TESTCPOE DOCTOR
