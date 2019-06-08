@@ -17,14 +17,11 @@ df <- readxl::read_xlsx(path = fileToLoad, sheet = "data")
 df %>% glimpse()
 
 # DF Health ####
-df_status(df)
 nrow(df)
 ncol(df)
 colnames(df)
 DataExplorer::plot_missing(df)
-#create_report(df)
 str(df)
-df <- as_tibble(df)
 
 # Change some columns to factor/char
 df$med_rec_no <- as.character(df$med_rec_no)
@@ -683,9 +680,7 @@ train <- subset(base.mod.df, split == T)
 test  <- subset(base.mod.df, split == F)
 
 # Make Tasks ####
-# convert test/train to pure data.frame
 glimpse(test)
-test$predicted.readmit <- NULL
 
 train.df <- data.frame(train)
 test.df <- data.frame(test)
@@ -784,3 +779,26 @@ calculateROCMeasures(gbm.pred)
 conf_mat_f1_func(gbm.pred)
 
 perf_plots_func(Model = gbm.pred)
+
+# Save the model to disk
+saveRDS(
+  object = gbm.train
+  , file = "gbm_pred.rds"
+  )
+
+# DALEX ####
+cumstom_predict <- function(object, newdata){
+  pred <- predict(
+    object
+    , newdata = newdata
+    )
+  response <- pred$data$response
+  return(response)
+}
+explainer_gbm <- DALEX::explain(
+  gbm.train
+  , data = train.df %>% dplyr::select(-Init_Acct)
+  , y = train.df$READMIT_FLAG
+  , predict_function = custom_predict
+  , label = "gbm"
+  )
