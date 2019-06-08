@@ -99,3 +99,5 @@ origAddress %>%
   dplyr::filter(
     is.na(origAddress$lat)
   )
+
+rm(list = ls())
