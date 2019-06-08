@@ -51,7 +51,7 @@ Date        Author          Description
 05-08-19    ssanderson      Initial Creation to duplicate to crystal sp for reporting
 
 Example Run:
-    Exec ORE_BMH_CPOE_Signed_Unsigned_EDR_test '134053','2'
+    Exec ORE_BMH_CPOE_Signed_Unsigned_EDR_V2_test '134053','2'
 
 */
 ALTER PROCEDURE [dbo].[ORE_BMH_CPOE_Signed_Unsigned_EDR_V2] @VisitObjectID VARCHAR(20) = NULL,
@@ -68,8 +68,8 @@ BEGIN
 		@vchEnterpriseName VARCHAR(75),
 		@vchEntityName VARCHAR(75),
 		@iVerbalOrderLevel INT,
-        @iRecCount INTEGER,
-        @vchCoSignUsers VARCHAR(2000),
+    @iRecCount INTEGER,
+    @vchCoSignUsers VARCHAR(2000),
 		@vchSignedBy VARCHAR(184),
 		@vchStaff VARCHAR(184),
 		@vchcosigndate DATETIME,
