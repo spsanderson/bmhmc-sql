@@ -1,0 +1,7 @@
+SELECT COUNT(DISTINCT(PTNO_NUM))
+FROM smsdss.BMH_PLM_PtAcct_V
+WHERE tot_chg_amt > 0
+AND LEFT(PTNO_NUM, 1) != '2'
+AND LEFT(PTNO_NUM, 4) != '1999'
+AND Adm_Date >= '2018-05-01'
+AND Adm_Date < '2018-11-01'

@@ -787,7 +787,7 @@ saveRDS(
   )
 
 # DALEX ####
-cumstom_predict <- function(object, newdata){
+custom_predict <- function(object, newdata){
   pred <- predict(
     object
     , newdata = newdata

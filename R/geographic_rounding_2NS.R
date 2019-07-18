@@ -30,7 +30,7 @@ freq(
 readmit.plt <- df %>%
   group_by(DSCH_YYYYqN, ward_cd, HOSPITALIST_Pvt_CD_FLAG) %>%
   summarise(
-    Ra_Rate = round(sum(RA_FLAG) / sum(Enc_Flag), 4) * 100
+    Ra_Rate = round(sum(RA_Flag) / sum(Enc_Flag), 4) * 100
     ) %>%
   ggplot(
     aes(
@@ -290,7 +290,7 @@ print(avg.soi.plt)
 readmit.plt <- df %>%
   group_by(DSCH_YYYYqN, ward_cd) %>%
   summarise(
-    Ra_Rate = round(sum(RA_FLAG) / sum(Enc_Flag), 4) * 100
+    Ra_Rate = round(sum(RA_Flag) / sum(Enc_Flag), 4) * 100
   ) %>%
   ggplot(
     aes(

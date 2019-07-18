@@ -1,2 +1,0 @@
-SELECT sepsis.*
-FROM sepsis;

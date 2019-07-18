@@ -325,8 +325,8 @@ monthly.ets.ref <- monthly.dsch.sub.xts %>%
   ets(
     ic = "bic"
     , alpha = monthly.ets.fit$par[["alpha"]]
-    , beta  = monthly.ets.fit$par[["beta"]]
-    , phi   = monthly.ets.fit$par[["phi"]]
+    # , beta  = monthly.ets.fit$par[["beta"]]
+    # , phi   = monthly.ets.fit$par[["phi"]]
     # , gamma = monthly.ets.fit$par[["gamma"]]
   )
 
