@@ -384,7 +384,7 @@ erdata_admmd_overten$AvgInd[
 gName <- paste0(graph_path, "provider_perf.png")
 png(filename = gName, width = 1080, height = 1057)
 erdata_admmd_overten %>%
-  filter(avg_dta_admord >= -60) %>%
+  filter(avg_dta_admord >= 0) %>%
   ggplot(
     mapping = aes(
       x = avg_dta_admord
@@ -411,7 +411,7 @@ erdata_admmd_overten %>%
   xlab("Average DTA to Admit Order Delta in Minutes") +
   labs(
     title = "Average Decision to Admit to Admit Order Time Delta in Minutes\nby Admitting Provider"
-    , subtitle = "Source: WellSoft, DSS - Red Dashed Line is 75 Minutes Benchmark"
+    , subtitle = "Source: WellSoft, DSS - Red Dashed Line is 75 Minutes Benchmark - Black Dashed Line is actual"
     , caption = "Provider must have 10 or more Admits"
     , color = "Hosp/Pvt"
     ) + 
