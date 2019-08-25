@@ -29,6 +29,8 @@ Date		Version		Description
 						Fi02 and PEEP Threshold Flags
 						DECLARE @EVENTS TABLE AND EVENTID AS:
 						EVENTID INT IDNEITY(1,1) PRIMARY KEY
+2019-08-05	v3			Add AND dsply_val != '-'
+						Add dbo.c_udf_NumericChars(A.Min_Val) AS Min_Val,
 ***********************************************************************
 */
 SELECT episode_no,
@@ -46,7 +48,8 @@ SELECT episode_no,
 INTO #TEMPA
 FROM SMSMIR.obsv
 WHERE obsv_cd IN ('A_BMH_VFFiO2', 'A_BMH_VFPEEP')
-	AND episode_no = '14450357'
+	AND episode_no IN ('')
+	AND dsply_val != '-'
 ORDER BY obsv_cd,
 	perf_dtime;
 
@@ -102,29 +105,6 @@ INNER JOIN (
 	AND A.PERF_DATE = B.Perf_Date
 	AND A.obsv_cd = B.obsv_cd;
 
--- TESTING
-
---SELECT A.episode_no,
---	A.pt_id,
---	A.vst_id,
---	A.vst_no,
---	A.obsv_cd,
---	A.obsv_cd_name,
---	A.obsv_user_id,
---	A.Min_Val,
---	A.val_sts_cd,
---	A.Perf_Date,
---	A.RN,
---	A.KeepFlag,
---	[EventNum] = ROW_NUMBER() OVER (
---		PARTITION BY A.EPISODE_NO,
---		A.OBSV_CD ORDER BY A.PERF_DATE
---		)
---FROM #TEMPC AS A
---WHERE A.KeepFlag = 1;
-
--- END TESTING
-
 WITH CTE
 AS (
 	SELECT A.episode_no,
@@ -134,7 +114,7 @@ AS (
 		A.obsv_cd,
 		A.obsv_cd_name,
 		A.obsv_user_id,
-		A.Min_Val,
+		dbo.c_udf_NumericChars(A.Min_Val) AS Min_Val,
 		A.val_sts_cd,
 		A.Perf_Date,
 		A.RN,
@@ -232,28 +212,38 @@ FROM #ThresholdFlags AS A
 ;
 
 SELECT CRT.episode_no
-, CRT.obsv_cd
-, CRT.obsv_cd_name
-, CRT.obsv_user_id
-, CRT.Perf_Date
-, CRT.Min_Val
+--, CRT.obsv_cd
 , CRT.EventNum
-, CRT.Delta
-, CRT.Threshold_Flag
-, CRT.Fi02_Threshold_Flag
-, CRT.PEEP_Threshold_Flag
-, CRT.Stability_Check_A
-, CRT.Fi02_Stability
-, CRT.PEEP_Stability
+, CRT.obsv_cd_name
+--, CRT.obsv_user_id
+, CRT.Perf_Date
+, CRT.Min_Val AS [Min_Daily_Fi02]
+, CRT.Delta AS [Fi02_Delta]
+--, CRT.Fi02_Threshold_Flag
+, CRT2.obsv_cd_name
+, CRT2.Min_Val AS [Min_Daily_PEEP]
+, CRT2.Delta AS [PEEP_Delta]
+--, CRT2.PEEP_Threshold_Flag
+--, CRT.Fi02_Threshold_Flag
+--, CRT.PEEP_Threshold_Flag
+--, CRT.Stability_Check_A
+--, CRT.Fi02_Stability
+--, CRT.PEEP_Stability
 --, 1 AS GroupNum
 --, 1 AS GroupEventNum
 FROM #StabilityA AS CRT
+LEFT OUTER JOIN #StabilityA AS CRT2
+ON CRT.episode_no = CRT2.episode_no
+	AND CRT.obsv_cd != CRT2.obsv_cd
+	AND CRT.Perf_Date = CRT2.Perf_Date
+	
+WHERE CRT.obsv_cd = 'A_BMH_VFFiO2'
 
 -- DROP TABLE STATEMENTS
---DROP TABLE #TEMPA
---DROP TABLE #TEMPB
---DROP TABLE #TEMPC
---DROP TABLE #Deltas
---DROP TABLE #ThresholdFlags
---DROP TABLE #StabilityA
---;
+DROP TABLE #TEMPA
+DROP TABLE #TEMPB
+DROP TABLE #TEMPC
+DROP TABLE #Deltas
+DROP TABLE #ThresholdFlags
+DROP TABLE #StabilityA
+;
