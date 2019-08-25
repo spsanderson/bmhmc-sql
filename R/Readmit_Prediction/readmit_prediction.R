@@ -384,7 +384,7 @@ hist_lace_non_ra <- df%>%
       , df %>% 
         filter(READMIT_FLAG == 'N' & Init_LACE >= 0) %>%
         dplyr::select(Init_LACE) %>%
-        summarize(round(mean(Init_LACE), 2))
+        dplyr::summarize(round(mean(Init_LACE), 2))
     )
     , x = "LACE Score"
     , y = "Count"
@@ -413,7 +413,7 @@ hist_lace_ra <- df %>%
       , df %>% 
           filter(READMIT_FLAG == 'Y' & Init_LACE >= 0) %>%
           dplyr::select(Init_LACE) %>%
-          summarize(round(mean(Init_LACE), 2))
+          dplyr::summarize(round(mean(Init_LACE), 2))
     )
     , x = "LACE Score"
     , y = "Count"
@@ -441,13 +441,13 @@ hist_lace_both <- df %>%
       , df %>% 
         filter(READMIT_FLAG == 'Y' & Init_LACE >= 0) %>%
         dplyr::select(Init_LACE) %>%
-        summarize(round(mean(Init_LACE), 2))
+        dplyr::summarize(round(mean(Init_LACE), 2))
       , "\n"
       , "Non-Readmit Mean LACE Score = "
       , df %>%
         filter(READMIT_FLAG == 'N' & Init_LACE >= 0) %>%
         dplyr::select(Init_LACE) %>%
-        summarize(round(mean(Init_LACE), 2))
+        dplyr::summarize(round(mean(Init_LACE), 2))
     )
     , x = "Initial LACE Score"
     , y = "Density"
@@ -532,7 +532,7 @@ hist_lace_non_ra_hp <- df%>%
             df$Init_Hosp_Pvt == "HOSPITALIST"
           ) %>%
         dplyr::select(Init_LACE) %>%
-        summarize(round(mean(Init_LACE), 2))
+        dplyr::summarize(round(mean(Init_LACE), 2))
       , "\n"
       , "Mean LACE Score for Private = "
       , df %>% 
@@ -542,7 +542,7 @@ hist_lace_non_ra_hp <- df%>%
             df$Init_Hosp_Pvt == "PRIVATE"
         ) %>%
         dplyr::select(Init_LACE) %>%
-        summarize(round(mean(Init_LACE), 2))
+        dplyr::summarize(round(mean(Init_LACE), 2))
     )
     , x = "LACE Score"
     , y = "Count"
@@ -585,7 +585,7 @@ hist_lace_ra_hp <- df %>%
             df$Init_Hosp_Pvt == "HOSPITALIST"
         ) %>%
         dplyr::select(Init_LACE) %>%
-        summarize(round(mean(Init_LACE), 2))
+        dplyr::summarize(round(mean(Init_LACE), 2))
       , "\n"
       , "Mean LACE Score for Private = "
       , df %>% 
@@ -595,7 +595,7 @@ hist_lace_ra_hp <- df %>%
             df$Init_Hosp_Pvt == "PRIVATE"
         ) %>%
         dplyr::select(Init_LACE) %>%
-        summarize(round(mean(Init_LACE), 2))
+        dplyr::summarize(round(mean(Init_LACE), 2))
     )
     , x = "LACE Score"
     , y = "Count"
@@ -681,7 +681,7 @@ df %>%
       "Avg Days until Readmission: "
       , df %>%
         filter(Days_To_Readmit >= 0) %>%
-        summarize(round(mean(Days_To_Readmit), 2))
+        dplyr::summarize(round(mean(Days_To_Readmit), 2))
     )
     , x = "Interim Days"
     , y = "Count"
@@ -709,13 +709,13 @@ df %>%
       , df %>%
         filter(Init_Hosp_Pvt == "HOSPITALIST") %>%
         filter(Days_To_Readmit >= 0) %>%
-        summarize(round(mean(Days_To_Readmit), 2))
+        dplyr::summarize(round(mean(Days_To_Readmit), 2))
       , "\n"
       , "Avg Days unitl Readmit Private: "
       , df %>%
         filter(Init_Hosp_Pvt == 'PRIVATE') %>%
         filter(Days_To_Readmit >= 0) %>%
-        summarize(round(mean(Days_To_Readmit), 2))
+        dplyr::summarize(round(mean(Days_To_Readmit), 2))
     )
     , x = "Interim Days"
     , y = "Count"
@@ -745,13 +745,13 @@ df %>%
       , df %>%
         filter(Init_Hosp_Pvt == "HOSPITALIST") %>%
         filter(Days_To_Readmit >= 0) %>%
-        summarize(round(mean(Days_To_Readmit), 2))
+        dplyr::summarize(round(mean(Days_To_Readmit), 2))
       , "\n"
       , "Avg Days unitl Readmit Private: "
       , df %>%
         filter(Init_Hosp_Pvt == 'PRIVATE') %>%
         filter(Days_To_Readmit >= 0) %>%
-        summarize(round(mean(Days_To_Readmit), 2))
+        dplyr::summarize(round(mean(Days_To_Readmit), 2))
     )
     , x = "Interim Days"
     , y = "Count"
