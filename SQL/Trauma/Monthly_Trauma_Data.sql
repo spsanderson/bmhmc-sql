@@ -52,17 +52,23 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2019-05-23	v1			Initial Creation
+2019-07-25	v2			Complete re-write. Break query into three parts
+						place records in temp tables and join at the 
+						bottom.
 ***********************************************************************
 */
 
 DECLARE @START DATETIME;
 DECLARE @END   DATETIME;
 
-SET @START = '2018-11-01';
-SET @END   = '2018-12-01';
+SET @START = '2018-01-01';
+SET @END   = '2019-01-01';
 
 
 SELECT PAV.PT_NO
+, PAV.PtNo_Num
+, PAV.unit_seq_no
+, PAV.from_file_ind
 , PAV.Med_Rec_No
 , PAV.Pt_Name
 , PAV.Pt_Age
@@ -70,100 +76,10 @@ SELECT PAV.PT_NO
 , CAST(PAV.DSCH_DATE AS DATE) AS [DSCH_DATE]
 , PAV.Plm_Pt_Acct_Type
 , PAV.dsch_disp
-, DX.DX1
-, DX.DX2
-, DX.DX3
-, DX.DX4
-, DX.DX5
-, DX.DX6
-, DX.DX7
-, DX.DX8
-, DX.DX9
-, DX.DX10
-, CASE
-	WHEN RA.READMIT IS NULL
-		THEN ''
-		ELSE RA.READMIT
-  END AS [30Day_Readmit_EncounterID]
+
+INTO #TEMPA
 
 FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
-INNER JOIN (
-	SELECT pt_id
-	, unit_seq_no
-	, from_file_ind
-	, ISNULL(PVT.[01], '') AS [DX1]
-	, ISNULL(PVT.[02], '') AS [DX2]
-	, ISNULL(PVT.[03], '') AS [DX3]
-	, ISNULL(PVT.[04], '') AS [DX4]
-	, ISNULL(PVT.[05], '') AS [DX5]
-	, ISNULL(PVT.[06], '') AS [DX6]
-	, ISNULL(PVT.[07], '') AS [DX7]
-	, ISNULL(PVT.[08], '') AS [DX8]
-	, ISNULL(PVT.[09], '') AS [DX9]
-	, ISNULL(PVT.[10], '') AS [DX10]
-
-	FROM (
-		SELECT pt_id
-		, unit_seq_no
-		, from_file_ind
-		, dx_cd
-		, dx_cd_prio
-
-		FROM SMSMIR.dx_grp AS DX
-
-		WHERE PT_ID IN (
-			SELECT DX.pt_id
-			FROM SMSMIR.DX_GRP AS DX
-			WHERE (
-				LEFT(DX.dx_cd, 2) IN (
-					'S0','S1','S2','S3','S4','S5','S6','S7','S8','S9'
-				)
-				AND RIGHT(DX.DX_CD, 1) IN ('A', 'B', 'C')
-			)
-
-			OR LEFT(Dx.dx_cd, 3) IN (
-				'T07','T14','T30','T31','T32'
-			)
-
-			OR (
-				LEFT(DX.DX_CD, 3) IN (
-					'T20','T21','T22','T23','T24',
-					'T25','T26','T27','T28'
-				)
-				AND SUBSTRING(DX.DX_CD, 8, 1) = 'A'
-			)
-			
-			OR (
-				LEFT(DX.dx_cd, 5) = 'T79.A'
-				AND RIGHT(DX.DX_CD, 1) = 'A'
-			)
-		)
-
-		AND PT_ID IN (
-			SELECT PT_ID
-			FROM SMSMIR.dx_grp AS DX
-			WHERE LEFT(DX.DX_CD, 3) BETWEEN 'V00' AND 'Y38'
-			AND RIGHT(DX.DX_CD, 1) = 'A'
-		)
-
-		AND LEFT(DX.DX_CD_TYPE, 2) = 'DF'
-		AND DX.dx_cd_prio < 11
-	) AS A
-
-	PIVOT(
-		MAX(DX_CD)
-		FOR DX_CD_PRIO IN (
-			"01","02","03","04","05","06","07","08","09","10"
-		)
-	) AS PVT
-) AS DX
-ON PAV.PT_NO = DX.pt_id
-	AND PAV.unit_seq_no = DX.unit_seq_no
-	AND PAV.from_file_ind = DX.from_file_ind
-LEFT OUTER JOIN SMSDSS.vReadmits AS RA
-ON PAV.PtNo_Num = RA.[INDEX]
-	AND RA.INTERIM < 31
-	AND RA.[READMIT SOURCE DESC] != 'Scheduled Admission'
 
 WHERE Adm_Date >= @START
 AND Adm_Date < @END
@@ -173,6 +89,134 @@ AND LEFT(PAV.PTNO_NUM, 1) != '2'
 AND LEFT(PAV.PTNO_NUM, 4) != '1999'
 AND PAV.tot_chg_amt > 0
 AND PAV.Plm_Pt_Acct_Type = 'I'
+;
 
-ORDER BY DX.pt_id
+
+SELECT PVT.pt_id
+, PVT.unit_seq_no
+, PVT.from_file_ind
+, ISNULL(PVT.[01], '') AS [DX1]
+, ISNULL(PVT.[02], '') AS [DX2]
+, ISNULL(PVT.[03], '') AS [DX3]
+, ISNULL(PVT.[04], '') AS [DX4]
+, ISNULL(PVT.[05], '') AS [DX5]
+, ISNULL(PVT.[06], '') AS [DX6]
+, ISNULL(PVT.[07], '') AS [DX7]
+, ISNULL(PVT.[08], '') AS [DX8]
+, ISNULL(PVT.[09], '') AS [DX9]
+, ISNULL(PVT.[10], '') AS [DX10]
+
+INTO #TEMPB
+
+FROM (
+	SELECT pt_id
+	, unit_seq_no
+	, from_file_ind
+	, dx_cd
+	, dx_cd_prio
+
+	FROM SMSMIR.dx_grp AS DX
+
+	WHERE PT_ID IN (
+		SELECT DX.pt_id
+		FROM SMSMIR.DX_GRP AS DX
+		WHERE (
+			LEFT(DX.dx_cd, 2) IN (
+				'S0','S1','S2','S3','S4','S5','S6','S7','S8','S9'
+			)
+			AND RIGHT(DX.DX_CD, 1) IN ('A', 'B', 'C')
+		)
+
+		OR LEFT(Dx.dx_cd, 3) IN (
+			'T07','T14','T30','T31','T32'
+		)
+
+		OR (
+			LEFT(DX.DX_CD, 3) IN (
+				'T20','T21','T22','T23','T24',
+				'T25','T26','T27','T28'
+			)
+			AND SUBSTRING(DX.DX_CD, 8, 1) = 'A'
+		)
+			
+		OR (
+			LEFT(DX.dx_cd, 5) = 'T79.A'
+			AND RIGHT(DX.DX_CD, 1) = 'A'
+		)
+	)
+
+	AND PT_ID IN (
+		SELECT PT_ID
+		FROM SMSMIR.dx_grp AS DX
+		WHERE LEFT(DX.DX_CD, 3) BETWEEN 'V00' AND 'Y38'
+		AND RIGHT(DX.DX_CD, 1) = 'A'
+	)
+
+	AND LEFT(DX.DX_CD_TYPE, 2) = 'DF'
+	AND DX.dx_cd_prio < 11
+) AS A
+
+PIVOT(
+	MAX(DX_CD)
+	FOR DX_CD_PRIO IN (
+		"01","02","03","04","05","06","07","08","09","10"
+	)
+) AS PVT
+
+WHERE pt_id IN (
+	SELECT DISTINCT ZZZ.PT_NO
+	FROM #TEMPA AS ZZZ
+)
+;
+
+SELECT RA.[READMIT]
+
+INTO #TEMPC
+
+FROM SMSDSS.vReadmits AS RA
+
+WHERE RA.INTERIM < 31
+AND RA.[READMIT SOURCE DESC] != 'Scheduled Admission'
+AND RA.[INDEX] IN (
+	SELECT DISTINCT ZZZ.PTNO_NUM
+	FROM #TEMPA AS ZZZ
+)
+;
+
+SELECT A.PtNo_Num
+, A.Med_Rec_No
+, A.Pt_Name
+, A.Pt_Age
+, CAST(A.ADM_DATE AS DATE) AS [ADM_DATE]
+, CAST(A.DSCH_DATE AS DATE) AS [DSCH_DATE]
+, A.Plm_Pt_Acct_Type
+, A.dsch_disp
+, B.DX1
+, B.DX2
+, B.DX3
+, B.DX4
+, B.DX5
+, B.DX6
+, B.DX7
+, B.DX8
+, B.DX9
+, B.DX10
+, CASE
+	WHEN C.READMIT IS NULL
+		THEN ''
+		ELSE C.READMIT
+  END AS [30Day_Readmit_EncounterID]
+
+FROM #TEMPA AS A
+INNER JOIN #TEMPB AS B
+ON A.Pt_No = B.pt_id
+	AND A.unit_seq_no = B.unit_seq_no
+	AND A.from_file_ind = B.from_file_ind
+LEFT OUTER JOIN #TEMPC AS C
+ON A.PtNo_Num = C.[READMIT]
+;
+
+DROP TABLE #TEMPA
+DROP TABLE #TEMPB
+DROP TABLE #TEMPC
 ;
