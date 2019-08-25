@@ -38,26 +38,26 @@ SELECT * FROM @ADDRESS
 ; 
 --------
 -- For R 
-DECLARE @ADDRESS TABLE (
-	Encounter VARCHAR(12)
-	, FullAddress VARCHAR(MAX)
-	, ZipCode VARCHAR(15)
-	, ParticalAddress VARCHAR(MAX)
-);
-DECLARE @TODAY AS DATE;
-DECLARE @YESTERDAY AS DATE;
+--DECLARE @ADDRESS TABLE (
+--	Encounter VARCHAR(12)
+--	, FullAddress VARCHAR(MAX)
+--	, ZipCode VARCHAR(15)
+--	, ParticalAddress VARCHAR(MAX)
+--);
+--DECLARE @TODAY AS DATE;
+--DECLARE @YESTERDAY AS DATE;
 
-SET @TODAY = GETDATE();
-SET @YESTERDAY = DATEADD(DAY, DATEDIFF(DAY, 0, @TODAY), - 1);
+--SET @TODAY = GETDATE();
+--SET @YESTERDAY = DATEADD(DAY, DATEDIFF(DAY, 0, @TODAY), - 1);
  
-INSERT INTO @ADDRESS 
+--INSERT INTO @ADDRESS 
  
-SELECT A.PtNo_Num
-, A.[FullAddress]
-, A.Pt_Addr_Zip
-, A.PartialAddress
+--SELECT A.PtNo_Num
+--, A.[FullAddress]
+--, A.Pt_Addr_Zip
+--, A.PartialAddress
  
-FROM ( 
+--FROM ( 
     SELECT PtNo_Num
 	, a.addr_line1 + ', ' + a.Pt_Addr_City + ', ' + a.Pt_Addr_State + ', ' + a.Pt_Addr_Zip AS [FullAddress] 
 	, a.Pt_Addr_Zip
@@ -67,6 +67,8 @@ FROM (
 	LEFT OUTER JOIN smsdss.BMH_PLM_PtAcct_V AS B
 	ON A.pt_id = B.Pt_No
 		AND A.from_file_ind = B.from_file_ind
+	LEFT OUTER JOIN SMSDSS.c_geocoded_address AS C
+	ON B.PtNo_Num = C.Encounter
 
     WHERE a.Pt_Addr_City IS NOT NULL 
     AND a.addr_line1 IS NOT NULL 
@@ -76,17 +78,18 @@ FROM (
     AND b.tot_chg_amt > 0 
     AND LEFT(B.PTNO_NUM, 1) != '2' 
     AND LEFT(B.PTNO_NUM, 4) != '1999'
-	AND B.PtNo_Num NOT IN (
-		SELECT Encounter
-		FROM smsdss.c_geocoded_address
-	)
+	--AND B.PtNo_Num NOT IN (
+	--	SELECT Encounter
+	--	FROM smsdss.c_geocoded_address
+	--)
 	AND B.Dsch_Date >= '2019-01-01'
     AND A.addr_line1 != '101 HOSPITAL RD'
+	AND C.Encounter IS NULL
     --AND b.Dsch_Date = @YESTERDAY
 	--AND B.Dsch_Date >= '2018-07-01'
 	--AND B.Dsch_Date < '2018-08-01'
-) A 
-; 
+--) A 
+--; 
  
-SELECT * FROM @ADDRESS 
-; 
+--SELECT * FROM @ADDRESS 
+--; 
