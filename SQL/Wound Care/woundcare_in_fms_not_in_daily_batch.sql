@@ -32,6 +32,7 @@ Date		Version		Description
 2018-11-30	v4			Fix age bucket to prevent auto-format in excel
 2018-12-24	v5			Add A.prin_dx_cd IS NULL
 2019-01-21	v6			Add Location to ORDER BY
+2019-09-10	v7			Swap Location and Primary_Ins_Cd columns
 ***********************************************************************
 */
 
@@ -55,8 +56,8 @@ SELECT A.PtNo_Num             AS [Encounter]
 		THEN '7 to 30'
 		ELSE '< 7'
   END
-, A.Pyr1_Co_Plan_Cd           AS [Primary_Ins_Cd]
 , A.hosp_svc                  AS [Location]
+, A.Pyr1_Co_Plan_Cd           AS [Primary_Ins_Cd]
 
 FROM smsdss.BMH_PLM_PtAcct_V AS A
 LEFT OUTER JOIN smsdss.pract_dim_v AS B
