@@ -720,6 +720,7 @@ ClusterMapLIHN
 
 # save output or just use export from the plot viewer
 #htmlwidgets::saveWidget(tmap, file = "LIHN_Service_Line_Clusters.html")
+
 ClusterMapSOI.df <- split(origAddress, origAddress$SOI)
 
 ClusterMapSOI <- leaflet() %>%
