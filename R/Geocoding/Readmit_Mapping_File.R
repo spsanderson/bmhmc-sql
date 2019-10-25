@@ -22,6 +22,10 @@ rm(fileToLoad)
 origAddress$LIHN_Line <- as.factor(origAddress$LIHN_Svc_Line)
 origAddress$SOI <- as.factor(origAddress$SEVERITY_OF_ILLNESS)
 origAddress$ZipCode <- as.factor(origAddress$ZipCode)
+origAddress <- origAddress %>%
+  filter(LAT != "NULL", LON != "NULL")
+origAddress$LAT <- as.numeric(origAddress$LAT)
+origAddress$LON <- as.numeric(origAddress$LON)
 
 # Number of Discharges
 MaxRpt <- max(origAddress$Rpt_Month)
