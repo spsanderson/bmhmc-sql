@@ -1,0 +1,175 @@
+SELECT PAV.Med_Rec_No,
+	PAV.PtNo_Num,
+	PAV.unit_seq_no,
+	PAV.Plm_Pt_Acct_Type,
+	PAV.pt_type,
+	PTT.pt_type_cd_desc,
+	PAV.fc,
+	FDV.fc_name,
+	CAST(PAV.ADM_DATE AS DATE) AS [Adm_Date],
+	CAST(PAV.Dsch_Date AS DATE) AS [Dsch_Date],
+	PAV.Pyr1_Co_Plan_Cd AS [Ins1],
+	PDV.pyr_name,
+	PDV.pyr_group2,
+	PAV.hosp_svc,
+	HOS.hosp_svc_name,
+	PAV.tot_chg_amt,
+	PAV.tot_adj_amt,
+	PAV.tot_pay_amt,
+	PAV.Tot_Amt_Due,
+	pav.drg_no,
+	DDV.drg_name,
+	CASE 
+		WHEN PAV.Plm_Pt_Acct_Type = 'I'
+			THEN PAV.Prin_Icd10_Proc_Cd
+		WHEN PAV.Plm_Pt_Acct_Type != 'I'
+			THEN PAV.Prin_Hcpc_Proc_Cd
+		END AS [Principal_Procedure_Code],
+	COALESCE(SPDVA.alt_clasf_desc, SPDVB.alt_clasf_desc) AS [Prin_Proc_Name],
+	[PIF_Flag] = CASE 
+		WHEN PAV.plm_pt_acct_type = 'I'
+			AND PAV.TOT_AMT_DUE <= 500
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'CTH'
+			AND PAV.TOT_AMT_DUE <= 250
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'D23'
+			AND PAV.TOT_AMT_DUE <= 250
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'DIA'
+			AND PAV.TOT_AMT_DUE <= 250
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'DMS'
+			AND PAV.TOT_AMT_DUE <= 250
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'OBV'
+			AND PAV.TOT_AMT_DUE <= 250
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'AMB'
+			AND PAV.TOT_AMT_DUE <= 150
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'EME'
+			AND PAV.TOT_AMT_DUE <= 150
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'EOR'
+			AND PAV.TOT_AMT_DUE <= 150
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'EPC'
+			AND PAV.TOT_AMT_DUE <= 150
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'INF'
+			AND PAV.TOT_AMT_DUE <= 150
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'BFM'
+			AND PAV.TOT_AMT_DUE <= 50
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'OPD'
+			AND PAV.TOT_AMT_DUE <= 50
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'PRO'
+			AND PAV.TOT_AMT_DUE <= 50
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'SPE'
+			AND PAV.TOT_AMT_DUE <= 50
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'WCC'
+			AND PAV.TOT_AMT_DUE <= 50
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'WCH'
+			AND PAV.TOT_AMT_DUE <= 50
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'BHC'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'BPC'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'MBV'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'MHO'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'MNV'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'MOA'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'MSR'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'PET'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'REH'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'SCR'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'SLP'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		WHEN PAV.PLM_PT_ACCT_TYPE = 'O'
+			AND PAV.HOSP_SVC = 'WIS'
+			AND PAV.TOT_AMT_DUE <= 25
+			THEN 1
+		ELSE 0
+		END,
+	pav.drg_no
+FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
+INNER JOIN SMSDSS.pyr_dim_v AS PDV ON PAV.Pyr1_Co_Plan_Cd = PDV.pyr_cd
+	AND PAV.Regn_Hosp = PDV.orgz_cd
+INNER JOIN SMSDSS.hosp_svc_dim_v AS HOS ON PAV.hosp_svc = HOS.hosp_svc
+	AND PAV.Regn_Hosp = HOS.orgz_cd
+INNER JOIN SMSDSS.pt_type_dim_v AS PTT ON PAV.pt_type = PTT.pt_type
+	AND PAV.Regn_Hosp = PTT.orgz_cd
+INNER JOIN SMSDSS.FC_DIM_V AS FDV ON PAV.fc = FDV.fc
+	AND PAV.Regn_Hosp = FDV.orgz_cd
+LEFT OUTER JOIN SMSDSS.DRG_DIM_V AS DDV ON PAV.drg_no = DDV.drg_no
+	AND DDV.drg_vers = 'MS-V25'
+LEFT OUTER JOIN SMSDSS.PROC_DIM_V AS SPDVA ON PAV.Prin_Icd10_Proc_Cd = SPDVA.proc_cd
+LEFT OUTER JOIN SMSDSS.PROC_DIM_V AS SPDVB ON PAV.Prin_Hcpc_Proc_Cd = SPDVB.proc_cd
+WHERE (
+		(
+			PAV.Plm_Pt_Acct_Type = 'I'
+			AND DATEPART(YEAR, PAV.DSCH_DATE) = 2018
+			)
+		OR (
+			PAV.Plm_Pt_Acct_Type != 'i'
+			AND DATEPART(YEAR, PAV.ADM_DATE) = 2018
+			)
+		)
+	AND PAV.tot_chg_amt > 0
+	AND LEFT(PAV.PTNO_NUM, 1) != '2'
+	AND LEFT(PAV.PTNO_NUM, 4) != '1999'
+ORDER BY PAV.Plm_Pt_Acct_Type,
+	PAV.Dsch_Date
