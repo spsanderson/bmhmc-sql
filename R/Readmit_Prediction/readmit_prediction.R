@@ -3,16 +3,13 @@ install.load::install_load(
   "funModeling"
   , "tidyverse"
   , "Hmisc"
-  , "caret"
   , "minerva"
   , "missForest"
-  #, "Lock5Data"
   , "corrplot"
   , "RColorBrewer"
   , "infotheo"
   , "AppliedPredictiveModeling"
   , "fitdistrplus"
-  #, "timetk"
   , "esquisse"
   , "DataExplorer"
   , "mlr"
@@ -278,12 +275,11 @@ conf_mat_f1_func <- function(model){
 }
 
 # ROC and Threshold V Performance
-perf_plots_func <- function(Model1, Model2){
+perf_plots_func <- function(Model1){
   
   # Model name
   mod1 <- deparse(substitute(Model1))
-  mod2 <- deparse(substitute(Model2))
-  
+
   # Model 1 ROC Plot
   mod1.roc.plt <- plotROCCurves(
     generateThreshVsPerfData(
@@ -317,47 +313,11 @@ perf_plots_func <- function(Model1, Model2){
     )
   )
   
-  # Model 2  ROC Plot
-  mod2.roc.plt <- plotROCCurves(
-    generateThreshVsPerfData(
-      Model2
-      , measures = list(fpr, tpr)
-    )
-  ) +
-    labs(
-      title = paste0(
-        "AUC of "
-        , mod2
-        , " = "
-        , round(
-          mlr::performance(Model2, mlr::auc)
-          , 4
-        ) * 100
-        , "%"
-      )
-      , subtitle = paste0(
-        "F1 Score = "
-        , round(conf_mat_f1_func(Model2), 4)
-      )
-    ) +
-    theme_bw()
-  
-  # Model 2 Threshold Vs Performance Plot
-  mod2.ThresVsPerf.plt <- plotThreshVsPerf(
-    generateThreshVsPerfData(
-      Model2
-      , measures = list(fpr, tpr, mmce)
-    )
-  )
-  
-  return(
+    return(
     gridExtra::grid.arrange(
-      ncol = 2
-      , nrow = 2
+       nrow = 2
       , mod1.roc.plt
-      , mod2.roc.plt
       , mod1.ThresVsPerf.plt
-      , mod2.ThresVsPerf.plt
     )
   )
 }
@@ -802,15 +762,15 @@ base.mod.df$discharge_month <- factor(base.mod.df$discharge_month)
 
 df.dummy <- dummy_cols(base.mod.df %>% dplyr::select(-Init_Acct))
 
-nzv.base <- nearZeroVar(base.mod.df, saveMetrics = T)
+nzv.base <- caret::nearZeroVar(base.mod.df, saveMetrics = T)
 head(nzv.base, 2)
-nzv.dummy <- nearZeroVar(df.dummy, saveMetrics = T)
+nzv.dummy <- caret::nearZeroVar(df.dummy, saveMetrics = T)
 head(nzv.dummy, 2)
 
 # drop near zero variance columns from df's
 # the below may drop all columns, if so then use base.mod.df
-base.mod.df.final <- base.mod.df[, -nearZeroVar(base.mod.df)]
-df.dummy.final <- df.dummy[, -nearZeroVar(df.dummy)]
+base.mod.df.final <- base.mod.df[, -caret::nearZeroVar(base.mod.df)]
+df.dummy.final <- df.dummy[, -caret::nearZeroVar(df.dummy)]
 
 # Split Data ####
 split <- sample.split(base.mod.df$READMIT_FLAG, SplitRatio = 0.7)
@@ -906,15 +866,9 @@ testTask <- makeClassifTask(
   )
 
 # Check trainTask and testTask
-trainTask
-testTask
-trainTaskSmote <- smote(trainTask, rate = 6) # Standardizes them
-testTaskSmote <- smote(testTask, rate = 6)
-#table(getTaskTargets(trainTaskSmote))
-
-# Normalize the data
-trainTask <- normalizeFeatures(trainTask, method = "standardize")
-testTask <- normalizeFeatures(testTask, method = "standardize")
+trainTask <- smote(trainTask, rate = 6) #standardizes data
+testTask <- smote(testTask, rate = 6)
+table(getTaskTargets(trainTask))
 
 # Feature importance
 lm.feat <- generateFilterValuesData(
@@ -925,14 +879,6 @@ lm.feat <- generateFilterValuesData(
   )
 )
 plotFilterValues(lm.feat)
-lm.feat.smote <- generateFilterValuesData(
-  trainTaskSmote
-  , method = c(
-    "FSelector_information.gain"
-    , "FSelector_chi.squared"
-  )
-)
-plotFilterValues(lm.feat.smote)
 
 # MLR Logit ####
 logistic.learner <- makeLearner(
@@ -953,17 +899,6 @@ logistic.cv <- crossval(
 logistic.cv$aggr
 logistic.cv$measures.test
 
-logistic.cv.smote <- crossval(
-  learner = logistic.learner
-  , task = trainTaskSmote
-  , iters = ncol(train)
-  , stratify = T
-  , measures = acc
-  , show.info = T
-)
-logistic.cv.smote$agg
-logistic.cv.smote$measures.test
-
 # train model
 logistic.train.model <- train(logistic.learner, trainTask)
 getLearnerModel(logistic.train.model)
@@ -974,24 +909,9 @@ plotLearningCurve(
     )
   )
 
-logistic.train.model.smote <- train(logistic.learner, trainTaskSmote)
-getLearnerModel(logistic.train.model.smote)
-plotLearningCurve(
-  generateLearningCurveData(
-    logistic.learner
-    , trainTaskSmote
-  )
-)
-
 # predict on test
 logistic.test.model <- predict(logistic.train.model, testTask)
 plotResiduals(logistic.test.model)
-
-logistic.test.model.smote <- predict(
-  logistic.train.model.smote
-  , testTaskSmote
-)
-plotResiduals(logistic.test.model.smote)
 
 # Create submission file
 logistic.test.model$data$response
@@ -1001,22 +921,13 @@ submit <- data.frame(
 head(submit, 5)
 table(submit$truth, submit$response)
 
-logistic.test.model.smote$data$response
-submit.log.smote <- data.frame(
-  logistic.test.model.smote$data
-)
-head(submit.log.smote, 5)
-table(submit.log.smote$truth, submit.log.smote$response)
-
 # confusion matrix
 calculateConfusionMatrix(logistic.test.model)
 calculateROCMeasures(logistic.test.model)
 conf_mat_f1_func(logistic.test.model)
-conf_mat_f1_func(logistic.test.model.smote)
 
 perf_plots_func(
   Model1 = logistic.test.model
-  , Model2 = logistic.test.model.smote
 )
 
 # Tree Model ####
@@ -1025,7 +936,6 @@ makeatree <- makeLearner(
   , predict.type = 'prob'
 )
 plotLearnerPrediction(makeatree, trainTask)
-plotLearnerPrediction(makeatree, trainTaskSmote)
 
 # Cross Validate
 tree.cv <- makeResampleDesc(
@@ -1051,21 +961,12 @@ tree.tune <- tuneParams(
   , par.set = tree.gs
   , control = tree.gscontrol
 )
-tree.tune.smote <- tuneParams(
-  learner = makeatree
-  , resampling = tree.cv
-  , task = trainTaskSmote
-  , par.set = tree.gs
-  , control = tree.gscontrol
-)
+
 tree.tune$x
-tree.tune.smote$x
 tree.tune$y
-tree.tune.smote$y
 
 # Use hyper-parameters for modeling
 tree.model <- setHyperPars(makeatree, par.vals = tree.tune$x)
-tree.model.smote <- setHyperPars(makeatree, par.vals = tree.tune.smote$x)
 
 # Train the model
 tree.model.training <- train(tree.model, trainTask)
@@ -1077,27 +978,12 @@ plotLearningCurve(
   )
 )
 
-tree.model.training.smote <- train(tree.model.smote, trainTaskSmote)
-getLearnerModel(tree.model.training.smote)
-plotLearningCurve(
-  generateLearningCurveData(
-    tree.model.smote
-    , trainTaskSmote
-  )
-)
-
 # Predictions
 tree.model.predictions <- predict(
   tree.model.training
   , testTask
   )
 plotResiduals(tree.model.predictions)
-
-tree.model.predictions.smote <- predict(
-  tree.model.training.smote
-  , testTaskSmote
-)
-plotResiduals(tree.model.predictions.smote)
 
 # Submit file
 tree.submit <- data.frame(
@@ -1106,24 +992,13 @@ tree.submit <- data.frame(
 head(tree.submit, 5)
 table(tree.submit$truth, tree.submit$response)
 
-tree.submit.smote <- data.frame(
-  tree.model.predictions.smote$data
-)
-head(tree.submit.smote, 5)
-table(tree.submit.smote$truth, tree.submit.smote$response)
-
 # Tree confusion matrix
 calculateConfusionMatrix(tree.model.predictions)
 calculateROCMeasures(tree.model.predictions)
 conf_mat_f1_func(tree.model.predictions)
 
-calculateConfusionMatrix(tree.model.predictions.smote)
-calculateROCMeasures(tree.model.predictions.smote)
-conf_mat_f1_func(tree.model.predictions.smote)
-
 perf_plots_func(
   Model1 = tree.model.predictions
-  , Model2 = tree.model.predictions.smote
 )
 
 # Random forest ####
@@ -1140,7 +1015,6 @@ rf.learner <- makeLearner(
 )
 rf.learner$par.vals <- list(importance = T)
 plotLearnerPrediction(rf.learner, trainTask)
-plotLearnerPrediction(rf.learner, trainTaskSmote)
 
 # Get hyper-parameter tuning
 rf.param <- makeParamSet(
@@ -1168,25 +1042,15 @@ rf.tune <- tuneParams(
   , par.set = rf.param
   , control = rf.control
 )
-rf.tune.smote <- tuneParams(
-  learner = rf.learner
-  , resampling = rf.cv
-  , task = trainTaskSmote
-  , par.set = rf.param
-  , control = rf.control
-)
 
 parallelMap::parallelStop()
 
 # Check CV Acc
 rf.tune$y
-rf.tune.smote$y
 rf.tune$x
-rf.tune.smote$x
 
 # use hyper-parameters for model
 rf.tree <- setHyperPars(rf.learner, par.vals = rf.tune$x)
-rf.tree.smote <- setHyperPars(rf.learner, par.vals = rf.tune.smote$x)
 
 # train model
 rf.train.mod <- train(rf.tree, trainTask)
@@ -1198,21 +1062,9 @@ plotLearningCurve(
     )
   )
 
-rf.train.mod.smote <- train(rf.tree.smote, trainTaskSmote)
-getLearnerModel(rf.train.mod.smote)
-plotLearningCurve(
-  generateLearningCurveData(
-    rf.tree
-    , trainTaskSmote
-  )
-)
-
 # predictions
 rf.pred.mod <- predict(rf.train.mod, testTask)
 plotResiduals(rf.pred.mod)
-
-rf.pred.mod.smote <- predict(rf.train.mod.smote, testTaskSmote)
-plotResiduals(rf.pred.mod.smote)
 
 # create submit file
 rf.submit <- data.frame(
@@ -1221,24 +1073,13 @@ rf.submit <- data.frame(
 head(rf.submit, 5)
 table(rf.submit$truth, rf.submit$response)
 
-rf.submit.smote <- data.frame(
-  rf.pred.mod.smote$data
-)
-head(rf.submit.smote, 5)
-table(rf.submit.smote$truth, rf.submit.smote$response)
-
 # Confusion matrix
 calculateConfusionMatrix(rf.pred.mod)
 calculateROCMeasures(rf.pred.mod)
 conf_mat_f1_func(rf.pred.mod)
 
-calculateConfusionMatrix(rf.pred.mod.smote)
-calculateROCMeasures(rf.pred.mod.smote)
-conf_mat_f1_func(rf.pred.mod.smote)
-
 perf_plots_func(
   Model1 = rf.pred.mod
-  , Model2 = rf.pred.mod.smote
 )
 
 # SVM to slow####
@@ -1314,7 +1155,6 @@ gbm.learner <- makeLearner(
   , predict.type = 'prob'
   )
 plotLearnerPrediction(gbm.learner, trainTask)
-plotLearnerPrediction(gbm.learner, trainTaskSmote)
 
 # Tune model
 gbm.tune.ctl <- makeTuneControlRandom(maxit = 50L)
@@ -1344,32 +1184,18 @@ gbm.tune <- tuneParams(
   , par.set = gbm.par
   , control = gbm.tune.ctl
 )
-gbm.tune.smote <- tuneParams(
-  learner = gbm.learner
-  , task = trainTaskSmote
-  , resampling = gbm.cv
-  , measures = acc
-  , par.set = gbm.par
-  , control = gbm.tune.ctl
-)
 parallelMap::parallelStop()
 
 # Check CV acc
 gbm.tune$y
-gbm.tune.smote$y
 gbm.tune$x
-gbm.tune.smote$x
 
 # Set hyper-parameters
 gbm.ps <- setHyperPars(
   learner = gbm.learner
   , par.vals = gbm.tune$x
 )
-gbm.ps.smote <- setHyperPars(
-  learner = gbm.learner
-  , par.vals = gbm.tune.smote$x
-)
-  
+
 # Train gbm
 gbm.train <- train(gbm.ps, testTask)
 plotLearningCurve(
@@ -1379,20 +1205,9 @@ plotLearningCurve(
     )
   )
 
-gbm.train.smote <- train(gbm.ps.smote, testTaskSmote)
-plotLearningCurve(
-  generateLearningCurveData(
-    gbm.learner
-    , testTaskSmote
-  )
-)
-
 # Predict
 gbm.pred <- predict(gbm.train, testTask)
 plotResiduals(gbm.pred)
-
-gbm.pred.smote <- predict(gbm.train.smote, testTaskSmote)
-plotResiduals(gbm.pred.smote)
 
 # Create submission file
 gbm.submit <- data.frame(
@@ -1401,24 +1216,13 @@ gbm.submit <- data.frame(
 head(gbm.submit, 5)
 table(gbm.submit$truth, gbm.submit$response)
 
-gbm.submit.smote <- data.frame(
-  gbm.pred.smote$data
-)
-head(gbm.submit.smote, 5)
-table(gbm.submit.smote$truth, gbm.submit.smote$response)
-
 # Confusion Matrix
 calculateConfusionMatrix(gbm.pred)
 calculateROCMeasures(gbm.pred)
 conf_mat_f1_func(gbm.pred)
 
-calculateConfusionMatrix(gbm.pred.smote)
-calculateROCMeasures(gbm.pred.smote)
-conf_mat_f1_func(gbm.pred.smote)
-
 perf_plots_func(
   Model1 = gbm.pred
-  , Model2 = gbm.pred.smote
 )
 
 # nnet poor perf ####
@@ -1434,10 +1238,6 @@ nnet.cv <- makeResampleDesc("CV", iters = 3L)
 
 # HP Tuning set
 nnet.ps <- makeParamSet(
-  makeDiscreteParam("size", values = seq(1, 10, by = 1))
-  , makeDiscreteParam("decay", values = seq(0, 0.1, by = 0.005))
-)
-nnet.ps.smote <- makeParamSet(
   makeDiscreteParam("size", values = seq(1, 10, by = 1))
   , makeDiscreteParam("decay", values = seq(0, 0.1, by = 0.005))
 )
@@ -1458,30 +1258,17 @@ nnet.tune <- tuneParams(
   , par.set = nnet.ps
   , control = nnet.gsctrl
 )
-nnet.tune.smote <- tuneParams(
-  learner = nnet.learner
-  , resampling = nnet.cv
-  , task = trainTaskSmote
-  , par.set = nnet.ps
-  , control = nnet.gsctrl
-)
 
 parallelMap::parallelStop()
 
 # Check CV acc
 nnet.tune$x
-nnet.tune.smote$x
 nnet.tune$y
-nnet.tune.smote$y
 
 # Use HP for modeling
 nnet.model <- setHyperPars(
   nnet.learner
   , par.vals = nnet.tune$x
-  )
-nnet.model.smote <- setHyperPars(
-  nnet.learner
-  , par.vals = nnet.tune.smote$x
   )
 
 # Train the nnet models
@@ -1494,27 +1281,12 @@ plotLearningCurve(
   )
 )
 
-nnet.model.smote.train <- mlr::train(nnet.model, trainTaskSmote)
-getLearnerModel(nnet.model.smote.train)
-plotLearningCurve(
-  generateLearningCurveData(
-    nnet.model.smote
-    , trainTaskSmote
-  )
-)
-
 # Predictions
 nnet.model.predictions <- predict(
   nnet.model.train
   , testTask
 )
 plotResiduals(nnet.model.predictions)
-
-nnet.model.smote.predictions <- predict(
-  nnet.model.smote.train
-  , testTaskSmote
-)
-plotResiduals(nnet.model.smote.predictions)
 
 # Submit file
 nnet.submit <- data.frame(
@@ -1523,24 +1295,13 @@ nnet.submit <- data.frame(
 head(nnet.submit, 5)
 table(nnet.submit$truth, nnet.submit$response)
 
-nnet.smote.submit <- data.frame(
-  nnet.model.smote.predictions$data
-)
-head(nnet.smote.submit, 5)
-table(nnet.smote.submit$truth, nnet.smote.submit$response)
-
 # nnet confusion matrix
 calculateConfusionMatrix(nnet.model.predictions)
 calculateROCMeasures(nnet.model.predictions)
 conf_mat_f1_func(nnet.model.predictions)
 
-calculateConfusionMatrix(nnet.model.smote.predictions)
-calculateROCMeasures(nnet.model.smote.predictions)
-conf_mat_f1_func(nnet.model.smote.predictions)
-
 perf_plots_func(
   Model1 = nnet.model.predictions
-  , Model2 = nnet.model.smote.predictions
 )
 
 # ada model to slow ####
@@ -1582,26 +1343,15 @@ ada.tune <- tuneParams(
   , par.set = ada.ps
   , measures = acc
 )
-ada.tune.smote <- tuneParams(
-  learner = ada.learner
-  , task = trainTaskSmote
-  , resampling = ada.cv
-  , control = ada.ctrl
-  , par.set = ada.ps
-  , measures = acc
-)
 
 parallelMap::parallelStop()
 
 # Check CV Acc
 ada.tune$x
-ada.tune.smote$x
 ada.tune$y
-ada.tune.smote$y
 
 # Use hyper-parameters for modeling
 ada.model <- setHyperPars(ada.learner, par.vals = ada.tune$x)
-ada.model.smote <- setHyperPars(ada.learner, par.vals = ada.tune.smote$x)
 
 # Train the model
 ada.model.training <- train(ada.model, trainTask)
@@ -1613,27 +1363,12 @@ plotLearningCurve(
   )
 )
 
-ada.model.training.smote <- train(ada.model.smote, trainTaskSmote)
-getLearnerModel(ada.model.training.smote)
-plotLearningCurve(
-  generateLearningCurveData(
-    ada.model.smote
-    , trainTaskSmote
-  )
-)
-
 # Predictions
 ada.model.predictions <- predict(
   ada.model.training
   , testTask
 )
 plotResiduals(ada.model.predictions)
-
-ada.model.predictions.smote <- predict(
-  ada.model.training.smote
-  , testTaskSmote
-)
-plotResiduals(ada.model.predictions.smote)
 
 # Submit file
 ada.submit <- data.frame(
@@ -1642,24 +1377,13 @@ ada.submit <- data.frame(
 head(ada.submit, 5)
 table(ada.submit$truth, ada.submit$response)
 
-ada.submit.smote <- data.frame(
-  ada.model.predictions.smote$data
-)
-head(ada.submit.smote, 5)
-table(ada.submit.smote$truth, ada.submit.smote$response)
-
 # Tree confusion matrix
 calculateConfusionMatrix(ada.model.predictions)
 calculateROCMeasures(ada.model.predictions)
 conf_mat_f1_func(ada.model.predictions)
 
-calculateConfusionMatrix(ada.model.predictions.smote)
-calculateROCMeasures(ada.model.predictions.smote)
-conf_mat_f1_func(ada.model.predictions.smote)
-
 perf_plots_func(
   Model1 = ada.model.predictions
-  , Model2 = ada.model.predictions.smote
 )
 
 # All F1 Scores ####

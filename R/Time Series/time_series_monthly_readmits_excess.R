@@ -11,6 +11,7 @@ library(fpp)
 library(forecast)
 library(lubridate)
 library(dplyr)
+library(ggplot2)
 library(urca)
 library(prophet)
 
@@ -436,7 +437,7 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "IP Readmit Rate Forecast: 12-Month Forecast"
+    title = "IP Excess Readmit Rate Forecast: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -497,7 +498,7 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
     size = 1
   ) +
   labs(
-    title = "IP Readmit Rate Forecast: 12-Month Forecast"
+    title = "IP Excess Readmit Rate Forecast: 12-Month Forecast"
     , x = ""
     , y = ""
     , subtitle = paste0(
@@ -545,7 +546,7 @@ prophet.model.plt <- plot(
   , prophet.forecast
 ) +
   labs(
-    title = "IP Readmit Rate Forecast: 12-Month Forecast"
+    title = "IP Excess Readmit Rate Forecast: 12-Month Forecast"
     , subtitle = paste0(
       "Model Desc - fbProphet"
       , "\n"

@@ -14,6 +14,7 @@ install.load::install_load(
   , "dplyr"
   , "urca"
   , "prophet"
+  , "ggplot2"
 )
 
 # Get File ####
@@ -126,5 +127,3 @@ ggplot(
   theme_tq() 
 
 prophet_plot_components(m, m.forecast)
-
-

@@ -1,18 +1,20 @@
 # Lib Load ####
 # Time Series analysis on Daily Discharge Data - Inpatients
-library(tidyquant)
-library(broom)
-library(timetk)
-library(sweep)
-library(tibbletime)
-library(anomalize)
-library(xts)
-library(fpp)
-library(forecast)
-library(lubridate)
-library(dplyr)
-library(urca)
-library(prophet)
+install.load::install_load(
+  "tidyquant"
+  , "broom"
+  , "timetk"
+  , "sweep"
+  , "tibbletime"
+  , "anomalize"
+  , "xts"
+  , "fpp"
+  , "forecast"
+  , "lubridate"
+  , "dplyr"
+  , "urca"
+  , "prophet"
+)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
@@ -26,11 +28,11 @@ ta.discharges <- as_tbl_time(discharges, index = Time)
 head(ta.discharges)
 
 min.date  <- min(ta.discharges$Time)
-min.year  <- year(min.date)
-min.month <- month(min.date)
+min.year  <- lubridate::year(min.date)
+min.month <- lubridate::month(min.date)
 max.date  <- max(ta.discharges$Time)
-max.year  <- year(max.date)
-max.month <- month(max.date)
+max.year  <- lubridate::year(max.date)
+max.month <- lubridate::month(max.date)
 
 #timetk Daily
 ta.discharges.ts <- tk_ts(
@@ -167,6 +169,33 @@ plot(monthly.components)
 # Get stl object ####
 monthly.compl <- stl(monthly.dsch.sub.xts, s.window = "periodic")
 plot(monthly.compl)
+
+# Anomalize ####
+tk.monthly %>%
+  arrange(Time) %>%
+  time_decompose(cnt, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  time_recompose() %>%
+  plot_anomaly_decomposition() +
+  ggtitle("Anomaly Decomposition - OP Discharges") +
+  labs(
+    x = ""
+    , y = ""
+    , subtitle = "Using Twitters' S-H-ESD algorithm"
+  )
+
+tk.monthly %>%
+  arrange(Time) %>%
+  time_decompose(cnt, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  time_recompose() %>%
+  plot_anomalies(time_recomposed = T) +
+  ggtitle("Anomaly Plot - OP Discharges") +
+  labs(
+    x = ""
+    , y = ""
+    , subtitle = "Using Twitters' S-H-ESD algorithm"
+  )
 
 # HW Model ####
 monthly.fit.hw <- HoltWinters(monthly.dsch.sub.xts)

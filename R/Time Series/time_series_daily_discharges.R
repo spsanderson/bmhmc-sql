@@ -1,18 +1,20 @@
 # Lib Load ####
 # Time Series analysis on Daily Discharge Data - Inpatients
-library(tidyquant)
-library(broom)
-library(timetk)
-library(sweep)
-library(tibbletime)
-library(anomalize)
-library(xts)
-library(fpp)
-library(forecast)
-library(lubridate)
-library(dplyr)
-library(urca)
-library(prophet)
+install.load::install_load(
+  "tidyquant"
+  , "broom"
+  , "timetk"
+  , "sweep"
+  , "tibbletime"
+  , "anomalize"
+  , "xts"
+  , "fpp"
+  , "forecast"
+  , "lubridate"
+  , "dplyr"
+  , "urca"
+  , "prophet"
+)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
@@ -167,6 +169,44 @@ plot(monthly.components)
 # Get stl object ####
 monthly.compl <- stl(monthly.dsch.sub.xts, s.window = "periodic")
 plot(monthly.compl)
+
+# Anomalize ####
+tk.monthly %>%
+  arrange(Time) %>%
+  time_decompose(cnt, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  time_recompose() %>%
+  plot_anomaly_decomposition() +
+  ggtitle("Anomaly Decomposition - IP Discharges") +
+  labs(
+    x = ""
+    , y = ""
+    , subtitle = "Using Twitters' S-H-ESD algorithm"
+  )
+
+tk.monthly %>%
+  arrange(Time) %>%
+  time_decompose(cnt, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  time_recompose() %>%
+  plot_anomalies(time_recomposed = T) +
+  ggtitle("Anomaly Plot - IP Discharges") +
+  labs(
+    x = ""
+    , y = ""
+    , subtitle = "Using Twitters' S-H-ESD algorithm"
+  )
+
+# nnetar ####
+set.seed(101)
+nnfit <- nnetar(
+  monthly.dsch.sub.xts
+  , repeats = 30
+  , lambda = "auto"
+  )
+nnetfcast <- forecast(nnfit, h = 12, PI = T)
+sw_glance(nnfit)
+tail(sw_sweep(nnetfcast), 12)
 
 # HW Model ####
 monthly.fit.hw <- HoltWinters(monthly.dsch.sub.xts)
@@ -694,7 +734,7 @@ tk.monthly.tbl.clean %>% glimpse()
 
 train.tbl <- tk.monthly.tbl.clean %>% filter(year < 2017)
 valid.tbl <- tk.monthly.tbl.clean %>% filter(year == 2017)
-test.tbl  <- tk.monthly.tbl.clean %>% filter(year == 2018)
+test.tbl  <- tk.monthly.tbl.clean %>% filter(year >= 2018)
 
 h2o.init()
 
@@ -729,10 +769,10 @@ h2o.performance(
 
 # get mape
 automl.error.tbl <- tk.monthly %>%
-  filter(lubridate::year(Time) == 2018) %>%
+  filter(lubridate::year(Time) >= 2018) %>%
   add_column(
     pred = pred.h2o %>%
-      as.tibble() %>%
+      as_tibble() %>%
       pull(predict)
   ) %>%
   rename(actual = cnt) %>%
@@ -751,3 +791,5 @@ automl.error.tbl %>%
     , mpe = mean(error.pct)
   ) %>%
   glimpse()
+
+h2o.shutdown()
