@@ -22,7 +22,8 @@ v1	- 2018-06-12	- Initial Creation
 v2	- 2018-06-25	- Fix Dx_Cd no match, used REPLACE(C.dx_cd, '.', '') & REPLACE(D.proc_cd, '.', '')
 					  Rename table to smsdss.c_LIHN_Svc_Line_Tbl
 					  Initial Load of ICD9 done
-v3	- 2018-10-17	- Added DRG_SCHEME MC18
+v3	- 2018-10-17	- Added DRG_SCHM MC18
+v4	- 2019-10-01	- Added DRG_SCHM MC19
 */
 
 IF NOT EXISTS (
@@ -204,7 +205,7 @@ BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17','MC18'
+		'MCT4','MC16','MC17','MC18','MC19'
 	)
 	
 	INSERT INTO smsdss.c_LIHN_Svc_Line_Tbl
@@ -374,7 +375,7 @@ BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17','MC18'
+		'MCT4','MC16','MC17','MC18','MC19'
 	)
 	
 END
@@ -548,7 +549,7 @@ ELSE BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17','MC18'
+		'MCT4','MC16','MC17','MC18','MC19'
 	)
 	AND A.PT_ID NOT IN (
 		SELECT DISTINCT(ZZZ.Encounter)
