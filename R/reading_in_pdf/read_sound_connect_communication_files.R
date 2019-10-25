@@ -103,10 +103,10 @@ all.documents <- data.frame(stringsAsFactors = FALSE)
 all.documents <- documents
 
 f <- tryCatch(file.choose(new = T), error = function(e) "")
-f.data <- extract_areas(f, 4)
+f.data <- extract_areas(f, 2)
 f.data.df <- as.data.frame(f.data, stringsAsFactors = FALSE)
 f.data.df$X5 <- NA
-f.data.df$FileName = 'SoundConnectCommunication_2019_08_08_04_30.pdf'
+f.data.df$FileName = 'SoundConnectCommunication_2019_10_16_04_30.pdf'
 #View(f.data.df)
 # is mrn column blank
 f.data.df$MRN <- str_sub(f.data.df$X1, -6, -1)
@@ -114,12 +114,12 @@ f.data.df <- f.data.df %>%
   select(
     X1
     , MRN
-    , Room
-    , Provider
+    #, Room
+    #, Provider
     #, X2
     , X3
-    #, X4
-    #, X5
+    , X4
+    , X5
     , FileName
   )
 

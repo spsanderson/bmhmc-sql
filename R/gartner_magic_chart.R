@@ -1,11 +1,14 @@
 library(tidyverse)
+# library(corrr)
 
-x <- rnorm(150, mean = 0, sd = 1)
-y <- rnorm(150, mean = 0, sd = 1)
+x <- rnorm(180, mean = 0, sd = 1)
+y <- rnorm(180, mean = 0, sd = 1)
 df <- data.frame(x,y)
-head(df)
-str(df)
-plot(x,y)
+# corx <- correlate(df)
+# network_plot(corx)
+# head(df)
+# str(df)
+# plot(x,y)
 
 df %>%
   ggplot(

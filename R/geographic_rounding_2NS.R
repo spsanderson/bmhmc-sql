@@ -20,7 +20,7 @@ freq(
     "HOSPITALIST_Pvt_CD_FLAG"
     , "Tele_Adm_Dx_Ind"
     , "TELE_FLAG"
-    , "RA_FLAG"
+    , "RA_Flag"
     , "ward_cd"
   )
 )
