@@ -112,7 +112,7 @@ OUTER APPLY (
 	ORDER BY ZZZ.orgz_cd
 )  AS MD
 
-WHERE SPROC.pt_id = '000014676084'
+WHERE SPROC.pt_id = ''
 ;
 
 SELECT A.Med_Rec_No

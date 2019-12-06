@@ -1,6 +1,62 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 9/10/2019 11:27:10 AM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 10/24/2019 10:10:43 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+/*--------------------------------------------------------------------------------    
+    
+File:      ORE_BHMC_SBAR_Q_Shift_Report_New_SPS.sql    
+    
+Input  Parameters:      
+       @HSF_CONTEXT_PATIENTID as PatientOID used to select specific patient     
+       @VisitOID             as Visit OID Of patient displayed in UI    
+       @pvchLocation         as Patient Location               
+       @pchReportUsage          as Used to indicate how the report is being run    
+                                1 = Context Senstive (CSP) Patient Context    
+                                2 = Operational Reporting (OPR)    
+                                3 = Job Scheduler (JS)    
+  
+Tables:     
+   HOrder  
+   HOrderSuppInfo    
+   HAssessment      
+   HObservation    
+   HPatient    
+   HPatientVisit    
+   HPerson   
+   HHealthCareUnit   
+   HExtendedPatient  
+  
+    
+Functions:     
+   fn_ORE_GetPatientAge    
+   fn_ORE_GetPatientAllergies    
+   fn_GetStrParmTable    
+   fn_ORE_GetPatientWt    
+   fn_ORE_GetExternalPatientID   
+   fn_ORE_GetPhysicianName   
+
+Purpose:  This procedure will retrieve fields needed to print the patient    
+          header and detail for the Shift report.     
+     
+    
+Revision History:    
+---------------------------------------------------------------------------------    
+Date    	Revised By   			Description
+2019-09-04	Steven Sanderson MPH	Add the following fields
+2019-12-06	Steven Sanderson MPH	Change OrderName to OrderDescAsWritten for Last
+									Orders
+------------------------------------------------------------------------------- 
+*/  
+    
+--EXEC dbo.ORE_BHMC_SBAR_Q_Shift_Report_New_SPS '2180269','180034','3SOU','1' --test patient
+    
+USE [Soarian_Clin_Tst_1]
+GO
+/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 10/24/2019 10:10:43 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -51,7 +107,7 @@ Date    	Revised By   			Description
 ------------------------------------------------------------------------------- 
 */  
     
---EXEC dbo.ORE_BHMC_SBAR_Q_Shift_Report_New_SPS '2180269','180034','3SOU','1' test patient
+--EXEC dbo.ORE_BHMC_SBAR_Q_Shift_Report_New_SPS '2180269','180034','3SOU','1' --test patient
     
 ALTER PROCEDURE [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS] @HSF_CONTEXT_PATIENTID VARCHAR(20) = NULL,
 	@VisitOID VARCHAR(20) = NULL,
@@ -110,12 +166,92 @@ BEGIN
 		DietModifier VARCHAR(1000),
 		SlNo INT
 		)
+	DECLARE @DietaryOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastDietaryOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastDietaryOrder VARCHAR(MAX),
+		LastDietaryOrderEnteredDateTime VARCHAR(50)
+	)
+	DECLARE @TelemetryOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastTelemetryOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastTelemetryOrder VARCHAR(MAX),
+		LastTeleOrderEnteredDateTime VARCHAR(50)
+	)
+	DECLARE @PhysicalTherapyOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastPhysicalTherapyOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastPTOrder VARCHAR(MAX),
+		LastPTOrderEnteredDateTime VARCHAR(50)
+	)
+	DECLARE @ActivityOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastActivityOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastActivityOrder VARCHAR(MAX),
+		LastActivityOrderEnteredDateTime VARCHAR(50)
+	)
+	DECLARE @GlucoseOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastGlucoseOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastGlucoseOrder VARCHAR(MAX),
+		LastGlucoseOrderEnteredDateTime VARCHAR(50)
+	)
+	--neuro
+	DECLARE @NeuroChecksOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastNeuroCheckOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastNeuroOrder VARCHAR(MAX),
+		LastNeuroOrderEnteredDateTime VARCHAR(50)
+	)
 	DECLARE @AssessmentStatus TABLE (
 		PatientOID INT,
 		PatientVisitOID INT,
 		FormUsageDisplayName VARCHAR(100),
 		Assessmentid INT,
-		AssessmentStatus VARCHAR(16)
+		AssessmentStatus VARCHAR(16),
+		CollectedDT VARCHAR(50)
 		)
 	DECLARE @pivotAssessmentStatus TABLE (
 		PatientOID INT,
@@ -125,7 +261,12 @@ BEGIN
 		IsAdmissionAssmtComplete VARCHAR(10),
 		IsIPHomeMedListAssmentCharted VARCHAR(10),
 		IPHomeMedListAssmtStatus VARCHAR(100),
-		IsIPHomeMedListAssmtComplete VARCHAR(10)
+		IsIPHomeMedListAssmtComplete VARCHAR(10),
+		-- vitals
+		IsVitalsAssmtCharted VARCHAR(10),
+		VitalsAssmtStatus VARCHAR(100),
+		ISVitalsAssmtComplete VARCHAR(10),
+		VitalsAssmtCollectedDT VARCHAR(50)
 		)
 	DECLARE @pivotObsValues TABLE (
 		PatientOID INT,
@@ -563,17 +704,169 @@ BEGIN
 	FROM @DietModifier
 	WHERE slno > 1
 
+	INSERT INTO @DietaryOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND ho.orderTypeAbbr = 'Dietary'
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastDietaryOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @DietaryOrders AS A
+	WHERE slNO = 1
+	;
+
+	INSERT INTO @TelemetryOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND ho.OrderName in (
+			'Continue Telemetry Monitoring'
+			, 'Telemetry Monitoring'
+			, 'Telemetry Monitoring in ICU/StepDown'
+			, 'TELEMETRY MONITORING DISCONTINUED'
+		)
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastTelemetryOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @TelemetryOrders AS A
+	WHERE slNO = 1
+	;
+
+	INSERT INTO @PhysicalTherapyOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND ho.OrderSubTypeAbbr = 'Physical Therapy'
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastPhysicalTherapyOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @PhysicalTherapyOrders AS A
+	WHERE slNO = 1
+	;
+
+	INSERT INTO @ActivityOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND ho.OrderSubTypeAbbr IN ('Activity','Activity - PC')
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastActivityOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @ActivityOrders AS A
+	WHERE slNO = 1
+	;
+
+	INSERT INTO @GlucoseOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND HO.OrderName LIKE '%GLUCOSE%TOLERANCE%'
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastGlucoseOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @GlucoseOrders AS A
+	WHERE slNO = 1
+	;
+
+	INSERT INTO @NeuroChecksOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND HO.OrderName LIKE '%NEURO%CHECKS%'
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastNeuroCheckOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @NeuroChecksOrders AS A
+	WHERE slNO = 1
+	;
+
+	;
+
 	INSERT INTO @AssessmentStatus
 	SELECT PatientOID = tp.PatientOID,
 		PatientVisitOID = tp.VisitOID,
 		formusagedisplayname = ha.formusagedisplayname,
 		AssessmentID = ha.AssessmentID,
-		AssessmentStatus = ha.AssessmentStatus
+		AssessmentStatus = ha.AssessmentStatus,
+		CollectedDT = ha.CollectedDT
 	FROM @tblPatientOID tp
 	INNER JOIN Hassessment ha WITH (NOLOCK) ON tp.patientOID = ha.patient_oid
 		AND tp.VisitOID = ha.patientvisit_oid
 		AND ha.enddt IS NULL
-		AND formusagedisplayname IN ('Admission', 'Inpatient Home Medication List','Integumentary Assessment')
+		AND formusagedisplayname IN ('Admission', 'Inpatient Home Medication List','Integumentary Assessment', 'Vital Signs')
 		AND assessmentStatuscode IN (1, 3)
 
 	INSERT INTO @pivotObsValues (
@@ -1819,7 +2112,12 @@ BEGIN
 		IsAdmissionAssmtComplete,
 		IsIPHomeMedListAssmentCharted,
 		IPHomeMedListAssmtStatus,
-		IsIPHomeMedListAssmtComplete
+		IsIPHomeMedListAssmtComplete,
+		-- vitals
+		IsVitalsAssmtCharted,
+		VitalsAssmtStatus,
+		ISVitalsAssmtComplete,
+		VitalsAssmtCollectedDT
 		)
 	SELECT tas.PatientOID,
 		tas.PatientVisitOID,
@@ -1864,6 +2162,32 @@ BEGIN
 								END
 							)
 				ELSE 'N'
+				END),
+		IsVitalsAssmtCharted = max(CASE tas.FormUsageDisplayName
+			WHEN 'Vital Signs'
+				THEN 'Y'
+			ELSE 'N'
+			END),
+		VitalsAssmtStatus = MAX(CASE TAS.FormUsageDisplayName
+				WHEN 'Vital Signs'
+					THEN tas.AssessmentStatus
+				ELSE ''
+				END),
+		ISVitalsAssmtComplete = max(CASE tas.formusageDisplayName
+				WHEN 'Vital Signs'
+					THEN (
+							CASE tas.AssessmentStatus
+								WHEN 'Complete'
+									THEN 'Y'
+								ELSE 'N'
+								END
+							)
+				ELSE 'N'
+				END),
+		VitalsAssmtCollectedDT = MAX(CASE tas.formusageDisplayName
+				WHEN 'Vital Signs'
+					THEN tas.CollectedDt
+				ELSE NULL
 				END)
 	FROM @AssessmentStatus tas
 	GROUP BY tas.PatientOID,
@@ -1942,6 +2266,10 @@ BEGIN
 		IsIPHomeMedListAssmentCharted = isnull(tas.IsIPHomeMedListAssmentCharted, 'N'),
 		IPHomeMedListAssmtStatus = isnull(tas.IPHomeMedListAssmtStatus, ''),
 		IsIPHomeMedListAssmtComplete = isnull(tas.IsIPHomeMedListAssmtComplete, 'N'),
+		IsVitalsAssmtCharted = isnull(tas.IsVitalsAssmtCharted, 'N') ,
+		VitalsAssmtStatus = isnull(tas.VitalsAssmtStatus, '') ,
+		ISVitalsAssmtComplete = isnull(tas.ISVitalsAssmtComplete, 'N') ,
+		VitalsAssmtCollecteDT = isnull(tas.VitalsAssmtCollectedDT, NULL),
 		tov.Oxygen,
 		tov.O2Per,
 		tov.O2LPM,
@@ -2114,7 +2442,19 @@ BEGIN
 		tov.PresSoreSite8TypeOther,
 		tov.PresSoreSite8DressingCondition,
 		tov.PresSoreSite8DressConOther,
-		tov.WeightObtainedDT
+		tov.WeightObtainedDT,
+		LDIET.LastDietaryOrder,
+		LDIET.LastDietaryOrderEnteredDateTime,
+		LTELE.LastTelemetryOrder,
+		LTELE.LastTeleOrderEnteredDateTime,
+		LPT.LastPTOrder,
+		LPT.LastPTOrderEnteredDateTime,
+		LACT.LastActivityOrder,
+		LACT.LastActivityOrderEnteredDateTime,
+		LGLUCOSE.LastGlucoseOrder,
+		LGLUCOSE.LastGlucoseOrderEnteredDateTime,
+		LNEURO.LastNeuroOrder,
+		LNEURO.LastNeuroOrderEnteredDateTime
 	FROM @Patient tp
 	LEFT OUTER JOIN @pivotObsValues tov ON tp.PatientOID = tov.PatientOID
 		AND tp.PatientVisitOID = tov.PatientVisitOID
@@ -2122,5 +2462,17 @@ BEGIN
 		AND tdm.PatientVisitOID = tp.PatientVisitOID
 	LEFT OUTER JOIN @pivotAssessmentStatus tas ON tas.PatientOID = tp.PatientOID
 		AND tas.PatientVisitOID = tp.PatientVisitOID
+	LEFT OUTER JOIN @LastDietaryOrder AS LDIET ON TP.PatientOID = LDIET.PatientOID
+		AND TP.PatientVisitOID = LDIET.PatientVisitOID
+	LEFT OUTER JOIN @LastTelemetryOrder AS LTELE ON TP.PatientOID = LTELE.PatientOID
+		AND TP.PatientVisitOID = LTELE.PatientVisitOID
+	LEFT OUTER JOIN @LastPhysicalTherapyOrder as LPT ON TP.PatientOID = LPT.patientOID
+		AND TP.PatientVisitOID = LPT.PatientVisitoid
+	LEFT OUTER JOIN @LastActivityOrder AS LACT ON TP.PatientOID = LACT.PatientOID
+		AND TP.PatientVisitOID = LACT.patientvisitoid
+	LEFT OUTER JOIN @LastGlucoseOrder AS LGLUCOSE ON TP.PatientOID = LGLUCOSE.PatientOID
+		AND TP.PatientVisitOID = LGLUCOSE.PatientVisitOID
+	LEFT OUTER JOIN @LastNeuroCheckOrder AS LNEURO ON TP.PatientOID = LNEURO.PatientOID
+		AND TP.PatientVisitOID = LNEURO.PatientVisitOID
 	ORDER BY tp.PatientName
 END

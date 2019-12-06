@@ -21,7 +21,7 @@ Author: Steven P Sanderson II, MPH
 Department: Finance, Revenue Cycle
 
 Purpose/Description
-	Entere Here
+	Serious Events
 
 Revision History:
 Date		Version		Description

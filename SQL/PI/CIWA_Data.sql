@@ -10,6 +10,7 @@ Tables/Views:
     smsdss.dx_cd_dim_v
     smsmir.mir_sc_Order
     smsmir.mir_sc_PatientVisit
+	Customer.Custom_DRG
 
 Creates Table:
 	None
@@ -34,12 +35,14 @@ Date		Version		Description
 						Add pt visit flag 1 or null
 						Fix LOS and ICU LOS and ICU Count
 2019-10-11	v3			Added Aggregate query 
+2019-11-20	v4			Added SOI
 ***********************************************************************
 */
 
 SELECT PAV.Med_Rec_No,
 	PAV.PtNo_Num,
 	PAV.Pt_No,
+	SOI.SEVERITY_OF_ILLNESS,
 	PAV.vst_start_dtime AS [Arrival_DTime],
 	DATEPART(HOUR, PAV.vst_start_dtime) AS [Arrival_Hr],
 	CAST(PAV.ADM_DATE AS DATE) AS [ADM_DATE],
@@ -67,8 +70,10 @@ LEFT OUTER JOIN (
 	WHERE OrderSetAbbrv = 'COS_AlcOpdWthdrw'
 	GROUP BY B.PatientAccountID
 	) AS CIWA ON PAV.PtNo_Num = CIWA.PatientAccountID
+LEFT OUTER JOIN Customer.Custom_DRG AS SOI
+ON PAV.PtNo_Num = SOI.PATIENT#
 WHERE PAV.Adm_Date >= '2019-01-01'
-	AND PAV.Adm_Date < '2019-10-01'
+	AND PAV.Adm_Date < '2019-11-01'
 	AND (
 		LEFT(PAV.PTNO_NUM, 1) = '8'
 		OR (
@@ -160,6 +165,7 @@ FROM #TEMPB;
 SELECT A.Med_Rec_No,
 	A.PtNo_Num,
 	A.Pt_No,
+	A.SEVERITY_OF_ILLNESS,
 	A.Arrival_DTime,
 	A.Arrival_Hr,
 	A.ADM_DATE,
@@ -215,6 +221,8 @@ ORDER BY Med_Rec_No,
 SELECT A.Adm_Month,
 	A.CIWA_Flag,
 	A.IP_OP,
+	A.SEVERITY_OF_ILLNESS,
+	C.actv_cd,
 	C.actv_name,
 	COUNT(DISTINCT (A.PTNO_NUM)) AS [Visit_Count],
 	SUM(A.LOS) AS [Total_Days],
@@ -242,6 +250,8 @@ LEFT OUTER JOIN (
 GROUP BY A.Adm_Month,
 	A.CIWA_Flag,
 	A.IP_OP,
+	A.SEVERITY_OF_ILLNESS,
+	C.actv_cd,
 	C.actv_name;
 
 DROP TABLE #TEMPA,

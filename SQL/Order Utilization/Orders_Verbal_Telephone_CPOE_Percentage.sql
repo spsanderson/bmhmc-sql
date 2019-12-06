@@ -2,7 +2,7 @@
 Author: Steven P Sanderson II, MPH
 Department: Finance, Revenue Cycle
 
-Aggregate Order Utilizaiton for CPOE/Telephone/Verbla/Other orders
+Aggregate Order Utilizaiton for CPOE/Telephone/Verbal/Other orders
 
 This query aggregates by req_pty_cd, gets total cpoe percentage if a provider
 has greater than or equal to 600 cpoe orders
