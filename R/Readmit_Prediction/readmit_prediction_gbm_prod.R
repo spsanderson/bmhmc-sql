@@ -5,8 +5,8 @@ install.load::install_load(
   , "rJava"
   , "FSelector"
   , "gbm"
-  , "dplyr"
 )
+
 options(scipen = 999) # prevent printing in scientific notation
 
 # Prod testing ####
@@ -17,69 +17,13 @@ df <- readxl::read_xlsx(new.file, sheet = "data")
 print(df)
 
 # Functions ####
+# Bin Size functions
+source("S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R\\Functions\\optimal_bin_size.R")
+source("S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R\\Functions\\optimal_hist_bin_size.R")
+source("S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R\\Functions\\readmit_pred_functions.R")
+
 # Not in Function
 '%ni%' <- Negate('%in%')
-
-# Reduce Init_Disp
-reduce_dispo_func <- function(dispo){
-  dispo <- as.character(dispo)
-  if_else(
-    dispo %ni% c('AHR','ATE','ATW','ATL','AMA','ATH')
-    , 'Other'
-    , dispo
-  )
-}
-
-reduce_hsvc_func <- function(hsvc){
-  hsvc <- as.character(hsvc)
-  if_else(
-    hsvc %ni% c('MED','SDU','PSY','SIC','SUR')
-    , 'Other'
-    , hsvc
-  )
-}
-
-reduce_agebucket_func <- function(abucket){
-  abucket <- as.character(abucket)
-  if_else(
-    abucket %ni% c(as.character(seq(1:7)))
-    , 'Other'
-    , abucket
-  )
-}
-
-reduce_spclty_func <- function(spclty){
-  spclty <- as.character(spclty)
-  if_else(
-    spclty %ni% c('HOSIM','FAMIP','IMDIM','GSGSG','PSYPS','SURSG')
-    , 'Other'
-    , spclty
-  )
-}
-
-reduce_lihn_func <- function(lihn){
-  lihn <- as.character(lihn)
-  if_else(
-    lihn %ni% c(
-      'Medical',
-      'Surgical',
-      'CHF',
-      'COPD',
-      'Cellulitis',
-      'Pneumonia',
-      'Major Depression/Bipolar Affective Disorders',
-      'MI',
-      'GI Hemorrhage',
-      'PTCA',
-      'CVA',
-      'Alcohol Abuse',
-      'Schizophrenia',
-      'Laparoscopic Cholecystectomy'
-    )
-    , 'Other'
-    , lihn
-  )
-}
 
 # Pre-Processing ####
 # column reductions
@@ -124,44 +68,13 @@ prod_predictions <- predict(
 
 # Join Pred to data ####
 # first add sequential number column called id to base.mod.df
-base.mod.df <- base.mod.df %>% 
-  cbind(
-    base.mod.df
-    , prob.n = prod_predictions$data$prob.N
-    , prob.y = prod_predictions$data$prob.Y
-    , resp = prod_predictions$data$response
-  )
-print(base.mod.df)
-base.mod.df %>% glimpse()
+prod_predictions_data <- prod_predictions$data %>%
+  mutate(id = 1:n())
 
-table(base.mod.df$resp)
-
-pred.data <- prod_predictions$data
-head(pred.data)
-
-n <- pred.data %>% 
-  filter(response == "N") %>% 
-  dplyr::select(
-    Response = response
-    , Probability = prob.N
-    )
-
-y <- pred.data %>% 
-  filter(response == "Y") %>%
-  dplyr::select(
-    Response = response
-    , Probability = prob.Y
-    )
-
-l <- union_all(n, y)
-
-l %>% ggplot(
-  aes(
-    Probability
-    , fill = Response
-  )
-) + 
-  geom_density(
-    alpha = 0.2
-  ) +
-  theme_minimal()
+base.mod.df <- base.mod.df %>%
+  mutate(id = 1:n()) %>%
+  select(Init_Acct, id) %>%
+  inner_join(prod_predictions_data, by = c("id"="id")) %>%
+  select(-id)
+  
+write_csv(base.mod.df, "readmit_predictions.csv")

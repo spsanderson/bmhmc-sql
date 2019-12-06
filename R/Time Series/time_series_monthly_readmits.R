@@ -13,6 +13,7 @@ library(lubridate)
 library(dplyr)
 library(urca)
 library(prophet)
+library(ggplot2)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)

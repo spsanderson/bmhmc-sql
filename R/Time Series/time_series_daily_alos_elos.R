@@ -14,6 +14,7 @@ install.load::install_load(
   , "dplyr"
   , "urca"
   , "prophet"
+  , "ggplot2"
 )
 
 # Get File ####
@@ -439,7 +440,7 @@ dsch.diffs <- ndiffs(monthly.dsch.ts)
 # Seasonal differencing?
 nsdiffs(monthly.dsch.ts)
 # Re-plot
-monthly.dsch.ts.diff <- diff(monthly.dsch.ts)#, differences = rr.diffs)
+monthly.dsch.ts.diff <- diff(monthly.dsch.ts, differences = dsch.diffs)
 plot.ts(monthly.dsch.ts.diff)
 acf(monthly.dsch.ts.diff, lag.max = 20)
 acf(monthly.dsch.ts.diff, plot = F)
@@ -702,6 +703,13 @@ pred.tbl.row.names <- c(
   , "Auto ARIMA"
   , "Bagged ETS"
 )
+pred.tbl.col.names <- c(
+  "Model"
+  , "Model Prediction"
+  , "Model Pred Lo 95%"
+  , "Model Pred Hi 95%"
+  , "Model MAPE Error"
+)
 pred.tbl <- data.frame(
   mod.pred
   , mod.pred.lo.95
@@ -709,6 +717,7 @@ pred.tbl <- data.frame(
   , err.mape
 )
 rownames(pred.tbl) <- pred.tbl.row.names
+colnames(pred.tbl) <- pred.tbl.col.names
 pred.tbl <- tibble::rownames_to_column(pred.tbl)
 pred.tbl <- arrange(pred.tbl, pred.tbl$err.mape)
 print(pred.tbl)

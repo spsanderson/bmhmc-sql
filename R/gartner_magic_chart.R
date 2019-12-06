@@ -10,7 +10,7 @@ df <- data.frame(x,y)
 # str(df)
 # plot(x,y)
 
-df %>%
+plt <- df %>%
   ggplot(
     aes(
       x = x
@@ -152,3 +152,7 @@ df %>%
     , aes(color = 'red')
     , size = 3
   )
+print(plt)
+
+library(plotly)
+ggplotly(plt)

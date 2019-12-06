@@ -14,6 +14,7 @@ install.load::install_load(
   , "dplyr"
   , "urca"
   , "prophet"
+  , "ggplot2"
 )
 
 # Get File ####
@@ -207,6 +208,68 @@ nnfit <- nnetar(
 nnetfcast <- forecast(nnfit, h = 12, PI = T)
 sw_glance(nnfit)
 tail(sw_sweep(nnetfcast), 12)
+
+# HW Errors
+monthly.nnet.perf <- sw_glance(nnfit)
+mape.nnet <- monthly.nnet.perf$MAPE
+model.desc.nnet <- monthly.nnet.perf$model.desc
+
+# Monthly HW predictions
+monthly.nnet.pred <- sw_sweep(nnetfcast) %>%
+  filter(sw_sweep(nnetfcast)$key == 'forecast')
+print(monthly.nnet.pred)
+nnet.pred <- head(monthly.nnet.pred$value, 1)
+
+monthly.nnet.fcast.plt <- sw_sweep(nnetfcast) %>%
+  ggplot(
+    aes(
+      x = index
+      , y = value
+      , color = key
+    )
+  ) +
+  geom_ribbon(
+    aes(
+      ymin = lo.95
+      , ymax = hi.95
+    )
+    , fill = "#D5DBFF"
+    , color = NA
+    , size = 0
+  ) +
+  geom_ribbon(
+    aes(
+      ymin = lo.80
+      , ymax = hi.80
+      , fill = key
+    )
+    , fill = "#596DD5"
+    , color = NA
+    , size = 0
+    , alpha = 0.8
+  ) +
+  geom_line(
+    size = 1
+  ) +
+  labs(
+    title = "Forecast for IP Discharges: 12-Month Forecast"
+    , x = ""
+    , y = ""
+    , subtitle = paste0(
+      "Model Desc - "
+      , model.desc.nnet
+      , "\n"
+      , "MAPE = "
+      , round(mape.nnet, 2)
+      , " - Forecast = "
+      , round(nnet.pred, 0)
+    )
+  ) +
+  scale_x_yearmon(n = 12, format = "%Y") +
+  scale_color_tq() +
+  scale_fill_tq() +
+  theme_tq()
+print(monthly.nnet.fcast.plt)
 
 # HW Model ####
 monthly.fit.hw <- HoltWinters(monthly.dsch.sub.xts)
@@ -444,7 +507,7 @@ dsch.diffs <- ndiffs(monthly.dsch.ts)
 # Seasonal differencing?
 nsdiffs(monthly.dsch.ts)
 # Re-plot
-monthly.dsch.ts.diff <- diff(monthly.dsch.ts)#, differences = rr.diffs)
+monthly.dsch.ts.diff <- diff(monthly.dsch.ts, differences = dsch.diffs)
 plot.ts(monthly.dsch.ts.diff)
 acf(monthly.dsch.ts.diff, lag.max = 20)
 acf(monthly.dsch.ts.diff, plot = F)
@@ -770,7 +833,7 @@ h2o.performance(
 # get mape
 automl.error.tbl <- tk.monthly %>%
   filter(lubridate::year(Time) >= 2018) %>%
-  add_column(
+  tibble::add_column(
     pred = pred.h2o %>%
       as_tibble() %>%
       pull(predict)

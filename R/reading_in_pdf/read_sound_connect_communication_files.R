@@ -41,7 +41,24 @@ for(i in 1:length(pdf.list)){
         )
       )
     df <- as.data.frame(cur.doc.page)
-    df <- df[-1, ]
+    df <- df %>%
+      filter(
+        str_detect(
+          string = X1
+          , pattern = "Patient"
+          , negate = T
+        )
+        | str_detect(
+          string = X2
+          , pattern = "MRN"
+          , negate = T
+        )
+        | str_detect(
+          string = X3
+          , pattern = "Room"
+          , negate = T
+        )
+    )
     df <- df[, colSums(df != "") != 0]
     df$FileName <- pdf.list[i]
     tmp.col.names <- c(
@@ -106,17 +123,17 @@ f <- tryCatch(file.choose(new = T), error = function(e) "")
 f.data <- extract_areas(f, 2)
 f.data.df <- as.data.frame(f.data, stringsAsFactors = FALSE)
 f.data.df$X5 <- NA
-f.data.df$FileName = 'SoundConnectCommunication_2019_10_16_04_30.pdf'
+f.data.df$FileName = 'SoundConnectCommunication_2019_11_12_04_30.pdf'
 #View(f.data.df)
 # is mrn column blank
 f.data.df$MRN <- str_sub(f.data.df$X1, -6, -1)
 f.data.df <- f.data.df %>%
   select(
     X1
-    , MRN
+    #, MRN
     #, Room
     #, Provider
-    #, X2
+    , X2
     , X3
     , X4
     , X5

@@ -1,11 +1,13 @@
-require(dplyr)
+# Lib Load ####
+require(tidyverse)
 require(lubridate)
-require(ggplot2)
 
+# Get File ####
 ## Load in data from csv file
 erdata <- read.csv("Decision to Admit to Admit Order DT.csv", header = TRUE
                    , sep = ",")
 
+# Summaries ####
 ## get summary of the data
 summary(erdata)
 str(erdata)
@@ -271,11 +273,14 @@ ggplot(data = erdata_byfactor,
 # Adm_Md only data, provider must have 10 or more encounters
 # Look at Admit Decision to Admit Order DT delta, add the 75 minute bench
 erdata_admmd_overten$bench <- 75
+
 erdata_admmd_overten$ou_indicator
+
 erdata_admmd_overten$ou_indicator[
   erdata_admmd_overten$DTA.To.AdmOrd.Delta.Minutes > 75] <- 1
 erdata_admmd_overten$ou_indicator[
   erdata_admmd_overten$DTA.To.AdmOrd.Delta.Minutes <= 75] <- 0
+
 erdata_admmd_overten <- erdata_admmd_overten %>%
   group_by(Adm_Dr_ID) %>%
   mutate(avg_dta_admord = round(mean(DTA.To.AdmOrd.Delta.Minutes), 2))
@@ -325,3 +330,4 @@ ggplot(data = erdata_admmd_overten,
   ggtitle("Average Decision to Admit to Admit Order Time Delta in Minutes\nby Admitting Provider"
           , subtitle = "Source: WellSoft, DSS - Red Dashed Line is 75 Minutes Benchmark") + 
   facet_grid(Hospitalist_Flag ~ ., scales = "free_y", space = "free_y")
+

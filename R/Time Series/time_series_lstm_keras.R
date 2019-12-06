@@ -853,7 +853,7 @@ predict_keras_lstm_future <- function(data, epochs = 300, ...){
         loss = 'mae'
         , optimizer = 'adam'
         #, optimizer = optimizer_rmsprop()
-        #, metrics = c('accuracy')
+        , metrics = c('accuracy')
         )
     
     # Fit LSTM
@@ -932,7 +932,7 @@ future_ed_arrivals_tbl <- predict_keras_lstm_future(
 tail(future_ed_arrivals_tbl, 5)
 
 future_ed_arrivals_tbl %>%
-  filter_time("2019-10-16" ~ "2019-10-21") %>%
+  filter_time("2019-11-10" ~ "2019-11-17") %>%
   plot_prediction(id = NULL, alpha = 0.4, size = 1.5) +
   geom_line(size = 1, alpha = 0.618) +
   theme(legend.position = "bottom") +

@@ -14,6 +14,7 @@ install.load::install_load(
   , "dplyr"
   , "urca"
   , "prophet"
+  , "ggplot2"
 )
 
 # Get File ####
@@ -433,7 +434,7 @@ dsch.diffs <- ndiffs(monthly.dsch.ts)
 # Seasonal differencing?
 nsdiffs(monthly.dsch.ts)
 # Re-plot
-monthly.dsch.ts.diff <- diff(monthly.dsch.ts)#, differences = rr.diffs)
+monthly.dsch.ts.diff <- diff(monthly.dsch.ts, differences = dsch.diffs)
 plot.ts(monthly.dsch.ts.diff)
 acf(monthly.dsch.ts.diff, lag.max = 20)
 acf(monthly.dsch.ts.diff, plot = F)
@@ -761,7 +762,7 @@ automl.error.tbl <- tk.monthly %>%
   filter(lubridate::year(Time) == 2018) %>%
   add_column(
     pred = pred.h2o %>%
-      as.tibble() %>%
+      as_tibble() %>%
       pull(predict)
   ) %>%
   rename(actual = cnt) %>%

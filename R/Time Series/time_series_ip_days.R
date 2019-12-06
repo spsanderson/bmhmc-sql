@@ -13,6 +13,7 @@ library(lubridate)
 library(dplyr)
 library(urca)
 library(prophet)
+library(ggplot2)
 
 # Get File ####
 fileToLoad <- file.choose(new = TRUE)
@@ -47,7 +48,7 @@ tk.monthly <- ta.days %>%
   collapse_by("monthly") %>%
   group_by(Time, add = TRUE) %>%
   summarize(
-    Total_Days = sum(Total_Days)
+    Total_Days = sum(SUM_DAYS)
   )
 head(tk.monthly, 5)
 tail(tk.monthly, 5)
@@ -182,7 +183,7 @@ monthly.hw.fcast <- hw(
   , h = 12
   , alpha = monthly.fit.hw$alpha
   , gamma = monthly.fit.hw$gamma
-  , beta  = monthly.fit.hw$beta
+  #, beta  = monthly.fit.hw$beta
 )
 summary(monthly.hw.fcast)
 
@@ -320,8 +321,8 @@ monthly.ets.ref <- monthly.dsch.sub.xts %>%
   ets(
     ic = "bic"
     , alpha = monthly.ets.fit$par[["alpha"]]
-    # , beta  = monthly.ets.fit$par[["beta"]]
-    , gamma = monthly.ets.fit$par[["gamma"]]
+    , beta  = monthly.ets.fit$par[["beta"]]
+    # , gamma = monthly.ets.fit$par[["gamma"]]
     # , phi   = monthly.ets.fit$par[["phi"]]
   )
 
@@ -405,7 +406,7 @@ dsch.diffs <- ndiffs(monthly.dsch.ts)
 # Seasonal differencing?
 nsdiffs(monthly.dsch.ts)
 # Re-plot
-monthly.dsch.ts.diff <- diff(monthly.dsch.ts)#, differences = rr.diffs)
+monthly.dsch.ts.diff <- diff(monthly.dsch.ts, differences = dsch.diffs)
 plot.ts(monthly.dsch.ts.diff)
 acf(monthly.dsch.ts.diff, lag.max = 20)
 acf(monthly.dsch.ts.diff, plot = F)
