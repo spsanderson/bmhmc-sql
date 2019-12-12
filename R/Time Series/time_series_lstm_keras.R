@@ -932,7 +932,7 @@ future_ed_arrivals_tbl <- predict_keras_lstm_future(
 tail(future_ed_arrivals_tbl, 5)
 
 future_ed_arrivals_tbl %>%
-  filter_time("2019-11-10" ~ "2019-11-17") %>%
+  filter_time("2019-12-04" ~ "2019-12-09") %>%
   plot_prediction(id = NULL, alpha = 0.4, size = 1.5) +
   geom_line(size = 1, alpha = 0.618) +
   theme(legend.position = "bottom") +
