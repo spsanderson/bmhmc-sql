@@ -23,13 +23,13 @@ oppe_alos_plot <- function(data){
         ) %>%
         summarize(
             Total_Discharges = n()
-            , alos = round(mean(los), 2)
-            , perf = round(mean(performance), 2)
+            , alos = round(mean(los, na.rm = TRUE), 2)
+            , perf = round(mean(performance, na.rm = TRUE), 2)
             , avg_var = (alos - perf)
             , tot_excess_days = (avg_var * Total_Discharges)
-            , cmi = round(mean(drg_cost_weight), 2)
-            , soi = round(mean(severity_of_illness), 2)
-            , z_score = round(mean(z_minus_score), 2)
+            , cmi = round(mean(drg_cost_weight, na.rm = TRUE), 2)
+            , soi = round(mean(severity_of_illness, na.rm = TRUE), 2)
+            , z_score = round(mean(z_minus_score, na.rm = TRUE), 2)
         ) %>%
         ungroup()
     
@@ -223,7 +223,7 @@ oppe_alos_plot <- function(data){
     print(plt)
     
     # Facets by SOI
-    # RR by SOI ----
+    # ALOS by SOI ----
     # Make data tbl
     alos_soi_tbl <- alos_tbl %>%
         filter(outlier_flag == 0) %>%
@@ -308,7 +308,7 @@ oppe_alos_plot <- function(data){
             , color = "red"
             , linetype = "dashed"
         ) +
-        facet_wrap(~ severity_of_illness) +
+        facet_wrap(~ severity_of_illness, scales = "free_y") +
         scale_y_continuous(
             labels = scales::number_format(accuracy = 0.1)
             , expand = c(0,0)
@@ -349,7 +349,7 @@ oppe_alos_plot <- function(data){
     # Anomaly detection and decomposition ----
     # Monthly Excess Days
     plt <- alos_trend_tbl %>%
-        time_decompose(tot_excess_days) %>%
+        time_decompose(tot_excess_days, frequency = 2) %>%
         anomalize(remainder, method = "gesd") %>%
         clean_anomalies() %>%
         plot_anomaly_decomposition() +
