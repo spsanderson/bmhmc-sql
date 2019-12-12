@@ -25,11 +25,11 @@ oppe_cpoe_plot <- function(data) {
             proper_name
         ) %>%
         summarize(
-            tot_ord     = sum(total_orders)
-            , Telephone = sum(telephone) / tot_ord
-            , CPOE      = sum(cpoe) / tot_ord
-            , Written   = sum(written) / tot_ord
-            , Verbal    = sum(verbal_order) / tot_ord
+            tot_ord     = sum(total_orders, na.rm = TRUE)
+            , Telephone = sum(telephone, na.rm = TRUE) / tot_ord
+            , CPOE      = sum(cpoe, na.rm = TRUE) / tot_ord
+            , Written   = sum(written, na.rm = TRUE) / tot_ord
+            , Verbal    = sum(verbal_order, na.rm = TRUE) / tot_ord
         ) %>%
         filter(
             tot_ord >= 10
@@ -79,7 +79,7 @@ oppe_cpoe_plot <- function(data) {
             , add = TRUE
         ) %>%
         summarize(
-            total_orders = sum(total_orders)
+            total_orders = sum(total_orders, na.rm = TRUE)
         ) %>%
         filter(total_orders >= 10) %>%
         ungroup()
@@ -107,7 +107,7 @@ oppe_cpoe_plot <- function(data) {
     print(plt)
     
     # Order Percentages Trend ----
-    order_percentages_trend_tbl <- df_time_tbl %>%
+    order_percentages_trend_tbl <- oppe_data %>% #df_time_tbl
         collapse_by("monthly") %>%
         group_by(
             proper_name
@@ -115,11 +115,11 @@ oppe_cpoe_plot <- function(data) {
             , add = T
         ) %>%
         summarize(
-            tot_ord     = sum(total_orders)
-            , Telephone = sum(telephone) / tot_ord
-            , CPOE      = sum(cpoe) / tot_ord
-            , Written   = sum(written) / tot_ord
-            , Verbal    = sum(verbal_order) / tot_ord
+            tot_ord     = sum(total_orders, na.rm = TRUE)
+            , Telephone = sum(telephone, na.rm = TRUE) / tot_ord
+            , CPOE      = sum(cpoe, na.rm = TRUE) / tot_ord
+            , Written   = sum(written, na.rm = TRUE) / tot_ord
+            , Verbal    = sum(verbal_order, na.rm = TRUE) / tot_ord
         ) %>%
         filter(
             tot_ord >= 10
