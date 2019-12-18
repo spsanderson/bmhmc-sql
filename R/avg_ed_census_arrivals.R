@@ -138,7 +138,36 @@ df.arrivals.gathered$Arrival_Hour <- factor(
   , ordered = T
   )
 
+# 5 Hour buckets
+df_arr_bucket <- df.arrivals.gathered %>%
+  mutate(Arrival_Hour = Arrival_Hour %>% as.character()) %>%
+  mutate(
+    hour_bucket = case_when(
+      Arrival_Hour %in% c('Hr0','Hr1','Hr2','Hr3','Hr4') ~ 1
+      , Arrival_Hour %in% c('Hr5','Hr6','Hr7','Hr8','Hr9') ~ 2
+      , Arrival_Hour %in% c('Hr10','Hr11','Hr12','Hr13','Hr14') ~ 3
+      , Arrival_Hour %in% c('Hr15','Hr16','Hr17','Hr18','Hr19') ~ 4
+      , TRUE ~ 5
+    )
+  ) %>%
+  mutate(hour_bucket = hour_bucket %>% as_factor())
+
+df_cen_bucket <- df.census.gathered %>%
+  mutate(Census_Hour = Census_Hour %>% as.character()) %>%
+  mutate(
+    hour_bucket = case_when(
+      Census_Hour %in% c('Hr0','Hr1','Hr2','Hr3','Hr4') ~ 1
+      , Census_Hour %in% c('Hr5','Hr6','Hr7','Hr8','Hr9') ~ 2
+      , Census_Hour %in% c('Hr10','Hr11','Hr12','Hr13','Hr14') ~ 3
+      , Census_Hour %in% c('Hr15','Hr16','Hr17','Hr18','Hr19') ~ 4
+      , TRUE ~ 5
+    )
+  ) %>%
+  mutate(hour_bucket = hour_bucket %>% as_factor())
+
 # Visualize ####
+capt <- "From 12-30-2018 to 12-14-2019"
+
 arrivals.boxplt <- df.arrivals.gathered %>% ggplot(
   aes(
     x = Arrival_Hour
@@ -155,7 +184,7 @@ arrivals.boxplt <- df.arrivals.gathered %>% ggplot(
     , subtitle = "Source: DSS"
     , x = ""
     , y = ""
-    , caption = "From 12-30-2018 to 12-07-2019"
+    , caption = capt
   )
 print(arrivals.boxplt)
 
@@ -175,13 +204,62 @@ census.boxplt <- df.census.gathered %>% ggplot(
     , subtitle = "Source: DSS"
     , x = ""
     , y = ""
-    , caption = "From 12-30-2018 to 12-07-2019"
+    , caption = capt
   )
 print(census.boxplt)
 
 gridExtra::grid.arrange(
   arrivals.boxplt
   , census.boxplt
+  , nrow = 2
+  , ncol = 1
+)
+
+df_arr_bucket_boxplot <- df_arr_bucket %>%
+  ggplot(
+    mapping = aes(
+      x = hour_bucket
+      , y = Arrivals
+    )
+  ) +
+  geom_boxplot(
+    fill = "lightblue"
+    , alpha = 0.618
+    , outlier.color = "red"
+  ) +
+  labs(
+    title = "Average Arrivals by Hour Bucket in the ED"
+    , subtitle = "Source: DSS - By Hour of Arrival Bucket"
+    , caption = capt
+    , x = ""
+    , y = ""
+  )
+print(df_arr_bucket_boxplot)
+
+df_cen_bucket_boxplot <- df_cen_bucket %>%
+  ggplot(
+    mapping = aes(
+      x = hour_bucket
+      , y = Census
+    )
+  ) +
+  geom_boxplot(
+    fill = "lightblue"
+    , alpha = 0.618
+    , outlier.color = "red"
+  ) +
+  labs(
+    title = "Average Census by Hour Bucket in the ED"
+    , subtitle = "Source: DSS - By Hour of Arrival Bucket"
+    , caption = capt
+    , x = ""
+    , y = ""
+  )
+print(df_cen_bucket_boxplot)
+
+gridExtra::grid.arrange(
+  df_arr_bucket_boxplot
+  , df_cen_bucket_boxplot
   , nrow = 2
   , ncol = 1
 )

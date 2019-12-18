@@ -209,12 +209,12 @@ nnetfcast <- forecast(nnfit, h = 12, PI = T)
 sw_glance(nnfit)
 tail(sw_sweep(nnetfcast), 12)
 
-# HW Errors
+# NNET Errors
 monthly.nnet.perf <- sw_glance(nnfit)
 mape.nnet <- monthly.nnet.perf$MAPE
 model.desc.nnet <- monthly.nnet.perf$model.desc
 
-# Monthly HW predictions
+# Monthly NNET predictions
 monthly.nnet.pred <- sw_sweep(nnetfcast) %>%
   filter(sw_sweep(nnetfcast)$key == 'forecast')
 print(monthly.nnet.pred)

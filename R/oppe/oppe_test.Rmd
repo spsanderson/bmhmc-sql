@@ -599,13 +599,13 @@ denials_tbl <- denials_tbl %>%
 dbDisconnect(db_con)
 
 # DRG Exclude ----
-drg_exclude <- read_xlsx("drg_exclude.xlsx") %>%
+drg_exclude <- read_xlsx("G:\\R Studio Projects\\Credentialing_CPOE\\drg_exclude.xlsx") %>%
     clean_names()
 # APR DRG Thresholds ----
-apr_drg_thresholds_tbl <- read_xlsx("apr_drg_thresholds.xlsx") %>%
+apr_drg_thresholds_tbl <- read_xlsx("G:\\R Studio Projects\\Credentialing_CPOE\\apr_drg_thresholds.xlsx") %>%
     clean_names()
 # APR DRG Exclude ----
-apr_drg_exclude <- read_xlsx("ra_apr_drg_exclude.xlsx") %>%
+apr_drg_exclude <- read_xlsx("G:\\R Studio Projects\\Credentialing_CPOE\\ra_apr_drg_exclude.xlsx") %>%
     clean_names()
 ```
 

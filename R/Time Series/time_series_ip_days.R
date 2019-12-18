@@ -48,7 +48,7 @@ tk.monthly <- ta.days %>%
   collapse_by("monthly") %>%
   group_by(Time, add = TRUE) %>%
   summarize(
-    Total_Days = sum(SUM_DAYS)
+    Total_Days = sum(Total_Days)
   )
 head(tk.monthly, 5)
 tail(tk.monthly, 5)
@@ -321,8 +321,8 @@ monthly.ets.ref <- monthly.dsch.sub.xts %>%
   ets(
     ic = "bic"
     , alpha = monthly.ets.fit$par[["alpha"]]
-    , beta  = monthly.ets.fit$par[["beta"]]
-    # , gamma = monthly.ets.fit$par[["gamma"]]
+    # , beta  = monthly.ets.fit$par[["beta"]]
+    , gamma = monthly.ets.fit$par[["gamma"]]
     # , phi   = monthly.ets.fit$par[["phi"]]
   )
 

@@ -54,61 +54,6 @@ Date    	Revised By   			Description
     
 --EXEC dbo.ORE_BHMC_SBAR_Q_Shift_Report_New_SPS '2180269','180034','3SOU','1' --test patient
     
-USE [Soarian_Clin_Tst_1]
-GO
-/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 10/24/2019 10:10:43 AM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-/*--------------------------------------------------------------------------------    
-    
-File:      ORE_BHMC_SBAR_Q_Shift_Report_New_SPS.sql    
-    
-Input  Parameters:      
-       @HSF_CONTEXT_PATIENTID as PatientOID used to select specific patient     
-       @VisitOID             as Visit OID Of patient displayed in UI    
-       @pvchLocation         as Patient Location               
-       @pchReportUsage          as Used to indicate how the report is being run    
-                                1 = Context Senstive (CSP) Patient Context    
-                                2 = Operational Reporting (OPR)    
-                                3 = Job Scheduler (JS)    
-  
-Tables:     
-   HOrder  
-   HOrderSuppInfo    
-   HAssessment      
-   HObservation    
-   HPatient    
-   HPatientVisit    
-   HPerson   
-   HHealthCareUnit   
-   HExtendedPatient  
-  
-    
-Functions:     
-   fn_ORE_GetPatientAge    
-   fn_ORE_GetPatientAllergies    
-   fn_GetStrParmTable    
-   fn_ORE_GetPatientWt    
-   fn_ORE_GetExternalPatientID   
-   fn_ORE_GetPhysicianName   
-
-Purpose:  This procedure will retrieve fields needed to print the patient    
-          header and detail for the Shift report.     
-     
-    
-Revision History:    
----------------------------------------------------------------------------------    
-Date    	Revised By   			Description
-2019-09-04	Steven Sanderson MPH	Add the following fields
-
-------------------------------------------------------------------------------- 
-*/  
-    
---EXEC dbo.ORE_BHMC_SBAR_Q_Shift_Report_New_SPS '2180269','180034','3SOU','1' --test patient
-    
 ALTER PROCEDURE [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS] @HSF_CONTEXT_PATIENTID VARCHAR(20) = NULL,
 	@VisitOID VARCHAR(20) = NULL,
 	@pvchLocation AS TEXT,
@@ -244,6 +189,20 @@ BEGIN
 		PatientVisitOID INT,
 		LastNeuroOrder VARCHAR(MAX),
 		LastNeuroOrderEnteredDateTime VARCHAR(50)
+	)
+	-- IV Order
+	DECLARE @IVOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastIVOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastIVOrder VARCHAR(MAX),
+		LastIVOrderEnteredDateTime VARCHAR(50)
 	)
 	DECLARE @AssessmentStatus TABLE (
 		PatientOID INT,
@@ -853,6 +812,28 @@ BEGIN
 	WHERE slNO = 1
 	;
 
+	INSERT INTO @IVOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND ho.CommonDefName like '%PREREGIVPCO%'
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastIVOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @IVOrders AS A
+	WHERE slNO = 1
 	;
 
 	INSERT INTO @AssessmentStatus
@@ -2454,7 +2435,9 @@ BEGIN
 		LGLUCOSE.LastGlucoseOrder,
 		LGLUCOSE.LastGlucoseOrderEnteredDateTime,
 		LNEURO.LastNeuroOrder,
-		LNEURO.LastNeuroOrderEnteredDateTime
+		LNEURO.LastNeuroOrderEnteredDateTime,
+		IVORDERS.LastIVOrder,
+		IVORDERS.LastIVOrderEnteredDateTime
 	FROM @Patient tp
 	LEFT OUTER JOIN @pivotObsValues tov ON tp.PatientOID = tov.PatientOID
 		AND tp.PatientVisitOID = tov.PatientVisitOID
@@ -2474,5 +2457,7 @@ BEGIN
 		AND TP.PatientVisitOID = LGLUCOSE.PatientVisitOID
 	LEFT OUTER JOIN @LastNeuroCheckOrder AS LNEURO ON TP.PatientOID = LNEURO.PatientOID
 		AND TP.PatientVisitOID = LNEURO.PatientVisitOID
+	LEFT OUTER JOIN @LastIVOrder AS IVORDERS ON TP.PatientOID = IVORDERS.PatientOID
+		AND TP.PatientVisitOID = IVORDERS.PatientVisitOID
 	ORDER BY tp.PatientName
 END

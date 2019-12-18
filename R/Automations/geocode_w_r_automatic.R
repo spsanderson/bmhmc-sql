@@ -105,7 +105,6 @@ add_geo <- a %>%
     )
     
 # Make df ----
-df <- tibble() # Necessary?
 df <- add_geo %>% 
     as_tibble() %>%
     filter(str_sub(PtNo_Num, 1, 1) != 2)
@@ -240,7 +239,10 @@ dbWriteTable(
 origAddress %>%
   filter(is.na(lat)) %>%
   select(Encounter, FullAddress, ZipCode, PartialAddress) %>%
-  write_xlsx("daily_geocode_file.xlsx", col_names = T)
+  write_xlsx(
+    path = "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\daily_geocode_file.xlsx"
+    , col_names = T
+    )
 
 # Clean env ----
 rm(list = ls())
