@@ -125,19 +125,39 @@ dbWriteTable(
   , append = T
 )
 
-# # Write a CSV file containing origAddress to the working directory
-# # Clean up origAddress file if lat and/or lon are missing
-# geocoded <- origAddress %>%
-#   dplyr::filter(
-#     origAddress$lat != "" | origAddress$lon != ""
-#   ) %>%
-#   dplyr::select(Encounter, FullAddress,ZipCode, lon, lat)
-# 
-# write.csv(geocoded, "geocoded_addresses.csv", row.names=FALSE)
-
-origAddress %>%
-  dplyr::filter(
-    is.na(origAddress$lat)
+# Delete Dupes ----
+dbGetQuery(
+  conn = con
+  , paste0(
+    "
+    DELETE X
+    FROM (
+    	SELECT Encounter
+    	, FullAddress
+    	, ZipCode
+    	, lon
+    	, lat
+    	, RN = ROW_NUMBER() OVER(
+    		PARTITION BY Encounter
+    	, FullAddress
+    	, ZipCode
+    	, lon
+    	, lat
+    	ORDER BY Encounter
+    	, FullAddress
+    	, ZipCode
+    	, lon
+    	, lat
+    	)
+    	FROM SMSDSS.c_geocoded_address
+    ) X
+    WHERE X.RN > 1
+    "
   )
+)
 
+# DB Disconnect ----
+dbDisconnect(conn = con)
+
+# Clean env ----
 rm(list = ls())
