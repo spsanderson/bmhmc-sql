@@ -43,7 +43,7 @@ alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
 # Provider
-provider_id = '017202'
+provider_id = '017343'
 
 # Tables ----
 # Provider tbl ----

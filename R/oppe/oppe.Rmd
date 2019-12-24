@@ -1,7 +1,7 @@
 ---
 title: "OPPE Report"
 author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
-date: "2019-11-04"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     code_folding: show
@@ -61,7 +61,7 @@ alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
 # Provider
-provider_id = '005934'
+provider_id = '017863'
 
 # Tables ----
 # Provider tbl ----

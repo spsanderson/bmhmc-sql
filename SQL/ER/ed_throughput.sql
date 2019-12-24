@@ -29,6 +29,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2019-12-04	v1			Initial Creation
+2019-12-18	v2			Add columns for robustness
 ***********************************************************************
 */
 
@@ -36,8 +37,8 @@ Date		Version		Description
 DECLARE @START DATETIME;
 DECLARE @END DATETIME;
 
-SET @START = '2018-01-01';
-SET @END = '2019-07-01';
+SET @START = '2019-01-01';
+SET @END = '2019-12-18';
 
 -----
 SELECT WELLSOFT.Account,
@@ -50,21 +51,18 @@ SELECT WELLSOFT.Account,
 			THEN 1
 		ELSE 0
 		END AS [Hospitalist_Flag],
-	AdmitOrdDT.svc_cd AS [Order Type],
-	WELLSOFT.Arrival AS [Arrival DTime],
+	AdmitOrdDT.svc_cd AS [Order_Type],
+	WELLSOFT.Arrival,
 	WELLSOFT.[Decision To Admit],
-	AdmitOrdDT.ENT_DTIME AS [Admit Order Entry DTime],
+	AdmitOrdDT.ENT_DTIME AS [Admit_Order_Entry_DTime],
 	WELLSOFT.Admit_Confirm,
-	WELLSOFT.AdmitOrdersDT AS [DTime Unit Sec States as Eff DTime]
-	/*
-Description: 
-In the Active Patient Data File, this field identifies the date that the 
-change was processed by the system.
-*/
-	,
-	CenHist.last_data_cngdtime AS [DTime Processed by System]
-	-- Get datediff in minutes from step to step
-	,
+	WELLSOFT.AdmitOrdersDT,
+	WELLSOFT.AddedToADMissionsTrack,
+	CenHist.last_data_cngdtime AS [Bed_Occupied_Time],
+	CenHist.bed AS [Bed_Admitted_To],
+	IP_BED.bed AS [First_Non_ER_Bed],
+	IP_BED.last_data_cngdtime AS [Non_ER_Bed_Occupied_Time],
+	WELLSOFT.TimeLeftED,
 	[Arrival To DTA Delta Minutes] = DATEDIFF(MINUTE, WELLSOFT.ARRIVAL, WELLSOFT.[DECISION TO ADMIT]),
 	[DTA To AdmOrd Delta Minutes] = DATEDIFF(MINUTE, WELLSOFT.[DECISION TO ADMIT], ADMITORDDT.ENT_DTIME),
 	[AdmOrdEnt To AdmConfirm Delta Minutes] = DATEDIFF(MINUTE, AdmitOrdDT.ENT_DTIME, Wellsoft.Admit_Confirm),
@@ -103,11 +101,28 @@ LEFT JOIN (
 LEFT OUTER JOIN smsdss.BMH_PLM_PtAcct_V AS PLM ON WELLSOFT.ACCOUNT = PLM.PtNo_Num
 LEFT OUTER JOIN smsdss.pract_dim_v AS PDM ON PLM.Adm_Dr_No = PDM.src_pract_no
 	AND PLM.Regn_Hosp = PDM.orgz_cd
+-- Get first bed after cng_type = 'A'
+OUTER APPLY (
+	SELECT TOP 1 zzz.episode_no
+	, zzz.nurs_sta
+	, zzz.hosp_svc
+	, zzz.last_data_cngdtime
+	, zzz.bed
+	, zzz.cng_type
+	, zzz.seq_no
+	FROM smsmir.mir_cen_hist AS zzz
+	WHERE CenHist.seq_no < zzz.seq_no
+	AND CenHist.episode_no = zzz.episode_no
+	ORDER BY zzz.seq_no
+) as ip_bed
 WHERE WELLSOFT.Arrival >= @START
 	AND WELLSOFT.Arrival < @END
 	AND LEFT(WELLSOFT.ACCOUNT, 1) = '1'
-	AND Wellsoft.disposition NOT IN ('lwbs', 'ama')
---and Wellsoft.Account = '14507305'
+	-- Exclude those that leave before being seen or AMA or mortality
+	AND Wellsoft.disposition NOT IN ('lwbs', 'ama', 'Morgue')
+	AND PLM.tot_chg_amt > 0
+	AND LEFT(PLM.PTNO_NUM, 1) != '2'
+	AND LEFT(PLM.PTNO_NUM, 4) != '1999'
 ORDER BY Wellsoft.Arrival
 OPTION (FORCE ORDER);
 
@@ -116,18 +131,22 @@ SELECT *
 INTO #temp_b
 FROM #temp_a
 WHERE [DECISION TO ADMIT] IS NOT NULL
-	AND [Admit Order Entry DTime] IS NOT NULL
+	AND [Admit_Order_Entry_DTime] IS NOT NULL
 	AND [Admit_Confirm] IS NOT NULL;
 
 -----
 SELECT A.Account,
-	A.[Order Type],
-	A.[Arrival DTime],
+	A.Order_Type,
+	A.Arrival,
 	A.[Decision To Admit],
-	A.[Admit Order Entry DTime],
-	A.[Admit_Confirm],
-	A.[DTime Unit Sec States as Eff DTime],
-	A.[DTime Processed by System],
+	A.[Admit_Order_Entry_DTime],
+	A.Admit_Confirm,
+	A.AddedToADMissionsTrack,
+	A.[Bed_Occupied_Time],
+	A.Bed_Admitted_To,
+	A.[First_Non_ER_Bed],
+	A.[Non_ER_Bed_Occupied_Time],
+	A.TimeLeftED,
 	A.[Arrival To DTA Delta Minutes],
 	A.[DTA To AdmOrd Delta Minutes],
 	A.[AdmOrdEnt To AdmConfirm Delta Minutes],
@@ -138,16 +157,17 @@ SELECT A.Account,
 	A.ED_MD,
 	A.Adm_Dr_No,
 	A.Adm_Dr,
-	A.Hospitalist_Flag
-	-- 1 = SUN, 2 = MON, ..., 7 = SAT
-	,
-	DATEPART(DW, [Arrival DTime]) AS [Arr_DOW]
-	-- 0 = MIDNIGHT, 23 = 11PM
-	,
-	DATEPART(HOUR, [Arrival DTime]) AS [Arr_Hr]
-FROM #temp_b AS A;
+	A.Hospitalist_Flag,
+	DATEPART(DW, [Arrival]) AS [Arr_DOW],
+	DATEPART(HOUR, [Arrival]) AS [Arr_Hr],
+	DATENAME(DW, [Arrival]) AS [Arr_DOW_Name]
+FROM #temp_b AS A
+WHERE A.TimeLeftED != '-- ::00'
+ORDER BY A.[Arrival];
 
------
+-------
 DROP TABLE #TEMP_A,
 	#TEMP_B
+
+
 
