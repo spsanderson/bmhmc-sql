@@ -199,7 +199,11 @@ Outlook <- COMCreate("Outlook.Application")
 Email = Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
+<<<<<<< HEAD
 Email[["to"]] = ""
+=======
+Email[["to"]] = "email-placeholder"
+>>>>>>> aceafc7413f13904e67c601baa725d3ece7f214d
 Email[["cc"]] = ""
 Email[["bcc"]] = ""
 Email[["subject"]] = "CDI QEC Numbers"
