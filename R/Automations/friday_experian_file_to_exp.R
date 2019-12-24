@@ -482,7 +482,7 @@ f_name <- str_c(
     , str_sub(Sys.Date(), 6, 7)
     , str_sub(Sys.Date(), 9, 10)
     , str_sub(Sys.Date(), 3, 4)
-    , "-1-test.xlsx"
+    , "-1.xlsx"
 )
 
 write_xlsx(

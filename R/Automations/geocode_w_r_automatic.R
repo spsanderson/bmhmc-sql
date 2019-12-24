@@ -235,7 +235,41 @@ dbWriteTable(
     , append = T
 )
 
-# Save missing to clean and use orig geocode script
+# Delete Dupes ----
+dbGetQuery(
+  conn = con
+  , paste0(
+    "
+    DELETE X
+    FROM (
+    	SELECT Encounter
+    	, FullAddress
+    	, ZipCode
+    	, lon
+    	, lat
+    	, RN = ROW_NUMBER() OVER(
+    		PARTITION BY Encounter
+    	, FullAddress
+    	, ZipCode
+    	, lon
+    	, lat
+    	ORDER BY Encounter
+    	, FullAddress
+    	, ZipCode
+    	, lon
+    	, lat
+    	)
+    	FROM SMSDSS.c_geocoded_address
+    ) X
+    WHERE X.RN > 1
+    "
+  )
+)
+
+# DB Disconnect ----
+dbDisconnect(conn = con)
+
+# Save missing ----
 origAddress %>%
   filter(is.na(lat)) %>%
   select(Encounter, FullAddress, ZipCode, PartialAddress) %>%
