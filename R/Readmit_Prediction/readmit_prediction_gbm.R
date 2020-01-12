@@ -4,7 +4,6 @@ install.load::install_load(
   "tidyverse"
   , "mlr"
   , "rJava"
-  , "DALEX"
   , "FSelector"
   , "gbm"
   , "fitdistrplus"
@@ -15,6 +14,7 @@ options(scipen = 999) # prevent printing in scientific notation
 fileToLoad <- file.choose(new = T)
 df <- readxl::read_xlsx(path = fileToLoad, sheet = "data")
 df %>% glimpse()
+df <- df %>% filter(Init_dsch_date >= '2016-01-01')
 
 # DF Health ####
 nrow(df)
@@ -520,7 +520,7 @@ testTask <- makeClassifTask(
   , positive = "Y"
 )
 
-# Check trainTask and testTask
+# Smote trainTask and testTask
 trainTask <- smote(trainTask, rate = 6)
 testTask <- smote(testTask, rate = 6)
 
@@ -608,19 +608,3 @@ saveRDS(
   , file = "gbm_pred.rds"
   )
 
-# DALEX ####
-custom_predict <- function(object, newdata){
-  pred <- predict(
-    object
-    , newdata = newdata
-    )
-  response <- pred$data$response
-  return(response)
-}
-explainer_gbm <- DALEX::explain(
-  gbm.train
-  , data = train.df %>% dplyr::select(-Init_Acct)
-  , y = train.df$READMIT_FLAG
-  , predict_function = custom_predict
-  , label = "gbm"
-  )

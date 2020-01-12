@@ -73,8 +73,10 @@ prod_predictions_data <- prod_predictions$data %>%
 
 base.mod.df <- base.mod.df %>%
   mutate(id = 1:n()) %>%
-  select(Init_Acct, id) %>%
-  inner_join(prod_predictions_data, by = c("id"="id")) %>%
-  select(-id)
-  
+  dplyr::select(Init_Acct, id) %>%
+  dplyr::inner_join(prod_predictions_data, by = c("id"="id")) %>%
+  dplyr::select(-id)
+
+table(base.mod.df$response)
+
 write_csv(base.mod.df, "readmit_predictions.csv")
