@@ -24,9 +24,13 @@ rm(fileToLoad)
 
 # Time Aware Tibble ####
 # Make a time aware tibble
-discharges$Time <- lubridate::mdy(discharges$Time)
+discharges <- discharges %>%
+  set_names("Time", "DSCH_COUNT")
+discharges$Time <- lubridate::ymd_hm(discharges$Time)
 ta.discharges <- as_tbl_time(discharges, index = Time)
-head(ta.discharges)
+ta.discharges <- ta.discharges %>%
+  filter_time("2010" ~ "2019")
+tail(ta.discharges)
 
 min.date  <- min(ta.discharges$Time)
 min.year  <- lubridate::year(min.date)
@@ -35,9 +39,18 @@ max.date  <- max(ta.discharges$Time)
 max.year  <- lubridate::year(max.date)
 max.month <- lubridate::month(max.date)
 
-#timetk Daily
+# timetk Daily
+# Must collapse to daily first
+tk.daily <- ta.discharges %>%
+  collapse_by("hour") %>%
+  group_by(Time, add = TRUE) %>%
+  summarize(
+    cnt = sum(DSCH_COUNT)
+  ) %>%
+  ungroup()
+
 ta.discharges.ts <- tk_ts(
-  ta.discharges
+  tk.daily
   , start = c(min.year, min.month)
   , end = c(max.year, max.month)
   , frequency = 365
@@ -50,7 +63,9 @@ tk.monthly <- ta.discharges %>%
   group_by(Time, add = TRUE) %>%
   summarize(
     cnt = sum(DSCH_COUNT)
-  )
+  ) %>%
+  ungroup() %>%
+  mutate(Time = as.Date(Time))
 head(tk.monthly, 5)
 tail(tk.monthly, 5)
 
@@ -106,8 +121,9 @@ tk.monthly %>%
   ) +
   geom_smooth(
     se = F
-    , method = 'auto'
+    , method = 'loess'
     , color = 'red'
+    , span = 1/12
   ) +
   labs(
     title = "ED Discharges: Monthly Scale"
@@ -121,7 +137,11 @@ tk.monthly %>%
     , y = "Count"
     , x = ""
   ) +
-  theme_tq()
+  scale_x_date() +
+  theme_tq() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
 
 # Train / Test Data Sets ####
 # Monthly train/test
