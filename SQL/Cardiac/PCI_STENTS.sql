@@ -29,6 +29,8 @@ Date		Version		Description
 2019-12-03	v1			Initial Creation
 2019-12-05	v2			Add column [Thirty_Five_Days_Out]
 						SELECT DISTINCT patients and 35 day out date
+2019-12-27	v3			Drop 35 days out column
+						Change svc_date to MMDDYYYY
 ***********************************************************************
 */
 
@@ -45,8 +47,8 @@ SELECT ACTV.pt_id,
 	ACTV_DIM.actv_name,
 	ACTV.actv_tot_qty,
 	ACTV.chg_tot_amt,
-	CAST(ACTV.actv_date AS DATE) AS [Actv_Date],
-	CAST(DATEADD(DAY, 35, ACTV.ACTV_DATE) AS DATE) AS [Thirty_Five_Days_Out]
+	CAST(ACTV.actv_date AS DATE) AS [Actv_Date]
+	--CAST(DATEADD(DAY, 35, ACTV.ACTV_DATE) AS DATE) AS [Thirty_Five_Days_Out]
 INTO #TEMPA
 FROM smsmir.actv AS ACTV
 INNER JOIN SMSDSS.actv_cd_dim_v AS ACTV_DIM ON ACTV.actv_cd = ACTV_DIM.actv_cd
@@ -55,8 +57,7 @@ WHERE ACTV.actv_entry_date = @YESTERDAY
 	AND ACTV.ACTV_CD IN ('07090061', '07090079', '07090004');
 
 SELECT DISTINCT A.[PT_ID]
-, a.Actv_Date
-, A.[Thirty_Five_Days_Out]
+, CONVERT(VARCHAR, a.Actv_Date, 101) AS [Actv_Date]
 FROM #TEMPA AS A;
 
 DROP TABLE #TEMPA;
