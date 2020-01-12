@@ -25,23 +25,24 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2019-06-21	v1			Initial Creation
+2020-01-07	v2			Group by Date and Hour
 ***********************************************************************
 */
 
 DECLARE @ThisDate DATETIME;
 SET @ThisDate = GETDATE(); 
 
-SELECT Arrival AS [Arrival_Date]
+SELECT DATEADD(HOUR, DATEDIFF(HOUR, 0, Arrival), 0) AS [Arrival_Date]
 , COUNT(ACCOUNT) AS [Arrival_Count]
 
 FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
 
-WHERE ARRIVAL >= '2010-01-01'
-AND ARRIVAL < dateadd(dd, datediff(dd, 0, @ThisDate) - 1, 0)
+WHERE Arrival >= '2010-01-01'
+AND Arrival < dateadd(dd, datediff(dd, 0, @ThisDate) - 1, 0)
 AND TIMELEFTED != '-- ::00'
-AND ARRIVAL != '-- ::00'
+AND Arrival != '-- ::00'
 
-GROUP BY ARRIVAL   
+GROUP BY DATEADD(HOUR, DATEDIFF(HOUR, 0, Arrival), 0)
 
-ORDER BY ARRIVAL
+ORDER BY DATEADD(HOUR, DATEDIFF(HOUR, 0, Arrival), 0)
 ;
