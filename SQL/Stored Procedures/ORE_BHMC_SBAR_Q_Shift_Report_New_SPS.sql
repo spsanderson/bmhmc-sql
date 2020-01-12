@@ -204,6 +204,20 @@ BEGIN
 		LastIVOrder VARCHAR(MAX),
 		LastIVOrderEnteredDateTime VARCHAR(50)
 	)
+	-- LAST GLUCOSE
+	DECLARE @GlucoseResults TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		GlucoseValue VARCHAR(MAX),
+		CreationDateTime VARCHAR(50)
+	)
+	DECLARE @LastGlucoseResult TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastGlucoseResult VARCHAR(MAX),
+		LastGlucoseResultCreationDateTime VARCHAR(50)
+	)
 	DECLARE @AssessmentStatus TABLE (
 		PatientOID INT,
 		PatientVisitOID INT,
@@ -834,6 +848,37 @@ BEGIN
 	, A.EnterdDateTime
 	FROM @IVOrders AS A
 	WHERE slNO = 1
+	;
+
+	-- glucose result
+	INSERT INTO @GlucoseResults
+	SELECT HO.Patient_oid
+	, HA.PatientVisit_oid
+	, [slNO] = ROW_NUMBER() OVER(PARTITION BY HO.pATIENT_OID ORDER BY HO.CREATIONTIME DESC)
+	, HO.Value
+	, HO.CreationTime
+
+	FROM HObservation AS HO
+	INNER JOIN HAssessment AS HA
+	on HO.Patient_oid = HA.Patient_oid
+		AND HO.AssessmentID = ha.AssessmentID
+		AND ho.EndDT IS NULL
+	INNER JOIN @tblPatientOID AS PT
+	ON HA.PatientVisit_oid = PT.visitoid
+		AND ha.Patient_oid = pt.PatientOID
+
+	WHERE HO.InternalValue IN (
+		'2650','82948','9018'
+	)
+	
+	INSERT INTO @LastGlucoseResult
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.GlucoseValue
+	, A.CreationDateTime
+	FROM @GlucoseResults AS A
+
+	WHERE A.slNO = 1
 	;
 
 	INSERT INTO @AssessmentStatus
@@ -2437,7 +2482,9 @@ BEGIN
 		LNEURO.LastNeuroOrder,
 		LNEURO.LastNeuroOrderEnteredDateTime,
 		IVORDERS.LastIVOrder,
-		IVORDERS.LastIVOrderEnteredDateTime
+		IVORDERS.LastIVOrderEnteredDateTime,
+		GLUCOSERESULT.LastGlucoseResult,
+		GLUCOSERESULT.LastGlucoseResultCreationDateTime
 	FROM @Patient tp
 	LEFT OUTER JOIN @pivotObsValues tov ON tp.PatientOID = tov.PatientOID
 		AND tp.PatientVisitOID = tov.PatientVisitOID
@@ -2459,5 +2506,7 @@ BEGIN
 		AND TP.PatientVisitOID = LNEURO.PatientVisitOID
 	LEFT OUTER JOIN @LastIVOrder AS IVORDERS ON TP.PatientOID = IVORDERS.PatientOID
 		AND TP.PatientVisitOID = IVORDERS.PatientVisitOID
+	LEFT OUTER JOIN @LastGlucoseResult AS GLUCOSERESULT ON TP.PatientOID = GLUCOSERESULT.PatientOID
+		AND TP.PatientVisitOID = GLUCOSERESULT.PatientVisitOID
 	ORDER BY tp.PatientName
 END
