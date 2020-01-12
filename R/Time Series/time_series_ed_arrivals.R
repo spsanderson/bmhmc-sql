@@ -24,12 +24,10 @@ rm(fileToLoad)
 
 # Time Aware Tibble ####
 # Format Arrival_Date and make time aware tibble
-arrivals$Arrival_Date <- lubridate::mdy_hm(arrivals$Arrival_Date)
+arrivals$Arrival_Date <- lubridate::ymd_hm(arrivals$Arrival_Date)
+
 hourly.orders <- arrivals %>%
-  mutate(processed_hour = floor_date(Arrival_Date, "hour")) %>%
-  group_by(processed_hour) %>%
-  summarise(Arrival_Count = sum(Arrival_Count))
-head(hourly.orders, 5)
+  set_names("processed_hour", "Arrival_Count")
 
 ta.arrivals <- as_tbl_time(hourly.orders, index = processed_hour)
 head(ta.arrivals)
@@ -62,11 +60,6 @@ colnames(hourly.orders) <- c("ds","y")
 head(hourly.orders, 5)
 
 # FB Prophet Model ####
-# may have trouble getting forecast model due to vector create size
-# shrink data down
-# hourly.orders <- hourly.arrivals %>% 
-#   filter(ds >= '2018-01-01')
-
 m <- prophet(hourly.orders)
 
 future <- make_future_dataframe(

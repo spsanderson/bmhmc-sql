@@ -30,14 +30,16 @@ file.to.choose <- file.choose(new = T)
 
 # TA Tibble ####
 df <- read.csv(file.to.choose)
-df$Arrival_Date <- mdy_hm(df$Arrival_Date)
+df$Arrival_Date <- ymd_hm(df$Arrival_Date)
 
 hourly.arrivals <- df %>%
-  mutate(processed.hour = floor_date(Arrival_Date, "hour")) %>%
-  group_by(processed.hour) %>%
-  summarise(Arrival_Count = sum(Arrival_Count)) %>%
+  set_names("processed.hour", "Arrival_Count") %>%
   as_tbl_time(index = processed.hour)
-head(df)
+#   mutate(processed.hour = floor_date(Arrival_Date, "hour")) %>%
+#   group_by(processed.hour) %>%
+#   summarise(Arrival_Count = sum(Arrival_Count)) %>%
+#   as_tbl_time(index = processed.hour)
+# head(df)
 
 # Get missing hours if they exist
 min.date <- min(hourly.arrivals$processed.hour)
@@ -88,7 +90,7 @@ p1 <- hourly.arrivals %>%
   )
 print(p1)
 
-filter.date.value <- "2019-10-01"
+filter.date.value <- "2019-12-01"
 
 p2 <- hourly.arrivals %>%
   filter_time(
@@ -109,7 +111,7 @@ p2 <- hourly.arrivals %>%
   ) +
   geom_smooth(
     method = "loess"
-    , span = 0.2
+    , span = 1/12
     , se = F
   ) +
   theme_tq() +
@@ -134,7 +136,7 @@ p.title <- ggdraw() +
 plot_grid(p.title, p1, p2, ncol = 1, rel_heights = c(0.1,1,1))
 
 # is lstm good?
-tidy.acf <- function(data, Arrival_Count, lags = 0:20){
+tidy.acf <- function(data, Arrival_Count, lags = 0:24){
   
   value.expr <- enquo(Arrival_Count)
   
@@ -268,7 +270,7 @@ plot_split <- function(
   return(g)
 }
 
-rolling_origin_resamples$splits[[1]] %>%
+rolling_origin_resamples$splits[[12]] %>%
   plot_split(expand_y_axis = T) +
   theme(legend.position = "bottom")
 
@@ -321,8 +323,8 @@ rolling_origin_resamples %>%
     , title = "Backtesting Strategy: Rolling Origin Sampling Plan"
     )
 
-split <- rolling_origin_resamples$splits[[11]]
-split_id <- rolling_origin_resamples$id[[11]]
+split <- rolling_origin_resamples$splits[[12]]
+split_id <- rolling_origin_resamples$id[[12]]
 
 plot_split(split, expand_y_axis = F, size = 0.5) +
   theme(legend.position = "bottom") +
