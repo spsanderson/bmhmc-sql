@@ -60,8 +60,8 @@ alos_start_date <- Sys.Date() %m-% months(18) %>%
 alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
-# Provider
-provider_id = '017863'
+# Provider ----
+provider_id = '019190'
 
 # Tables ----
 # Provider tbl ----
@@ -339,8 +339,15 @@ denials_tbl %>%
 # CPOE Order Plots
 
 ```{r oppe_plot, echo=FALSE, message=FALSE,warning=FALSE}
-# Viz ----
 oppe_cpoe_plot(cpoe_tbl)
+```
+
+# CPOE Order Clustering
+
+This will provider Provider CPOE Order Clustering information with UMAP 2D projection, and proportion of order totals by group for the cluster and the provider.
+
+```{r cpoe_order_cluster, echo=FALSE, message=FALSE, warning=FALSE}
+oppe_cpoe_clustering(provider_id = provider_id)
 ```
 
 # Length of Stay Trends
