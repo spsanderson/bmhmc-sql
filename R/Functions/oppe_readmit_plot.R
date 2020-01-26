@@ -1,7 +1,9 @@
 oppe_readmit_plot <- function(data) {
     
     # Readmit Plots for OPPE
-    
+    if(!nrow(readmit_tbl) >= 10){
+        return(NA)
+    } else {
     # Readmit Trends - Expected, Actual, CMI, SOI ----
     # Make tbl
     readmit_trend_tbl <- readmit_tbl %>%
@@ -355,5 +357,6 @@ oppe_readmit_plot <- function(data) {
         )
     
     print(plt)
+    }
 
 }

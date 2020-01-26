@@ -15,6 +15,10 @@ oppe_cpoe_plot <- function(data) {
     # Get data
     oppe_data <- data
     
+    if(!nrow(oppe_data) >= 10){
+        return(NA)
+    } else {
+    
     # Order Abbrviation Type
     ord_types <- list("CPOE", "Written", "Verbal", "Telephone")
     ord_types <- unique(ord_types)
@@ -155,4 +159,5 @@ oppe_cpoe_plot <- function(data) {
         theme_tq()
     
     print(plt)
+    }
 }

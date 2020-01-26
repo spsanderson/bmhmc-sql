@@ -1,6 +1,9 @@
 oppe_gartner_magic_plot <- function(){
     
     # Make df ----
+    if(!nrow(alos_tbl) >= 10){
+        return(NA)
+    } else {
     alos_data <- alos_tbl %>%
         mutate(dsch_date = ymd(dsch_date)) %>%
         select(
@@ -186,5 +189,6 @@ oppe_gartner_magic_plot <- function(){
     
     # Print ----
     print(plt)
+    }
     
 }

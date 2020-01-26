@@ -1,6 +1,9 @@
 oppe_denials_plot <- function(){
     
     # Yearly Summary ----
+    if(!nrow(denials_tbl) >= 10){
+        return(NA)
+    } else {
     # summary tbl
     denials_y_tbl <- denials_tbl %>%
         mutate(adm_date = ymd(adm_date)) %>%
@@ -176,5 +179,5 @@ oppe_denials_plot <- function(){
         )
         
     print(rec_pct)
-    
+    }
 }

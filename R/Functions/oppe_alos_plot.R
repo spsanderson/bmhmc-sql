@@ -1,7 +1,9 @@
 oppe_alos_plot <- function(data){
     
     # Length of Stay Plots for OPPE
-    
+    if(!nrow(alos_tbl) >= 10){
+        return(NA)
+    } else {
     # Alos Trends, Actual, Exp, SOI, CMI ----
     # Make Table
     alos_trend_tbl <- alos_tbl %>%
@@ -360,5 +362,6 @@ oppe_alos_plot <- function(data){
         )
     
     print(plt)
+    }
     
 }
