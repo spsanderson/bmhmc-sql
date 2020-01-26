@@ -493,4 +493,4 @@ write_xlsx(
     )
 )
 
-
+rm(list = ls())
