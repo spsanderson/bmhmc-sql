@@ -43,7 +43,7 @@ alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
 # Provider
-provider_id = '017343'
+provider_id = '021097'
 
 # Tables ----
 # Provider tbl ----
@@ -585,3 +585,4 @@ oppe_alos_plot(alos_tbl)
 oppe_readmit_plot(readmit_tbl)
 oppe_denials_plot()
 oppe_gartner_magic_plot()
+cpoe_clustering(provider_id = provider_id)
