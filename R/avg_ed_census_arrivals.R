@@ -166,7 +166,7 @@ df_cen_bucket <- df.census.gathered %>%
   mutate(hour_bucket = hour_bucket %>% as_factor())
 
 # Visualize ####
-capt <- "From 12-30-2018 to 01-04-2020"
+capt <- "From 12-29-2019 to 01-18-2020"
 
 arrivals.boxplt <- df.arrivals.gathered %>% ggplot(
   aes(
