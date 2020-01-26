@@ -81,28 +81,28 @@ tk.monthly %>%
       , y = total.excess
     )
   ) +
-  geom_rect(
-    xmin = as.numeric(ymd(training.stop.date.monthly))
-    , xmax = as.numeric(ymd(end.date.monthly))
-    , ymin = (min.discharges.monthly * 0.9)
-    , ymax = (max.discharges.monthly * 1.1)
-    , fill = palette_light()[[4]]
-    , alpha = 0.01
-  ) +
-  annotate(
-    "text"
-    , x = ymd("2015-01-01")
-    , y = min.discharges.monthly
-    , color = palette_light()[[1]]
-    , label = "Training Region"
-  ) +
-  annotate(
-    "text"
-    , x = ymd("2018-06-01")
-    , y = max.discharges.monthly
-    , color = palette_light()[[1]]
-    , label = "Testing Region"
-  ) +
+  # geom_rect(
+  #   xmin = as.numeric(ymd(training.stop.date.monthly))
+  #   , xmax = as.numeric(ymd(end.date.monthly))
+  #   , ymin = (min.discharges.monthly * 0.9)
+  #   , ymax = (max.discharges.monthly * 1.1)
+  #   , fill = palette_light()[[4]]
+  #   , alpha = 0.01
+  # ) +
+  # annotate(
+  #   "text"
+  #   , x = ymd("2015-01-01")
+  #   , y = min.discharges.monthly
+  #   , color = palette_light()[[1]]
+  #   , label = "Training Region"
+  # ) +
+  # annotate(
+  #   "text"
+  #   , x = ymd("2018-06-01")
+  #   , y = max.discharges.monthly
+  #   , color = palette_light()[[1]]
+  #   , label = "Testing Region"
+  # ) +
   geom_point(
     alpha = 0.5
     , color = palette_light()[[1]]

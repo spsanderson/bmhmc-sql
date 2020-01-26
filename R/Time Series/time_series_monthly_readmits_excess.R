@@ -74,29 +74,29 @@ tk.monthly %>%
       , y = excess.rate
     )
   ) + 
-  geom_rect(
-    xmin = as.numeric(ymd(training.stop.date.monthly))
-    , xmax = as.numeric(ymd(end.date.monthly))
-    , ymin = (0.9 * min.readmitrate.monthly)
-    , ymax = (1.1 * max.readmitrate.monthly)
-    , fill = palette_light()[[4]]
-    , alpha = 0.01
-  ) +
-  annotate(
-    "text"
-    , x = ymd("2017-01-01")
-    , y = min.readmitrate.monthly
-    , color = palette_light()[[1]]
-    , label = "Training Region"
-  ) +
-  annotate(
-    "text"
-    #, x = ymd("2018-01-01")
-    , x = training.stop.date.monthly
-    , y = max.readmitrate.monthly
-    , color = palette_light()[[1]]
-    , label = "Testing Region"
-  ) +
+  # geom_rect(
+  #   xmin = as.numeric(ymd(training.stop.date.monthly))
+  #   , xmax = as.numeric(ymd(end.date.monthly))
+  #   , ymin = (0.9 * min.readmitrate.monthly)
+  #   , ymax = (1.1 * max.readmitrate.monthly)
+  #   , fill = palette_light()[[4]]
+  #   , alpha = 0.01
+  # ) +
+  # annotate(
+  #   "text"
+  #   , x = ymd("2017-01-01")
+  #   , y = min.readmitrate.monthly
+  #   , color = palette_light()[[1]]
+  #   , label = "Training Region"
+  # ) +
+  # annotate(
+  #   "text"
+  #   #, x = ymd("2018-01-01")
+  #   , x = training.stop.date.monthly
+  #   , y = max.readmitrate.monthly
+  #   , color = palette_light()[[1]]
+  #   , label = "Testing Region"
+  # ) +
   geom_point(
     alpha = 0.5
     , color = palette_light()[[1]]
@@ -106,8 +106,9 @@ tk.monthly %>%
   ) +
   geom_smooth(
     se = F
-    , method = 'auto'
+    , method = 'loess'
     , color = 'red'
+    , span = 1/3
   ) +
   labs(
     title = "Excess Readmit Rate: Monthly Scale"

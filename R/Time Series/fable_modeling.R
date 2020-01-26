@@ -9,12 +9,12 @@ install.load::install_load(
   , "sweep"
   , "anomalize"
   , "xts"
-  # , "fpp"
-  # , "forecast"
+  , "fpp"
+  , "forecast"
   , "lubridate"
   , "dplyr"
   , "urca"
-  # , "prophet"
+  , "prophet"
   , "ggplot2"
   , "tidyverse"
 )
@@ -25,34 +25,27 @@ arrivals <- read.csv(fileToLoad)
 
 arrivals$Time <- mdy(arrivals$Time)
 
-# Coerce to tsibble ----
-df_tsbl <- arrivals %>%
-  as_tsibble(index = Time)
-
-df_tsbl
-interval(df_tsbl)
-count_gaps(df_tsbl)
-
 # Make Monthly ----
-df_monthly_tsbl <- df_tsbl %>%
-  index_by(Year_Month = ~ yearmonth(.)) %>%
-  summarise(Count = sum(DSCH_COUNT, na.rm = TRUE))
+df_monthly_tbl <- arrivals %>%
+  mutate(month_end = ceiling_date(Time, unit = "month") - period(1, unit = "days")) %>%
+  select(month_end, DSCH_COUNT) %>%
+  group_by(month_end) %>%
+  summarise(Discharges = sum(DSCH_COUNT, na.rm = TRUE)) %>%
+  ungroup()
 
-df_monthly_tsbl           
-
-min.date  <- min(df_monthly_tsbl$Year_Month)
+min.date  <- min(df_monthly_tbl$month_end)
 min.year  <- year(min.date)
 min.month <- month(min.date)
-max.date  <- max(df_monthly_tsbl$Year_Month)
+max.date  <- max(df_monthly_tbl$month_end)
 max.year  <- year(max.date)
 max.month <- month(max.date)
 
 # Plot Initial Data
-df_monthly_tsbl %>%
+df_monthly_tbl %>%
   ggplot(
     mapping = aes(
-      x = Year_Month
-      , y = Count
+      x = month_end
+      , y = Discharges
     )
   )  +
   geom_point(
@@ -83,74 +76,83 @@ df_monthly_tsbl %>%
   theme_tq()
 
 # Anomalize ----
-# anomalize does not yet work on tsibble convert to tibble
-# make a simple IQR outlier function to use
-detect_outliers <- function(x) {
+# Anomaly Plots
+df_monthly_tbl %>%
+  tibbletime::as_tbl_time(index = month_end) %>%
+  arrange(month_end) %>%
+  # Data Manipulation / Anomaly Detection
+  time_decompose(Discharges, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  time_recompose() %>%
+  # Anomaly Visualization
+  plot_anomalies(
+    time_recomposed = TRUE
+    ,alpha_dots = 0.25
+    ) +
+  labs(
+    title = "Discharge Anomalies"
+    , subtitle = "Twitter + GESD Methods"
+    ) 
 
-  # Body ----
-  if(missing(x)) stop("No data supplied, x needs a vector of values", call. = FALSE)
-  if(!is.numeric(x)) stop("x must be numeric", call. = FALSE)
-  
-  data_tbl <- tibble(data = x)
-  
-  limits_tbl <- data_tbl %>%
-    summarise(
-      q_low = quantile(data, probs = 0.25, na.rm = TRUE)
-      , q_high = quantile(data, probs = 0.75, na.rm = TRUE)
-      , iqr = IQR(data, na.rm = TRUE)
-      , ll = q_low - 1.5  * iqr
-      , ul = q_high + 1.5 * iqr
-    )
-  
-  output_tbl <- data_tbl %>%
-    mutate(
-      outlier = case_when(
-        data < limits_tbl$ll ~ TRUE
-        , data > limits_tbl$ul ~ TRUE
-        , TRUE ~ FALSE
-      )
-    )
-  
-  return(output_tbl$outlier)
-    
-}
+df_monthly_tbl %>%
+  tibbletime::as_tbl_time(index = month_end) %>%
+  arrange(month_end) %>%
+  time_decompose(Discharges, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  plot_anomaly_decomposition() +
+  labs(title = "Decomposition of Anomalized IP Discharges")
 
-df_monthly_tsbl <- df_monthly_tsbl %>%
-  mutate(outlier = detect_outliers(Count))
-table(df_monthly_tsbl$outlier)
+df_anomalized_tbl <- df_monthly_tbl %>%
+  tibbletime::as_tbl_time(index = month_end) %>%
+  arrange(month_end) %>%
+  time_decompose(Discharges, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  clean_anomalies() %>%
+  time_recompose() %>%
+  select(month_end, observed, observed_cleaned)
 
-# df_monthly_tsbl %>%
-#   time_decompose(Count, method = "twitter") %>%
-#   anomalize(remainder, method = "gesd") %>%
-#   clean_anomalies() %>%
-#   time_recompose()
+# Coerce to tsibble ----
+# This should be done only before modeling data
+df_tsbl <- df_anomalized_tbl %>%
+  mutate(year_month = yearmonth(month_end)) %>%
+  select(year_month, observed, observed_cleaned) %>%
+  as_tsibble(index = year_month)
+
+df_tsbl
+interval(df_tsbl)
+count_gaps(df_tsbl)
 
 # Visualize ----
-df_monthly_tsbl %>% gg_tsdisplay(y = Count)
+df_tsbl %>% gg_tsdisplay(y = observed_cleaned)
 
-df_monthly_tsbl %>% 
-  STL(Count ~ season(window = Inf)) %>% 
+dcmp <- df_tsbl %>% 
+  model(STL(observed_cleaned ~ season(window = Inf)))
+
+components(dcmp) %>%
   autoplot()
 
-df_monthly_tsbl %>%
-  gg_subseries(y = Count)
+df_tsbl %>%
+  gg_subseries(y = observed_cleaned)
 
-df_monthly_tsbl %>%
-  features(Count, feat_stl) %>%
+df_tsbl %>%
+  features(observed_cleaned, feat_stl) %>%
   pivot_longer(cols = everything(), names_to = "Metric")
 
 # Model ----
-models <- df_monthly_tsbl %>%
+models <- df_tsbl %>%
   model(
-    ets          = ETS(Count)
-    , ets_boxcox = ETS(box_cox(Count, 0.3))
-    , arima      = ARIMA(Count)
-    , arima_log  = ARIMA(log(Count))
-    , snaive     = SNAIVE(Count)
-    , nnetar     = NNETAR(Count, n_nodes = 10)
-    , var        = VAR(Count)
+    ets      = ETS(observed_cleaned)
+    , arima  = ARIMA(observed_cleaned)
+    , nnetar = NNETAR(observed_cleaned, n_nodes = 10)
+    , rw     = RW(observed_cleaned)
   )
-models_acc <- accuracy(models) %>% arrange(MAE)
+
+
+models_acc <- accuracy(models) %>% 
+  arrange(MAE) %>%
+  mutate(model = .model %>% as_factor()) %>%
+  mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
+
 models_tidy <- augment(models) %>%
   mutate(key = "actual") %>%
   set_names(
@@ -162,16 +164,63 @@ models_tidy <- augment(models) %>%
     , "key"
     ) %>%
   as_tibble()
+
+model_desc <- models %>% 
+  as_tibble() %>%
+  gather() %>%
+  mutate(model_desc = print(value)) %>%
+  select(key, model_desc) %>%
+  set_names("model", "model_desc")
+
+print_mod_desc <- function(x) {
+  
+  model <- model_desc %>%
+    select(model_desc)
+  
+  return(print(paste0(model,"\n")))
+  
+}
+
+print_mod_desc(model_desc)
+model_descriptions <- model_desc$model_desc
+
+# Plot residuals
+models_tidy %>%
+  inner_join(models_acc, by = c("Model" = ".model")) %>%
+  inner_join(model_desc, by = c("Model" = "model")) %>%
+  select(Model, Year_Month, model, model_desc, Residuals, key) %>%
+  ggplot(
+    mapping = aes(
+      x = Year_Month
+      , y = Residuals
+      , group = model
+    )
+  ) +
+  geom_hline(yintercept = 0) +
+  geom_line(color = palette_light()[[2]]) +
+  facet_wrap(
+    ~ model
+    , ncol = 1
+    , scales = "free_y"
+    ) +
+  theme_tq() +
+  labs(x = "", caption = map(model_desc, print_mod_desc))
+
 models_fcast <- models %>% 
   forecast(h = "12 months") %>%
   as_tibble() %>%
-  select(.model, Year_Month, Count) %>%
+  select(.model, year_month, observed_cleaned) %>%
   mutate(key = "forecast") %>%
   set_names("Model", "Year_Month","Count", "key")
 
+winning_model_label <- models_acc %>%
+  filter(model_numeric == 1) %>%
+  left_join(model_desc, by = c(".model" = "model")) %>%
+  select(model_desc)
+
 # df_monthly_tsbl %>%
 models_tidy %>%
-  filter(year(Year_Month) > 2016) %>%
+  filter(year(Year_Month) > 2014) %>%
   ggplot(
     mapping = aes(
       x = Year_Month
@@ -210,7 +259,20 @@ models_tidy %>%
   scale_color_tq() +
   labs(
     title = "IP Discharges: Monthly Scale"
-    , subtitle = "Source: DSS - 12 Month Forecast"
+    , subtitle = 
+      paste0(
+        "Source: DSS - 12 Month Forecast\n"
+        ,"Winning Model - "
+        , winning_model_label
+        , "\n"
+        , "MAE - "
+        , round(
+          models_acc %>% 
+            filter(model_numeric == 1) %>% 
+            select(MAE)
+          , 4
+          )
+      )
     , caption = paste0(
       "Based on discharges from: "
       , min.date
@@ -221,39 +283,3 @@ models_tidy %>%
     , x = ""
   )
 
-df_monthly_tsbl %>%
-  model(
-    ets = ETS(box_cox(Count, 0.3))
-    , arima = ARIMA(log(Count))
-    , snaive = SNAIVE(Count)
-    , nnetar = NNETAR(Count, n_nodes = 10)
-  ) %>%
-  forecast(h = "12 months") %>%
-  autoplot(
-    filter(
-      df_monthly_tsbl
-      , year(Year_Month) > 2016)
-    , level = NULL
-    , size = 1
-    ) +
-  geom_point(    
-    alpha = 0.5
-    , color = palette_light()[[1]]
-  ) +
-  geom_line(
-    alpha = 0.5
-    , size = 1
-  ) +
-  theme_tq() +
-  labs(
-    title = "IP Discharges: Monthly Scale"
-    , subtitle = "Source: DSS - 12 Month Forecast"
-    , caption = paste0(
-      "Based on discharges from: "
-      , min.date
-      , " through "
-      , max.date
-    )
-    , y = "Count"
-    , x = ""
-  )
