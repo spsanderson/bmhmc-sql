@@ -12,6 +12,7 @@ zipr(
         "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R"
         ,"S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\SQL"
         ,"S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\VB"
+        ,"C:\\Users\\bha485\\Documents\\PowerShell_Scripts"
         )
     , include_directories = TRUE
     )
@@ -24,7 +25,7 @@ Outlook <- COMCreate("Outlook.Application")
 Email = Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] = ""
+Email[["to"]] = "spsanderson@manchucorp.com"
 Email[["cc"]] = ""
 Email[["bcc"]] = ""
 Email[["subject"]] = "Code"

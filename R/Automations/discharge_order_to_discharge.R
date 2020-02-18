@@ -120,7 +120,7 @@ Outlook <- COMCreate("Outlook.Application")
 Email = Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] = ""
+Email[["to"]] = "MPontecorvo@LICommunityHospital.org; JBaranowski-Guido@LICommunityHospital.org; KOlsen@LICommunityHospital.org"
 Email[["cc"]] = ""
 Email[["bcc"]] = ""
 Email[["subject"]] = "Discharge Order to Discharge Time"
