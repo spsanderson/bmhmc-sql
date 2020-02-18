@@ -9,10 +9,9 @@ oppe_cpoe_clustering <- function(provider_id) {
         , "odbc"
         , "dbplyr"
         , "broom"
-        , "umap"
+        , "uwot"
         , "ggrepel"
         , "tidyquant"
-        , "patchwork"
     )
     
     # DB Connection ----
@@ -162,8 +161,8 @@ oppe_cpoe_clustering <- function(provider_id) {
             , y = tot.withinss
         ) %>%
         mutate(
-            x2 = c(centers[-1], NA_real_)
-            , y2 = c(tot.withinss[-1], NA_real_)
+            x2 = lead(centers, n = 1)
+            , y2 = lead(tot.withinss, n = 1)
         ) %>%
         select(
             centers
@@ -177,17 +176,17 @@ oppe_cpoe_clustering <- function(provider_id) {
         mutate(
             m = abs((y2 - y) / (x2 - x))
         ) %>%
-        mutate(m_lag_1 = c(m[-2], NA_real_)) %>%
+        mutate(m_lag_1 = lead(m, n = 1)) %>%
         filter(!is.na(x2), !is.na(y2), !is.na(m_lag_1)) %>%
         mutate(m_perc = m / m_lag_1) %>%
         mutate(
             decrease_flag = case_when(
-                lag(m, n = 1) + 1 > m ~ 1
+                lead(m_perc, n = 1) > m_perc ~ 1
                 , TRUE ~ 0
             )
         ) %>%
         filter(centers > 2) %>%
-        filter(m_perc <= 1 ) %>%
+        filter(decrease_flag == 0) %>%
         slice(1) %>%
         select(centers) %>%
         pull()
@@ -202,9 +201,9 @@ oppe_cpoe_clustering <- function(provider_id) {
     # use umap() to get 2d projection
     umap_obj <- provider_order_type_tbl %>%
         select(-req_pty_cd) %>%
-        umap()
+        uwot::umap()
     
-    umap_results_tbl <- umap_obj$layout %>%
+    umap_results_tbl <- umap_obj %>%
         as_tibble() %>%
         set_names("x","y") %>%
         bind_cols(
@@ -351,8 +350,8 @@ oppe_cpoe_clustering <- function(provider_id) {
         )
     
     # Patchwork Viz ----
-    print(skree_plt)
-    print(umap_plt)
+    #print(skree_plt)
+    #print(umap_plt)
     print(cluster_trend_plt)
     print(provider_trend_plt)
     
