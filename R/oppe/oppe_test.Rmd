@@ -1,10 +1,10 @@
 ---
 title: "OPPE Report"
 author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
-date: "2019-11-04"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
-    code_folding: show
+    code_folding: hide
     highlight: tango
     theme: flatly
     toc: yes
@@ -44,6 +44,15 @@ load_files <-  subset(
 )
 map(paste0(my_path, load_files), source)
 
+# DB Connection ----
+# db_con <- dbConnect(
+#     odbc(),
+#     Driver = "SQL Server",
+#     Server = "BMH-HIDB",
+#     Database = "SMSPHDSSS0X0",
+#     Trusted_Connection = T
+# )
+
 # Report Parameters ----
 # Dates
 alos_start_date <- Sys.Date() %m-% months(18) %>%
@@ -51,8 +60,8 @@ alos_start_date <- Sys.Date() %m-% months(18) %>%
 alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
-# Provider
-provider_id = '017202'
+# Provider ----
+provider_id = '019190'
 
 # Tables ----
 # Provider tbl ----
@@ -89,7 +98,11 @@ denials_tbl <- denials_tbl %>%
         , dsch_date = dsch_date %>% ymd()
     ) %>%
     as_tbl_time(index = adm_date) %>%
-    arrange(adm_date)
+    arrange(adm_date) %>%
+    distinct(pt_no_num, .keep_all = TRUE)
+
+# Disconnect DB ----
+#dbDisconnect(db_con)
 
 # DRG Exclude ----
 drg_exclude <- read_xlsx("G:\\R Studio Projects\\Credentialing_CPOE\\drg_exclude.xlsx") %>%
@@ -326,8 +339,15 @@ denials_tbl %>%
 # CPOE Order Plots
 
 ```{r oppe_plot, echo=FALSE, message=FALSE,warning=FALSE}
-# Viz ----
 oppe_cpoe_plot(cpoe_tbl)
+```
+
+# CPOE Order Clustering
+
+This will provider Provider CPOE Order Clustering information with UMAP 2D projection, and proportion of order totals by group for the cluster and the provider.
+
+```{r cpoe_order_cluster, echo=FALSE, message=FALSE, warning=FALSE}
+oppe_cpoe_clustering(provider_id = provider_id)
 ```
 
 # Length of Stay Trends
@@ -380,3 +400,7 @@ apr_drg_exclude %>%
     kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), font_size = 12)
 ```
 </details>
+
+```{r clear_env, echo=FALSE, message=FALSE, warning=FALSE}
+rm(list = ls())
+```

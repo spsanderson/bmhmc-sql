@@ -38,8 +38,8 @@ source_files <- list.files(my_path, "*.R")
 load_files <-  subset(
     source_files
     , subset = (
-        str_detect(source_files, "oppe_") | 
-            str_detect(source_files, "clean")
+        str_starts(source_files, "oppe_") |
+          str_starts(source_files, "clean_")
     )
 )
 map(paste0(my_path, load_files), source)
@@ -374,6 +374,11 @@ oppe_gartner_magic_plot()
 
 ```{r denials_plts, echo=FALSE, message=FALSE, warning=FALSE}
 oppe_denials_plot()
+```
+
+# Network
+```{r network_graphs}
+
 ```
 
 # Appendix
