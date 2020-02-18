@@ -1,0 +1,239 @@
+---
+title: "Friday Denials Report"
+author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: tango
+    theme: flatly
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Lib Load ----
+if(!require(pacman)) install.packages("pacman")
+
+pacman::p_load(
+    "tidyverse"
+    , "DBI"
+    , "odbc"
+    , "dbplyr"
+    , "lubridate"
+    , "janitor"
+    , "knitr"
+    , "kableExtra"
+    , "tidyquant"
+    , "ggrepel"
+)
+
+# DB Connection ----
+db_con <- dbConnect(
+    odbc(),
+    Driver = "SQL Server",
+    Server = "BMH-HIDB",
+    Database = "SMSPHDSSS0X0",
+    Trusted_Connection = T
+)
+
+# Data ----
+query <- dbGetQuery(
+    conn = db_con
+    , paste0(
+        "
+        DECLARE @TODAY DATE;
+        DECLARE @START DATE;
+        DECLARE @END   DATE;
+                
+        SET @TODAY = GETDATE();
+        SET @START = DATEADD(WK, DATEDIFF(WK, 0, @TODAY), - 3)
+        SET @END   = DATEADD(DD, DATEDIFF(DD, 0, @TODAY), - 1);
+        
+        SELECT PAV.Med_Rec_No
+        , PAV.PtNo_Num
+        , PAV.Atn_Dr_No 
+        , UPPER(PDV.PRACT_rpt_name) AS [Attending_Provider]
+        , CASE
+        	WHEN PDV.src_spclty_cd = 'HOSIM'
+        		THEN 'HOSPITALIST'
+        		ELSE 'PRIVATE'
+          END AS [Hospitalist_Private]
+        , PAV.hosp_svc
+        , CAST(PAV.ADM_DATE AS DATE) AS [ADM_DATE]
+        , CAST(PAV.DSCH_DATE AS DATE) AS [DSCH_DATE]
+        , PAY.pay_cd
+        , PAYCD.pay_cd_name
+        , CAST(PAY.pay_entry_date AS DATE) AS [POST_DATE]
+        , CAST(PAY.pay_date AS DATE) AS [DENIAL_DATE]
+        , DATEDIFF(DAY, PAY.pay_date, PAY.pay_entry_date) AS [DENIAL_TO_ENTRY_LAG]
+        , DATEDIFF(DAY, PAV.DSCH_DATE, PAY_ENTRY_DATE) AS [DSCH_TO_DENIAL_LAG]
+        , PAV.tot_chg_amt
+        , PAV.drg_no
+        , PAV.drg_cost_weight
+        , DRG.drg_med_surg_group
+        , DRG.drg_complic_group
+        , DRG.drg_name
+        , DRG.drg_rate
+        
+        FROM SMSDSS.BMH_PLM_pTACCT_V AS PAV
+        INNER JOIN SMSMIR.PAY AS PAY
+        ON PAV.PT_NO = PAY.pt_id
+        	AND PAV.unit_seq_no = PAY.unit_seq_no
+        	AND PAV.from_file_ind = PAY.from_file_ind
+        	AND PAY.pay_cd = '10501104'
+        INNER JOIN SMSDSS.PAY_CD_DIM_V AS PAYCD
+        ON PAY.pay_cd = PAYCD.pay_cd
+        	AND PAY.orgz_cd = PAYCD.orgz_cd
+        INNER JOIN SMSDSS.PRACT_DIM_V AS PDV
+        ON PAV.Adm_Dr_No = PDV.src_pract_no
+        	AND PAV.Regn_Hosp = PDV.orgz_cd
+        LEFT OUTER JOIN SMSDSS.drg_v AS DRG
+        ON CAST(PAV.Bl_Unit_Key AS VARCHAR) = CAST(SUBSTRING(DRG.bl_unit_key, 9, 20) AS varchar)
+        	AND CAST(PAV.Pt_Key AS VARCHAR) = CAST(SUBSTRING(DRG.pt_key, 9, 20) AS VARCHAR)
+        	AND CAST(PAV.drg_no AS VARCHAR) = CAST(DRG.drg_no AS VARCHAR)
+        
+        WHERE PAY.pay_entry_date >= @START
+        AND PAY.pay_entry_date < @END
+
+        "
+    )
+)
+
+# Clean Names
+df <- (
+    query
+    %>% as_tibble()
+    %>% mutate(Attending_Provider = str_to_title(Attending_Provider))
+    %>% mutate(Hospitalist_Private = str_to_title(Hospitalist_Private))
+    %>% clean_names()
+)
+
+# DB Disconnect ----
+dbDisconnect(db_con)
+
+```
+
+## Information about report
+
+Data is pulled from DSS from the previous Friday through the close of business for the currently past Thursday.
+
+For example if today is January 10th, 2020 then the data for records entered into FMS for dates of January 3rd, 2020 through January 9th, 2020 are pulled.
+
+The encounter at that time must have a denial code of 10501104 which is defined as: REFERRED FOR APPEAL INITIAL
+
+## Totals by Provider
+
+```{r totals_by_provider, warning=FALSE, message=FALSE}
+(
+    df
+    %>% select(
+        attending_provider
+        , hospitalist_private
+        , tot_chg_amt
+    )
+    %>% group_by(attending_provider, hospitalist_private)
+    %>% summarise(tot_chg_amt = sum(tot_chg_amt, na.rm = TRUE))
+    %>% ungroup()
+    %>% arrange(desc(tot_chg_amt))
+    %>% adorn_totals()
+    %>% mutate(tot_chg_amt = tot_chg_amt %>% scales::dollar())
+    %>% set_names(
+        "Attending"
+        , "Hospitalist/Private"
+        , "Total Charges"
+    )
+    %>% kable()
+    %>% kable_styling(
+        bootstrap_options = c(
+            "striped"
+            , "hover"
+            , "condensed"
+            , "responsive"
+        )
+        , font_size = 12
+        , full_width = FALSE
+    )
+)
+```
+
+## Totals by Group
+```{r total_by_group, warning=FALSE, message=FALSE}
+(
+    df
+    %>% select(hospitalist_private, tot_chg_amt)
+    %>% group_by(hospitalist_private)
+    %>% summarise(tot_chg_amt = sum(tot_chg_amt, na.rm = TRUE))
+    %>% ungroup()
+    %>% arrange(hospitalist_private)
+    %>% adorn_totals()
+    %>% mutate(tot_chg_amt = tot_chg_amt %>% scales::dollar())
+    %>% set_names("Hospitalist/Private","Total Charges")
+    %>% kable()
+    %>% kable_styling(
+        bootstrap_options = c(
+            "striped"
+            , "hover"
+            , "condensed"
+            , "responsive"
+        )
+        , font_size = 12
+        , full_width = FALSE
+    )
+)
+```
+## Chart of Totals by Group
+
+```{r chart, message=FALSE, warning=FALSE}
+
+(
+  df
+  %>% select(hospitalist_private, tot_chg_amt)
+  %>% group_by(hospitalist_private)
+  %>% summarise(tot_chg_amt = sum(tot_chg_amt, na.rm = TRUE))
+  %>% ungroup()
+  %>% mutate(tot_chg_txt = tot_chg_amt %>% scales::dollar())
+  %>% mutate(prop_of_total = tot_chg_amt / sum(tot_chg_amt, na.rm = TRUE))
+  %>% mutate(prop_of_total_txt = prop_of_total %>% scales::percent(accuracy = 0.02))
+  %>% mutate(label_txt = str_glue("Total Charges: {tot_chg_txt}
+                                  Proportion of Total: {prop_of_total_txt}"))
+  %>% ggplot(
+    mapping = aes(
+      x = hospitalist_private
+      , y = prop_of_total
+    )
+  ) +
+    geom_col() +
+    ggrepel::geom_label_repel(
+      mapping = aes(
+        label = label_txt
+      )
+      , direction = "y" 
+    ) +
+    labs(
+      title = "Total Charges by Hospitalist/Private"
+      , subtitle = "Denied Cases"
+      , caption = "Percentages by group"
+      , x = ""
+      , y = "Proportion of Total Charges"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 0.02)) +
+    tidyquant::theme_tq() +
+    tidyquant::scale_fill_tq()
+)
+
+```
+
+## Data Download
+
+Click on the link to get the full data: 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+write.csv(df, "data.csv")
+xfun::embed_file("data.csv")
+
+```
+
