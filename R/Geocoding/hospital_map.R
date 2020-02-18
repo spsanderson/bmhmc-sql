@@ -26,6 +26,20 @@ origAddress <- read_csv(fileToLoad, col_names = TRUE)
 # Initialize the data frame
 geocoded <- data.frame(stringsAsFactors = FALSE)
 
+origAddress <- tribble(
+  ~Label, ~Name, ~FullAddress,
+  "A","Stony Brook Southampton Hospital","240 Meeting House Ln, Southampton, NY 11968",
+  "B","Stony Brook University Hospital","101 Nicolls Road, Stony Brook, NY 11794",
+  "C","Stony Brook Eastern Long Island Hosptial","201 Manor Place, Greenport, NY 11944",
+  "D","Northwell Health - Southside Hospital","301 East Main Street, Bay Shore, NY 11706",
+  "E","Northwell Health - Huntington Hospital","270 Park Avenue, Huntington, NY 11743",
+  "F","Northwell Health - Mather Hospital","75 N Country Rd., Port Jefferson, NY 11777",
+  "G","CHS - St. Charles","200 Belle Terre Rd., Port Jefferson, NY 11777",
+  "H","CHS - St. Catherine of Siena Medical Center","50 NY 25A, Smithtown, NY 11787",
+  "I","CHS - Good Smaritan Hospital","1000 Montauk Hwy, West Islip, NY 11795",
+  "J","CHS - St. Joseph Hospital","4295 Hempstead Tpke., Bethpage, NY 11714"
+  )
+
 # Geocode File ####
 for(i in 1:nrow(origAddress)) {
   print(paste("Working on geocoding: ", origAddress$FullAddress[i]))
@@ -134,6 +148,14 @@ sv_lng <- -72.97659
 sv_lat <- 40.78007
 sv_zoom <- 9
 
+# Hosp Marker ----
+hospMarker <- makeAwesomeIcon(
+  icon = 'glyphicon-plus'
+  , markerColor = 'lightblue'
+  , iconColor = 'black'
+  , library = "glyphicon"
+)
+
 l <- leaflet() %>%
   setView(
     lng = sv_lng
@@ -150,7 +172,7 @@ l <- leaflet() %>%
     , group = "Toner Lite"
     ) %>%
   addControl(
-    "Long Island Hospital Practice Location Map"
+    "My Health Location Map"
     , position = "topright"
     )
 
@@ -169,10 +191,10 @@ l <- l %>%
     , lat = sv_lat
     , icon = hospMarker
     , label = "LI Community Hospital"
-    , labelOptions = labelOptions(
-      noHide = TRUE
-      , direction = "auto"
-      )
+    # , labelOptions = labelOptions(
+    #   noHide = FALSE
+    #   , direction = "auto"
+    #   )
   )
 
 l <- l %>%
@@ -182,7 +204,7 @@ l <- l %>%
     , lng = ~lon
     , radius = 4
     , fillOpacity = 1
-    , label = ~htmlEscape(ShortName)
+    , label = ~htmlEscape(Label)
     , labelOptions = labelOptions(
       noHide = TRUE
       , direction = "auto"
@@ -191,6 +213,21 @@ l <- l %>%
   )
 
 l
+
+origAddress %>%
+  select(Label, Name, FullAddress) %>%
+  knitr::kable() %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c(
+      "striped"
+      , "hover"
+      , "condensed"
+      , "responsive"
+    )
+    , font_size = 12
+    , full_width =  TRUE
+    , position = "left"
+  )
 
 # Clean env ----
 rm(list = ls())
