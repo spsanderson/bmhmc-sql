@@ -35,6 +35,7 @@ Department: Finance, Revenue Cycle
 
 Purpose/Description
 	Create a report table of the balace sitting with insurance daily.
+    The variable age_in_days is only calculated for non-unitized accounts.
 
 Revision History:
 Date		Version		Description
