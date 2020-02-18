@@ -11,7 +11,7 @@ library(htmltools)
 library(dplyr)
 library(readr)
 
-# Select the file from the file chooser
+# Select the file ----
 fileToLoad <- file.choose(new = TRUE)
 
 # Read in the CSV/xlsx data and store it in a variable 
@@ -38,8 +38,7 @@ MaxRpt <- max(origAddress$Last_Rpt_Month)
 MaxRptYr <- substr(MaxRpt, 1, 4)
 MaxRptMonth <- substr(MaxRpt, 5, 6)
 
-optBin(origAddress$Case_Var)
-sshist(origAddress$Case_Var)
+# Run SHP Script ----
 # at this point run the file get_usa_zipcode_level_2015.R Script
 # when done, inner join data together
 alos_join <- origAddress
