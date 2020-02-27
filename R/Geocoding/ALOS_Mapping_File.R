@@ -350,7 +350,7 @@ cvarl <- leaflet(data = dsch_cvar_shp) %>%
 cvarl
 # End of Case Variance Map
 
-# Multi-layered Choropleth map
+# Multi-layered Choropleth map ----
 popup <- paste(
   "<strong>County: </strong>"
   , dsch_cvar_shp$County

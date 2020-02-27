@@ -44,15 +44,6 @@ load_files <-  subset(
 )
 map(paste0(my_path, load_files), source)
 
-# DB Connection ----
-# db_con <- dbConnect(
-#     odbc(),
-#     Driver = "SQL Server",
-#     Server = "BMH-HIDB",
-#     Database = "SMSPHDSSS0X0",
-#     Trusted_Connection = T
-# )
-
 # Report Parameters ----
 # Dates
 alos_start_date <- Sys.Date() %m-% months(18) %>%
@@ -61,7 +52,12 @@ alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
 # Provider ----
-provider_id = '019190'
+provider_id = '019927'
+
+# Network Params ----
+year = 2019
+min_weight = 2
+
 
 # Tables ----
 # Provider tbl ----
@@ -132,6 +128,21 @@ This report gives information on a providers performance in regards to a few thi
     + CMI and SOI with Linear Trend
     + Excess Rate from Benchmark
     + Excess Readmit Rate Anomaly Analysis
+* Denials
+    + All denied cases (Government/Commercial/etc)
+    + Year over Year Pecent Change in Dollars
+    + Dollars Denied by Year
+    + Cumulative Dollars Denied
+    + Cumulative Dollars Recovered
+    + Recovery Percent by Year
+* CPOE
+    + Review of CPOE, Telephone, Verbal and Written
+    + Trending
+    + Cluster Analysis
+* Consult Network
+    + Network Consult Graph
+    + Consults Ordered by Provider
+    + Consult Order Percentage by Attending/Non-Attending
     
 Important note about ALOS Data:
 
@@ -298,7 +309,7 @@ denials_tbl %>%
         , recovery_pct = case_when(
           is.nan(tot_dollars_recoverd / tot_dollars_denied) ~ 0
           , TRUE ~ (tot_dollars_recoverd / tot_dollars_denied)
-        ) #(tot_dollars_recoverd / tot_dollars_denied)
+        ) 
     ) %>%
     mutate(
         tot_dollars_denied = tot_dollars_denied %>% scales::dollar()
@@ -376,9 +387,13 @@ oppe_gartner_magic_plot()
 oppe_denials_plot()
 ```
 
-# Network
-```{r network_graphs}
-
+# Consultant Network
+```{r network_graphs, echo=FALSE, message=FALSE, warning=FALSE}
+oppe_consult_network_graph(
+  year = year
+  , provider_id = provider_id
+  , min_weight = min_weight
+  )
 ```
 
 # Appendix

@@ -1,5 +1,6 @@
 # Lib Load ####
-install.load::install_load(
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(
   "tidyquant"
   , "fable"
   , "fabletools"
@@ -8,13 +9,7 @@ install.load::install_load(
   , "timetk"
   , "sweep"
   , "anomalize"
-  , "xts"
-  , "fpp"
-  , "forecast"
   , "lubridate"
-  , "dplyr"
-  , "urca"
-  , "prophet"
   , "ggplot2"
   , "tidyverse"
 )
@@ -40,7 +35,7 @@ max.date  <- max(df_monthly_tbl$month_end)
 max.year  <- year(max.date)
 max.month <- month(max.date)
 
-# Plot Initial Data
+# Plot Initial Data ----
 df_monthly_tbl %>%
   ggplot(
     mapping = aes(
@@ -59,10 +54,10 @@ df_monthly_tbl %>%
     se = F
     , method = 'loess'
     , color = 'red'
-    , span = 1/12
+    , span = 1/4
   ) +
   labs(
-    title = "ED Discharges: Monthly Scale"
+    title = "IP Discharges: Monthly Scale"
     , subtitle = "Source: DSS"
     , caption = paste0(
       "Based on discharges from: "
@@ -147,7 +142,6 @@ models <- df_tsbl %>%
     , rw     = RW(observed_cleaned)
   )
 
-
 models_acc <- accuracy(models) %>% 
   arrange(MAE) %>%
   mutate(model = .model %>% as_factor()) %>%
@@ -184,7 +178,7 @@ print_mod_desc <- function(x) {
 print_mod_desc(model_desc)
 model_descriptions <- model_desc$model_desc
 
-# Plot residuals
+# Plot residuals ----
 models_tidy %>%
   inner_join(models_acc, by = c("Model" = ".model")) %>%
   inner_join(model_desc, by = c("Model" = "model")) %>%
@@ -218,7 +212,7 @@ winning_model_label <- models_acc %>%
   left_join(model_desc, by = c(".model" = "model")) %>%
   select(model_desc)
 
-# df_monthly_tsbl %>%
+# Forecast Plot ----
 models_tidy %>%
   filter(year(Year_Month) > 2014) %>%
   ggplot(
@@ -272,6 +266,18 @@ models_tidy %>%
             select(MAE)
           , 4
           )
+        , "\n"
+        , "Forecast: "
+        , models_fcast %>% 
+          filter(
+            str_sub(Model, 1, 2) == winning_model_label %>% 
+              pull() %>% 
+              str_to_lower() %>% 
+              str_sub(1, 2)) %>% 
+              head(1) %>% 
+              select(Count) %>% 
+              pull() %>%
+              round(digits = 0)
       )
     , caption = paste0(
       "Based on discharges from: "

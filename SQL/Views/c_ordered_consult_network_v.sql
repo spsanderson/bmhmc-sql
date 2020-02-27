@@ -29,6 +29,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-01-01	v1			Initial Creation
+2020-02-18	v2			Change Attending to Soarian HStaff
 ***********************************************************************
 */
 
@@ -46,7 +47,7 @@ ALTER VIEW [smsdss].[c_ordered_consult_network_v]
 AS
 SELECT DISTINCT SO.episode_no,
 	PDV.src_pract_no AS [Attending_ID],
-	UPPER(pdv.pract_rpt_name) AS [Attending],
+	Attending.STAFFSIGNATURE AS [Attending],
 	CASE 
 		WHEN PDV.src_spclty_cd = 'HOSIM'
 			THEN 'Private'
@@ -64,6 +65,7 @@ LEFT MERGE JOIN smsdss.BMH_PLM_PtAcct_V AS PAV ON SO.episode_no = PAV.PtNo_Num
 LEFT MERGE JOIN smsdss.pract_dim_v AS PDV ON PAV.Atn_Dr_No = PDV.src_pract_no
 	AND PAV.Regn_Hosp = PDV.orgz_cd
 LEFT MERGE JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HSTAFF AS ORDERING ON SO.pty_cd = ORDERING.MSINUMBER
+LEFT MERGE JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HSTAFF AS Attending ON PAV.Atn_Dr_No = Attending.MSINUMBER
 -- FILTER(S)
 WHERE SO.ent_date >= '2010-01-01'
 	AND SO.ent_date < CAST(GETDATE() AS DATE)

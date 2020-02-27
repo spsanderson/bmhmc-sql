@@ -325,7 +325,7 @@ soil
 rm(soil)
 # End of SOI Map
 
-# Readmit Variance Map
+# Readmit Variance Map ----
 dsch.cvar.city <- joined.data %>%
   group_by(
     ZipCode

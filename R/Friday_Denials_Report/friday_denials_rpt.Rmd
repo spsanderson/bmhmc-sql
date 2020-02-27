@@ -97,8 +97,7 @@ query <- dbGetQuery(
         	AND CAST(PAV.drg_no AS VARCHAR) = CAST(DRG.drg_no AS VARCHAR)
         
         WHERE PAY.pay_entry_date >= @START
-        AND PAY.pay_entry_date < @END
-
+        AND PAY.pay_entry_date <= @END
         "
     )
 )
