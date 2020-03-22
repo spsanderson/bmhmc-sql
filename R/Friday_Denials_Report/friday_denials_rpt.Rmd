@@ -109,6 +109,7 @@ df <- (
     %>% mutate(Attending_Provider = str_to_title(Attending_Provider))
     %>% mutate(Hospitalist_Private = str_to_title(Hospitalist_Private))
     %>% clean_names()
+    %>% distinct(pt_no_num, .keep_all = TRUE)
 )
 
 # DB Disconnect ----

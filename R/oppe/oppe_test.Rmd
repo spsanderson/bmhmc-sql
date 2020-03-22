@@ -8,6 +8,7 @@ output:
     highlight: tango
     theme: flatly
     toc: yes
+    df_print: paged
   pdf_document:
     toc: yes
 ---

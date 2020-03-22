@@ -38,8 +38,6 @@ max.date  <- max(df_monthly_tbl$month_end)
 max.year  <- year(max.date)
 max.month <- month(max.date)
 
-
-
 # Plot initial Data ----
 df_monthly_tbl %>%
   ggplot(

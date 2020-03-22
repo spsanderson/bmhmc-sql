@@ -162,7 +162,7 @@ Outlook <- COMCreate("Outlook.Application")
 Email = Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] = "JPiscitelli@LICommunityHospital.org;WBayer@LICommunityHospital.org"
+Email[["to"]] = ""
 Email[["cc"]] = ""
 Email[["bcc"]] = ""
 Email[["subject"]] = "Monthly MyHealth Sx Report"

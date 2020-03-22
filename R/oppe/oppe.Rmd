@@ -4,10 +4,11 @@ author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
-    code_folding: show
+    code_folding: hide
     highlight: tango
     theme: flatly
     toc: yes
+    df_print: paged
   pdf_document:
     toc: yes
 ---
@@ -30,6 +31,7 @@ pacman::p_load(
     , "odbc"
     , "dbplyr"
     , "readxl"
+    , "gridExtra"
 )
 
 # Source Functions ----
@@ -52,12 +54,11 @@ alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
 # Provider ----
-provider_id = '019927'
+provider_id = '017202'
 
 # Network Params ----
 year = 2019
-min_weight = 2
-
+min_weight = 3
 
 # Tables ----
 # Provider tbl ----
@@ -96,9 +97,6 @@ denials_tbl <- denials_tbl %>%
     as_tbl_time(index = adm_date) %>%
     arrange(adm_date) %>%
     distinct(pt_no_num, .keep_all = TRUE)
-
-# Disconnect DB ----
-#dbDisconnect(db_con)
 
 # DRG Exclude ----
 drg_exclude <- read_xlsx("G:\\R Studio Projects\\Credentialing_CPOE\\drg_exclude.xlsx") %>%

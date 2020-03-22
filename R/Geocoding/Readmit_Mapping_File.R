@@ -151,7 +151,7 @@ l <- leaflet(data = dsch.count.shp) %>%
 l
 rm(l)
 
-# Avg Readmit Rate by City Map
+# Avg RRA ----
 dsch.ra.city <- joined.data %>%
   group_by(
     ZipCode

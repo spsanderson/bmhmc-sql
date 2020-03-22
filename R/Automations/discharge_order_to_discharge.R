@@ -17,8 +17,7 @@ db_con <- dbConnect(
     Trusted_Connection = T
 )
 
-# Get Dupe Cataract Records ----
-
+# Get Records ----
 tempa <- dbGetQuery(
     conn = db_con
     , paste0(
@@ -120,7 +119,7 @@ Outlook <- COMCreate("Outlook.Application")
 Email = Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] = "MPontecorvo@LICommunityHospital.org; JBaranowski-Guido@LICommunityHospital.org; KOlsen@LICommunityHospital.org"
+Email[["to"]] = ""
 Email[["cc"]] = ""
 Email[["bcc"]] = ""
 Email[["subject"]] = "Discharge Order to Discharge Time"

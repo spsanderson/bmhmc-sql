@@ -1,7 +1,9 @@
 # Lib Load ####
-library(gganimate)
-library(gifski)
-library(tidyverse)
+pacman::p_load(
+  "gganimate"
+  , "gifski"
+  , "tidyverse"
+)
 
 # Load File ####
 file.to.choose <- file.choose(new = T)
@@ -166,7 +168,7 @@ df_cen_bucket <- df.census.gathered %>%
   mutate(hour_bucket = hour_bucket %>% as_factor())
 
 # Visualize ####
-capt <- "From 12-29-2019 to 02-15-2020"
+capt <- "From 12-29-2019 to 03-14-2020"
 
 arrivals.boxplt <- df.arrivals.gathered %>% ggplot(
   aes(
@@ -299,6 +301,7 @@ arrivals.anim.plt <- df.arrivals.gathered %>% ggplot(
 anim_save(
   "avg_arrivals_by_hour.gif"
   , arrivals.anim.plt
+  , renderer = gifski_renderer()
   )
 
 census.anim.plt <- df.census.gathered %>% ggplot(
@@ -332,7 +335,10 @@ census.anim.plt <- df.census.gathered %>% ggplot(
   enter_fade() +
   exit_shrink() +
   ease_aes('sine-in-out')
+
 anim_save(
   "avg_census_by_hour.gif"
   , census.anim.plt
+  , renderer = gifski_renderer()
   )
+

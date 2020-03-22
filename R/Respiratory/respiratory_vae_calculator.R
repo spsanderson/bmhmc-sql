@@ -19,6 +19,7 @@ db_con <- dbConnect(
     , Trusted_Connection = TRUE
 )
 
+# Query ----
 query <- dbGetQuery(
     conn = db_con
     , statement = paste0(
@@ -67,14 +68,17 @@ data_long_tbl <- data_tbl %>%
         , val_clean
     )
 
+# Split tbls ----
 fi02_tbl <- data_long_tbl %>%
     filter(obsv_cd == "A_BMH_VFFiO2") %>%
-    filter(!is.na(val_clean))
+    filter(!is.na(val_clean)) %>%
+    filter(val_clean > 10)
 
 peep_tbl <- data_long_tbl %>%
     filter(obsv_cd != "A_BMH_VFFiO2") %>%
     filter(!is.na(val_clean))
 
+# Fi02 Stability ----
 fi02_final_tbl <- fi02_tbl %>%
     group_by(
         episode_no
@@ -85,16 +89,16 @@ fi02_final_tbl <- fi02_tbl %>%
     summarise(min_val = min(val_clean)) %>%
     ungroup() %>%
     mutate(
-        lead_1 = lead(min_val, n = 1, default = NA_real_)
-        , lead_2 = lead(min_val, n = 2, default = NA_real_)
+        l_1 = lag(min_val, n = 1, default = NA_real_)
+        , l_2 = lag(min_val, n = 2, default = NA_real_)
     ) %>%
     mutate(
-        delta_a = min_val - lead_1
-        , delta_b = lead_1 - lead_2
+        delta_a = min_val - l_1
+        , delta_b = l_1 - l_2
     ) %>%
     mutate(
         stable_flag = case_when(
-            abs(delta_a) + abs(delta_b) >= 40 ~ 0
+            abs(delta_a) + abs(delta_b) >= 20 ~ 0
             , TRUE ~ 1
         )
     ) %>%
@@ -117,12 +121,12 @@ peep_final_tbl <- peep_tbl %>%
     summarise(min_val = min(val_clean)) %>%
     ungroup() %>%
     mutate(
-        lead_1 = lead(min_val, n = 1, default = NA_real_)
-        , lead_2 = lead(min_val, n = 2, default = NA_real_)
+        l_1 = lag(min_val, n = 1, default = NA_real_)
+        , l_2 = lag(min_val, n = 2, default = NA_real_)
     ) %>%
     mutate(
-        delta_a = min_val - lead_1
-        , delta_b = lead_1 - lead_2
+        delta_a = min_val - l_1
+        , delta_b = l_1 - l_2
     ) %>%
     mutate(
         stable_flag = case_when(
@@ -165,6 +169,49 @@ joined_tbl <- fi02_final_tbl %>%
         , "Peep_Stability"
     )
 
+joined_tbl <- joined_tbl %>%
+    # filter(Episode_No == '14830434') %>%
+    # filter(
+    #     Perf_Date >= '2020-01-01'
+    #     , Perf_Date < '2020-02-01'
+    # ) %>%
+    select(
+        Episode_No
+        , Perf_Date
+        , Fi02_Min_Val
+        , Fi02_Stability
+        , Peep_Min_Val
+        , Peep_Stability
+    ) %>%
+    mutate(
+        fl1   = lag(Fi02_Stability, n = 1, default = NA_real_)
+        , fl2 = lag(Fi02_Stability, n = 2, default = NA_real_)
+    ) %>%
+    mutate(
+        fl_sum = fl1 + fl2
+    ) %>%
+    mutate(
+        pl1   = lag(Peep_Stability, n = 1, default = NA_real_)
+        , pl2 = lag(Peep_Stability, n = 2, default = NA_real_)
+    ) %>%
+    mutate(
+        pl_sum = pl1 + pl2
+    ) %>%
+    select(-fl1,-fl2,-pl1,-pl2) %>%
+    mutate(
+        sum = fl_sum + pl_sum
+    ) %>%
+    mutate(
+        VAE_Flag = case_when(
+            lead(sum, n = 2) == 2 &
+                lead(sum, n = 1) == 3 &
+                sum == 4 ~ 'VAE'
+            , TRUE ~ 'No-VAE'
+        )
+    ) %>%
+    select(-fl_sum, -pl_sum, -sum)
+
+# Write Data ----
 write_csv(
     joined_tbl
     , "vae_test.csv"

@@ -4,7 +4,6 @@ x <- rnorm(180, mean = 0, sd = 1)
 y <- rnorm(180, mean = 0, sd = 1)
 df <- data.frame(x,y)
 
-
 plt <- df %>%
   ggplot(
     aes(
