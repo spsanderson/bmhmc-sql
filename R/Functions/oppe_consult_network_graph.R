@@ -1,5 +1,4 @@
-oppe_consult_network_graph <- function(year
-                                       , provider_id
+oppe_consult_network_graph <- function(provider_id
                                        , min_weight
 ) {
     
@@ -39,6 +38,14 @@ oppe_consult_network_graph <- function(year
         conn = db_con
         , paste0(
             "
+            DECLARE @TODAY DATETIME;
+            DECLARE @START DATETIME;
+            DECLARE @END   DATETIME;
+            
+            SET @TODAY = GETDATE();
+            SET @START = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY) -18, 0)
+            SET @END   = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY), 0) 
+            
             SELECT [Source]
             , [Target]
             , Attending_ID
@@ -50,7 +57,8 @@ oppe_consult_network_graph <- function(year
             , [Record_Flag] = 1
             FROM SMSDSS.c_ordered_consult_network_v
             WHERE Attending_ID = '", provider_id ,"'
-            AND DATEPART(YEAR, ENT_DTIME) = '", year , "'
+            AND ent_dtime >= @START
+            AND ent_dtime < @END
             "
         )
     )
@@ -207,7 +215,7 @@ oppe_consult_network_graph <- function(year
                 x = ""
                 , y = ""
                 , title = paste0(
-                    "Consult Network for Attending Provider: "
+                    "Consult Network for: "
                     , attending_md
                 )
                 , subtitle = paste0(

@@ -270,6 +270,13 @@ oppe_cpoe_clustering <- function(provider_id) {
     }
     
     # Update viz ----
+    provider_cluster_nrow <- umap_kmeans_cluster_results_tbl %>%
+        filter(req_pty_cd == provider_id) %>%
+        nrow()
+    
+    if(!provider_cluster_nrow > 0) {
+        return(NA)
+    } else {
     provider_cluster <- umap_kmeans_cluster_results_tbl %>%
         filter(req_pty_cd == provider_id) %>%
         select(.cluster) %>%
@@ -310,6 +317,7 @@ oppe_cpoe_clustering <- function(provider_id) {
             legend.position = "none"
             , axis.text.x = element_text(angle = 45, hjust = 1)
         )
+    }
     
     provider_trend_plt <- provider_trend_tbl %>%
         filter(req_pty_cd == provider_id) %>%

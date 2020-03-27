@@ -10,7 +10,8 @@ x <- rnorm(n = n, mean = 0, sd = 1)
 y <- rnorm(n = n, mean = 0, sd = 1)
 x <- sort(x)
 y <- sort(y, decreasing = TRUE)
-df <- tibble(los_grp,x,y,z) %>%
+
+df <- tibble(los_grp,x,y) %>%
     mutate(los_grp = as_factor(los_grp))
 
 df_summary_tbl <- df %>%
@@ -50,6 +51,7 @@ plt1 <- df_summary_tbl %>%
         , size = 3
     ) +
     geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_vline(xintercept = min_var_los, linetype = "dashed") +
     theme_tq() +
     labs(
         title = "LOS Index vs Readmit Index",

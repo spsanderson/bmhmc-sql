@@ -14,6 +14,7 @@ install.load::install_load(
   , "dplyr"
   , "urca"
   , "prophet"
+  , "RcppRoll"
   , "ggplot2"
 )
 
@@ -24,7 +25,7 @@ rm(fileToLoad)
 
 # Time Aware Tibble ####
 # Format Arrival_Date and make time aware tibble
-arrivals$Arrival_Date <- lubridate::ymd_hm(arrivals$Arrival_Date)
+arrivals$Arrival_Date <- lubridate::mdy_hm(arrivals$Arrival_Date)
 
 hourly.orders <- arrivals %>%
   set_names("processed_hour", "Arrival_Count")
@@ -56,25 +57,48 @@ hourly.orders <- hourly.orders %>%
   )
 head(hourly.orders, 5)
 
-colnames(hourly.orders) <- c("ds","y")
-head(hourly.orders, 5)
+df_tbl <- hourly.orders %>%
+  mutate(month_end = EOMONTH(processed_hour)) %>%
+  select(month_end, Arrival_Count) %>%
+  group_by(month_end) %>%
+  summarise(Discharges = sum(Arrival_Count, na.rm = TRUE)) %>%
+  ungroup()
+
+colnames(df_tbl) <- c("ds","y")
+head(df_tbl, 5)
 
 # FB Prophet Model ####
-m <- prophet(hourly.orders)
+m <- prophet(df_tbl)
+m2 <- prophet(
+  df_tbl,
+  growth = "linear",
+  mcmc.samples = 1500,
+  yearly.seasonality = "auto",
+  weekly.seasonality = "auto",
+  daily.seasonality = "auto",
+  interval.width = 0.95
+)
 
 future <- make_future_dataframe(
   m
-  , periods = 96
-  , freq = 3600
+  , periods = 12
+  , freq = "month"
   )
-tail(future, 96)
+future2 <- make_future_dataframe(
+  m2
+  , periods = 12
+  , freq = "month"
+)
+tail(future, 12)
+tail(future2, 12)
 
 m.forecast <- predict(m, future)
-tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 96)
-
+m2.forecast <- predict(m2, future2)
+tail(m.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 12)
+tail(m2.forecast[c('ds','yhat','yhat_lower','yhat_upper')], 12)
 m.forecast.cut <- tail(
   m.forecast[c('ds','yhat','yhat_lower','yhat_upper')]
-  , 48
+  , 12
   )
 plt.date <- min(m.forecast.cut$ds)
 

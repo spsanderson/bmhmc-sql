@@ -17,7 +17,6 @@ df <- read_excel(
 # Make sure records are distinct
 df <- df %>% 
     distinct()
-#df %>% group_by_all() %>% filter(n() > 1) %>% ungroup()
 
 # DB Connection ----
 db_con <- dbConnect(

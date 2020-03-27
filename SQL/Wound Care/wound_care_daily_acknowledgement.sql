@@ -27,6 +27,7 @@ Date		Version		Description
 ----		----		----
 2019-01-22	v1			Initial Creation
 2019-01-25	v2			Change @ENDDATE to CAST(GETDATE() -1 AS date)
+2020-03-26  v3          Cast File_Date AS date
 ***********************************************************************
 */
 DECLARE @STARTDATE DATETIME;
@@ -138,7 +139,7 @@ WITH CALENDARDATES AS (
 	WHERE DATEADD(DAY, 1, SVC_DATE) <= @ENDDATE
 )
 
-SELECT ZZZ.SVC_DATE                   AS [File_Date]
+SELECT CAST(ZZZ.SVC_DATE AS date)     AS [File_Date]
 , ISNULL(B.[Count], 0)                AS [Hauppauge Arrived Count]
 , ISNULL(C.[Count], 0)                AS [Patchogue Arrived Count]
 , (

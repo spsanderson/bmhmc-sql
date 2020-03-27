@@ -5,16 +5,26 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     code_folding: hide
+    df_print: paged
     highlight: tango
+    number_sections: yes
     theme: flatly
     toc: yes
-    df_print: paged
+    toc_depth: 2
   pdf_document:
     toc: yes
+    toc_depth: '2'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+  #out.width = "100%",
+  #out.height = "100%",
+  #dpi = 300
+  )
 
 # Lib Load ----
 if(!require(pacman)) install.packages("pacman")
@@ -54,11 +64,10 @@ alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
 # Provider ----
-provider_id = '017202'
+provider_id = '017343'
 
 # Network Params ----
-year = 2019
-min_weight = 3
+min_weight = 2
 
 # Tables ----
 # Provider tbl ----
@@ -171,10 +180,10 @@ Import note about Readmit Data:
 * Only discharge dispositions of AHR and ATW (Home & Home - Adult Home - Assisted Living) are included
 * Certain APR-DRG's are excluded, see [Appendix]
 
-# Data Exploration
+# Data Exploration {.tabset .tabset-fade .tabset-pills}
 
-#### Discharges and ALOS data
-```{r discharges_and_alos_by_provider, echo=FALSE}
+## Discharges and ALOS data
+```{r discharges_and_alos_by_provider}
 alos_tbl %>%
     select(
         proper_name
@@ -211,8 +220,8 @@ alos_tbl %>%
     ) 
 ```
 
-#### Discharges and Readmit Rate data
-```{r discharges_and_readmit_rate_by_provider, echo=FALSE}
+## Discharges and Readmit Rate data
+```{r discharges_and_readmit_rate_by_provider}
 readmit_tbl %>%
     select(
         proper_name
@@ -270,11 +279,12 @@ readmit_tbl %>%
         , position = "left"
     )
 ```
-#### Denial Data
+
+## Denial Data
 
 Denial data is gathered by a patients admit date. The data is gathered from today minus 5 years, starting on the first of the year. For example if today is 2019-11-05 then the start date is 2014-01-01.
 
-```{r denial_tbl, echo = FALSE}
+```{r denial_tbl}
 denials_tbl %>%
     select(
         pt_no_num
@@ -345,62 +355,137 @@ denials_tbl %>%
     ) 
 ```
 
-# CPOE Order Plots
+# CPOE Order Plots {.tabset .tabset-fade .tabset-pills}
 
-```{r oppe_plot, echo=FALSE, message=FALSE,warning=FALSE}
-oppe_cpoe_plot(cpoe_tbl)
+## Order Use Percentage
+
+```{r oppe_ord_perc_plot}
+oppe_cpoe_ord_perc(cpoe_tbl)
+```
+
+## Order Total Orders Trend
+```{r oppe_tot_ords_trend}
+oppe_cpoe_total_orders(cpoe_tbl)
+```
+
+## Order Percentage Trend
+```{r oppe_ord_perc_trend}
+oppe_cpoe_ord_perc_trend(cpoe_tbl)
 ```
 
 # CPOE Order Clustering
 
 This will provider Provider CPOE Order Clustering information with UMAP 2D projection, and proportion of order totals by group for the cluster and the provider.
 
-```{r cpoe_order_cluster, echo=FALSE, message=FALSE, warning=FALSE}
+```{r cpoe_order_cluster}
 oppe_cpoe_clustering(provider_id = provider_id)
 ```
 
-# Length of Stay Trends
+# Length of Stay Trends {.tabset .tabset-fade .tabset-pills}
 
-```{r alos_trend_tbl, echo=FALSE, message=FALSE, warning=FALSE}
-oppe_alos_plot(alos_tbl)
+## Alos vs. Elos Trend
+```{r alos_elos_trend_plt}
+oppe_alos_elos_trend_plot(alos_tbl)
 ```
 
-# Readmission Trends
-
-```{r readmit_trend_tbl, echo=FALSE, message=FALSE, warning=FALSE}
-oppe_readmit_plot(readmit_tbl)
+## Excess Days Trend
+```{r alos_excess_days_plt}
+oppe_alos_excess_days_trend_plot(alos_tbl)
 ```
+
+## CMI and SOI Trend
+```{r alos_soi_cmi_plt}
+oppe_alos_soi_cmi_plt(alos_tbl)
+```
+
+## Z-Score Plot
+```{r alos_zscore_plt}
+oppe_alos_zscore_plt(alos_tbl)
+```
+
+## ALOS SOI Facet
+```{r alos_soi_facet_plt}
+oppe_alos_soi_facet_plt(alos_tbl)
+```
+
+## Excess by SOI
+```{r alos_excess_soi_facet_plt}
+oppe_alos_excess_soi_facet(alos_tbl)
+```
+
+## LOS Anomalies
+```{r alos_anomalies_plt}
+oppe_alos_anomaly_plt(alos_tbl)
+```
+
+
+# Readmission Trends {.tabset .tabset-fade .tabset-pills}
+
+## Actual v Expected
+```{r readmit_trend_plt}
+oppe_readmit_trend_plt(readmit_tbl)
+```
+
+## Excess Trend
+```{r readmit_excess_plt}
+oppe_readmit_excess_plt(readmit_tbl)
+```
+
+## SOI/CMI
+```{r readmit_soi_cmi_plt}
+oppe_readmit_cmi_soi_plt(readmit_tbl)
+```
+
+## Z-Score Plot
+```{r readmit_zscore_plt}
+oppe_readmit_zscore_plt(readmit_tbl)
+```
+
+## Readmit Facet by SOI
+```{r readmit_soi_facet_plt}
+oppe_readmit_soi_facet_plt(readmit_tbl)
+```
+
+## Excess by SOI
+```{r readmit_excess_by_soi}
+oppe_readmit_excess_soi_plt(readmit_tbl)
+```
+
+## Readmit Anomalies
+```{r readmit_anomalies_plt}
+oppe_readmit_anomalies_plt(readmit_tbl)
+```
+
 
 # Gartner Magic Chart
 
 Shows data collapsed by week. Excess Readmit Rate on the y axis and Excess LOS on the x axis. A provider wants to be in the lower left quadrant where both x and y are negative.
 
-```{r gartner_magic_chart, echo=FALSE, message=FALSE, warning=FALSE}
+```{r gartner_magic_chart}
 oppe_gartner_magic_plot()
 ```
 
 # Denials
 
-```{r denials_plts, echo=FALSE, message=FALSE, warning=FALSE}
+```{r denials_plts}
 oppe_denials_plot()
 ```
 
 # Consultant Network
-```{r network_graphs, echo=FALSE, message=FALSE, warning=FALSE}
+```{r network_graphs}
 oppe_consult_network_graph(
-  year = year
-  , provider_id = provider_id
+  provider_id = provider_id
   , min_weight = min_weight
   )
 ```
 
 # Appendix
 
-#### APR-DRG thresholds
+#### APR-DRG Thresholds
 
 <details>
 <summary>Click to see APR-DRG Thresholds</summary>
-```{r apr_drg_thresholds, echo=FALSE, message=FALSE, warning=FALSE}
+```{r apr_drg_thresholds}
 apr_drg_thresholds_tbl %>%
   set_names("APR DRG","Description","Threshold") %>%
   kable() %>%
@@ -409,9 +494,10 @@ apr_drg_thresholds_tbl %>%
 </details>
 </p>
 
+#### APR-DRG Exclusions
 <details>
 <summary>Click to see APR-DRG Exclusions for Readmits</summary>
-```{r apr_drg_exclude, echo=FALSE, message=FALSE, warning=FALSE}
+```{r apr_drg_exclude}
 apr_drg_exclude %>%
     set_names("APR DRG","Description") %>%
     kable() %>%
@@ -419,6 +505,6 @@ apr_drg_exclude %>%
 ```
 </details>
 
-```{r clear_env, echo=FALSE, message=FALSE, warning=FALSE}
+```{r clear_env}
 rm(list = ls())
 ```

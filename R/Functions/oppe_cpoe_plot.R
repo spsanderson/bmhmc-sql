@@ -55,6 +55,11 @@ oppe_cpoe_plot <- function(data) {
                 )
             ) +
             geom_point(size = 2) +
+            ggrepel::geom_label_repel(
+                mapping = aes(
+                    label = scales::percent(order_percentage, accuracy = 0.01)
+                )
+            ) +
             geom_segment(
                 aes(
                     yend = order_category
