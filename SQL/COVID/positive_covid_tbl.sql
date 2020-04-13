@@ -1,0 +1,157 @@
+/*
+***********************************************************************
+File: positive_covid_tbl.sql
+
+Input Parameters:
+	None
+
+Tables/Views:
+	[SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit
+	[SC_server].[Soarian_Clin_Prd_1].DBO.HOrder
+	[SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult
+
+Creates Table:
+	c_positive_covid_visits_tbl
+
+Functions:
+	Enter Here
+
+Author: Steven P Sanderson II, MPH
+
+Department: Finance, Revenue Cycle
+
+Purpose/Description
+	Get all unique encounters with a positive covid-19 result
+
+Revision History:
+Date		Version		Description
+----		----		----
+2018-07-13	v1			Initial Creation
+***********************************************************************
+*/
+
+-- COVID ORDER
+SELECT DISTINCT a.patientaccountid,
+	a.patient_oid,
+	a.objectid AS [patientvisit_oid],
+	'ORDER' AS [VAL]
+INTO #COVIDORDER
+FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
+INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS horder ON a.objectid = horder.patientvisit_oid
+WHERE horder.ORDERABBREVIATION = '00425421';
+
+-- COVID RESULTS
+SELECT DISTINCT A.PATIENT_OID,
+	B.PATIENTVISIT_OID,
+	A.PATIENTACCOUNTID,
+	REPLACE(REPLACE(B.RESULTVALUE, CHAR(13), ' '), CHAR(10), ' ') AS [VAL]
+INTO #COVIDRSLT
+FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
+INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS B ON A.OBJECTID = B.PATIENTVISIT_OID
+	AND B.FINDINGABBREVIATION = '9782';
+
+-- MIS REF COVID-19 RESULT
+SELECT DISTINCT A.PATIENT_OID,
+	B.PATIENTVISIT_OID,
+	A.PATIENTACCOUNTID,
+	'MISC_REF' AS [VAL]
+--, HORDER.ORDERABBREVIATION
+--, B.RESULTVALUE
+INTO #MISCREF
+FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
+INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS B ON A.OBJECTID = B.PATIENTVISIT_OID
+INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS horder ON a.objectid = horder.patientvisit_oid
+WHERE B.RESULTVALUE LIKE '%COVID%' -- COVID MISC REF VALUE
+	AND horder.orderabbreviation = '00410001';
+
+-- UNION ALL TABLES AND GET DISTINCT VALUES
+SELECT DISTINCT A.PATIENTACCOUNTID,
+	A.PATIENT_OID,
+	A.patientvisit_oid,
+	A.VAL
+INTO #UNIONEDRESLTS
+FROM (
+	SELECT PATIENTACCOUNTID,
+		PATIENT_OID,
+		PATIENTVISIT_OID,
+		VAL
+	FROM #COVIDORDER
+	
+	UNION
+	
+	SELECT PATIENTACCOUNTID,
+		PATIENT_OID,
+		PATIENTVISIT_OID,
+		VAL
+	FROM #COVIDRSLT
+	
+	UNION
+	
+	SELECT PATIENTACCOUNTID,
+		PATIENT_OID,
+		PATIENTVISIT_OID,
+		VAL
+	FROM #MISCREF
+	) AS A
+
+-- DISTINCT TBL
+SELECT A.PATIENTACCOUNTID,
+	A.PATIENT_OID,
+	A.PATIENTVISIT_OID,
+	COVIDORDER.VAL AS [CovidOrder],
+	COVIDRSLT.VAL AS [CovidResult],
+	MISCREF.VAL AS [CovidMiscRef],
+	[Positive_Negative] = CASE 
+		WHEN COVIDRSLT.VAL LIKE 'DETECTED%'
+			THEN 'Positive'
+		WHEN COVIDRSLT.VAL LIKE 'DETECE%'
+			THEN 'Positive'
+		WHEN COVIDRSLT.VAL LIKE 'POSITIV%'
+			THEN 'Positive'
+		WHEN COVIDRSLT.VAL LIKE 'PRESUMP% POSITIVE%'
+			THEN 'Positive'
+		WHEN COVIDRSLT.VAL LIKE 'NOT DETECTED%'
+			THEN 'Negative'
+		WHEN COVIDRSLT.VAL IS NULL
+			THEN 'NO-RESULT'
+		ELSE COVIDRSLT.VAL
+		END
+INTO #FULLTBL
+FROM #UNIONEDRESLTS AS A
+LEFT OUTER JOIN #COVIDORDER AS COVIDORDER ON A.PATIENTACCOUNTID = COVIDORDER.PATIENTACCOUNTID
+LEFT OUTER JOIN #COVIDRSLT AS COVIDRSLT ON A.PATIENTACCOUNTID = COVIDRSLT.PATIENTACCOUNTID
+LEFT OUTER JOIN #MISCREF AS MISCREF ON A.PATIENTACCOUNTID = MISCREF.PATIENTACCOUNTID;
+
+-- Create a new table called 'c_positive_covid_visits_tbl' in schema 'smsdss'
+-- Drop the table if it already exists
+IF OBJECT_ID('smsdss.c_positive_covid_visits_tbl', 'U') IS NOT NULL
+	DROP TABLE smsdss.c_positive_covid_visits_tbl
+GO
+
+-- Create the table in the specified schema
+CREATE TABLE smsdss.c_positive_covid_visits_tbl (
+	Prim_Key INT IDENTITY(1, 1) NOT NULL PRIMARY KEY,
+	-- primary key column
+	PatientAccountID [NVARCHAR](50) NOT NULL,
+	Patient_OID INT NOT NULL,
+	PatientVisit_OID INT NOT NULL
+	);
+GO
+
+INSERT INTO smsdss.c_positive_covid_visits_tbl
+SELECT DISTINCT PATIENTACCOUNTID,
+	Patient_OID,
+	Patientvisit_OID
+FROM #FULLTBL
+WHERE Positive_Negative = 'Positive'
+
+-- DROP TABLES
+DROP TABLE #COVIDORDER
+
+DROP TABLE #COVIDRSLT
+
+DROP TABLE #MISCREF
+
+DROP TABLE #UNIONEDRESLTS
+
+DROP TABLE #FULLTBL

@@ -18,6 +18,7 @@ denials_govt_op <- function(admit_yr) {
             , dollars_recovered = sum(appl_dollars_recovered, na.rm = TRUE)
         ) %>%
         ungroup() %>%
+        mutate(adm_yr = as.character(adm_yr)) %>%
         adorn_totals() %>%
         mutate(
             denials = denials %>% 

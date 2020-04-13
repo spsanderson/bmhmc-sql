@@ -33,6 +33,8 @@ Date		Version		Description
 2020-03-13	v3			Check for MRN_IN_TBL
 						Check if visit is a readmit at interim >= 91
 2020-03-19	v4			Use real time census to get policy number
+2020-04-02	v5			Add Attending Provider Name and Primary Procedure
+						Provider name
 ***********************************************************************
 */
 
@@ -49,6 +51,8 @@ FROM (
 	, C.Pt_Addr_City
 	, C.Pt_Addr_State
 	, C.Pt_Phone_No
+	, D.pract_rpt_name AS [Attending_Provider]
+	, F.pract_rpt_name AS [Primary_Procedure_Provider]
 
 	FROM SMSDSS.BMH_PLM_PTACCT_V AS A
 	LEFT OUTER JOIN smsmir.vst_rpt AS B
@@ -58,6 +62,16 @@ FROM (
 	LEFT OUTER JOIN SMSDSS.c_patient_demos_v AS C
 	ON A.PT_NO = C.pt_id
 	AND A.from_file_ind = C.from_file_ind
+	LEFT OUTER JOIN SMSDSS.PRACT_DIM_V AS D
+	ON A.Atn_Dr_No = D.src_pract_no
+		AND A.Regn_Hosp = D.orgz_cd
+	LEFT OUTER JOIN SMSDSS.BMH_PLM_PtAcct_Clasf_Proc_V_New AS E
+	ON A.Pt_No = E.Pt_No
+		AND A.prin_dx_cd_schm = E.Proc_Cd_Schm
+		AND E.ClasfPrio = '01'
+	LEFT OUTER JOIN SMSDSS.pract_dim_v AS F
+	ON E.RespParty = F.src_pract_no
+		AND A.Regn_Hosp = F.orgz_cd
 
 	WHERE A.drg_no IN ('870','871','872')
 	AND A.User_Pyr1_Cat IN ('AAA','ZZZ')
@@ -82,6 +96,8 @@ FROM (
 	, C.Pt_Addr_City
 	, C.Pt_Addr_State
 	, c.Pt_Phone_No
+	, a.atn_dr_name AS [Attending_Provider]
+	, NULL AS [Primary_Procedure_Provider]
 	FROM SMSDSS.c_soarian_real_time_census_CDI_v AS A
 	LEFT OUTER JOIN smsmir.vst_rpt AS B
 	ON A.PT_ID = B.PT_ID
@@ -149,6 +165,8 @@ SELECT Med_Rec_No
 , Pt_Addr_City
 , Pt_Addr_State
 , Pt_Phone_No
+, Attending_Provider
+, Primary_Procedure_Provider
 FROM #TEMPC
 ;
 
@@ -164,6 +182,8 @@ SELECT Med_Rec_No
 , Pt_Addr_City
 , Pt_Addr_State
 , Pt_Phone_No
+, Attending_Provider
+, Primary_Procedure_Provider
 FROM #TEMPC
 ;
 
