@@ -651,6 +651,7 @@ mtsoi <- mtsoi %>%
 # print map
 mtsoi
 
+# clusters ----
 # Test map with clusters
 LIHNCluster.df <- split(origAddress, origAddress$LIHN_Line)
 
@@ -858,7 +859,7 @@ HospPvtMap <- HospPvtMap %>%
 
 HospPvtMap
 
-# Hospitalist / Private Cluster Map
+# Hospitalist / Private Cluster Map ----
 ClusterMapHospPvt.df <- split(origAddress, origAddress$hosim)
 
 ClusterMapHospPvt <- leaflet() %>%
@@ -924,7 +925,7 @@ ClusterMapHospPvt <- ClusterMapHospPvt %>%
 
 ClusterMapHospPvt
 
-# Payer Group
+# Payer Group ----
 ClusterMapPayerGroup.df <- split(origAddress, origAddress$pyr_group2)
 
 ClusterMapPayerGroup <- leaflet() %>%
