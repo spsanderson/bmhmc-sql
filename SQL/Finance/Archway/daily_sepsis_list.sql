@@ -35,6 +35,7 @@ Date		Version		Description
 2020-03-19	v4			Use real time census to get policy number
 2020-04-02	v5			Add Attending Provider Name and Primary Procedure
 						Provider name
+2020-04-16	v6			Grab only discharged patients
 ***********************************************************************
 */
 
@@ -80,37 +81,37 @@ FROM (
 	AND LEFT(A.PTNO_NUM, 1) != '2'
 	AND LEFT(A.PTNO_NUM, 4) != '1999'
 
-	UNION
+	--UNION
 
-	SELECT A.pt_med_rec_no
-	, A.pt_no_num
-	, CAST(A.adm_dtime AS date) AS [Adm_Date]
-	, CAST(A.PT_LAST_NAME AS varchar) +
-	  ', ' +
-	  CAST(A.PT_FIRST_NAME AS VARCHAR)
-	--, A.pt_last_name
-	--, A.pt_first_name
-	, A.pol_no
-	, CAST(B.birth_date AS DATE) AS [DOB]
-	, B.gender_cd
-	, C.Pt_Addr_City
-	, C.Pt_Addr_State
-	, c.Pt_Phone_No
-	, a.atn_dr_name AS [Attending_Provider]
-	, NULL AS [Primary_Procedure_Provider]
-	FROM SMSDSS.c_soarian_real_time_census_CDI_v AS A
-	LEFT OUTER JOIN smsmir.vst_rpt AS B
-	ON A.PT_ID = B.PT_ID
-	LEFT OUTER JOIN SMSDSS.c_patient_demos_v AS C
-	ON A.pt_id = C.pt_id
-	WHERE LEFT(A.ins_plan_no, 1) IN ('A','Z')
-	AND (
-	A.desc_as_written LIKE '%SEPSIS%'
-	OR
-	A.desc_as_written LIKE '%SEPTIC%'
-	OR
-	A.desc_as_written LIKE '%SIRS%'
-	)
+	--SELECT A.pt_med_rec_no
+	--, A.pt_no_num
+	--, CAST(A.adm_dtime AS date) AS [Adm_Date]
+	--, CAST(A.PT_LAST_NAME AS varchar) +
+	--  ', ' +
+	--  CAST(A.PT_FIRST_NAME AS VARCHAR)
+	----, A.pt_last_name
+	----, A.pt_first_name
+	--, A.pol_no
+	--, CAST(B.birth_date AS DATE) AS [DOB]
+	--, B.gender_cd
+	--, C.Pt_Addr_City
+	--, C.Pt_Addr_State
+	--, c.Pt_Phone_No
+	--, a.atn_dr_name AS [Attending_Provider]
+	--, NULL AS [Primary_Procedure_Provider]
+	--FROM SMSDSS.c_soarian_real_time_census_CDI_v AS A
+	--LEFT OUTER JOIN smsmir.vst_rpt AS B
+	--ON A.PT_ID = B.PT_ID
+	--LEFT OUTER JOIN SMSDSS.c_patient_demos_v AS C
+	--ON A.pt_id = C.pt_id
+	--WHERE LEFT(A.ins_plan_no, 1) IN ('A','Z')
+	--AND (
+	--A.desc_as_written LIKE '%SEPSIS%'
+	--OR
+	--A.desc_as_written LIKE '%SEPTIC%'
+	--OR
+	--A.desc_as_written LIKE '%SIRS%'
+	--)
 ) AS A
 ;
 
