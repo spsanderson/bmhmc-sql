@@ -15,6 +15,10 @@ and insert results into smsdss.c_Wellsoft_Rpt_tbl
 
 v1	- 2015-12-04	- Initial Creation
 v2	- 2018-05-24	- Add TobaccoUse column
+v3	- 2020-04-16	- Add PublicityCodeID, PublicityCodeText and InjuryCode
+						Publicity Code ID	Changed to "Did you get tested outside this hospital"
+						Publicity Code Text	Changed to "What were the Covid-19 test Results"
+						Injury Code	Changed to "Where were you tested for Covid-19"
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp] 
@@ -152,6 +156,9 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(TimeMLPSignature), 11, 2) + ':00',
 	  120)                                                                 AS [DateTime MLP Signature]
 	, TobaccoUse
+	, PublicityCodeID AS [COVID_Tested_Outside_Hosp]
+	, PublicityCodeText AS [COVID_Test_Results]
+	, InjuryCode AS [COVID_Where_Tested]
 	  
 	INTO smsdss.c_Wellsoft_Rpt_tbl
 

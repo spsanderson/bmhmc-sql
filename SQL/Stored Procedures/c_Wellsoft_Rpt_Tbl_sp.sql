@@ -13,6 +13,10 @@ Description:	Create a reportable wellsoft table bound to smsdss schema
 v1	-	2015-11-09	- Initial creation
 v2 	-	2018-05-24	- Add TobaccoUse Column to sp
 v3	-	2019-02-01	- Fix AdmittingDxTranscribed column due to Application Upgrade
+v4	-	2020-04-16	- Add PublicityCodeID, PublicityCodeText and InjuryCode
+						Publicity Code ID	Changed to "Did you get tested outside this hospital"
+						Publicity Code Text	Changed to "What were the Covid-19 test Results"
+						Injury Code	Changed to "Where were you tested for Covid-19"
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_sp]
@@ -67,7 +71,10 @@ BEGIN
 	, TriageMLP
 	, StatusMLPChart
 	, TimeMLPSignature
-	, TobaccoUse 
+	, TobaccoUse
+	, PublicityCodeID
+	, PublicityCodeText
+	, InjuryCode
 	
 	INTO smsdss.c_Wellsoft_Rpt_tbl_tmp
 	
