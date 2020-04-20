@@ -308,3 +308,6 @@ df_tbl <- df_tbl %>%
 
 # Write out RDS to be used in mainp script
 write_rds(df_tbl, "G:\\R Studio Projects\\SBU_Productivity\\00_data\\df_rds.rds")
+
+# Drop df_tbl and replace with rds file
+df_tbl <- read_rds("G:\\R Studio Projects\\SBU_Productivity\\00_data\\df_rds.rds")

@@ -876,6 +876,127 @@ function(){
     
 }
 
+consults_by_provider <- 
+function(){
+    # All time
+    data <- coded_consults_tbl %>%
+        count(provider_name) %>%
+        arrange(provider_name) %>%
+        set_names("Provider","Consults") %>%
+        knitr::kable() %>%
+        kableExtra::kable_styling(bootstrap_options = c(
+            "striped"
+            , "hover"
+            , "condensed"
+            , "responsive"
+        )
+        , font_size = 12
+        , full_width = FALSE
+        , position = "left"
+        )
+    
+    return(data)
+    
+}
+
+consults_by_division <- 
+function(){
+    
+    data <- coded_consults_tbl %>%
+        count(division) %>%
+        arrange(division) %>%
+        set_names("Division","Consults") %>%
+        knitr::kable() %>%
+        kableExtra::kable_styling(
+            bootstrap_options = c(
+                "striped"
+                ,"hover"
+                ,"condensed"
+                ,"responsive"
+            )
+            , font_size = 12
+            , full_width = FALSE
+            , position = "left"
+        )
+    
+    return(data)
+    
+}
+
+consults_by_provider_year <- 
+function(){
+    
+    data <- coded_consults_tbl %>%
+        mutate(dsch_yr = year(dsch_date)) %>%
+        arrange(provider_name, dsch_yr) %>%
+        count(provider_name, dsch_yr) %>%
+        pivot_wider(
+            values_from = n,
+            names_from = dsch_yr,
+            id_cols = provider_name,
+            values_fill = list(n = 0)
+        ) %>%
+        pivot_longer(
+            cols = -provider_name,
+            names_to = "year"
+        ) %>%
+        pivot_table(
+            .rows = provider_name,
+            .columns = ~ year,
+            .values = ~ value
+        ) %>%
+        rename("Provider" = provider_name) %>%
+        knitr::kable() %>%
+        kableExtra::kable_styling(bootstrap_options = c(
+            "striped"
+            , "hover"
+            , "condensed"
+            , "responsive"
+        )
+        , font_size = 12
+        )
+    
+    return(data)
+    
+}
+
+consults_by_division_year <- 
+    function(){
+        
+        data <- coded_consults_tbl %>%
+            mutate(dsch_yr = year(dsch_date)) %>%
+            arrange(division, dsch_yr) %>%
+            count(division, dsch_yr) %>%
+            pivot_wider(
+                values_from = n,
+                names_from = dsch_yr,
+                id_cols = division,
+                values_fill = list(n = 0)
+            ) %>%
+            pivot_longer(
+                cols = -division,
+                names_to = "year"
+            ) %>%
+            pivot_table(
+                .rows = division,
+                .columns = ~ year,
+                .values = ~ value
+            ) %>%
+            rename("Division" = division) %>%
+            knitr::kable() %>%
+            kableExtra::kable_styling(bootstrap_options = c(
+                "striped"
+                , "hover"
+                , "condensed"
+                , "responsive"
+            )
+            , font_size = 12
+            )
+        
+        return(data)
+        
+    }
+
 # Save Functions ----
 function_names <- c(
     "provider_case_type_pvt"
@@ -894,6 +1015,10 @@ function_names <- c(
     ,"myhealth_profile_year_division"
     ,"myhealth_profile_year_fc"
     ,"myhealth_profile_year"
+    ,"consults_by_provider"
+    ,"consults_by_division"
+    ,"consults_by_provider_year"
+    ,"consults_by_division_year"
     )
 
 dump(
