@@ -52,6 +52,8 @@ Date		Version		Description
 2020-04-16	v7			UNION realtime census to report
 						ADD hosp_svc
 						Add results from smsdss.c_Covid_MiscRefRslt_tbl
+2020-04-20	v8			Exclude test accounts
+2020-4-21	v9			Add ED results with covid fields
 ***********************************************************************
 */
 
@@ -152,13 +154,13 @@ SELECT B.pt_med_rec_no AS [MRN],
 	CASE 
 		WHEN A.VisitEndDateTime IS NULL
 			THEN C.nurse_sta
-			ELSE ' '
-	END AS [Nurs_Sta],
-	CASE
+		ELSE ' '
+		END AS [Nurs_Sta],
+	CASE 
 		WHEN A.VisitEndDateTime IS NULL
 			THEN C.bed
-			ELSE NULL
-	END AS [Bed],
+		ELSE NULL
+		END AS [Bed],
 	[IN_HOUSE] = CASE 
 		WHEN C.pt_no_num IS NOT NULL
 			THEN 1
@@ -221,13 +223,13 @@ SELECT B.pt_med_rec_no AS [MRN],
 	CASE 
 		WHEN A.VisitEndDateTime IS NULL
 			THEN C.nurse_sta
-			ELSE ' '
-	END AS [Nurs_Sta],
-	CASE
+		ELSE ' '
+		END AS [Nurs_Sta],
+	CASE 
 		WHEN A.VisitEndDateTime IS NULL
 			THEN C.bed
-			ELSE NULL
-	END AS [Bed],
+		ELSE NULL
+		END AS [Bed],
 	[IN_HOUSE] = CASE 
 		WHEN C.pt_no_num IS NOT NULL
 			THEN 1
@@ -288,7 +290,7 @@ SELECT B.pt_med_rec_no AS [MRN],
 	A.VISITSTARTDATETIME AS [ADM_DTIME],
 	c.nurse_sta AS [Nurs_Sta],
 	c.bed AS [Bed],
-		[IN_HOUSE] = CASE 
+	[IN_HOUSE] = CASE 
 		WHEN C.pt_no_num IS NOT NULL
 			THEN 1
 		ELSE 0
@@ -335,7 +337,6 @@ LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
 	AND RACECD.src_sys_id = '#PMSNTX0'
 WHERE f.RESULTVALUE LIKE '%COVID%' -- COVID MISC REF VALUE
 	AND d.orderabbreviation = '00410001';
-
 
 -- Subsequent --
 -- positive results
@@ -387,9 +388,59 @@ WHERE HL7PT.pt_med_rec_no IN (
 		SELECT DISTINCT ZZZ.pt_med_rec_no
 		FROM #POSRES AS ZZZ
 		WHERE PV.VisitStartDatetime > ZZZ.Adm_Date
-		AND LEFT(PV.PatientAccountID, 1) IN ('1','8')
+			AND LEFT(PV.PatientAccountID, 1) IN ('1', '8')
 		);
 
+-- ED TBL
+SELECT A.mr#,
+	A.account,
+	A.patient,
+	ROUND((DATEDIFF(MONTH, A.AgeDOB, A.Arrival) / 12), 0) AS [Pt_Age],
+	B.pt_gender,
+	SUBSTRING(RACECD.RACE_CD_DESC, 1, CHARINDEX(' ', RACECD.RACE_CD_DESC, 1)) AS RACE_CD_DESC,
+	A.Arrival,
+	CASE 
+		WHEN A.TimeLeftED = '-- ::00'
+			THEN ISNULL(A.AreaOfCare, '')
+		ELSE ''
+		END AS [Nurs_Sta],
+	'ED' AS [Bed],
+	[In_House] = CASE 
+		WHEN A.TimeLeftED = '-- ::00'
+			THEN 1
+		ELSE 0
+		END,
+	c.hosp_svc,
+	[PT_Accommodation] = 'Emergency',
+	[PatientReasonforSeekingHC] = A.ChiefComplaint,
+	'' AS [Order_No],
+	a.covid_Tested_Outside_Hosp AS [Covid_Order],
+	'' AS [Order_DTime],
+	a.covid_Where_Tested AS [Order_Status],
+	'' AS [Order_Status_DTime],
+	'' AS [Result_DTime],
+	a.covid_Test_Results AS [Result],
+	A.TimeLeftED,
+	a.disposition,
+	[Mortality_Flag] = CASE 
+		WHEN A.Disposition IN ('Medical Examiner', 'Morgue')
+			THEN 1
+		ELSE 0
+		END
+INTO #EDTBL
+FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS A
+INNER JOIN SMSMIR.hl7_pt AS B ON A.ACCOUNT = B.pt_id
+LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
+	AND RACECD.src_sys_id = '#PMSNTX0'
+LEFT OUTER JOIN SMSMIR.HL7_VST AS C ON A.ACCOUNT = C.PT_ID
+WHERE (
+		A.COVID_TESTED_OUTSIDE_HOSP IS NOT NULL
+		OR A.COVID_WHERE_TESTED IS NOT NULL
+		OR A.COVID_TEST_RESULTS IS NOT NULL
+		)
+	AND A.COVID_TESTED_OUTSIDE_HOSP != '((((';
+
+-- UNION RESULTS
 SELECT A.*
 INTO #UNIONED
 FROM (
@@ -441,12 +492,12 @@ FROM (
 		S.Mortality_Flag
 	FROM #SUBSEQUENT AS S
 	WHERE S.Encounter NOT IN (
-		SELECT DISTINCT ZZZ.PTNO_NUM
-		FROM #TEMPA AS ZZZ
-		)
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #TEMPA AS ZZZ
+			)
 	
 	UNION
-
+	
 	SELECT RT.MRN,
 		RT.PTNO_NUM,
 		RT.PT_NAME,
@@ -470,12 +521,58 @@ FROM (
 		RT.Mortality_Flag
 	FROM #RTCENSUS AS RT
 	WHERE RT.PTNO_NUM NOT IN (
-		SELECT DISTINCT ZZZ.PTNO_NUM
-		FROM #TEMPA AS ZZZ
-		)
-
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #TEMPA AS ZZZ
+			)
+	
 	UNION
-
+	
+	SELECT ED.MR#,
+		ED.ACCOUNT,
+		ED.PATIENT,
+		ED.Pt_Age,
+		ED.pt_gender,
+		ED.RACE_CD_DESC,
+		ED.ARRIVAL,
+		ED.Nurs_Sta,
+		ED.Bed,
+		ED.PT_Accommodation,
+		ED.PatientReasonforSeekingHC,
+		ED.Order_No,
+		ED.Covid_Order,
+		ED.Order_DTime,
+		ED.Order_Status,
+		ED.Order_Status_DTime,
+		ED.Result_DTime,
+		ED.Result,
+		CASE 
+			WHEN ED.TimeLeftED = '--::00'
+				THEN NULL
+			ELSE ED.TimeLeftED
+			END AS TimeLeftED,
+		ED.Disposition,
+		ED.Mortality_Flag
+	FROM #EDTBL AS ED
+	WHERE ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #TEMPA AS ZZZ
+			)
+		AND ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #RTCENSUS AS ZZZ
+			)
+		AND ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.Encounter
+			FROM #SUBSEQUENT AS ZZZ
+			)
+		AND ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #MREF AS ZZZ
+			)
+		AND ED.COVID_ORDER = 'YES'
+	
+	UNION
+	
 	SELECT MREF.MRN,
 		MREF.PTNO_NUM,
 		MREF.PT_NAME,
@@ -498,8 +595,7 @@ FROM (
 		MREF.DischargeDisposition,
 		MREF.Mortality_Flag
 	FROM #MREF AS MREF
-
-) AS A;
+	) AS A;
 
 -- 
 SELECT A.MRN,
@@ -625,20 +721,21 @@ SELECT A.MRN,
 	A.RACE_CD_DESC,
 	A.ADM_DTIME,
 	A.VisitEndDateTime AS DC_DTIME,
-	CASE
+	CASE 
 		WHEN A.VisitEndDateTime IS NOT NULL
 			THEN ''
-			ELSE ISNULL(A.Nurs_Sta, '')
-	END AS NURS_STA,
-	CASE
+		ELSE ISNULL(A.Nurs_Sta, '')
+		END AS NURS_STA,
+	CASE 
 		WHEN A.VisitEndDateTime IS NOT NULL
 			THEN ''
-			ELSE ISNULL(A.Bed, '')
-	END AS [BED],
-	CASE WHEN A.VisitEndDatetime IS NOT NULL
-		THEN 0
+		ELSE ISNULL(A.Bed, '')
+		END AS [BED],
+	CASE 
+		WHEN A.VisitEndDatetime IS NOT NULL
+			THEN 0
 		ELSE 1
-	END AS [IN_HOUSE],
+		END AS [IN_HOUSE],
 	PAV.hosp_svc,
 	A.PT_Accomodation,
 	A.PatientReasonforSeekingHC,
@@ -648,18 +745,18 @@ SELECT A.MRN,
 	A.Order_Status,
 	A.Order_Status_DTime,
 	A.RESULT_DTIME,
-	CASE
+	CASE 
 		WHEN MISC.Result IS NOT NULL
 			THEN MISC.Result
-			ELSE A.RESULT
-	END AS [Result],
+		ELSE A.RESULT
+		END AS [Result],
 	isnull(A.DischargeDisposition, '') AS DC_DISP,
 	A.Mortality_Flag,
-	CASE
+	CASE 
 		WHEN MISC.RESULT IS NOT NULL
 			THEN MISC.RESULT
-			ELSE A.[RESULT_CLEAN]
-	END AS [RESULT_CLEAN],
+		ELSE A.[RESULT_CLEAN]
+		END AS [RESULT_CLEAN],
 	A.[Distinct_Visit_Flag],
 	[VENTED] = CASE 
 		WHEN VENTED.PatientAccountID IS NOT NULL
@@ -676,6 +773,7 @@ FROM #TEMPC AS A
 LEFT OUTER JOIN #VENTED AS VENTED ON A.PTNO_NUM = VENTED.PatientAccountID
 LEFT OUTER JOIN smsmir.hl7_vst AS PAV ON A.PTNO_NUM = PAV.pt_id
 LEFT OUTER JOIN smsdss.c_Covid_MiscRefRslt_tbl AS MISC ON A.PTNO_NUM = MISC.[Acct No]
+WHERE A.PTNO_NUM NOT IN ('14465701', '14244479', '14862411', '88998935')
 ORDER BY A.PT_NAME,
 	A.RESULT_DTIME DESC,
 	A.ORDER_DTIME DESC;
@@ -697,3 +795,5 @@ DROP TABLE #POSRES;
 DROP TABLE #SUBSEQUENT;
 
 DROP TABLE #MREF;
+
+DROP TABLE #EDTBL;

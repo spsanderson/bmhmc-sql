@@ -6,13 +6,17 @@ Input Parameters:
 	None
 
 Tables/Views:
-	HPatientVisit AS A
-	SMSMIR.HL7_PT AS B
-	SMSDSS.c_soarian_real_time_census_CDI_v AS C
-	HORDER AS D
-	HOCCURRENCEORDER AS E
-	HInvestigationResult AS F 
+	HPatientVisit
+	SMSMIR.HL7_PT
+	SMSMIR.HL7_VST
+	SMSDSS.c_soarian_real_time_census_CDI_v
+	HORDER
+	HOCCURRENCEORDER
+	HInvestigationResult 
 	SMSDSS.BMH_PLM_PTACCT_V
+	SMSDSS.RACE_CD_DIM_V
+	c_Covid_MiscRefRslt_tbl
+	c_wellsoft_rpt_tbl
 
 Creates Table:
 	None
@@ -46,11 +50,17 @@ Date		Version		Description
 						Fix subsequent visits to include IP and ED only
 						Fix subsequent visits to drop duplicates
 						Add Chief Complaint
+2020-04-16	v7			UNION realtime census to report
+						ADD hosp_svc
+						Add results from smsdss.c_Covid_MiscRefRslt_tbl
+2020-04-20	v8			Exclude test accounts
+2020-04-21	v9			Add ED results with covid fields
+2020-04-22	v10			Fix welsoft accounts to pull data from SC	
 ***********************************************************************
 */
 
 /*
-GET VENT RESULTS
+Get all patients who are vented
 */
 DECLARE @dtEndDate AS DATETIME;
 DECLARE @dtStartDate AS DATETIME;
@@ -96,9 +106,7 @@ FROM [SC_server].[Soarian_Clin_Prd_1].DBO.hobservation ho WITH (NOLOCK)
 INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.hassessment ha WITH (NOLOCK) ON ho.assessmentid = ha.assessmentid
 INNER JOIN @CensusVisitOIDs cv ON ha.PatientVisit_OID = cv.VisitOID
 	AND ha.Patient_OID = cv.PatientOID -- Performance Improvement
-	--WHERE FindingAbbr = 'A_O2 Del Method'
 WHERE FindingAbbr = 'A_BMH_VFSTART'
-	--AND Value = 'Tracheostomy with Ventilator Precautions'  
 	AND ha.AssessmentStatusCode IN (1, 3)
 	AND ho.EndDT IS NULL
 	AND ha.EndDt IS NULL
@@ -123,12 +131,6 @@ INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.hassessment ha WITH (NOLOCK) ON 
 INNER JOIN @VentAssessments va ON ha.PatientVisit_OID = va.PatientVisitOID
 	AND ha.AssessmentID = va.AssessmentID
 WHERE FindingAbbr = 'A_BMH_VFSTART'
-	--(
-	--		FindingAbbr = 'A_O2 Del Method'
-	--		AND Value = 'Tracheostomy with Ventilator Precautions'
-	--		OR FindingAbbr = 'A_O2 Del Method'
-	--		AND Value = 'Endotracheal'
-	--		)
 	AND ha.AssessmentStatusCode IN (1, 3)
 	AND ho.EndDT IS NULL
 	AND ha.EndDt IS NULL
@@ -139,10 +141,72 @@ SELECT *
 INTO #VENTED
 FROM @VentPatients AS PTS
 INNER JOIN @VentAssessments AS VAS ON PTS.PatientVisit_oid = VAS.PatientVisitOID
-INNER JOIN @CensusVisitOIDs AS CEN ON PTS.PatientVisit_oid = CEN.VisitOID
+INNER JOIN @CensusVisitOIDs AS CEN ON PTS.PatientVisit_oid = CEN.VisitOID;
 
 /*
-GET COVID-19 RESULTS
+Pull results from WellSoft in order to get answer from patients
+who may have been tested outside of the facility someplace else 
+and possibly have been resulted.
+*/
+SELECT A.mr#,
+	A.account,
+	A.patient,
+	ROUND((DATEDIFF(MONTH, A.AgeDOB, A.Arrival) / 12), 0) AS [Pt_Age],
+	B.pt_gender,
+	SUBSTRING(RACECD.RACE_CD_DESC, 1, CHARINDEX(' ', RACECD.RACE_CD_DESC, 1)) AS RACE_CD_DESC,
+	A.Arrival,
+	CASE 
+		WHEN A.TimeLeftED = '-- ::00'
+			THEN ISNULL(A.AreaOfCare, '')
+		ELSE ''
+		END AS [Nurs_Sta],
+	'ED' AS [Bed],
+	[In_House] = CASE 
+		WHEN A.TimeLeftED = '-- ::00'
+			THEN 1
+		ELSE 0
+		END,
+	c.hosp_svc,
+	[PT_Accommodation] = 'Emergency',
+	[PatientReasonforSeekingHC] = A.ChiefComplaint,
+	'' AS [Order_No],
+	a.covid_Tested_Outside_Hosp AS [Covid_Order],
+	'' AS [Order_DTime],
+	a.covid_Where_Tested AS [Order_Status],
+	'' AS [Order_Status_DTime],
+	'' AS [Result_DTime],
+	a.covid_Test_Results AS [Result],
+	A.TimeLeftED,
+	a.disposition,
+	[Mortality_Flag] = CASE 
+		WHEN A.Disposition IN ('Medical Examiner', 'Morgue')
+			THEN 1
+		ELSE 0
+		END
+INTO #EDTBL
+FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS A
+INNER JOIN SMSMIR.hl7_pt AS B ON A.ACCOUNT = B.pt_id
+LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
+	AND RACECD.src_sys_id = '#PMSNTX0'
+LEFT OUTER JOIN SMSMIR.HL7_VST AS C ON A.ACCOUNT = C.PT_ID
+WHERE (
+		A.COVID_TESTED_OUTSIDE_HOSP IS NOT NULL -- tested yes
+		OR A.COVID_WHERE_TESTED IS NOT NULL
+		OR A.COVID_TEST_RESULTS IS NOT NULL
+		)
+	AND A.COVID_TESTED_OUTSIDE_HOSP != '((((';
+
+--SELECT * FROM #EDTBL WHERE ACCOUNT = '14861504'
+/*
+Get results of SMSDSS.c_soarian_real_time_census_CDI_v into a temp table so that
+it is called only once and the temp table is called subsequently
+*/
+SELECT *
+INTO #SCRTCEN
+FROM smsdss.c_soarian_real_time_census_CDI_v
+
+/*
+Get patients that have an order for COVID and the latest result status of that order
 */
 SELECT B.pt_med_rec_no AS [MRN],
 	A.PATIENTACCOUNTID AS [PTNO_NUM],
@@ -154,13 +218,13 @@ SELECT B.pt_med_rec_no AS [MRN],
 	CASE 
 		WHEN A.VisitEndDateTime IS NULL
 			THEN C.nurse_sta
-			ELSE ' '
-	END AS [Nurs_Sta],
-	CASE
+		ELSE ' '
+		END AS [Nurs_Sta],
+	CASE 
 		WHEN A.VisitEndDateTime IS NULL
 			THEN C.bed
-			ELSE NULL
-	END AS [Bed],
+		ELSE NULL
+		END AS [Bed],
 	[IN_HOUSE] = CASE 
 		WHEN C.pt_no_num IS NOT NULL
 			THEN 1
@@ -185,7 +249,7 @@ SELECT B.pt_med_rec_no AS [MRN],
 INTO #TEMPA
 FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
 LEFT OUTER JOIN SMSMIR.HL7_PT AS B ON A.PATIENTACCOUNTID = B.pt_id
-LEFT OUTER JOIN SMSDSS.c_soarian_real_time_census_CDI_v AS C ON A.PATIENTACCOUNTID = C.pt_no_num
+LEFT OUTER JOIN #SCRTCEN AS C ON A.PATIENTACCOUNTID = C.pt_no_num
 INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS D ON A.OBJECTid = D.patientvisit_oid
 	AND D.ORDERABBREVIATION = '00425421'
 INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS E ON D.OBJECTID = E.ORDER_OID
@@ -205,17 +269,154 @@ LEFT OUTER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS F O
 		WHERE ZZZ.OCCURRENCE_OID = E.OBJECTID
 			AND ZZZ.FINDINGABBREVIATION = F.FINDINGABBREVIATION
 		)
-LEFT OUTER JOIN SMSDSS.BMH_PLM_PTACCT_V AS PAV ON A.PATIENTACCOUNTID = PAV.PtNo_Num
 LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
-	AND RACECD.src_sys_id = '#PMSNTX0'
-	--WHERE A.patientaccountid = '14857767'
-	--WHERE A.PATIENTACCOUNTID = '71007157'
+	AND RACECD.src_sys_id = '#PMSNTX0';
+
+/*
+Get IP Accounts from the #EDTBL that have a covid order in order to show Soarian Data not WellSoft Data
+*/
+SELECT B.pt_med_rec_no AS [MRN],
+	A.PATIENTACCOUNTID AS [PTNO_NUM],
+	CAST(B.PT_LAST_NAME AS VARCHAR) + ', ' + CAST(B.PT_FIRST_NAME AS VARCHAR) AS [PT_NAME],
+	ROUND((DATEDIFF(MONTH, B.pt_birth_date, A.VisitStartDateTime) / 12), 0) AS [PT_AGE],
+	B.pt_gender,
+	SUBSTRING(RACECD.RACE_CD_DESC, 1, CHARINDEX(' ', RACECD.RACE_CD_DESC, 1)) AS RACE_CD_DESC,
+	A.VISITSTARTDATETIME AS [ADM_DTIME],
+	CASE 
+		WHEN A.VisitEndDateTime IS NULL
+			THEN C.nurse_sta
+		ELSE ' '
+		END AS [Nurs_Sta],
+	CASE 
+		WHEN A.VisitEndDateTime IS NULL
+			THEN C.bed
+		ELSE NULL
+		END AS [Bed],
+	[IN_HOUSE] = CASE 
+		WHEN C.pt_no_num IS NOT NULL
+			THEN 1
+		ELSE 0
+		END,
+	A.ACCOMMODATIONTYPE AS [PT_Accomodation],
+	A.PatientReasonforSeekingHC,
+	d.orderid AS [Order_No],
+	ISNULL(COALESCE(D.ORDERABBREVIATION, EDTBL.COVID_ORDER), 'NO ORDER FOUND') AS [COVID_ORDER],
+	d.creationtime AS [ORDER_DTIME],
+	ISNULL(COALESCE(E.ORDEROCCURRENCESTATUS, EDTBL.ORDER_STATUS), '') AS [Order_Status],
+	E.StatusEnteredDatetime AS [Order_Status_DTime],
+	F.resultdatetime AS [RESULT_DTIME],
+	ISNULL(COALESCE(F.resultvalue, EDTBL.RESULT), '') AS [RESULT],
+	A.VisitEndDateTime,
+	A.DischargeDisposition,
+	[Mortality_Flag] = CASE 
+		WHEN LEFT(A.DischargeDisposition, 1) IN ('C', 'D')
+			THEN 1
+		ELSE 0
+		END
+INTO #EDIP_A
+FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
+INNER JOIN #EDTBL AS EDTBL ON CAST(A.PATIENTACCOUNTID AS VARCHAR) = CAST(EDTBL.ACCOUNT AS VARCHAR)
+LEFT OUTER JOIN SMSMIR.HL7_PT AS B ON A.PATIENTACCOUNTID = B.pt_id
+LEFT OUTER JOIN #SCRTCEN AS C ON A.PATIENTACCOUNTID = C.pt_no_num
+LEFT OUTER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS D ON A.OBJECTid = D.patientvisit_oid -- flip to left outer join
+	AND D.ORDERABBREVIATION = '00425421'
+LEFT OUTER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS E ON D.OBJECTID = E.ORDER_OID
+	AND D.CREATIONTIME = E.CREATIONTIME
+	AND E.ORDEROCCURRENCESTATUS NOT IN ('DISCONTINUE', 'Cancel')
+	AND E.StatusEnteredDatetime = (
+		SELECT MAX(XXX.StatusEnteredDatetime)
+		FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS XXX
+		WHERE XXX.CREATIONTIME = E.CREATIONTIME
+			AND XXX.ORDER_OID = E.ORDER_OID
+		)
+LEFT OUTER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS F ON E.OBJECTID = F.OCCURRENCE_OID
+	AND F.FINDINGABBREVIATION = '9782'
+	AND F.RESULTDATETIME = (
+		SELECT MAX(ZZZ.RESULTDATETIME)
+		FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS ZZZ
+		WHERE ZZZ.OCCURRENCE_OID = E.OBJECTID
+			AND ZZZ.FINDINGABBREVIATION = F.FINDINGABBREVIATION
+		)
+LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
+	AND RACECD.src_sys_id = '#PMSNTX0';
+
+SELECT *
+INTO #EDIP
+FROM #EDIP_A
+	--WHERE LEFT(PTNO_NUM, 1) = '1'
 	;
+
+/*
+Get realtime census results
+LEFT OUTER JOIN Orders and Results instead of INNER
+*/
+SELECT B.pt_med_rec_no AS [MRN],
+	A.PATIENTACCOUNTID AS [PTNO_NUM],
+	CAST(B.PT_LAST_NAME AS VARCHAR) + ', ' + CAST(B.PT_FIRST_NAME AS VARCHAR) AS [PT_NAME],
+	ROUND((DATEDIFF(MONTH, B.pt_birth_date, A.VisitStartDateTime) / 12), 0) AS [PT_AGE],
+	B.pt_gender,
+	SUBSTRING(RACECD.RACE_CD_DESC, 1, CHARINDEX(' ', RACECD.RACE_CD_DESC, 1)) AS RACE_CD_DESC,
+	A.VISITSTARTDATETIME AS [ADM_DTIME],
+	CASE 
+		WHEN A.VisitEndDateTime IS NULL
+			THEN C.nurse_sta
+		ELSE ' '
+		END AS [Nurs_Sta],
+	CASE 
+		WHEN A.VisitEndDateTime IS NULL
+			THEN C.bed
+		ELSE NULL
+		END AS [Bed],
+	[IN_HOUSE] = CASE 
+		WHEN C.pt_no_num IS NOT NULL
+			THEN 1
+		ELSE 0
+		END,
+	A.ACCOMMODATIONTYPE AS [PT_Accomodation],
+	A.PatientReasonforSeekingHC,
+	d.orderid AS [Order_No],
+	ISNULL(D.ORDERABBREVIATION, 'NO ORDER FOUND') AS [COVID_ORDER],
+	d.creationtime AS [ORDER_DTIME],
+	E.ORDEROCCURRENCESTATUS AS [Order_Status],
+	E.StatusEnteredDatetime AS [Order_Status_DTime],
+	F.resultdatetime AS [RESULT_DTIME],
+	F.resultvalue AS [RESULT],
+	A.VisitEndDateTime,
+	A.DischargeDisposition,
+	[Mortality_Flag] = CASE 
+		WHEN LEFT(A.DischargeDisposition, 1) IN ('C', 'D')
+			THEN 1
+		ELSE 0
+		END
+INTO #RTCENSUS
+FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
+LEFT OUTER JOIN SMSMIR.HL7_PT AS B ON A.PATIENTACCOUNTID = B.pt_id
+INNER JOIN #SCRTCEN AS C ON A.PATIENTACCOUNTID = C.pt_no_num
+LEFT OUTER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS D ON A.OBJECTid = D.patientvisit_oid
+	AND D.ORDERABBREVIATION = '00425421'
+LEFT OUTER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS E ON D.OBJECTID = E.ORDER_OID
+	AND D.CREATIONTIME = E.CREATIONTIME
+	AND E.ORDEROCCURRENCESTATUS NOT IN ('DISCONTINUE', 'Cancel')
+	AND E.StatusEnteredDatetime = (
+		SELECT MAX(XXX.StatusEnteredDatetime)
+		FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS XXX
+		WHERE XXX.CREATIONTIME = E.CREATIONTIME
+			AND XXX.ORDER_OID = E.ORDER_OID
+		)
+LEFT OUTER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS F ON E.OBJECTID = F.OCCURRENCE_OID
+	AND F.FINDINGABBREVIATION = '9782'
+	AND F.RESULTDATETIME = (
+		SELECT MAX(ZZZ.RESULTDATETIME)
+		FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS ZZZ
+		WHERE ZZZ.OCCURRENCE_OID = E.OBJECTID
+			AND ZZZ.FINDINGABBREVIATION = F.FINDINGABBREVIATION
+		)
+LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
+	AND RACECD.src_sys_id = '#PMSNTX0';
 
 /*
 Misc Ref Labs
 */
-
 SELECT B.pt_med_rec_no AS [MRN],
 	A.PATIENTACCOUNTID AS [PTNO_NUM],
 	CAST(B.PT_LAST_NAME AS VARCHAR) + ', ' + CAST(B.PT_FIRST_NAME AS VARCHAR) AS [PT_NAME],
@@ -225,6 +426,11 @@ SELECT B.pt_med_rec_no AS [MRN],
 	A.VISITSTARTDATETIME AS [ADM_DTIME],
 	c.nurse_sta AS [Nurs_Sta],
 	c.bed AS [Bed],
+	[IN_HOUSE] = CASE 
+		WHEN C.pt_no_num IS NOT NULL
+			THEN 1
+		ELSE 0
+		END,
 	A.ACCOMMODATIONTYPE AS [PT_Accomodation],
 	A.PatientReasonforSeekingHC,
 	d.orderid AS [Order_No],
@@ -244,7 +450,7 @@ SELECT B.pt_med_rec_no AS [MRN],
 INTO #MREF
 FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
 LEFT OUTER JOIN SMSMIR.HL7_PT AS B ON A.PATIENTACCOUNTID = B.pt_id
-LEFT OUTER JOIN SMSDSS.c_soarian_real_time_census_CDI_v AS C ON A.PATIENTACCOUNTID = C.pt_no_num
+LEFT OUTER JOIN #SCRTCEN AS C ON A.PATIENTACCOUNTID = C.pt_no_num
 INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS D ON A.OBJECTid = D.patientvisit_oid
 INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS E ON D.OBJECTID = E.ORDER_OID
 	AND D.CREATIONTIME = E.CREATIONTIME
@@ -262,12 +468,10 @@ INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS F ON E.O
 		WHERE ZZZ.OCCURRENCE_OID = E.OBJECTID
 			AND ZZZ.FINDINGABBREVIATION = F.FINDINGABBREVIATION
 		)
-LEFT OUTER JOIN SMSDSS.BMH_PLM_PTACCT_V AS PAV ON A.PATIENTACCOUNTID = PAV.PtNo_Num
 LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
 	AND RACECD.src_sys_id = '#PMSNTX0'
 WHERE f.RESULTVALUE LIKE '%COVID%' -- COVID MISC REF VALUE
 	AND d.orderabbreviation = '00410001';
-
 
 -- Subsequent --
 -- positive results
@@ -288,6 +492,11 @@ SELECT HL7PT.pt_med_rec_no AS [MRN],
 	PV.VisitStartDatetime AS [Adm_Date],
 	HL7VST.nurse_sta,
 	HL7VST.bed,
+	[IN_HOUSE] = CASE 
+		WHEN HL7VST.pt_id IS NOT NULL
+			THEN 1
+		ELSE 0
+		END,
 	PV.AccommodationType,
 	PV.PatientReasonforSeekingHC,
 	'' AS [Order_No],
@@ -314,9 +523,10 @@ WHERE HL7PT.pt_med_rec_no IN (
 		SELECT DISTINCT ZZZ.pt_med_rec_no
 		FROM #POSRES AS ZZZ
 		WHERE PV.VisitStartDatetime > ZZZ.Adm_Date
-		AND LEFT(PV.PatientAccountID, 1) IN ('1','8')
+			AND LEFT(PV.PatientAccountID, 1) IN ('1', '8')
 		);
 
+-- UNION RESULTS
 SELECT A.*
 INTO #UNIONED
 FROM (
@@ -345,20 +555,180 @@ FROM (
 	
 	UNION
 	
-	SELECT *
-	FROM #SUBSEQUENT
-	WHERE Encounter NOT IN (
-		SELECT DISTINCT ZZZ.PTNO_NUM
-		FROM #TEMPA AS ZZZ
-		)
+	SELECT S.MRN,
+		s.Encounter,
+		s.PT_Name,
+		S.Pt_Age,
+		S.pt_gender,
+		S.RACE_CD_DESC,
+		S.Adm_Date,
+		S.nurse_sta,
+		S.bed,
+		S.AccommodationType,
+		S.PatientReasonforSeekingHC,
+		S.Order_No,
+		S.Covid_Order,
+		S.Order_DTime,
+		S.Order_Status,
+		S.Order_Status_DTime,
+		S.Result_DTime,
+		S.Result,
+		S.VisitEndDateTime,
+		S.DischargeDisposition,
+		S.Mortality_Flag
+	FROM #SUBSEQUENT AS S
+	WHERE S.Encounter NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #TEMPA AS ZZZ
+			)
 	
 	UNION
+	
+	SELECT RT.MRN,
+		RT.PTNO_NUM,
+		RT.PT_NAME,
+		RT.PT_AGE,
+		RT.pt_gender,
+		RT.RACE_CD_DESC,
+		RT.ADM_DTIME,
+		RT.nurs_sta,
+		RT.bed,
+		RT.PT_Accomodation,
+		RT.PatientReasonforSeekingHC,
+		RT.Order_No,
+		RT.COVID_ORDER,
+		RT.ORDER_DTIME,
+		RT.Order_Status,
+		RT.Order_Status_DTime,
+		RT.RESULT_DTIME,
+		RT.RESULT,
+		RT.VisitEndDateTime,
+		RT.DischargeDisposition,
+		RT.Mortality_Flag
+	FROM #RTCENSUS AS RT
+	WHERE RT.PTNO_NUM NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #TEMPA AS ZZZ
+			)
+	
+	UNION
+	
+	SELECT MREF.MRN,
+		MREF.PTNO_NUM,
+		MREF.PT_NAME,
+		MREF.PT_AGE,
+		MREF.pt_gender,
+		MREF.RACE_CD_DESC,
+		MREF.ADM_DTIME,
+		MREF.nurs_sta,
+		MREF.bed,
+		MREF.PT_Accomodation,
+		MREF.PatientReasonforSeekingHC,
+		MREF.Order_No,
+		MREF.COVID_ORDER,
+		MREF.ORDER_DTIME,
+		MREF.Order_Status,
+		MREF.Order_Status_DTime,
+		MREF.RESULT_DTIME,
+		MREF.RESULT,
+		CAST(MREF.VisitEndDateTime AS DATETIME2) AS [VisitEndDateTime],
+		MREF.DischargeDisposition,
+		MREF.Mortality_Flag
+	FROM #MREF AS MREF
+	
+	UNION
+	
+	SELECT EDIP.MRN,
+		EDIP.PTNO_NUM,
+		EDIP.PT_NAME,
+		EDIP.PT_AGE,
+		EDIP.pt_gender,
+		EDIP.RACE_CD_DESC,
+		EDIP.ADM_DTIME,
+		EDIP.Nurs_Sta,
+		EDIP.Bed,
+		EDIP.PT_Accomodation,
+		EDIP.PATIENTREASONFORSEEKINGHC,
+		EDIP.Order_No,
+		EDIP.COVID_ORDER,
+		EDIP.ORDER_DTIME,
+		EDIP.Order_Status,
+		EDIP.Order_Status_DTime,
+		EDIP.RESULT_DTIME,
+		EDIP.RESULT,
+		CAST(EDIP.VisitEndDateTime AS DATETIME2) AS TimeLeftED,
+		EDIP.DISCHARGEDISPOSITION,
+		EDIP.Mortality_Flag
+	FROM #EDIP EDIP
+	WHERE EDIP.PTNO_NUM NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #TEMPA AS ZZZ
+			)
+		AND EDIP.PTNO_NUM NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #RTCENSUS AS ZZZ
+			)
+		AND EDIP.PTNO_NUM NOT IN (
+			SELECT DISTINCT ZZZ.Encounter
+			FROM #SUBSEQUENT AS ZZZ
+			)
+		AND EDIP.PTNO_NUM NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #MREF AS ZZZ
+			)
+	
+	UNION
+	
+	SELECT ED.MR#,
+		ED.ACCOUNT,
+		ED.PATIENT,
+		ED.Pt_Age,
+		ED.pt_gender,
+		ED.RACE_CD_DESC,
+		ED.ARRIVAL,
+		ED.Nurs_Sta,
+		ED.Bed,
+		ED.PT_Accommodation,
+		ED.PatientReasonforSeekingHC,
+		ED.Order_No,
+		ED.Covid_Order,
+		ED.Order_DTime,
+		ED.Order_Status,
+		ED.Order_Status_DTime,
+		ED.Result_DTime,
+		ED.Result,
+		CASE 
+			WHEN ED.TimeLeftED = '-- ::00'
+				THEN NULL
+			ELSE ED.TimeLeftED
+			END AS TimeLeftED,
+		ED.Disposition,
+		ED.Mortality_Flag
+	FROM #EDTBL AS ED
+	WHERE ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #TEMPA AS ZZZ
+			)
+		AND ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #RTCENSUS AS ZZZ
+			)
+		AND ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.Encounter
+			FROM #SUBSEQUENT AS ZZZ
+			)
+		AND ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #MREF AS ZZZ
+			)
+		AND ED.Account NOT IN (
+			SELECT DISTINCT ZZZ.PTNO_NUM
+			FROM #EDIP AS ZZZ
+			)
+		AND ED.COVID_ORDER = 'YES'
+	) AS A;
 
-	SELECT *
-	FROM #MREF
-) AS A;
-
--- 
+-- DROP TABLE #UNIONED, #TEMPB, #TEMPC
 SELECT A.MRN,
 	A.PTNO_NUM,
 	A.PT_NAME,
@@ -482,22 +852,22 @@ SELECT A.MRN,
 	A.RACE_CD_DESC,
 	A.ADM_DTIME,
 	A.VisitEndDateTime AS DC_DTIME,
-	CASE
+	CASE 
 		WHEN A.VisitEndDateTime IS NOT NULL
 			THEN ''
-			ELSE ISNULL(A.Nurs_Sta, '')
-	END AS NURS_STA,
-	--isnull(A.nurs_sta, '') AS NURS_STA,
-	CASE
+		ELSE ISNULL(A.Nurs_Sta, '')
+		END AS NURS_STA,
+	CASE 
 		WHEN A.VisitEndDateTime IS NOT NULL
 			THEN ''
-			ELSE ISNULL(A.Bed, '')
-	END AS [BED],
-	--isnull(A.bed, '') AS BED,
-	CASE WHEN A.VisitEndDatetime IS NOT NULL
-		THEN 0
+		ELSE ISNULL(A.Bed, '')
+		END AS [BED],
+	CASE 
+		WHEN A.VisitEndDatetime IS NOT NULL
+			THEN 0
 		ELSE 1
-	END AS [IN_HOUSE],-- A.IN_HOUSE,
+		END AS [IN_HOUSE],
+	PAV.hosp_svc,
 	A.PT_Accomodation,
 	A.PatientReasonforSeekingHC,
 	A.Order_No,
@@ -506,10 +876,18 @@ SELECT A.MRN,
 	A.Order_Status,
 	A.Order_Status_DTime,
 	A.RESULT_DTIME,
-	A.[RESULT],
+	CASE 
+		WHEN MISC.Result IS NOT NULL
+			THEN MISC.Result
+		ELSE A.RESULT
+		END AS [Result],
 	isnull(A.DischargeDisposition, '') AS DC_DISP,
 	A.Mortality_Flag,
-	A.[RESULT_CLEAN],
+	CASE 
+		WHEN MISC.RESULT IS NOT NULL
+			THEN MISC.RESULT
+		ELSE A.[RESULT_CLEAN]
+		END AS [RESULT_CLEAN],
 	A.[Distinct_Visit_Flag],
 	[VENTED] = CASE 
 		WHEN VENTED.PatientAccountID IS NOT NULL
@@ -524,22 +902,38 @@ SELECT A.MRN,
 	VENTED.CollectedDT [Last_Vent_Check]
 FROM #TEMPC AS A
 LEFT OUTER JOIN #VENTED AS VENTED ON A.PTNO_NUM = VENTED.PatientAccountID
+LEFT OUTER JOIN smsmir.hl7_vst AS PAV ON A.PTNO_NUM = PAV.pt_id
+LEFT OUTER JOIN smsdss.c_Covid_MiscRefRslt_tbl AS MISC ON A.PTNO_NUM = MISC.[Acct No]
+WHERE A.PTNO_NUM NOT IN ('14465701', '14244479', '14862411', '88998935')
 ORDER BY A.PT_NAME,
 	A.RESULT_DTIME DESC,
 	A.ORDER_DTIME DESC;
 
-DROP TABLE #TEMPA;
+DROP TABLE #EDIP,
+	#EDIP_A,
+	#EDTBL,
+	#MREF,
+	#POSRES,
+	#RTCENSUS,
+	#SCRTCEN,
+	#SUBSEQUENT,
+	#TEMPA,
+	#TEMPB,
+	#TEMPC,
+	#UNIONED,
+	#VENTED
 
-DROP TABLE #TEMPB;
 
-DROP TABLE #TEMPC;
-
-DROP TABLE #VENTED;
-
-DROP TABLE #UNIONED;
-
-DROP TABLE #POSRES;
-
-DROP TABLE #SUBSEQUENT;
-
-DROP TABLE #MREF;
+--DECLARE @PTID VARCHAR(50)
+--SET @PTID = '14861645'
+--SET @PTID = '14861504'
+--SELECT * FROM #TEMPA WHERE PTNO_NUM = @PTID
+--SELECT * FROM #TEMPC WHERE PTNO_NUM = @PTID
+--SELECT * FROM #EDTBL WHERE ACCOUNT = @PTID
+--SELECT * FROM #EDIP_A WHERE PTNO_NUM = @PTID
+--SELECT * FROM #EDIP WHERE PTNO_NUM = @PTID
+--SELECT * FROM #SCRTCEN WHERE pt_no_num = @PTID
+--SELECT * FROM #MREF WHERE PTNO_NUM = @PTID
+--SELECT * FROM #SUBSEQUENT WHERE Encounter = @PTID
+--SELECT * FROM #RTCENSUS WHERE PTNO_NUM = @PTID
+--SELECT * FROM #UNIONED WHERE PTNO_NUM = @PTID
