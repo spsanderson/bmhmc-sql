@@ -143,7 +143,7 @@ f_name <- paste0(
 )
 
 # Check file path
-f_path <- paste0("G://Infection Control//Patient Days//",f_year,"//")
+f_path <- paste0("G:\\Infection Control\\Patient Days\\",f_year,"\\")
 if(!fs::dir_exists(f_path)){
     fs::dir_create(f_path)
 }
