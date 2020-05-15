@@ -36,6 +36,8 @@ Date		Version		Description
 2020-04-02	v5			Add Attending Provider Name and Primary Procedure
 						Provider name
 2020-04-16	v6			Grab only discharged patients
+2020-05-07	v7			Exclude already participting providers
+2020-05-14	v8			Exclude more already participating providers
 ***********************************************************************
 */
 
@@ -80,6 +82,43 @@ FROM (
 	AND A.tot_chg_amt > 0
 	AND LEFT(A.PTNO_NUM, 1) != '2'
 	AND LEFT(A.PTNO_NUM, 4) != '1999'
+	-- Participating Providers
+	AND A.Atn_Dr_No NOT IN (
+		'019190',
+		'017236',
+		'019299',
+		'021261',
+		'019679',
+		'017285',
+		'017202',
+		'021493',
+		'021428',
+		'017863',
+		'019158',
+		'019166',
+		'904326',
+		'021683',
+		'017236',
+		'019299',
+		'021261',
+		'015669',
+		'021758',
+		'018739',
+		'021733',
+		'021766',
+		'021667',
+		'021782',
+		'020206',
+		'904334',
+		'016857',
+		'021493',
+		'021550',
+		'021600',
+		'021428',
+		'021675',
+		'017863',
+		'018697'
+	)
 
 	--UNION
 
