@@ -26,7 +26,8 @@ Purpose/Description
 Revision History:
 Date		Version		Description
 ----		----		----
-2018-07-13	v1			Initial Creation
+2020-04-13	v1			Initial Creation
+2020-05-08	v2			Add MRN column
 ***********************************************************************
 */
 
@@ -134,16 +135,20 @@ CREATE TABLE smsdss.c_positive_covid_visits_tbl (
 	-- primary key column
 	PatientAccountID [NVARCHAR](50) NOT NULL,
 	Patient_OID INT NOT NULL,
-	PatientVisit_OID INT NOT NULL
+	PatientVisit_OID INT NOT NULL,
+	MRN VARCHAR(10) NOT NULL
 	);
 GO
 
 INSERT INTO smsdss.c_positive_covid_visits_tbl
-SELECT DISTINCT PATIENTACCOUNTID,
-	Patient_OID,
-	Patientvisit_OID
-FROM #FULLTBL
-WHERE Positive_Negative = 'Positive'
+SELECT DISTINCT A.PATIENTACCOUNTID,
+	A.Patient_OID,
+	A.Patientvisit_OID,
+	B.Med_Rec_No
+FROM #FULLTBL AS A
+LEFT OUTER JOIN SMSDSS.BMH_PLM_PTACCT_V AS B
+ON A.PatientAccountID = B.PtNo_Num
+WHERE A.Positive_Negative = 'Positive'
 
 -- DROP TABLES
 DROP TABLE #COVIDORDER

@@ -61,6 +61,9 @@ Date		Version		Description
 						Query all tables only once.
 						Cosmetic changes to Covid_Order field to leave no nulls
 						Get MAX result dt and order occurrence dt
+						Add Subsequent Visit Column
+						Add Order_Flag binary 0/1
+						Add Result_Flag binary 0/1
 ***********************************************************************
 */
 
@@ -362,7 +365,8 @@ WHERE (
 		OR A.COVID_TEST_RESULTS IS NOT NULL
 		)
 	AND A.COVID_TESTED_OUTSIDE_HOSP != '(((('
-	AND A.Covid_Tested_Outside_Hosp = 'Yes';
+	AND A.Covid_Tested_Outside_Hosp = 'Yes'
+	AND LEFT(A.Account, 1) = '1';
 
 /*
 
@@ -540,6 +544,7 @@ SELECT PVD.MRN,
 	PVD.PatientVisitOID,
 	PVD.Pt_Name,
 	PVD.Pt_Age,
+	PVD.Pt_Gender,
 	PVD.Race_Cd_Desc,
 	PVD.Adm_Dtime,
 	PVD.DC_DTime,
@@ -563,13 +568,13 @@ SELECT PVD.MRN,
 	PVD.PatientReasonforSeekingHC,
 	COALESCE(CAST(CVORD.OrderID AS VARCHAR), CAST(MREF.OrderID AS VARCHAR), WS.Covid_Test_Outside_Hosp) AS [Order_No],
 	CASE 
-		WHEN COALESCE(CAST(CVORD.OrderID AS VARCHAR), CAST(MREF.OrderID AS VARCHAR), WS.Covid_Test_Outside_Hosp) = 'Yes'
+		WHEN COALESCE(CAST(CVORD.OrderAbbreviation AS VARCHAR), CAST(MREF.OrderAbbreviation AS VARCHAR), WS.Covid_Test_Outside_Hosp) = 'Yes'
 			THEN 'EXTERNAL'
 		WHEN EXTPOS.Result IS NOT NULL
 			THEN 'EXTERNAL'
-		WHEN COALESCE(CAST(CVORD.OrderID AS VARCHAR), CAST(MREF.OrderID AS VARCHAR), WS.Covid_Test_Outside_Hosp) IS NULL
+		WHEN COALESCE(CAST(CVORD.OrderAbbreviation AS VARCHAR), CAST(MREF.OrderAbbreviation AS VARCHAR), WS.Covid_Test_Outside_Hosp) IS NULL
 			THEN 'NO ORDER FOUND'
-		ELSE COALESCE(CAST(CVORD.OrderID AS VARCHAR), CAST(MREF.OrderID AS VARCHAR), WS.Covid_Test_Outside_Hosp)
+		ELSE COALESCE(CAST(CVORD.OrderAbbreviation AS VARCHAR), CAST(MREF.OrderAbbreviation AS VARCHAR), WS.Covid_Test_Outside_Hosp)
 		END AS [Covid_Order],
 	COALESCE(CVORD.CreationTime, MREF.OrderDTime) AS [Order_DTime],
 	COALESCE(CVOCC.OrderOccurrenceStatus, MREF.OrderOccurrenceStatus, WS.Order_Status) AS [Order_Status],
@@ -644,10 +649,10 @@ ORDER BY PVD.Pt_Name,
 	CVORD.CreationTime DESC;
 
 SELECT A.MRN,
-	A.PatientAccountID,
-	a.PatientVisitOID,
+	A.PatientAccountID AS [PTNO_NUM],
 	A.Pt_Name,
 	A.Pt_Age,
+	A.pt_gender,
 	A.Race_Cd_Desc,
 	A.Adm_Dtime,
 	A.DC_DTime,
@@ -717,3 +722,4 @@ ORDER BY A.Pt_Name,
 	A.Order_DTime DESC;
 
 DROP TABLE #TEMPA;
+
