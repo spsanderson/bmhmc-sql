@@ -80,7 +80,7 @@ f_month <- lubridate::month(rpt_date, abbr = FALSE, label = TRUE) %>%
 f_name <- paste0(f_month,f_year,"_IP_Coding_Lag-test.csv")
 
 # Check file path
-f_path <- paste0("G://HIM//Rosemarie//Coding Lag//",f_year,"//")
+f_path <- paste0("G:\\HIM\\Rosemarie\\Coding Lag\\",f_year,"\\")
 if(!fs::dir_exists(f_path)){
     fs::dir_create(f_path)
 }
