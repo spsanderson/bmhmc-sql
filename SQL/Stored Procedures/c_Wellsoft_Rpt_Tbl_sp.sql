@@ -17,6 +17,8 @@ v4	-	2020-04-16	- Add PublicityCodeID, PublicityCodeText and InjuryCode
 						Publicity Code ID	Changed to "Did you get tested outside this hospital"
 						Publicity Code Text	Changed to "What were the Covid-19 test Results"
 						Injury Code	Changed to "Where were you tested for Covid-19"
+v5		2020-06-04	- Add AccessRmAssigned column
+v6	-	2020-06-05	- Remove schema bindings
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_sp]
@@ -75,8 +77,9 @@ BEGIN
 	, PublicityCodeID
 	, PublicityCodeText
 	, InjuryCode
+	, AccessRmAssigned
 	
-	INTO smsdss.c_Wellsoft_Rpt_tbl_tmp
+	INTO c_Wellsoft_Rpt_tbl_tmp
 	
 	FROM [BMH-EDIS-CL]..[WELLUSER].[Patient_Chart] a WITH(NOLOCK)
 	LEFT OUTER JOIN [BMH-EDIS-CL]..[WELLUSER].[Patient_Diagnoses] b WITH(NOLOCK)

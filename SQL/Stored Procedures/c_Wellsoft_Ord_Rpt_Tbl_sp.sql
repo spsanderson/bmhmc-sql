@@ -11,6 +11,7 @@ GO
 -- Description:	Create a reportable Wellsoft orders table bound to the
 -- smsdss schema None of the orders in this procedure will be of 
 -- canceled status
+-- 2020-06-05 remove schema bindings
 -- ====================================================================
 
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Ord_Rpt_Tbl_sp]
@@ -56,7 +57,7 @@ BEGIN
 		ORDER BY B.[SchedDT]
 	)                                                  AS [RN]
 
-	INTO smsdss.c_Wellsoft_Ord_Rpt_Tbl
+	INTO c_Wellsoft_Ord_Rpt_Tbl
 
 	FROM [BMH-EDIS-CL]..[WELLUSER].[Patient_Chart]             A WITH(NOLOCK)
 	LEFT OUTER JOIN [BMH-EDIS-CL]..[WELLUSER].[Patient_Orders] B WITH(NOLOCK)

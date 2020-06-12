@@ -19,6 +19,7 @@ v3	- 2020-04-16	- Add PublicityCodeID, PublicityCodeText and InjuryCode
 						Publicity Code ID	Changed to "Did you get tested outside this hospital"
 						Publicity Code Text	Changed to "What were the Covid-19 test Results"
 						Injury Code	Changed to "Where were you tested for Covid-19"
+v4	- 2020-06-05	- remove schema bindings
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp] 
@@ -159,10 +160,17 @@ BEGIN
 	, PublicityCodeID AS [COVID_Tested_Outside_Hosp]
 	, PublicityCodeText AS [COVID_Test_Results]
 	, InjuryCode AS [COVID_Where_Tested]
+	, CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 11, 2) + ':00',
+	  120)																  AS [Access_Rm_Assigned]
 	  
-	INTO smsdss.c_Wellsoft_Rpt_tbl
+	INTO c_Wellsoft_Rpt_tbl
 
-	FROM smsdss.c_Wellsoft_Rpt_tbl_tmp
+	FROM c_Wellsoft_Rpt_tbl_tmp
 
 	WHERE LEN(Arrival) = 12
 	AND LEN(Account) = 8
