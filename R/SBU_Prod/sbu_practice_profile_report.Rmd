@@ -1,0 +1,197 @@
+---
+title: "Stony Brook Provider Practice Profile"
+author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
+date: "Report Date: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    df_print: paged
+    highlight: tango
+    theme: flatly
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  # out.width = "100%",
+  # out.height = "100%",
+  dpi = 300
+  )
+
+# Lib Load ----
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(
+    "tidyverse"
+    , "tidyquant"
+    , "lubridate"
+    , "R.utils"
+    , "tibbletime"
+    , "knitr"
+    , "kableExtra"
+    , "anomalize"
+    , "DBI"
+    , "odbc"
+    , "dbplyr"
+    , "readxl"
+    , "gridExtra"
+    , "patchwork"
+    , "janitor"
+)
+
+# Source Functions ----
+my_path <- ("S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R\\Functions\\SBU_Productivity\\")
+source_files <- list.files(my_path, "*.R")
+load_files <-  subset(
+    source_files
+    , subset = (
+        str_starts(source_files, "sbu_")
+    )
+)
+map(paste0(my_path, load_files), source)
+```
+
+# Information
+The data for this report starts with encounters discharged from January 1st, 2018 forward.
+
+# Case Counts {.tabset .tabset-fade .tabset-pills}
+
+## Case Counts {.tabset .tabset-fade}
+
+Case Counts.
+
+### By Provider
+```{r provider_pvt}
+# By Provider
+provider_case_type_pvt()
+```
+
+### By Division
+```{r division_pvt}
+# Counts by Division
+division_case_type_count()
+```
+
+### By FC
+```{r fc_pvt}
+# Counts by FC
+pyr_grp_count()
+```
+
+## Inpatient and Outpatient Counts {.tabset .tabset-fade}
+
+Counts by inpatient and outpatient
+
+### By Provider
+```{r ip_op_counts_by_provider}
+ip_op_counts_by_provider()
+```
+
+### By Division
+```{r ip_op_counts_by_division}
+ip_op_counts_by_division()
+```
+
+### By FC
+```{r}
+ip_op_counts_by_fc()
+```
+
+# Charges and Payments {.tabset .tabset-fade .tabset-pills}
+
+Charges, Payments and Amounts Due
+
+## By Provider
+```{r chgs_pmts_by_provider}
+chgs_pmts_by_provider()
+```
+
+## By Division
+```{r chgs_pmts_by_division}
+chgs_pmts_by_division()
+```
+
+## By FC
+```{r chgs_pmts_by_fc}
+chgs_pmts_by_fc()
+```
+
+# Profile Data {.tabset .tabset-fade .tabset-pills}
+
+## SBU Practice Profile {.tabset .tabset-fade}
+
+Myhealth Style Practice Profile Table
+
+### By Provider
+```{r myhealth_profile_by_provider}
+myhealth_profile_by_provider()
+```
+
+### By Division
+```{r myhealth_profile_by_division}
+myhealth_profile_by_division()
+```
+
+### By FC
+```{r myhealth_profile_by_fc}
+myhealth_profile_by_fc()
+```
+
+## Profiles by Year {.tabset .tabset-fade}
+
+Myhealth Style Practice Profile Table
+
+### By Provider
+```{r myhealth_profile_year_provider}
+myhealth_profile_year_provider()
+```
+
+### By Division
+```{r myhealth_profile_year_division}
+myhealth_profile_year_division()
+```
+
+### By FC
+```{r myhealth_profile_year_fc}
+myhealth_profile_year_fc()
+```
+
+### By Year
+```{r myhealth_profile_year}
+myhealth_profile_year()
+```
+
+# Consult Data {.tabset .tabset-fade .tabset-pills}
+
+Coded Consults by Discharge Year
+
+## Totals {.tabset .tabset-fade}
+
+### By Provider
+```{r consults_by_provider}
+consults_by_provider()
+```
+
+### By Division
+```{r consults_by_division}
+consults_by_division()
+```
+
+## Yearly {.tabset .tabset-fade}
+
+### By Provider
+```{r consults_by_provider_year}
+consults_by_provider_year()
+```
+
+### By Division
+```{r consults_by_division_year}
+consults_by_division_year()
+```
+
