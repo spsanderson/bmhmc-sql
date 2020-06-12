@@ -1,0 +1,210 @@
+---
+title: "ED Hourly Census"
+author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: tango
+    theme: flatly
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message=FALSE, warning=FALSE)
+```
+
+```{r lib_load, include=FALSE}
+# Lib Load ----------------------------------------------------------------
+
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(
+  "tidyverse",
+  "tidyquant",
+  "timetk",
+  "odbc",
+  "DBI"
+)
+
+```
+
+```{r load_data, include=FALSE}
+
+# DB Connection ----
+db_con <- dbConnect(
+    odbc(),
+    Driver = "SQL Server",
+    Server = "BMH-HIDB",
+    Database = "SMSPHDSSS0X0",
+    Trusted_Connection = T
+)
+
+# Get Data ----
+dbGetQuery(
+  conn = db_con
+  , statement = paste0(
+    "
+    DECLARE @TODAY AS DATE;
+    DECLARE @StartDate AS DATETIME2;
+    DECLARE @EndDate AS DATETIME2;
+    DECLARE @DateOfInterest AS DATETIME2;
+    
+    SET @TODAY = GETDATE();
+    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
+    SET @EndDate = @TODAY;
+    
+    TRUNCATE TABLE smsdss.c_ed_arrival_departure_tbl
+    TRUNCATE TABLE smsdss.c_ed_census_final_tbl
+    
+    INSERT INTO smsdss.c_ed_arrival_departure_tbl
+    SELECT Arrival,
+    	CASE 
+    		WHEN Access_Rm_Assigned IS NOT NULL
+    			THEN Access_Rm_Assigned
+    		WHEN TimeLeftED = '-- ::00'
+    			THEN NULL
+    		ELSE TimeLeftED
+    		END AS [Departure]
+    FROM [SQL-WS\\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
+    WHERE ARRIVAL >= @StartDate
+    	AND ARRIVAL < @EndDate;
+    "
+  )
+)
+
+dbGetQuery(
+  conn = db_con
+  , statement = paste0(
+    "
+    DECLARE @TODAY AS DATE;
+    DECLARE @StartDate AS DATETIME2;
+    DECLARE @EndDate AS DATETIME2;
+    DECLARE @DateOfInterest AS DATETIME2;
+    
+    SET @TODAY = GETDATE();
+    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
+    SET @EndDate = @TODAY;
+    
+    WITH dates AS (
+  	SELECT CAST(@StartDate AS DATETIME2) AS dte
+  	
+  	UNION ALL
+  	
+  	SELECT DATEADD(HOUR, 1, dte)
+  	FROM dates
+  	WHERE dte < @EndDate
+  	)
+    
+    INSERT INTO smsdss.c_ed_census_final_tbl
+    SELECT dates.dte [Date],
+    	SUM(CASE 
+    			WHEN Arrival <= dte
+    				AND Departure >= dte
+    				THEN 1
+    			ELSE 0
+    			END) ED_Census
+    FROM dates
+    LEFT JOIN smsdss.c_ed_arrival_departure_tbl AS A ON A.Arrival <= DATEADD(HOUR, 1, dates.dte)
+    	AND A.Departure >= dates.dte
+    WHERE dates.dte < @EndDate
+    GROUP BY dates.dte
+    ORDER BY dates.dte
+    OPTION (MAXRECURSION 0);
+    "
+  )
+)
+
+df <- dbGetQuery(
+  conn = db_con
+  , statement = paste0(
+    "
+    DECLARE @TODAY AS DATE;
+    DECLARE @StartDate AS DATETIME2;
+    DECLARE @EndDate AS DATETIME2;
+    DECLARE @DateOfInterest AS DATETIME2;
+    
+    SET @TODAY = GETDATE();
+    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
+    SET @EndDate = @TODAY;
+    
+    SELECT *
+    FROM smsdss.c_ed_census_final_tbl AS FT
+    WHERE FT.[Date] >= @DateOfInterest
+    "
+  )
+)
+
+# DB Disconnect ----
+dbDisconnect(db_con)
+
+
+df <- df %>%
+  mutate(Date = lubridate::ymd_hms(Date)) %>%
+  mutate(ED_Census = as.integer(ED_Census))
+
+min_date <- min(df$Date) %>%
+  format('%B %d, %Y %H:%M')
+
+max_date <- max(df$Date) %>%
+  format('%B %d, %Y %H:%M')
+
+```
+
+# ED Census by Hour
+
+This report is inteded to get the ED Census by hour over different time components. The dates in this report go from `r min_date` to `r max_date`
+
+
+# Data Viz
+
+## Last two full days
+```{r last_two_viz, out.width="100%", out.height="100%"}
+last_two_days_tbl <- tail(df, 48)
+
+plot_time_series(
+  .data = last_two_days_tbl
+  , .date_var = Date
+  , .value = ED_Census
+)
+
+
+```
+
+## All Data 
+```{r all_data_viz, out.width="100%", out.height="100%"}
+
+# Data Viz -------------------------------------------------------
+
+plot_time_series(
+  .data = df
+  , .date_var = Date
+  , .value = ED_Census
+  #, .interactive = FALSE
+)
+
+plot_seasonal_diagnostics(
+  .data = df
+  , .date_var = Date
+  , .value = ED_Census
+  #, .interactive = FALSE
+) 
+
+plot_anomaly_diagnostics(
+  .data = df
+  , .date_var = Date
+  , .value = ED_Census
+  , .interactive = FALSE
+)
+
+plot_stl_diagnostics(
+  .data = df
+  , .date_var = Date
+  , .value = ED_Census
+  #, .interactive = FALSE
+)
+
+```
