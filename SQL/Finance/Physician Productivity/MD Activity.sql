@@ -166,7 +166,7 @@ LEFT OUTER JOIN smsdss.pract_dim_v                     AS ADM_DR_NON
 ON F.Adm_Dr_No = ADM_DR_NON.src_pract_no
 	AND ADM_DR_NON.orgz_cd = 'S0X0'
 
-WHERE f.pt_type IN ('T','U','O','B','I','J','M','P','Q','S','W','X','Y', 'Z')
+WHERE f.pt_type IN ('T','U','O','B','I','J','M','P','Q','S','W','X','Y','Z')
 AND f.adm_date >= @ADMIT_START 
 AND f.adm_date < @ADMIT_END
 AND f.tot_chg_amt > 0

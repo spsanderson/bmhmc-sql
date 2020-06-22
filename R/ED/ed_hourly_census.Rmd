@@ -51,9 +51,11 @@ dbGetQuery(
     DECLARE @DateOfInterest AS DATETIME2;
     
     SET @TODAY = GETDATE();
-    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    --SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @DateOfInterest = '2020-04-01';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
-    SET @EndDate = @TODAY;
+    --SET @EndDate = @TODAY;
+    SET @EndDate = '2020-05-21';
     
     TRUNCATE TABLE smsdss.c_ed_arrival_departure_tbl
     TRUNCATE TABLE smsdss.c_ed_census_final_tbl
@@ -84,9 +86,11 @@ dbGetQuery(
     DECLARE @DateOfInterest AS DATETIME2;
     
     SET @TODAY = GETDATE();
-    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    --SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @DateOfInterest = '2020-04-01';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
-    SET @EndDate = @TODAY;
+    --SET @EndDate = @TODAY;
+    SET @EndDate = '2020-05-21';
     
     WITH dates AS (
   	SELECT CAST(@StartDate AS DATETIME2) AS dte
@@ -156,12 +160,14 @@ max_date <- max(df$Date) %>%
 
 # ED Census by Hour
 
-This report is inteded to get the ED Census by hour over different time components. The dates in this report go from `r min_date` to `r max_date`
+This report is inteded to get the ED Census by hour over different time components. The dates in this report go from `r min_date` through `r max_date`.
+
+Data is run from the DSS WellSoft Report Server which updates once daily around 4am.
 
 
 # Data Viz
 
-## Last two full days
+## Last Two Full Days
 ```{r last_two_viz, out.width="100%", out.height="100%"}
 last_two_days_tbl <- tail(df, 48)
 
@@ -169,8 +175,9 @@ plot_time_series(
   .data = last_two_days_tbl
   , .date_var = Date
   , .value = ED_Census
+  , .title = ""
+  , .color_var = day(Date)
 )
-
 
 ```
 
@@ -183,14 +190,17 @@ plot_time_series(
   .data = df
   , .date_var = Date
   , .value = ED_Census
-  #, .interactive = FALSE
+  , .title = str_glue("Data from {min_date} through {max_date}")
+  , .smooth_period = 7*24
+  , .plotly_slider = TRUE
+  , .color_var = month(Date)
 )
 
 plot_seasonal_diagnostics(
   .data = df
   , .date_var = Date
   , .value = ED_Census
-  #, .interactive = FALSE
+  , .title = "Seasonal Diagnostics (Hour, Day of week, etc.)"
 ) 
 
 plot_anomaly_diagnostics(
@@ -200,11 +210,18 @@ plot_anomaly_diagnostics(
   , .interactive = FALSE
 )
 
-plot_stl_diagnostics(
-  .data = df
-  , .date_var = Date
-  , .value = ED_Census
-  #, .interactive = FALSE
-)
+# plot_stl_diagnostics(
+#   .data = df
+#   , .date_var = Date
+#   , .value = ED_Census
+# )
+
+```
+
+# Data
+```{r data_file}
+
+writexl::write_xlsx(df, "all_data.xlsx", col_names = TRUE)
+xfun::embed_file("all_data.xlsx")
 
 ```

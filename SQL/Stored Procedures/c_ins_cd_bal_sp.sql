@@ -41,6 +41,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2019-06-28	v1			Initial Creation
+2020-06-09  v2          Add unit_seq_no and from_file_ind
 ***********************************************************************
 */
 
@@ -52,6 +53,8 @@ BEGIN
 
 	CREATE TABLE smsdss.c_ins_cd_bal_tbl (
         pt_id VARCHAR(20),
+        unit_seq_no VARCHAR(20),
+        from_file_ind VARCHAR(20),
         fc VARCHAR(2),
         credit_rating VARCHAR(3),
         hosp_svc VARCHAR(5),
@@ -67,6 +70,8 @@ BEGIN
     ;
         -- NON-UNITIZED
     SELECT PYRPLAN.pt_id
+    , VST.unit_seq_no
+    , VST.from_file_ind
     , VST.cr_rating
     , VST.fc
     , VST.hosp_svc
@@ -96,6 +101,8 @@ BEGIN
     ;
 
     SELECT a.pt_id
+    , A.unit_seq_no
+    , A.from_file_ind
     , a.fc
     , a.cr_rating
     , a.hosp_svc
@@ -122,6 +129,8 @@ BEGIN
 
     -- UNITIZED
     SELECT A.pt_id
+    , A.unit_seq_no
+    , A.from_file_ind
     , '' AS FC
     , '' AS CREDIT_RATING
     , '' AS HOSP_SVC
@@ -155,6 +164,8 @@ BEGIN
 	INSERT INTO smsdss.c_ins_cd_bal_tbl
 
     SELECT A.PT_ID
+    , A.unit_seq_no
+    , A.from_file_ind
     , A.FC
     , A.CR_RATING
     , A.HOSP_SVC
@@ -172,6 +183,8 @@ BEGIN
     UNION
 
     SELECT C.PT_ID
+    , C.unit_seq_no
+    , C.from_file_ind
     , C.FC
     , C.CREDIT_RATING
     , C.HOSP_SVC
@@ -197,6 +210,8 @@ ELSE BEGIN
 
     -- NON-UNITIZED
     SELECT PYRPLAN.pt_id
+    , VST.unit_seq_no
+    , VST.from_file_ind
     , VST.cr_rating
     , VST.fc
     , VST.hosp_svc
@@ -226,6 +241,8 @@ ELSE BEGIN
     ;
 
     SELECT a.pt_id
+    , A.UNIT_SEQ_NO
+    , A.from_file_ind
     , a.fc
     , a.cr_rating
     , a.hosp_svc
@@ -252,6 +269,8 @@ ELSE BEGIN
 
     -- UNITIZED
     SELECT A.pt_id
+    , A.unit_seq_no
+    , A.from_file_ind
     , '' AS FC
     , '' AS CREDIT_RATING
     , '' AS HOSP_SVC
@@ -289,6 +308,8 @@ ELSE BEGIN
 
 	FROM (
 		SELECT A.PT_ID
+        , A.UNIT_SEQ_NO
+        , A.from_file_ind
 		, A.FC
 		, A.CR_RATING
 		, A.HOSP_SVC
@@ -306,6 +327,8 @@ ELSE BEGIN
 		UNION
 
 		SELECT C.PT_ID
+        , C.UNIT_SEQ_NO
+        , C.FROM_FILE_IND
 		, C.FC
 		, C.CREDIT_RATING
 		, C.HOSP_SVC

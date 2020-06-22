@@ -248,12 +248,29 @@ db_con <- dbConnect(
 
 # Add records to DB ----
 dbWriteTable(
-  con
+  conn = db_con
   , Id(
     schema = "smsdss"
     , table = "c_archway_sepsis_tbl"
   )
-  , final_tbl
+  , final_tbl %>%
+    select(med_rec_no, pt_no_num, adm_date, pt_name, ins1_pol_no, pt_birthdate,
+           pt_sex, pt_addr_city, pt_addr_state, pt_phone_no, attending_provider, 
+           primary_procedure_provider) %>%
+    set_names(
+      "Med_Rec_No",
+      "PtNo_Num",
+      "Adm_Date",
+      "Pt_Name",
+      "ins1_pol_no",
+      "Pt_Birthdate",
+      "Pt_Sex",
+      "Pt_Addr_City",
+      "Pt_Addr_State",
+      "Pt_Phone_No",
+      "Attending_Provider",
+      "Primary_Procedure_Provider"
+    )
   , append = T
 )
 
