@@ -1,7 +1,7 @@
 db_connect <-
 function(){
-    db_con <- odbc::dbConnect(
-        odbc::odbc(),
+    db_con <- dbConnect(
+        odbc(),
         Driver = "SQL Server",
         Server = "BMH-HIDB",
         Database = "SMSPHDSSS0X0",
@@ -11,11 +11,11 @@ function(){
 }
 db_disconnect <-
 function(connection) {
-    odbc::dbDisconnect(connection)
+    dbDisconnect(connection)
 }
-ip_orsos_rm_tbl <-
+orsos_data_query <-
 function() {
-    query <- DBI::dbGetQuery(
+    query <- dbGetQuery(
       conn = db_connect()
       , statement = paste0(
           "
@@ -100,10 +100,134 @@ function() {
     ) %>%
       as_tibble() %>%
       clean_names() %>%
+      mutate_if(is.character, str_squish) %>%
       mutate(md_id = case_when(
         is.na(dss_crosswalk_id) ~ dss_src_pract_no_a
         , TRUE ~ dss_crosswalk_id
         ))
     
+    db_disconnect(connection = db_connect())
     return(query)
+}
+amb_surg_activity_query <-
+function() {
+  query <- dbGetQuery(
+    conn = db_connect()
+    , statement = paste0(
+      "
+      SELECT pt_id
+    	, SUM(actv_tot_qty) AS total_quantity
+    	, SUM(chg_tot_amt)  AS total_charge
+    
+    	FROM smsmir.actv
+    
+    	WHERE actv_cd = '01800010'
+    
+    	GROUP BY pt_id
+    
+    	HAVING SUM(actv_tot_qty) > 0
+    	AND SUM(chg_tot_amt) > 0
+      "
+    )
+  ) %>%
+    as_tibble() %>%
+    clean_names() %>%
+    mutate_if(is.character, str_squish) %>%
+    mutate(encounter = str_sub(pt_id, 5, 13))
+  
+  db_disconnect(connection = db_connect())
+  return(query)
+}
+or_time_query <-
+function() {
+  query <- dbGetQuery(
+    conn = db_connect()
+    , statement = paste0(
+      "
+      SELECT pt_id
+    	, SUM(actv_tot_qty) AS total_quantity
+    	, SUM(chg_tot_amt)  AS total_charge
+    
+    	FROM smsmir.actv
+    
+    	WHERE actv_cd IN (
+    		'01800010', '00800011', '00800029', '00800037', '00800045', 
+    		'00800052', '00800060', '00800078', '00800086', '00800094', 
+    		'00800102', '00800110', '00800128', '00800136', '00800144', 
+    		'00800151', '00800169', '00800177', '00800185', '00800193', 
+    		'00800201', '00800219', '00800227', '00800235', '00800243', 
+    		'00800250', '00800268', '00800276', '00800284', '00800292', 
+    		'00800300', '00800318', '00800326'
+    	)
+    
+    	GROUP BY pt_id
+    
+    	HAVING SUM(actv_tot_qty) > 0
+    	AND SUM(chg_tot_amt) > 0
+      "
+    )
+  ) %>%
+    as_tibble() %>%
+    clean_names() %>%
+    mutate_if(is.character, str_squish) %>%
+    mutate(encounter = str_sub(pt_id, 5, 13))
+  
+  db_disconnect(connection = db_connect())
+  return(query)
+}
+rn_query <-
+function() {
+  
+  orsos_tbl    <- orsos_data_query()
+  amb_surg_tbl <- amb_surg_activity_query()
+  or_time      <- or_time_query()
+  
+  data_tbl <- orsos_tbl %>% 
+    left_join(amb_surg_tbl, by = c("dss_case_no" = "encounter")) %>% 
+    select(-pt_id) %>% 
+    rename(
+      "tot_amb_surg_quantity" = "total_quantity"
+      , "tot_amb_surg_chg" = "total_charge"
+      ) %>% 
+    left_join(or_time, by = c("dss_case_no" = "encounter")) %>% 
+    select(-pt_id) %>% 
+    rename(
+      "total_or_quantity" = "total_quantity"
+      , "total_or_chg" = "total_charge"
+      ) %>%
+    group_by(orsos_case_no) %>%
+    mutate(rn = row_number()) %>%
+    ungroup() %>%
+    filter(rn == 1) %>%
+    mutate(dss_case_no = as.character(dss_case_no))
+  
+  return(data_tbl)
+}
+pract_mstr_query <-
+function(){
+  
+  data_tbl <- dbGetQuery(
+    conn = db_connect()
+    , statement = paste0(
+      "
+      SELECT A.pract_no
+      , A.pract_rpt_name
+      , A.spclty_cd1
+      , B.spclty_cd_desc
+      , B.med_staff_dept
+      from smsmir.pract_mstr AS A
+      LEFT JOIN smsdss.pract_spclty_mstr AS B
+      ON A.spclty_cd1 = B.spclty_cd
+      AND A.iss_orgz_cd = B.orgz_cd
+      WHERE A.ISS_ORGZ_CD = 'S0X0'
+      "
+    )
+  ) %>%
+    as_tibble() %>%
+    clean_names() %>%
+    mutate_if(is.character, str_squish) %>%
+    mutate(pract_rpt_name = str_to_title(pract_rpt_name))
+  
+  db_disconnect(connection = db_connect())
+  return(data_tbl)
 }
