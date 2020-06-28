@@ -45,34 +45,50 @@ SELECT '111704595' AS 'TIN'
     END
 , CONVERT(VARCHAR(10), PAV.Adm_Date, 101) AS [Adm_Date]
 , CONVERT(VARCHAR(10), PAV.Dsch_Date, 101) AS [Dsch_Date]
+, PAV.Med_Rec_No
 FROM SMSDSS.BMH_PLM_PTACCT_V AS PAV
 LEFT OUTER JOIN SMSDSS.c_patient_demos_v AS PT 
 ON PAV.PT_NO = PT.pt_id
 AND PAV.from_file_ind = PT.from_file_ind
-WHERE PAV.User_Pyr1_Cat = 'MIS'
-AND PAV.PT_NO IN (
-    SELECT DISTINCT ZZZ.pt_id
-    FROM SMSMIR.dx_grp AS ZZZ
-    WHERE ZZZ.dx_cd IN (
-            'Z03.818','Z20.828','Z11.59','U07.1','B987.29','O98.5'
-    )
-    AND LEFT(ZZZ.dx_cd_type, 2) = 'DF'
-    AND ZZZ.DX_PRIO != '01'
-)
+--WHERE PAV.User_Pyr1_Cat = 'MIS'
+where pav.Pyr1_Co_Plan_Cd in ('*','E37')
 AND (
     (
         PAV.Plm_Pt_Acct_Type = 'I'
-        AND PAV.Dsch_Date >= '2020-02-04'
+        AND PAV.Dsch_Date >= '2020-02-01'
     )
     OR 
     (
         PAV.Plm_Pt_Acct_Type != 'I'
-        AND PAV.Adm_Date >= '2020-02-04'
+        AND PAV.Adm_Date >= '2020-02-01'
     )
 )
---AND PAV.prin_dx_cd IN (
-    --'U07.1',
-    --'B97.29', -- PRIOR TO APRIL 1, 2020
-    --'O98.5'   -- for pregnancy
---    'Z03.818','Z20.828','Z11.59' -- only for outpatient
---)
+AND (
+	PAV.PT_NO IN (
+			(
+				SELECT DISTINCT ZZZ.PT_ID
+				FROM SMSMIR.DX_GRP AS ZZZ
+				WHERE SUBSTRING(ZZZ.PT_ID, 5, 1) = '1'
+				AND LEFT(ZZZ.dx_cd_type, 2) = 'DF'
+				AND ZZZ.dx_cd_prio = '01'
+				AND ZZZ.DX_CD IN (
+					'U07.1',
+    				'B97.29', -- PRIOR TO APRIL 1, 2020
+    				'O98.5',   -- for pregnancy
+    				'Z03.818','Z20.828','Z11.59' -- only for outpatient
+				)
+			)
+		)
+	OR PAV.PT_NO IN (
+			SELECT DISTINCT XXX.PT_ID
+			FROM SMSMIR.DX_GRP AS XXX
+			WHERE SUBSTRING(XXX.PT_ID, 5, 1) != '1'
+			AND LEFT(XXX.dx_cd_type, 2) = 'DF'
+			AND XXX.DX_CD IN (
+				'U07.1',
+    			'B97.29', -- PRIOR TO APRIL 1, 2020
+    			'O98.5',   -- for pregnancy
+    			'Z03.818','Z20.828','Z11.59' -- only for outpatient
+			)
+		)
+)
