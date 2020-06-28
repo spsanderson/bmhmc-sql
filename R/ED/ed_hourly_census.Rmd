@@ -51,11 +51,11 @@ dbGetQuery(
     DECLARE @DateOfInterest AS DATETIME2;
     
     SET @TODAY = GETDATE();
-    --SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
-    SET @DateOfInterest = '2020-04-01';
+    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    --SET @DateOfInterest = '2020-04-01';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
-    --SET @EndDate = @TODAY;
-    SET @EndDate = '2020-05-21';
+    SET @EndDate = @TODAY;
+    --SET @EndDate = '2020-05-21';
     
     TRUNCATE TABLE smsdss.c_ed_arrival_departure_tbl
     TRUNCATE TABLE smsdss.c_ed_census_final_tbl
@@ -86,11 +86,11 @@ dbGetQuery(
     DECLARE @DateOfInterest AS DATETIME2;
     
     SET @TODAY = GETDATE();
-    --SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
-    SET @DateOfInterest = '2020-04-01';
+    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    --SET @DateOfInterest = '2020-04-01';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
-    --SET @EndDate = @TODAY;
-    SET @EndDate = '2020-05-21';
+    SET @EndDate = @TODAY;
+    --SET @EndDate = '2020-05-21';
     
     WITH dates AS (
   	SELECT CAST(@StartDate AS DATETIME2) AS dte
