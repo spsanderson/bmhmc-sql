@@ -1,11 +1,10 @@
 provider_case_type_pvt <-
 function () 
 {
-    data <- df_tbl %>% pivot_table(.rows = provider_name, .columns = ~case_type, 
-        .values = ~COUNT(pt_id), fill_na = 0) %>% rename(non_surgical = `Non-Surgical`, 
-        surgical = Surgical) %>% arrange(provider_name) %>% adorn_totals() %>% 
-        set_names("Provider", "Non-Surgical", "Surgical") %>% 
-        knitr::kable() %>% kableExtra::kable_styling(bootstrap_options = c("striped", 
+    data <- df_tbl %>% pivot_table(.rows = c(division, ~(provider_name)), 
+        .columns = ~case_type, .values = ~COUNT(pt_id), fill_na = 0) %>% 
+        adorn_totals() %>% set_names("Division", "Provider", 
+        "Non-Surgical", "Surgical") %>% knitr::kable() %>% kableExtra::kable_styling(bootstrap_options = c("striped", 
         "hover", "condensed", "responsive"), font_size = 12, 
         full_width = T)
     return(data)
@@ -14,10 +13,9 @@ division_case_type_count <-
 function () 
 {
     data <- df_tbl %>% pivot_table(.rows = division, .columns = ~case_type, 
-        .values = ~COUNT(pt_id), fill_na = 0) %>% rename(division = division, 
-        non_surgical = `Non-Surgical`, surgical = Surgical) %>% 
-        arrange(division) %>% adorn_totals() %>% set_names("Division", 
-        "Non-Surgical", "Surgical") %>% knitr::kable() %>% kableExtra::kable_styling(bootstrap_options = c("striped", 
+        .values = ~COUNT(pt_id), fill_na = 0) %>% arrange(division) %>% 
+        adorn_totals() %>% set_names("Division", "Non-Surgical", 
+        "Surgical") %>% knitr::kable() %>% kableExtra::kable_styling(bootstrap_options = c("striped", 
         "hover", "condensed", "responsive"), font_size = 12, 
         full_width = T)
     return(data)
@@ -26,7 +24,7 @@ pyr_grp_count <-
 function () 
 {
     data <- df_tbl %>% pivot_table(.rows = pyr_group2, .columns = ~case_type, 
-        .values = ~COUNT(pt_id), fill_na = 0) %>% mutate(tot_cases = `Non-Surgical` + 
+        .values = ~COUNT(pt_id), fill_na = 0) %>% mutate(tot_cases = `NON-SURGICAL` + 
         Surgical) %>% set_names("Payer Group", "Non-Surgical", 
         "Surgical", "Total") %>% arrange(`Payer Group`) %>% adorn_totals() %>% 
         knitr::kable() %>% kableExtra::kable_styling(bootstrap_options = c("striped", 

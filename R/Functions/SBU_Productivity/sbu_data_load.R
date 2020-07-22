@@ -146,7 +146,38 @@ df_tbl <- dbGetQuery(
         		END AS [Surgical_Direct_Admit],
         	YEAR(a.proc_eff_dtime) AS [Procedure_Year],
         	ATN_DR.pract_rpt_name AS [Attending_Dr],
-        	ADM_DR.pract_rpt_name AS [Admitting_Dr]
+        	ADM_DR.pract_rpt_name AS [Admitting_Dr],
+        	[xfer_hosp_flag] = case
+        		WHEN d.dsch_disp = 'ATH'
+        			THEN 1
+        			ELSE 0
+        	END,
+        	[bariatric_proc_flag] = CASE
+        		WHEN (
+        			-- OUTPATIENT
+        			A.proc_cd IN (
+        				'43117','43118','43620','43621','43622',
+        				'43631','43632','43633','43634','43635',
+        				'43775','43121','43122','43123','43845',
+        				'48150','48151','48152'
+        			)
+        			-- INPATIENT
+        			-- laparoscopic vertical sleeve gastrectomy is 0DB64Z3
+        			OR A.proc_cd = '0DB64Z3'
+        			-- non-laproscopic
+        			OR (
+        				LEFT(A.proc_cd, 4) = '0DB6'
+        				AND SUBSTRING(A.proc_cd, 5, 1) IN ('0','3','4','7','8')
+        
+        			)
+        			-- bypass
+        			OR (
+        				LEFT(A.proc_cd, 3) = '0D1'
+        			)
+        		)
+        		THEN 1
+        		ELSE 0
+        	END
         FROM smsmir.mir_sproc AS a
         LEFT JOIN smsmir.mir_pract_mstr AS b ON a.resp_pty_cd = b.pract_no
         	AND a.src_sys_id = b.src_sys_id
@@ -197,7 +228,7 @@ df_tbl <- dbGetQuery(
         	ISNULL(g.tot_pymts_w_pip, 0),
         	f.tot_amt_due,
         	'',
-        	'Non-Surgical',
+        	'NON-SURGICAL',
         	'',
         	f.adm_dr_no,
         	--Gives CREDIT For Case to Attending Dr
@@ -222,7 +253,13 @@ df_tbl <- dbGetQuery(
         	'',
         	YEAR(f.Adm_Date) AS [Procedure_Year],
         	ATN_DR_NON.pract_rpt_name AS [Attending Doctor],
-        	ADM_DR_NON.pract_rpt_name AS [Admitting Doctor]
+        	ADM_DR_NON.pract_rpt_name AS [Admitting Doctor],
+        	[xfer_hosp_flag] = case
+        		WHEN f.dsch_disp = 'ATH'
+        			THEN 1
+        			ELSE 0
+        	END,
+        	[bariatric_proc_flag] = 0
         FROM smsdss.BMH_PLM_PtAcct_V AS f
         LEFT JOIN smsdss.c_tot_pymts_w_pip_v AS g ON f.pt_no = g.pt_id
         	AND f.pt_id_start_dtime = g.pt_id_start_dtime
@@ -307,7 +344,14 @@ df_tbl <- df_tbl %>%
     clean_names()
 
 # Write out RDS to be used in mainp script
-write_rds(df_tbl, "G:\\R Studio Projects\\SBU_Productivity\\00_data\\df_rds.rds")
+f_path <- "G:\\R Studio Projects\\SBU_Productivity\\00_data\\"
+write_rds(df_tbl, paste0(f_path,"df_rds.rds"))
+
+# Write to excel file for end users
+writexl::write_xlsx(
+    x = df_tbl
+    , path = paste0(f_path, "practice_profile_data.xlsx")
+    )
 
 # Drop df_tbl and replace with rds file
-df_tbl <- read_rds("G:\\R Studio Projects\\SBU_Productivity\\00_data\\df_rds.rds")
+df_tbl <- read_rds(paste0(f_path, "df_rds.rds"))

@@ -4,18 +4,13 @@ function(){
     
     data <- df_tbl %>%
         pivot_table(
-            .rows    = provider_name,
+            .rows    = c(division, ~ (provider_name)),
             .columns = ~ case_type,
             .values  = ~ COUNT(pt_id),
             fill_na  = 0
         ) %>%
-        rename(
-            "non_surgical" = `Non-Surgical`,
-            "surgical"     = `Surgical`
-        ) %>%
-        arrange(provider_name) %>%
         adorn_totals() %>%
-        set_names("Provider","Non-Surgical","Surgical") %>%
+        set_names("Division", "Provider","Non-Surgical","Surgical") %>%
         knitr::kable() %>%
         kableExtra::kable_styling(bootstrap_options = c(
             "striped"
@@ -40,11 +35,6 @@ function(){
             .columns = ~ case_type,
             .values  = ~ COUNT(pt_id),
             fill_na  = 0
-        ) %>%
-        rename(
-            "division"     = `division`,
-            "non_surgical" = `Non-Surgical`,
-            "surgical"     = `Surgical`
         ) %>%
         arrange(division) %>%
         adorn_totals() %>%
@@ -74,7 +64,7 @@ function(){
             .values  = ~ COUNT(pt_id),
             fill_na  = 0
         ) %>%
-        mutate(tot_cases = `Non-Surgical` + Surgical) %>%
+        mutate(tot_cases = `NON-SURGICAL` + Surgical) %>%
         set_names(
             "Payer Group"
             , "Non-Surgical"
