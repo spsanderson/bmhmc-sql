@@ -12,7 +12,7 @@ library(dplyr)
 library(readr)
 
 # Select the file ----
-fileToLoad <- file.choose(new = TRUE)
+fileToLoad <- "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\ALOS_Mapping_File.xlsx"
 
 # Read in the CSV/xlsx data and store it in a variable 
 origAddress <- read_xlsx(fileToLoad, col_names = TRUE)
@@ -459,7 +459,7 @@ mlmap
 ######################################
 # leaflet maps
 # Cluster Maps
-
+# Hospital Marker ----
 hospMarker <- makeAwesomeIcon(
       icon = 'glyphicon-plus'
     , markerColor = 'lightblue'
@@ -497,6 +497,7 @@ mcluster
 #####################################
 # Service Line map
 # Get unique list of groups needed
+# Hospital Popup ----
 HospPopup <- paste(
   "<b><a href='http://www.licommunityhospital.org/'>LI Community Hospital</a></b>"
   , "<br><strong>Discharges for: </strong>"

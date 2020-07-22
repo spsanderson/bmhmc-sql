@@ -12,7 +12,7 @@ library(readr)
 
 # RA File ####
 # Select the file from the file chooser
-fileToLoad <- file.choose(new = TRUE)
+fileToLoad <- "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\Readmit_Mapping_file.xlsx"
 
 # Read in the csv/xlsx data dn staroe it in a variable
 origAddress <- read_xlsx(fileToLoad, col_names = TRUE)
