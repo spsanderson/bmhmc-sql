@@ -37,10 +37,14 @@ Date		Version		Description
 2018-12-05	v1			Initial Creation
 2018-12-18	v2			Fix table scheme from dbo to smsdss
 2019-01-07	v3			Drop "J" accounts
+2020-07-02	v4			fix collation issue on table create statement
 ***********************************************************************
 */
 
 SET ANSI_NULLS ON
+GO
+
+SET ANSI_WARNINGS ON
 GO
 
 SET QUOTED_IDENTIFIER ON
@@ -57,7 +61,7 @@ BEGIN
 
 	CREATE TABLE smsdss.c_ORSOS_Post_Case_Rpt_Tbl (
 		PK INT IDENTITY(1, 1)   PRIMARY KEY
-		, [ORSOS_Case_No]       VARCHAR(MAX)
+		, [ORSOS_Case_No]       VARCHAR(MAX) COLLATE SQL_Latin1_General_CP1_CI_AS
 		, [Encounter]           VARCHAR(MAX)
 		, [ORSOS_MD_ID]         VARCHAR(MAX)
 		, [ORSOS Description]   VARCHAR(MAX)
