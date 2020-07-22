@@ -1,0 +1,83 @@
+---
+title: "MyHealth Long Island Report"
+author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
+date: "Report Date: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    df_print: paged
+    highlight: tango
+    theme: flatly
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  # out.width = "100%",
+  # out.height = "100%",
+  dpi = 300
+  )
+
+# Lib Load ----------------------------------------------------------------
+
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(
+    "odbc",
+    "DBI",
+    "tidyquant",
+    "janitor",
+    "tidyverse",
+    "gt",
+    "readxl",
+    "lubridate"
+)
+
+
+# Source Functions --------------------------------------------------------
+
+my_path <- "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R\\MyHealth\\MyHealth_Referrals\\"
+source_files <- list.files(my_path, "*.R")
+load_files <- subset(
+  source_files
+  , subset = (
+    !str_detect(source_files, "mhli_downstream_revenue.R")
+  )
+)
+map(paste0(my_path, load_files), source)
+
+mhli_ds_tbl <- mhli_ds_query()
+# mhli_ds_pvt_tbl <- mhli_pivot_tbl(.data = mhli_ds_tbl)
+```
+
+# Report Informaiton
+
+This report will produce the monthly downstream revenue for MyHealth Long Island patients and information on MyHealth Referrals. 
+
+It is important to note that the MyHealth patient registry and referral files that are received do not contain the SSN of a patient or their associated hospital MRN, this means that a patient is match based upon the following:
+
+1. Name
+2. DOB and 
+3. Biological Sex
+
+We also filter out accounts that have $0.00 charges and those that start with a 2 or 1999 in order to only obtain true accounts.
+
+The latest patient registry file received contains a total of `r scales::number(nrow(pt_registry_tbl), big.mark = ",")` distinct records. The rad referrals file contains a total of `r scales::number(nrow(df_rad_tbl), big.mark = ",")`.
+
+# Down Stream Revenue Data {.tabset .tabset-fade .tabset-pills}
+
+## Down Stream by FC {.tabset .tabset-fade}
+```{r mhli_ds_pvt_tbl}
+mhli_pivot_tbl(.data = mhli_ds_tbl)
+```
+
+## Down Stream Summary {.tabset .tabset-fade}
+```{r mhli_ds_summary_tbl}
+mhli_ds_summary_tbl(.data = mhli_ds_tbl)
+```
