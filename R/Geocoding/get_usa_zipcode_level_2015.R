@@ -15,7 +15,7 @@ names(usa)[1] = "zipcode"
 
 #url3 = "http://www.unitedstateszipcodes.org/zip_code_database.csv"
 
-file3 <- file.choose(new = TRUE)
+file3 <- "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\zip_code_database.csv"
 file3 <- read.csv(file3)
 all_usa_zip <- file3
 rm(file3)
