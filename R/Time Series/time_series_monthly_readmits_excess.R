@@ -137,6 +137,16 @@ df_tsbl %>%
   pivot_longer(cols = everything(), names_to = "Metric")
 
 # Model ----
+df_tsbl %>%
+  model(
+    ets      = ETS(observed_cleaned)
+    , arima  = ARIMA(observed_cleaned)
+    , nnetar = NNETAR(observed_cleaned, n_nodes = 10)
+    , rw     = RW(observed_cleaned)
+  ) %>%
+  forecast(h = "1 year") %>%
+  autoplot(filter(df_tsbl, year(year_month) > min.year), level = NULL)
+
 models <- df_tsbl %>%
   model(
     ets      = ETS(observed_cleaned)
@@ -174,7 +184,7 @@ print_mod_desc <- function(x) {
   model <- model_desc %>%
     select(model_desc)
   
-  return(print(paste0(model,"\n")))
+  return(print(paste0(model$model_desc,"\n")))
   
 }
 
