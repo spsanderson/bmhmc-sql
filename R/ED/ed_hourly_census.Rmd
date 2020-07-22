@@ -51,8 +51,8 @@ dbGetQuery(
     DECLARE @DateOfInterest AS DATETIME2;
     
     SET @TODAY = GETDATE();
-    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
-    --SET @DateOfInterest = '2020-04-01';
+    --SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @DateOfInterest = '2020-06-01';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
     SET @EndDate = @TODAY;
     --SET @EndDate = '2020-05-21';
@@ -86,8 +86,8 @@ dbGetQuery(
     DECLARE @DateOfInterest AS DATETIME2;
     
     SET @TODAY = GETDATE();
-    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
-    --SET @DateOfInterest = '2020-04-01';
+    --SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @DateOfInterest = '2020-06-01';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
     SET @EndDate = @TODAY;
     --SET @EndDate = '2020-05-21';
@@ -131,7 +131,8 @@ df <- dbGetQuery(
     DECLARE @DateOfInterest AS DATETIME2;
     
     SET @TODAY = GETDATE();
-    SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    --SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
+    SET @DateOfINterest = '2020-06-01';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
     SET @EndDate = @TODAY;
     
