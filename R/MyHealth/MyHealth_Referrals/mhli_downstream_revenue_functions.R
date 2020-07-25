@@ -209,11 +209,7 @@ function(){
       	AND PAV.tot_chg_amt > 0
       	AND LEFT(PAV.PtNo_Num, 1) != '2'
       	AND LEFT(PAV.PtNo_Num, 4) != '1999'
-      	AND (
-      		PAV.pt_type = 'U'
-      		OR
-      		PAV.hosp_svc = 'OPD'
-      	)
+      	AND PAV.pt_type = 'U'
       	ORDER BY PAV.Adm_Date
       ) AS PAV
       LEFT OUTER JOIN smsdss.pt_type_dim AS PTYPE
@@ -294,7 +290,6 @@ function(.data) {
       , "pmt_to_chg_ratio"
     ) %>%
     mutate(case_type = str_to_title(case_type)) %>%
-    as_tibble() %>%
     gt(
       rowname_col = "pyr_group"
       , groupname_col = "case_type"
@@ -320,18 +315,6 @@ function(.data) {
     fmt_percent(
       columns = vars(pmt_to_chg_ratio)
     ) %>%
-    summary_rows(
-      groups = c("Non-Surgical","Surgical")
-      , columns = vars(
-        visit_count
-        , tot_chgs
-        , implant_chgs
-        , chgs_net_implants
-        , pmts
-        , amt_due
-        )
-      , fns = list(Totals = "sum")
-    ) %>% 
     cols_label(
      visit_count = "Visits"
       , tot_chgs = "Total Charges"
@@ -344,6 +327,52 @@ function(.data) {
   
   # Return Table
   return(mhli_pvt_tbl)
+}
+mhli_rad_pvt_tbl <-
+function(.data) {
+
+  mhli_rad_pvt_tbl <- pivot_table(
+    .data = .data
+    , .rows = c(referral_grouping, ~(pyr_group2))
+    , .values = c(
+      ~ COUNT(pt_no_num)
+      , ~ SUM(tot_chg_amt)
+      , ~ SUM(tot_pmts)
+      , ~ SUM(tot_amt_due)
+      , ~ (SUM(tot_pmts) / SUM(tot_chg_amt)) * -1
+    )
+    , fill_na = 0
+  ) %>%
+    set_names(
+      "referral_group"
+      , "pyr_group"
+      , "visit_count"
+      , "tot_chgs"
+      , "pmts"
+      , "amt_due"
+      , "pmt_to_chg_ratio"
+    ) %>%
+    mutate(referral_group = str_replace(referral_group, "_", " ")) %>%
+    gt(
+      rowname_col = "pyr_group"
+      , groupname_col = "referral_group"
+    ) %>%
+    tab_header(
+      title = "MyHealth Long Island Radiology"
+    ) %>%
+    fmt_currency(
+      columns = vars(
+        tot_chgs
+        , pmts
+        , amt_due
+      )
+    ) %>%
+    fmt_percent(
+      columns = vars(pmt_to_chg_ratio)
+    ) 
+    
+  # Return Table
+  return(mhli_rad_pvt_tbl)
 }
 mhli_ds_summary_tbl <-
 function(.data) {
@@ -403,4 +432,305 @@ function(.data) {
   
   # Return Table
   return(data_tbl)
+}
+mhli_rad_summary_tbl <-
+function(.data) {
+  
+  data_tbl <- .data %>%
+    select(referral_grouping, contains(c("amt","chgs","pmt"))) %>%
+    group_by(referral_grouping) %>%
+    summarise(
+      visits = n()
+      , tot_chgs = sum(tot_chg_amt, na.rm = TRUE)
+      , tot_pmts = sum(tot_pmts)
+      , tot_due = sum(tot_amt_due)
+      , tot_cost = tot_chgs * 0.18
+      , net_rev = ((-1 * tot_pmts) - tot_cost) + (0.5 * tot_due)
+    ) %>%
+    ungroup() %>%
+    adorn_totals() %>%
+    mutate_if(is.double, scales::dollar) %>%
+    mutate(
+      referral_grouping = referral_grouping %>% 
+        str_replace("_"," ")
+    ) %>%
+    gt() %>%
+    cols_label(
+      referral_grouping = "Referral To"
+      , visits = "Visits"
+      , tot_chgs = "Total Charges"
+      , tot_pmts = "Total Payments"
+      , tot_due = "Total Due"
+      , tot_cost = "Total Cost"
+      , net_rev = "Current Net Revenue"
+    ) %>%
+    tab_header(
+      title = "MyHealth Long Island Radiology Down Stream Revenue Summary"
+    )
+  
+  # Return Data
+  return(data_tbl)
+  
+}
+mhli_rad_facility_provider_count_tbl <-
+function(.data){
+  
+  data_tbl <- .data %>%
+    count(from_facility_name, referral_from_provider_name) %>%
+    arrange(
+      from_facility_name
+      , desc(n)
+    ) %>%
+    gt(
+      rowname_col = "referral_from_provider_name"
+      , groupname_col = "from_facility_name"
+    ) %>%
+    cols_label(
+      from_facility_name = "Practice"
+      , referral_from_provider_name = "Referral Provider"
+      , n = "Referral Count"
+    ) %>%
+    tab_header(
+      title = "MyHealth Long Island Radiology Referral Counts"
+    )
+  
+  return(data_tbl)
+  
+}
+mhli_rad_ref_lag <-
+function(.data) {
+  
+  data_tbl <- .data %>% 
+    select(
+      referral_grouping
+      , referral_date
+      , adm_date
+    ) %>% 
+    mutate(adm_date = ymd(adm_date)) %>% 
+    mutate(referral_date = as.Date(referral_date, format = c("%Y-%m-%d"))) %>% 
+    mutate(month_end = EOMONTH(referral_date)) %>% 
+    mutate(time_lag = difftime(adm_date, referral_date, units = "days")) %>% 
+    group_by(
+      referral_grouping
+      , month_end
+    ) %>% 
+    summarise(avg_lag = round(mean(time_lag, na.rm = TRUE), 0)) %>% 
+    ungroup() %>%
+    select(month_end, referral_grouping, avg_lag) %>%
+    mutate(
+      referral_grouping = referral_grouping %>%
+        str_replace(pattern = "_", replacement = " ")
+    ) %>%
+    gt() %>%
+    cols_label(
+      month_end = "Month End"
+      , referral_grouping = "Referral To"
+      , avg_lag = "Average Lag in Days"
+    ) %>%
+    tab_header(
+      title = "MyHealth Long Island Radiology Referral to Test Lag in Days"
+    )
+  
+  return(data_tbl)
+  
+}
+mhli_pt_registry_data <-
+function(.user_input){
+  
+  # Function
+  if(run_pt_reg_files){
+    
+    # File Path ----
+    file_in_path <- paste0(
+      "G:\\R Studio Projects\\MyHealth_Referrals\\00_Data_In\\"
+    )
+    
+    # Get file date ----
+    t <- Sys.Date() 
+    t <- t %>% tidyquant::FLOOR_MONTH(t) %>% t %m-% months(1)
+    t_year <- year(t)
+    t_month <- month(t, label = TRUE, abbr = FALSE)
+    
+    # Get Data ----
+    pt_registry_tbl <- read_excel(
+      paste0(
+        file_in_path
+        ,"mhli_pt_registry.xlsx"
+      )
+    ) %>%
+      clean_names() %>%
+      mutate_if(is.character, str_squish) %>%
+      mutate(patient_name = str_to_upper(patient_name)) %>%
+      mutate(dob = as.Date.character(x = dob, format = "%Y-%m-%d")) %>%
+      mutate(sex = as_factor(sex)) %>%
+      mutate(age = str_replace(
+        string = age
+        , pattern = " Y"
+        , replacement = ""
+      ) %>%
+        as.integer()
+      ) %>%
+      select(-tel_no) %>%
+      filter(!str_detect(patient_name, "TEST")) %>%
+      distinct(.keep_all = TRUE) %>%
+      mutate(full_name = str_replace(
+        patient_name
+        , ","
+        , " ,"
+      ))
+    
+    # Write Historical File ----
+    write_excel_csv(
+      x = pt_registry_tbl
+      , path = paste0(
+        "G:/MyHealth/MyHealth_File_History/mhli_pt_registry_"
+        , t_year
+        , "_"
+        , t_month
+        , ".csv"
+      )
+    )
+    
+    # Import to DSS ----
+    # DB Connection ----
+    db_con <- dbConnect(
+      odbc(),
+      Driver = "SQL Server",
+      Server = "BMH-HIDB",
+      Database = "SMSPHDSSS0X0",
+      Trusted_Connection = T
+    )
+    
+    # DB Write ----
+    dbWriteTable(
+      conn = db_con
+      , Id(
+        schema = "smsdss"
+        , table = "c_mhli_pt_registry_tbl"
+      )
+      , pt_registry_tbl
+      , overwrite = TRUE
+    )
+    
+    # DB Disconnect ----
+    dbDisconnect(conn = db_con)
+  }
+  
+  message("Patient Registry Function Not Run")
+}
+mhli_pt_rad_data <-
+function(.user_input){
+  
+  # Function
+  if(run_pt_rad_files){
+    
+    # File Path ----
+    file_in_path <- paste0(
+      "G:\\R Studio Projects\\MyHealth_Referrals\\00_Data_In\\"
+    )
+    
+    # Get file date ----
+    t <- Sys.Date() 
+    t <- t %>% tidyquant::FLOOR_MONTH(t) %>% t %m-% months(1)
+    t_year <- year(t)
+    t_month <- month(t, label = TRUE, abbr = FALSE)
+    
+    # Get Data ----
+    referrals_tbl   <- read_excel(paste0(file_in_path,"mhli_referrals.xlsx")) %>%
+      clean_names() %>%
+      select(
+        from_facility_name
+        , starts_with("referral")
+        , speciality_name
+        , starts_with("patient")
+      ) %>%
+      mutate_if(is.character, str_squish) %>%
+      mutate(full_name = str_replace(
+        patient_name
+        , ", "
+        , " ,"
+      )) %>%
+      distinct(.keep_all = TRUE)
+    
+    # Write Historical File ----
+    write_excel_csv2(
+      x = referrals_tbl
+      , path = paste0(
+        "G:/MyHealth/MyHealth_File_History/mhli_referral_log_"
+        , t_year
+        , "_"
+        , t_month
+        , ".csv"
+      )
+    )
+    
+    # Data Manip ----
+    df_rad_tbl <- referrals_tbl %>%
+      select(-patient_race, -patient_ethnicity, -patient_account_number) %>%
+      filter(
+        referral_to_provider_name %in% c(
+          "WOMEN'S IMAGIN CENTER, ."
+          , "WOMENS IMAGING SERVICES, BMH"
+          , "LICH OUTPATIENT RADIOLOGY, ."
+          , "LICH RADIOLOGY"
+        )
+      ) %>%
+      mutate(
+        referral_grouping = case_when(
+          referral_to_provider_name %in% c(
+            "WOMEN'S IMAGIN CENTER, ."
+            , "WOMENS IMAGING SERVICES, BMH"
+          ) ~ "BWIS",
+          TRUE ~ "OP_Radiology"
+        )
+      ) %>%
+      mutate(
+        patient_name = str_replace(
+          string = patient_name
+          , pattern = ", "
+          , replacement = " ,"
+        )
+      ) %>%
+      mutate(patient_gender = str_to_lower(patient_gender)) %>%
+      mutate(pt_sex = case_when(
+        patient_gender == "female" ~ "F",
+        TRUE ~ "M"
+      ))
+    
+    # Import to DSS ----
+    # DB Connection ----
+    db_con <- dbConnect(
+      odbc(),
+      Driver = "SQL Server",
+      Server = "BMH-HIDB",
+      Database = "SMSPHDSSS0X0",
+      Trusted_Connection = T
+    )
+    
+    # DB Write ----
+    dbWriteTable(
+      conn = db_con
+      , Id(
+        schema = "smsdss"
+        , table = "c_mhli_referrals_tbl"
+      )
+      , referrals_tbl
+      , overwrite = TRUE
+    )
+    
+    dbWriteTable(
+      conn = db_con
+      , Id(
+        schema = "smsdss"
+        , table = "c_mhli_rad_referrals_tbl"
+      )
+      , df_rad_tbl
+      , overwrite = TRUE
+    )
+    
+    # DB Disconnect ----
+    dbDisconnect(conn = db_con)
+  }
+  
+  message("Patient Radiology Function Not Run")
 }
