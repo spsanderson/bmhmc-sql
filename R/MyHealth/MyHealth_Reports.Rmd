@@ -13,6 +13,17 @@ output:
   pdf_document:
     toc: yes
     toc_depth: '2'
+params:
+  run_pt_reg_files:
+    label: "Run Patient Registry Preprocessing Function:"
+    value: "FALSE"
+    input: select
+    choices: [TRUE,FALSE]
+  run_pt_rad_files:
+    label: "Run Patient Radiology Preprocessing Function"
+    value: "FALSE"
+    input: select
+    choices: [TRUE,FALSE]
 ---
 
 ```{r setup, include=FALSE}
@@ -47,13 +58,20 @@ source_files <- list.files(my_path, "*.R")
 load_files <- subset(
   source_files
   , subset = (
-    !str_detect(source_files, "mhli_downstream_revenue.R")
+    !str_detect(source_files,"mhli_downstream_revenue.R") &
+      !str_detect(source_files, "mhli_data_processing.R")
   )
 )
 map(paste0(my_path, load_files), source)
 
 mhli_ds_tbl <- mhli_ds_query()
-# mhli_ds_pvt_tbl <- mhli_pivot_tbl(.data = mhli_ds_tbl)
+mhli_rad_tbl <- mhli_rad_ref_query()
+
+run_pt_reg_files = params$run_pt_reg_files
+run_pt_rad_files = params$run_pt_rad_files
+mhli_pt_registry_data(.user_input = run_pt_reg_files)
+mhli_pt_rad_data(.user_input = run_pt_rad_files)
+
 ```
 
 # Report Informaiton
@@ -66,9 +84,9 @@ It is important to note that the MyHealth patient registry and referral files th
 2. DOB and 
 3. Biological Sex
 
-We also filter out accounts that have $0.00 charges and those that start with a 2 or 1999 in order to only obtain true accounts.
+We also filter out accounts that have $0.00 charges and those that start with a 2 or 1999 in order to only obtain true accounts. For radiology referrals we only take the first Rad appointment on or after the referral date provided. We define this as a patient type of U which is Outpatient Imaging Center.
 
-The latest patient registry file received contains a total of `r scales::number(nrow(pt_registry_tbl), big.mark = ",")` distinct records. The rad referrals file contains a total of `r scales::number(nrow(df_rad_tbl), big.mark = ",")`.
+There a total of `r scales::number(nrow(mhli_ds_tbl), big.mark = ",")` distinct records. The rad referrals file contains a total of `r scales::number(nrow(mhli_rad_tbl), big.mark = ",")`.
 
 # Down Stream Revenue Data {.tabset .tabset-fade .tabset-pills}
 
@@ -81,3 +99,39 @@ mhli_pivot_tbl(.data = mhli_ds_tbl)
 ```{r mhli_ds_summary_tbl}
 mhli_ds_summary_tbl(.data = mhli_ds_tbl)
 ```
+
+# Radiology Referral Data {.tabset .tabset-fade .tabset-pills}
+
+## Down Stream by FC {.tabset .tabset-fade}
+```{r mhli_rad_pvt_tbl}
+mhli_rad_pvt_tbl(.data = mhli_rad_tbl)
+```
+
+## Down Stream Summary {.tabset .tabset-fade}
+```{r mhli_rad_summary_tbl}
+mhli_rad_summary_tbl(.data = mhli_rad_tbl)
+```
+
+## Counts by Facility and Provider {.tabset .tabset-fade}
+```{r mhli_rad_facility_provider_count_tbl}
+mhli_rad_facility_provider_count_tbl(.data = mhli_rad_tbl)
+```
+
+## Avg Lag from Referral Date {.tabset .tabset-fade}
+```{r mhli_rad_ref_lag}
+mhli_rad_ref_lag(.data = mhli_rad_tbl)
+```
+
+# Data Files
+
+#### Down Stream Data
+```{r ds_data_files}
+write_csv(x = mhli_ds_tbl, "mhli_downstream_data.csv")
+xfun::embed_file("mhli_downstream_data.csv")
+````
+
+#### Radiology Data
+```{r rad_data_files}
+write_csv(x = mhli_rad_tbl, "mhli_rad_data.csv")
+xfun::embed_file("mhli_rad_data.csv")
+````
