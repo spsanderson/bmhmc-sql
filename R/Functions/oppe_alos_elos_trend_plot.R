@@ -9,11 +9,8 @@ oppe_alos_elos_trend_plot <- function(data){
         alos_trend_tbl <- alos_tbl %>%
             filter(outlier_flag == 0) %>%
             mutate(dsch_date = ymd(dsch_date)) %>%
+            mutate(enc_flag = 1) %>%
             collapse_by("monthly") %>%
-            group_by(
-                dsch_date
-                , add = T
-            ) %>%
             select(
                 dsch_date
                 , los
@@ -22,9 +19,14 @@ oppe_alos_elos_trend_plot <- function(data){
                 , drg_cost_weight
                 , case_var
                 , z_minus_score
+                , enc_flag
             ) %>%
-            summarize(
-                Total_Discharges = n()
+            group_by(
+                dsch_date
+                , add = T
+            ) %>% 
+            summarise(
+                Total_Discharges = sum(enc_flag, na.rm = TRUE)
                 , alos = round(mean(los, na.rm = TRUE), 2)
                 , perf = round(mean(performance, na.rm = TRUE), 2)
                 , avg_var = (alos - perf)

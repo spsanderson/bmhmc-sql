@@ -9,7 +9,6 @@ oppe_readmit_cmi_soi_plt <- function(data){
         readmit_trend_tbl <- readmit_tbl %>%
             mutate(dsch_date = ymd(dsch_date)) %>%
             collapse_by("monthly") %>%
-            group_by(dsch_date, add = T) %>%
             select(
                 dsch_date
                 , pt_count
@@ -19,6 +18,7 @@ oppe_readmit_cmi_soi_plt <- function(data){
                 , drg_cost_weight
                 , z_minus_score
             ) %>%
+            group_by(dsch_date, add = T) %>%
             summarize(
                 Total_Discharges = sum(pt_count, na.rm = TRUE)
                 , rr = round((sum(readmit_count, na.rm = TRUE) / Total_Discharges), 2)

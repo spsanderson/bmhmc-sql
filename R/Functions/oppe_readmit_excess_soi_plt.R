@@ -10,11 +10,6 @@ oppe_readmit_excess_soi_plt <- function(data){
         readmit_soi_tbl <- readmit_tbl %>%
             mutate(dsch_date = ymd(dsch_date)) %>%
             collapse_by("monthly") %>%
-            group_by(
-                severity_of_illness
-                , dsch_date
-                , add = T
-            ) %>%
             select(
                 dsch_date
                 , pt_count
@@ -22,6 +17,11 @@ oppe_readmit_excess_soi_plt <- function(data){
                 , readmit_rate_bench
                 , severity_of_illness
                 , drg_cost_weight
+            ) %>%
+            group_by(
+                severity_of_illness
+                , dsch_date
+                , add = T
             ) %>%
             summarize(
                 Total_Discharges = sum(pt_count)

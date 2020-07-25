@@ -10,10 +10,6 @@ oppe_alos_soi_cmi_plt <- function(data){
             filter(outlier_flag == 0) %>%
             mutate(dsch_date = ymd(dsch_date)) %>%
             collapse_by("monthly") %>%
-            group_by(
-                dsch_date
-                , add = T
-            ) %>%
             select(
                 dsch_date
                 , los
@@ -22,6 +18,10 @@ oppe_alos_soi_cmi_plt <- function(data){
                 , drg_cost_weight
                 , case_var
                 , z_minus_score
+            ) %>%
+            group_by(
+                dsch_date
+                , add = T
             ) %>%
             summarize(
                 Total_Discharges = n()

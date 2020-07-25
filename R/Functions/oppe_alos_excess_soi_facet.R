@@ -11,17 +11,17 @@ oppe_alos_excess_soi_facet <- function(data){
             filter(outlier_flag == 0) %>%
             mutate(dsch_date = ymd(dsch_date)) %>%
             collapse_by("monthly") %>%
-            group_by(
-                severity_of_illness
-                , dsch_date
-                , add = T
-            ) %>%
             select(
                 dsch_date
                 , los
                 , performance
                 , severity_of_illness
                 , drg_cost_weight
+            ) %>%
+            group_by(
+                severity_of_illness
+                , dsch_date
+                , add = T
             ) %>%
             summarize(
                 Total_Discharges = n()

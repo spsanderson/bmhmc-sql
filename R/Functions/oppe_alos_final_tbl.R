@@ -45,9 +45,10 @@ oppe_alos_final_tbl <- function() {
         ) %>%
         left_join(
             alos_vst_rpt_tbl
-            , by = c("encounter" = "pt_id")
+            , by = c("encounter.x" = "pt_id")
             , keep = T
         ) %>%
+        rename(encounter = encounter.x) %>%
         # select statement
         select(
             med_rec_no
