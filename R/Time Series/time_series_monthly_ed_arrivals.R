@@ -52,8 +52,7 @@ query <- dbGetQuery(
 ) %>%
   as_tibble() %>%
   clean_names() %>%
-  mutate(arrival_date = as.Date.character(arrival_date, format = c("%Y-%m-%d"))) %>%
-  mutate(date_col = floor_date(arrival_date, unit = "day")) %>%
+  mutate(date_col = EOMONTH(arrival_date)) %>%
   select(-arrival_date) %>%
   group_by(date_col) %>%
   summarise(value = sum(visit_count, na.rm = TRUE)) %>%
@@ -70,13 +69,12 @@ start_date <- min(query$date_col)
 end_date   <- max(query$date_col)
 
 plot_time_series(
-  .data = query %>%
-    filter(date_col >= end_date - 365)
+  .data = query
   , .date_var = date_col
   , .value = value
   , .title = paste0(
-    "Daily ED Arrivals from: "
-    , end_date - 365
+    "ED Arrivals from: "
+    , start_date
     , " to "
     , end_date
   )
@@ -111,7 +109,7 @@ df_anomalized_tbl <- query %>%
   anomalize(remainder, method = "gesd") %>%
   clean_anomalies() %>%
   time_recompose() %>%
-  select(date_col, observed, observed_cleaned)
+  select(date_col, observed_cleaned)
 
 # Data Split --------------------------------------------------------------
 
@@ -208,8 +206,7 @@ calibration_tbl %>%
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  mutate(tot_err = mae + mape + mase +smape + rmse + rsq) %>%
-  arrange(tot_err) %>%
+  arrange(mae) %>%
   table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
 
 # Refit to all Data -------------------------------------------------------
@@ -224,10 +221,10 @@ top_two_models <- refit_tbl %>%
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "30 days", actual_data = df_anomalized_tbl) %>%
-  filter_by_time(.date_var = .index, .start_date = end_date - 365) %>%
+  modeltime_forecast(h = "1 year", actual_data = df_anomalized_tbl) %>%
+  filter_by_time(.date_var = .index, .start_date = "2019-01-01") %>%
   plot_modeltime_forecast(
     .legend_max_width = 25
     , .interactive = interactive
-    , .title = "Daily ED Arrivals Forecast 30 Days Out"
+    , .title = "Monthly ED Arrivals Forecast 1 Year Out"
   )

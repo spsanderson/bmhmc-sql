@@ -35,7 +35,7 @@ query <- dbGetQuery(
   , statement = paste0(
     "
     SELECT Arrival AS [Arrival_Date]
-    , COUNT(ACCOUNT) AS [visit_Count]
+    , COUNT(ACCOUNT) AS [visit_count]
     
     FROM [SQL-WS\\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
     
@@ -52,12 +52,17 @@ query <- dbGetQuery(
 ) %>%
   as_tibble() %>%
   clean_names() %>%
-  mutate(arrival_date = as.Date.character(arrival_date, format = c("%Y-%m-%d"))) %>%
-  mutate(date_col = floor_date(arrival_date, unit = "day")) %>%
+  mutate(arrival_date = arrival_date %>% ymd_hms()) %>%
+  mutate(date_col = floor_date(arrival_date, unit = "hour")) %>%
   select(-arrival_date) %>%
   group_by(date_col) %>%
   summarise(value = sum(visit_count, na.rm = TRUE)) %>%
-  ungroup()
+  ungroup() %>%
+  pad_by_time(
+    .date_var = date_col
+    , .by = "hour"
+    , .pad_value = 0
+  )
 
 # DB Disconnect -----------------------------------------------------------
 
@@ -71,12 +76,12 @@ end_date   <- max(query$date_col)
 
 plot_time_series(
   .data = query %>%
-    filter(date_col >= end_date - 365)
+    filter(date_col >= end_date - dhours(7*24))
   , .date_var = date_col
   , .value = value
   , .title = paste0(
     "Daily ED Arrivals from: "
-    , end_date - 365
+    , end_date - dhours(7*24)
     , " to "
     , end_date
   )
@@ -84,27 +89,52 @@ plot_time_series(
 )
 
 plot_seasonal_diagnostics(
-  .data = query
+  .data = query %>%
+    filter(date_col >= end_date - dhours(365*24))
   , .date_var = date_col
   , .value = value
+  , .feature_set = c("hour", "wday.lbl","month.lbl","year")
+  , .title = "Seasonal Diagnostics Last 365 Days"
+  , .geom_outlier_color = "#FF0000"
+  , .interactive = interactive
 )
 
 plot_stl_diagnostics(
-  .data = query
+  .data = query %>%
+    filter(date_col >= end_date - dhours(30*24))
   , .date_var = date_col
   , .value = value
+  , .title = "STL Diagnositcs Last 30 Days"
 )
 
-plot_anomaly_diagnostics(
+# plot_anomaly_diagnostics(
+#     .data = filter_by_time(
+#     .data = query
+#     , .date_var = date_col
+#     , .start_date = CEILING_MONTH(end_date - dhours(30*24))
+#   )
+#   , .date_var = date_col
+#   , .value = value
+#   , .title = "Anomaly Diagnostics Last 30 Days"
+# )
+
+filter_by_time(
   .data = query
   , .date_var = date_col
-  , .value = value
-)
-
+  , .start_date = CEILING_MONTH(end_date - dhours(30*24))
+) %>%
+  time_decompose(value) %>%
+  anomalize(remainder) %>%
+  plot_anomaly_decomposition() +
+  labs(title = "Anomaly Diagnostics")
 
 # Anomalize Data ----------------------------------------------------------
 
-df_anomalized_tbl <- query %>%
+df_anomalized_tbl <- filter_by_time(
+    .data = query
+    , .date_var = date_col
+    , .start_date = CEILING_MONTH(end_date - dhours(60*24))
+  ) %>%
   tibbletime::as_tbl_time(index = date_col) %>%
   arrange(date_col) %>%
   time_decompose(value, method = "twitter") %>%
@@ -134,7 +164,7 @@ model_fit_arima_boosted <- arima_boost(
 ) %>%
   set_engine(engine = "auto_arima_xgboost") %>%
   fit(
-    observed_cleaned ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    observed_cleaned ~ date_col + as.numeric(date_col) + factor(hour(date_col), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -155,7 +185,7 @@ model_fit_prophet <- prophet_reg() %>%
 model_fit_lm <- linear_reg() %>%
   set_engine("lm") %>%
   fit(
-    observed_cleaned ~ as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    observed_cleaned ~ as.numeric(date_col) + factor(hour(date_col), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -191,7 +221,8 @@ models_tbl
 # Calibrate Model Testing -------------------------------------------------
 
 calibration_tbl <- models_tbl %>%
-  modeltime_calibrate(new_data = testing(splits))
+  modeltime_calibrate(new_data = testing(splits)) %>%
+  filter(!is.na(.type))
 calibration_tbl
 
 # Testing Accuracy --------------------------------------------------------
@@ -208,14 +239,14 @@ calibration_tbl %>%
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  mutate(tot_err = mae + mape + mase +smape + rmse + rsq) %>%
-  arrange(tot_err) %>%
+  arrange(mae) %>%
   table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
 
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
-  modeltime_refit(data = df_anomalized_tbl)
+  modeltime_refit(data = df_anomalized_tbl) %>%
+  filter(!is.na(.type))
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
@@ -224,10 +255,14 @@ top_two_models <- refit_tbl %>%
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "30 days", actual_data = df_anomalized_tbl) %>%
-  filter_by_time(.date_var = .index, .start_date = end_date - 365) %>%
+  modeltime_forecast(h = 48, actual_data = df_anomalized_tbl) %>%
+  filter_by_time(
+    .date_var = .index
+    , .start_date = (end_date - dhours(7*24))
+    #, .end_date = end_date
+  ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25
     , .interactive = interactive
-    , .title = "Daily ED Arrivals Forecast 30 Days Out"
+    , .title = "Hourly ED Arrivals Forecast 48 Hours Out"
   )
