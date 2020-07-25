@@ -4,10 +4,10 @@ pacman::p_load(
     "tidyquant"
 )
 
-n <- 1000
+n <- 10
 los_grp <- rep(x = c(1,2,3,4,5,6,7,8,9,10), times = n/10)
 x <- rnorm(n = n, mean = 0, sd = 1)
-y <- rnorm(n = n, mean = 0, sd = 1)
+y <- rnorm(n = n, mean = 1, sd = 1)
 x <- sort(x)
 y <- sort(y, decreasing = TRUE)
 
@@ -19,7 +19,10 @@ df_summary_tbl <- df %>%
     summarise(
         avg_los_index = round(mean(x, na.rm = TRUE), digits = 4),
         avg_rar_index = round(mean(y, na.rm = TRUE), digits = 4),
-        avg_var       = abs(avg_los_index - avg_rar_index)
+        avg_var        = case_when(
+            (abs(avg_los_index) >= abs(avg_rar_index)) ~ abs(avg_los_index) - abs(avg_rar_index),
+            TRUE ~ abs(avg_rar_index) - abs(avg_los_index)
+        )
     ) %>%
     ungroup()
 
@@ -74,9 +77,16 @@ plt2 <- df_summary_tbl %>%
         , color = "black"
         , size = 3
     ) +
+    geom_label(
+       aes(x = los_grp, label = as.character(min_var))
+       , data = df_summary_tbl %>% filter(avg_var == min_var)
+       , hjust = "inward"
+       , size = 3
+    ) +
     geom_vline(xintercept = min_var_los, linetype = "dashed") +
     labs(
         title = "Los Readmit Index Variance",
+        subtitle = paste0("Min Variance = ", min_var),
         x = "Length Of Stay",
         y = "Variance"
     ) +
