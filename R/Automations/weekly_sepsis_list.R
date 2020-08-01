@@ -114,7 +114,7 @@ query_b <- dbGetQuery(
     , statement = paste0(
         "
         SELECT MED_REC_NO
-		FROM SMSDSS.C_ARCHWAY_SEPSIS_TBL
+		    FROM SMSDSS.C_ARCHWAY_SEPSIS_TBL
         "
     )
 ) %>%
@@ -194,6 +194,11 @@ final_tbl <- query_c %>%
     )
 
 # Write to file ----
+if(nrow(final_tbl) == 0) {
+  rm(list = ls())
+  stop("No records")
+}
+
 t <- Sys.Date()
 f_name <- str_c(
     "Sepsis_List_rundate_"
@@ -202,11 +207,6 @@ f_name <- str_c(
     , str_sub(t, 1, 4)
     , ".xlsx"
 )
-
-if(nrow(final_tbl) == 0) {
-    #rm(list = ls())
-    stop("No precords")
-}
 
 write_xlsx(
     x = final_tbl
