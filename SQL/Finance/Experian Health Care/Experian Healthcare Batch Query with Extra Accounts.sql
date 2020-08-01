@@ -5,6 +5,7 @@ DECLARE @test TABLE (
 
 INSERT INTO @test
 SELECT PT_NO FROM smsdss.C_FRIDAY_EXPERIAN_FILE
+where len(pt_no) <= 12
 
 DECLARE @BatchTable TABLE (
 	PK INT IDENTITY(1, 1)               PRIMARY KEY
@@ -24,18 +25,18 @@ DECLARE @BatchTable TABLE (
 	, [Guarantor Phone]                 VARCHAR(MAX)
 	, [Patient Middle Name]             VARCHAR(MAX)
 	, [Patient DOB]                     DATE
-	, [Patient Gender]                  CHAR(1)
+	, [Patient Gender]                  VARCHAR(MAX)
 	, [Patient SSN]                     VARCHAR(MAX)
 	, [Uninsured Insured]               VARCHAR(MAX)
-	, [Patient Type]                    CHAR(1)
-	, [Financial Class]                 CHAR(1)
+	, [Patient Type]                    VARCHAR(MAX)
+	, [Financial Class]                 VARCHAR(MAX)
 	, [Client Balance]                  VARCHAR(MAX)
 	, [Marital Status]                  VARCHAR(MAX)
 	, [Diagnosis]                       VARCHAR(MAX)
-	, [Employer]                        VARCHAR(500)
+	, [Employer]                        VARCHAR(MAX)
 	, [Length of Stay]                  INT
 	, [Date of Last Patient Payment]    DATE
-	, [Amount of last Patient Payment]  VARCHAR(10)
+	, [Amount of last Patient Payment]  VARCHAR(MAX)
 	, [Days since last Patient Payment] INT
 	, [RN]                              INT
 	, [RN2]                             INT
