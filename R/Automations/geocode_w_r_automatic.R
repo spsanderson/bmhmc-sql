@@ -271,7 +271,7 @@ dbDisconnect(conn = con)
 
 # Save missing ----
 origAddress %>%
-  filter(is.na(lat)) %>%
+  filter(is.na(lat) | lat == "") %>%
   select(Encounter, FullAddress, ZipCode, PartialAddress) %>%
   write_xlsx(
     path = "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\daily_geocode_file.xlsx"
