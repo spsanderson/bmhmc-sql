@@ -28,6 +28,8 @@ query <- dbGetQuery(
         DECLARE @END   DATE;
         
         SET @TODAY = GETDATE();
+        --set @start = '2020-07-03';
+        --set @end = '2020-07-13';
         SET @START = DATEADD(WEEK, DATEDIFF(WEEK, 0, @TODAY) - 1, -1);
         SET @END   = DATEADD(WEEK, DATEDIFF(WEEK, 0, @TODAY), -1);
         
