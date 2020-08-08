@@ -49,10 +49,6 @@ query <- dbGetQuery(
         "
     )
 )
-# 14831689  (1/6)
-# 14830434 (1/26)
-# 14832877 (1/4)
-
 
 # DB Disconnect ----
 dbDisconnect(db_con)
