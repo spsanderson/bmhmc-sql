@@ -51,7 +51,7 @@ LEFT OUTER JOIN SMSDSS.c_patient_demos_v AS PT 
 ON PAV.PT_NO = PT.pt_id
 AND PAV.from_file_ind = PT.from_file_ind
 --WHERE PAV.User_Pyr1_Cat = 'MIS'
-where pav.Pyr1_Co_Plan_Cd in ('*')--,'E37')
+WHERE pav.Pyr1_Co_Plan_Cd in ('*')--,'E37')
 AND (
     (
         PAV.Plm_Pt_Acct_Type = 'I'
@@ -75,36 +75,32 @@ AND (
 					'U07.1',
     				'B97.29', -- PRIOR TO APRIL 1, 2020
     				'O98.5'  -- for pregnancy
-    				--'Z03.818','Z20.828','Z11.59' -- only for outpatient
 				)
 			)
 		)
-	OR PAV.PT_NO IN (
+	OR (
+		PAV.Plm_Pt_Acct_Type != 'I'
+		AND PAV.PT_NO IN (
 			SELECT DISTINCT XXX.PT_ID
 			FROM SMSMIR.DX_GRP AS XXX
-			WHERE SUBSTRING(XXX.PT_ID, 5, 1) != '1'
-			AND LEFT(XXX.dx_cd_type, 2) = 'DF'
+			WHERE LEFT(XXX.dx_cd_type, 2) = 'DF'
 			AND XXX.DX_CD IN (
-				--'U07.1',
-    --			'B97.29', -- PRIOR TO APRIL 1, 2020
-    --			'O98.5',   -- for pregnancy
     			'Z03.818','Z20.828','Z11.59' -- only for outpatient
 			)
 		)
-	OR PAV.PT_NO IN (
-		select DISTINCT pt_id
-		from smsmir.actv
-		where actv_cd in (
-			'00425421','00414037','00414078'
-		)
-		AND PT_ID NOT IN (
-			SELECT DISTINCT ZZZ.PT_ID
-			FROM smsmir.actv AS ZZZ
-			WHERE ZZZ.ACTV_CD NOT IN (
-				'00425421','00414037','00414078'
+		AND (
+				PAV.PT_NO IN (
+				select DISTINCT pt_id
+				from smsmir.actv
+				where actv_cd in (
+					'00425421','00414037','00414078'
+				)
+				AND LEFT(PT_ID, 5) != '00001'
+				GROUP BY PT_ID
+				HAVING SUM(ACTV_TOT_QTY) > 1
 			)
 		)
-		GROUP BY pt_id
-		HAVING SUM(ACTV_TOT_QTY) > 1
 	)
 )
+
+ORDER BY PAV.PtNo_Num
