@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 8/4/2020 1:27:03 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -51,6 +51,11 @@ Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
 2020-07-15	v2			Add RunDateTime
+2020-08-04	v3			Add Isolation Indicator
+						Add Isolation Indicator Abbr
+						Add Dx_Order_Abbr
+						Add Dc_Summary_Abbr
+						Add Clinical_Note_Abbr
 ***********************************************************************
 */
 
@@ -191,7 +196,12 @@ BEGIN
 	PDOC.Clinical_Note_CV19_Dx_CreatedDTime,
 	PDOC.DC_Summary_CV19_Dx,
 	PDOC.DC_Summary_CV19_Dx_CreatedDTime,
-	UPPER(ATN_DR.PRACT_RPT_NAME) AS [Attending_Provider]
+	UPPER(ATN_DR.PRACT_RPT_NAME) AS [Attending_Provider],
+	PVD.Isolation_Indicator,
+	PVD.Isolation_Indicator_Abbr,
+	ADT02FINALTBL.Dx_Order_Abbr,
+	PDOC.DC_Summary_Abbr,
+	PDOC.Clinical_Note_Abbr
 INTO #TEMPA
 FROM smsdss.c_covid_patient_visit_data_tbl AS PVD
 LEFT OUTER JOIN smsdss.c_covid_rt_census_tbl AS RT ON PVD.PatientVisitOID = RT.PatientVisitOID
@@ -310,6 +320,11 @@ CREATE TABLE smsdss.c_covid_extract_tbl (
 	[Clinical_Note_CV19_Dx] VARCHAR(8000) NULL,
 	[Clinical_Note_CV19_Dx_CreatedDTime] DATETIME2 NULL,
 	[Attending_Provider] VARCHAR(8000) NULL,
+	[Isolation_Indicator] VARCHAR(500) NULL,
+	[Isolation_Indicator_Abbr] VARCHAR(500) NULL,
+	[Dx_Order_Abbr] VARCHAR(500) NULL,
+	[DC_Summary_Abbr] VARCHAR(500) NULL,
+	[Clinical_Note_Abbr] VARCHAR(500) NULL,
 	[RunDateTime] DATETIME2
 	);
 
@@ -510,6 +525,11 @@ SELECT A.MRN,
 	A.Clinical_Note_CV19_Dx,
 	A.Clinical_Note_CV19_Dx_CreatedDTime,
 	A.Attending_Provider,
+	A.Isolation_Indicator,
+	A.Isolation_Indicator_Abbr,
+	A.Dx_Order_Abbr,
+	A.DC_Summary_Abbr,
+	A.Clinical_Note_Abbr,
 	GETDATE() AS [RunDateTime]
 FROM #TEMPA AS A
 -- occupation

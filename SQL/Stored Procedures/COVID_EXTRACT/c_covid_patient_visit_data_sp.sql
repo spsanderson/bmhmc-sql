@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [dbo].[c_covid_patient_visit_data_sp]    Script Date: 8/4/2020 9:14:00 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -38,46 +38,49 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
+2020-08-04	v2			Add Isolation_Indicator
+						Add Isolation_Indicator_Abbr
 ***********************************************************************
 */
 
-CREATE PROCEDURE [dbo].[c_covid_patient_visit_data_sp]
+ALTER PROCEDURE [dbo].[c_covid_patient_visit_data_sp]
 AS
-
-	SET ANSI_NULLS ON
-	SET ANSI_WARNINGS ON
-	SET QUOTED_IDENTIFIER ON
+SET ANSI_NULLS ON
+SET ANSI_WARNINGS ON
+SET QUOTED_IDENTIFIER ON
 
 BEGIN
-	
 	SET NOCOUNT ON;
+
 	-- Create a new table called 'c_covid_patient_visit_data_tbl' in schema 'smsdss'
 	-- Drop the table if it already exists
 	IF OBJECT_ID('smsdss.c_covid_patient_visit_data_tbl', 'U') IS NOT NULL
-	DROP TABLE smsdss.c_covid_patient_visit_data_tbl;
+		DROP TABLE smsdss.c_covid_patient_visit_data_tbl;
 
 	DECLARE @PatientVisitData TABLE (
-	MRN INT,
-	PatientAccountID INT,
-	Pt_Name VARCHAR(250),
-	Pt_Age INT,
-	Pt_Gender VARCHAR(5),
-	Race_Cd_Desc VARCHAR(100),
-	Adm_Dtime DATETIME2,
-	Pt_Accomodation VARCHAR(50),
-	PatientReasonforSeekingHC VARCHAR(MAX),
-	DC_DTime DATETIME2,
-	DC_Disp VARCHAR(MAX),
-	Mortality_Flag CHAR(1),
-	PatientVisitOID INT,
-	Hosp_Svc VARCHAR(10),
-	PT_Street_Address VARCHAR(100),
-	PT_City VARCHAR(100),
-	PT_State VARCHAR(50),
-	PT_Zip_CD VARCHAR(10),
-	PT_DOB DATETIME2
-	--PT_Occupation VARCHAR(100)
-	);
+		MRN INT,
+		PatientAccountID INT,
+		Pt_Name VARCHAR(250),
+		Pt_Age INT,
+		Pt_Gender VARCHAR(5),
+		Race_Cd_Desc VARCHAR(100),
+		Adm_Dtime DATETIME2,
+		Pt_Accomodation VARCHAR(50),
+		PatientReasonforSeekingHC VARCHAR(MAX),
+		DC_DTime DATETIME2,
+		DC_Disp VARCHAR(MAX),
+		Mortality_Flag CHAR(1),
+		PatientVisitOID INT,
+		Hosp_Svc VARCHAR(10),
+		PT_Street_Address VARCHAR(100),
+		PT_City VARCHAR(100),
+		PT_State VARCHAR(50),
+		PT_Zip_CD VARCHAR(10),
+		PT_DOB DATETIME2,
+		Isolation_Indicator VARCHAR(500),
+		Isolation_Indicator_Abbr VARCHAR(500)
+		--PT_Occupation VARCHAR(100)
+		);
 
 	INSERT INTO @PatientVisitData
 	SELECT B.pt_med_rec_no AS [MRN],
@@ -102,7 +105,13 @@ BEGIN
 		B.pt_city,
 		B.pt_state,
 		B.pt_zip_cd,
-		B.pt_birth_date
+		B.pt_birth_date,
+		ISNULL(A.IsolationIndicator, '') AS [IsolationIndicator],
+		CASE 
+			WHEN PATINDEX('%/%', A.IsolationIndicator) != 0
+				THEN CAST(UPPER(SUBSTRING(A.IsolationIndicator, 1, 1)) AS VARCHAR) + CAST(UPPER(SUBSTRING(A.IsolationIndicator, PATINDEX('%/%', A.IsolationIndicator) + 1, 1)) AS VARCHAR)
+			ELSE CAST(UPPER(SUBSTRING(A.IsolationIndicator, 1, 1)) AS VARCHAR)
+			END AS [Isolation_Indicator_Abbr]
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
 	LEFT OUTER JOIN SMSMIR.HL7_PT AS B ON A.PATIENTACCOUNTID = B.pt_id
 	LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
@@ -116,5 +125,4 @@ BEGIN
 	SELECT *
 	INTO smsdss.c_covid_patient_visit_data_tbl
 	FROM @PatientVisitData;
-
 END;

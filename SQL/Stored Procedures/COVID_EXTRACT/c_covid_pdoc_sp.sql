@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [dbo].[c_covid_pdoc_sp]    Script Date: 8/4/2020 1:20:22 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -35,10 +35,12 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
+2020-08-04	v2			Add Clinical_Note_Abbr
+						Add Dc_Summary_Abbr
 ***********************************************************************
 */
 
-CREATE PROCEDURE [dbo].[c_covid_pdoc_sp]
+ALTER PROCEDURE [dbo].[c_covid_pdoc_sp]
 AS
 
 	SET ANSI_NULLS ON
@@ -100,9 +102,25 @@ BEGIN
 	, A.PatientVisit_OID
 	--, C1.LeafconceptID
 	, C1.TextValue AS [DC_Summary_CV19_Dx]
+	, CASE
+		WHEN C1.TextValue = 'NON-COVID-19 / COVID-19 RULED-OUT'
+			THEN 'NCRO'
+		WHEN C1.TextValue = 'COVID-19 CLINICALLY CONFIRMED / LAB POSITIVE'
+			THEN 'CCCLP'
+		END AS [Dc_Summary_Abbr]
 	, C1.CreateDTime AS [DC_Summary_CV19_Dx_CreatedDTime]
 	--, C2.LeafConceptID
 	, C2.TextValue AS [Clinical_Note_CV19_Dx]
+	, CASE
+		WHEN C2.TextValue = 'COVID 19 SUSPECTED'
+			THEN 'CS'
+		WHEN C2.TextValue = 'COVID 19 CLINICALLY DIAGNOSED'
+			THEN 'CCD'
+		WHEN C2.TextValue = 'NON-COVID 19 / ASYMPTOMATIC'
+			THEN 'NCA'
+		WHEN C2.TextValue = 'COVID 19 POSITIVE LAB TEST'
+			THEN 'CPL'
+		END AS [Clinical_Note_Abbr]
 	, C2.CreateDTime AS [Clinical_Note_CV19_Dx_CreatedDTime]
 	INTO #PDOC
 	FROM #PDOC_DistinctPV AS A

@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [dbo].[c_covid_adt02order_sp]    Script Date: 7/13/2020 1:11:36 PM ******/
+/****** Object:  StoredProcedure [dbo].[c_covid_adt02order_sp]    Script Date: 8/4/2020 1:14:29 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -35,6 +35,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
+2020-08-04	v2			Add Dx_Order_Abbr column
 ***********************************************************************
 */
 
@@ -63,7 +64,8 @@ BEGIN
 		OrderAbbreviation VARCHAR(50),
 		CreationTime DATETIME2,
 		ObjectID INT, -- links to HOrderOccurrence.Order_OID
-		Dx_Order VARCHAR(1000)
+		Dx_Order VARCHAR(1000),
+		Dx_Order_Abbr VARCHAR(50)
 		);
 
 	INSERT INTO @ADT02Orders
@@ -72,7 +74,17 @@ BEGIN
 		A.OrderAbbreviation,
 		A.CreationTime,
 		A.ObjectID,
-		B.UserDefinedString55 AS [dx_order]
+		B.UserDefinedString55 AS [dx_order],
+		CASE 
+			WHEN B.UserDefinedString55 = 'COVID 19 SUSPECTED'
+				THEN 'CS'
+			WHEN B.UserDefinedString55 = 'COVID 19 CLINICALLY DIAGNOSED'
+				THEN 'CCD'
+			WHEN B.UserDefinedString55 = 'NON-COVID 19 / ASYMPTOMATIC'
+				THEN 'NCA'
+			WHEN B.UserDefinedString55 = 'COVID 19 POSITIVE LAB TEST'
+				THEN 'CPL'
+			END AS [dx_order_abbr]
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS A
 	INNER JOIN [SC_SERVER].[SOARIAN_CLIN_PRD_1].DBO.HExtendedOrder AS B ON A.ExtendedOrder_OID = B.Objectid
 	WHERE A.OrderAbbreviation = 'ADT02'
@@ -121,6 +133,7 @@ BEGIN
 		OrderAbbreviation VARCHAR(100),
 		Order_DTime DATETIME2,
 		Dx_Order VARCHAR(1000),
+		Dx_Order_Abbr VARCHAR(50),
 		OrderOccurrenceStatus VARCHAR(100),
 		StatusEnteredDateTime DATETIME2
 		)
@@ -131,6 +144,7 @@ BEGIN
 		A.OrderAbbreviation,
 		A.CreationTime,
 		A.Dx_Order,
+		A.Dx_Order_Abbr,
 		B.OrderOccurrenceStatus,
 		B.StatusEnteredDatetime
 	FROM @ADT02Orders AS A
