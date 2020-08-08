@@ -306,7 +306,8 @@ insbal_age_pvt_tbl <- function(
             , values_from = ins_bal_amt
             , names_sort = TRUE
             , values_fill = 0
-        )
+        ) %>%
+        as_tibble()
     
     return(data_pvt)
 }
@@ -319,7 +320,7 @@ insbal_age_pct_tbl <- function(
 
     row_expr   <- rlang::enquo(.rows_col)
     
-    data_tbl %>%
+    data_pvt <- data_tbl %>%
         group_by((!! row_expr), age_group) %>%
         summarise(ins_bal_amt = sum(ins_bal_amt, na.rm = TRUE)) %>%
         ungroup() %>%
@@ -331,7 +332,10 @@ insbal_age_pct_tbl <- function(
             , values_from = ins_bal_pct
             , names_sort = TRUE
             , values_fill = 0
-        )
+        ) %>%
+        as_tibble()
+    
+    return(data_pvt)
 }
 
 ins_trend_tbl <- function(
@@ -358,12 +362,16 @@ ins_trend_tbl <- function(
     }
     
     if(length(group_vars_expr) == 0) {
-        stop(call. = FALSE, "(group_vars_expr) is missing. Please supply at least one grouping variable.")
+        message("A grouping variable was not selected so picking the first column in the data.frame")
+        group_vars_expr <- rlang::list2(rlang::sym(colnames(.data)[[1]]))
+        
+        data_grouped <- tibble::as_tibble(.data) %>%
+            dplyr::group_by(!!! group_vars_expr) %>%
+            dplyr::summarise(.value_mod = sum(!! value_var_expr)) %>%
+            dplyr::ungroup() 
+        
+        return(data_grouped)
     }
-    
-    # if(length(group_vars_expr) <= 2 & length(group_vars_expr) > 0)
-    #     group_vars_expr <- rlang::quos(rlang::sym(colnames(.data)[[7]]))
-    
         
     # Data setup
     data_grouped <- tibble::as_tibble(.data) %>%
@@ -383,6 +391,7 @@ function_names <- c(
     , "insbal_age_pct_tbl"
     , "fin_class_query"
     , "ins_bal_age_query"
+    , "ins_bal_trend_query"
     , "ins_trend_tbl"
 )
 
