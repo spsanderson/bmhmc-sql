@@ -2,13 +2,28 @@
 
 # Lib Load ####
 # load libraries
-library(ggmap)
-library(leaflet)
-library(readxl)
-library(rgdal)
-library(htmltools)
-library(dplyr)
-library(readr)
+if(!require(pacman)) {
+  install.packages("pacman")
+  pacman::p_load(
+    "ggmap"
+    , "leaflet"
+    , "readxl"
+    , "htmltools"
+    , "dplyr"
+    , "readr"
+    , "rgdal"
+  )
+} else {
+  pacman::p_load(
+    "ggmap"
+    , "leaflet"
+    , "readxl"
+    , "htmltools"
+    , "dplyr"
+    , "readr"
+    , "rgdal"
+  )
+}
 
 # RA File ####
 # Select the file from the file chooser

@@ -97,7 +97,7 @@ AND (
 				)
 				AND LEFT(PT_ID, 5) != '00001'
 				GROUP BY PT_ID
-				HAVING SUM(ACTV_TOT_QTY) > 1
+				HAVING SUM(ACTV_TOT_QTY) > 0
 			)
 		)
 	)

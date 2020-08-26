@@ -121,7 +121,7 @@ plot_stl_diagnostics(
 filter_by_time(
   .data = query
   , .date_var = date_col
-  , .start_date = CEILING_MONTH(end_date - dhours(30*24))
+  , .start_date = FLOOR_MONTH(end_date - dhours(30*24))
 ) %>%
   time_decompose(value) %>%
   anomalize(remainder) %>%

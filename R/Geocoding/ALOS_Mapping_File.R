@@ -3,13 +3,28 @@
 
 # Lib Load ####
 # load libraries
-library(ggmap)
-library(leaflet)
-library(readxl)
-library(rgdal)
-library(htmltools)
-library(dplyr)
-library(readr)
+if(!require(pacman)) {
+  install.packages("pacman")
+  pacman::p_load(
+    "ggmap"
+    , "leaflet"
+    , "readxl"
+    , "htmltools"
+    , "dplyr"
+    , "readr"
+    , "rgdal"
+  )
+} else {
+  pacman::p_load(
+    "ggmap"
+    , "leaflet"
+    , "readxl"
+    , "htmltools"
+    , "dplyr"
+    , "readr"
+    , "rgdal"
+  )
+}
 
 # Select the file ----
 fileToLoad <- "S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\ALOS_Readmit_Mapping\\ALOS_Mapping_File.xlsx"

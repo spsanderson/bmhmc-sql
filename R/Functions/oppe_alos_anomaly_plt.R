@@ -37,6 +37,9 @@ oppe_alos_anomaly_plt <- function(data){
         
         # Anomaly detection and decomposition ----
         # Monthly Excess Days
+        if(nrow(alos_trend_tbl) < 12) {
+            return(NA)
+        } else {
         plt <- alos_trend_tbl %>%
             time_decompose(tot_excess_days, frequency = 2) %>%
             anomalize(remainder, method = "gesd") %>%
@@ -49,6 +52,6 @@ oppe_alos_anomaly_plt <- function(data){
             )
         
         print(plt)
-        
+        }
     }
 }

@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 10/24/2019 10:10:43 AM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 8/17/2020 10:34:19 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -49,6 +49,7 @@ Date    	Revised By   			Description
 2019-09-04	Steven Sanderson MPH	Add the following fields
 2019-12-06	Steven Sanderson MPH	Change OrderName to OrderDescAsWritten for Last
 									Orders
+2020-08-17	Steven Sanderson MPH	Add Bed Rest Orders
 ------------------------------------------------------------------------------- 
 */  
     
@@ -162,6 +163,19 @@ BEGIN
 		PatientVisitOID INT,
 		LastActivityOrder VARCHAR(MAX),
 		LastActivityOrderEnteredDateTime VARCHAR(50)
+	)
+	DECLARE @BedrestOrders TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		slNO INT,
+		OrderDescAsWritten VARCHAR(MAX),
+		EnterdDateTime VARCHAR(50)
+	)
+	DECLARE @LastBedrestOrder TABLE (
+		PatientOID INT,
+		PatientVisitOID INT,
+		LastBedrestOrder VARCHAR(MAX),
+		LastBedrestOrderEnteredDateTime VARCHAR(50)
 	)
 	DECLARE @GlucoseOrders TABLE (
 		PatientOID INT,
@@ -775,6 +789,31 @@ BEGIN
 	, A.OrderDescAsWritten
 	, A.EnterdDateTime
 	FROM @ActivityOrders AS A
+	WHERE slNO = 1
+	;
+
+	INSERT INTO @BedrestOrders
+	SELECT HO.Patient_oid,
+		HO.PatientVisit_oid,
+		slNo = rank() OVER (
+			PARTITION BY ho.patient_oid,
+			ho.patientvisit_oid ORDER BY ho.enteredDateTime DESC
+			),
+		HO.OrderDescAsWritten,
+		HO.EnteredDateTime
+	FROM HOrderSuppInfo hos WITH (NOLOCK)
+	INNER JOIN Horder ho WITH (NOLOCK) ON hos.objectid = ho.OrderSuppInfo_oid
+		AND ho.OrderSubTypeAbbr IN ('Activity','Activity - PC')
+		AND HO.OrderDescAsWritten LIKE '%BED%REST%'
+	INNER JOIN @tblPatientOID tp ON tp.patientOID = ho.patient_oid
+		AND tp.VisitOID = ho.patientvisit_oid
+
+	INSERT INTO @LastBedrestOrder
+	SELECT A.PatientOID
+	, A.PatientVisitOID
+	, A.OrderDescAsWritten
+	, A.EnterdDateTime
+	FROM @BedrestOrders AS A
 	WHERE slNO = 1
 	;
 
@@ -2484,7 +2523,9 @@ BEGIN
 		IVORDERS.LastIVOrder,
 		IVORDERS.LastIVOrderEnteredDateTime,
 		GLUCOSERESULT.LastGlucoseResult,
-		GLUCOSERESULT.LastGlucoseResultCreationDateTime
+		GLUCOSERESULT.LastGlucoseResultCreationDateTime,
+		BEDREST.LastBedrestOrder,
+		BEDREST.LastBedrestOrderEnteredDateTime
 	FROM @Patient tp
 	LEFT OUTER JOIN @pivotObsValues tov ON tp.PatientOID = tov.PatientOID
 		AND tp.PatientVisitOID = tov.PatientVisitOID
@@ -2508,5 +2549,7 @@ BEGIN
 		AND TP.PatientVisitOID = IVORDERS.PatientVisitOID
 	LEFT OUTER JOIN @LastGlucoseResult AS GLUCOSERESULT ON TP.PatientOID = GLUCOSERESULT.PatientOID
 		AND TP.PatientVisitOID = GLUCOSERESULT.PatientVisitOID
+	LEFT OUTER JOIN @LastBedrestOrder AS BEDREST ON TP.PatientOID = BEDREST.PatientOID
+		AND TP.PatientVisitOID = BEDREST.PatientVisitOID
 	ORDER BY tp.PatientName
 END

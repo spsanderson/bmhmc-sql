@@ -32,18 +32,21 @@ oppe_readmit_anomalies_plt <- function(data){
         
         # Anomaly detection and decomposition ----
         # Monthly Excess Days
-        plt <- readmit_trend_tbl %>%
-            time_decompose(Excess, frequency = 2) %>%
-            anomalize(remainder, method = "gesd") %>%
-            clean_anomalies() %>%
-            plot_anomaly_decomposition() +
-            labs(
-                x = "Discharge Date"
-                , y = "Value"
-                , title = "Excess Readmit Rate Anomaly Decomposition"
-            )
-        
-        print(plt)
-        
+        if(nrow(readmit_trend_tbl) < 12) {
+            return(NA)
+        } else {
+            plt <- readmit_trend_tbl %>%
+                time_decompose(Excess, frequency = 2) %>%
+                anomalize(remainder, method = "gesd") %>%
+                clean_anomalies() %>%
+                plot_anomaly_decomposition() +
+                labs(
+                    x = "Discharge Date"
+                    , y = "Value"
+                    , title = "Excess Readmit Rate Anomaly Decomposition"
+                )
+            
+            print(plt)
+        }
     }
 }

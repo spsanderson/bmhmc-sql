@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 8/4/2020 1:27:03 PM ******/
+/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 8/21/2020 9:04:42 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -8,6 +8,7 @@ GO
 
 /*
 ***********************************************************************
+
 File: c_covid_extract_insert_sp.sql
 
 Input Parameters:
@@ -56,6 +57,16 @@ Date		Version		Description
 						Add Dx_Order_Abbr
 						Add Dc_Summary_Abbr
 						Add Clinical_Note_Abbr
+2020-08-21	v4			Add HHS Age groupings
+							Admits_In_Last_24_Hrs_0_17
+							Admits_In_Last_24_Hrs_18_19
+							Admits_In_Last_24_Hrs_20_29
+							Admits_In_Last_24_Hrs_30_39
+							Admits_In_Last_24_Hrs_40_49
+							Admits_In_Last_24_Hrs_50_59
+							Admits_In_Last_24_Hrs_60_69
+							Admits_In_Last_24_Hrs_70_79
+
 ***********************************************************************
 */
 
@@ -307,6 +318,7 @@ CREATE TABLE smsdss.c_covid_extract_tbl (
 	[Occupation] VARCHAR(8000) NULL,
 	[PT_DOB] DATETIME2 NULL,
 	[State_Age_Group] VARCHAR(100) NULL,
+	[HHS_Admits_Last_24_Hours] VARCHAR(100) NULL,
 	[first_positive_flag_dtime] DATETIME2 NULL,
 	[last_negative_flag_dtime] DATETIME2 NULL,
 	[pt_last_test_positive] INT NULL,
@@ -480,6 +492,24 @@ SELECT A.MRN,
 			THEN 'h - >74-84'
 		WHEN A.PT_AGE > 84
 			THEN 'i - >84'
+		END,
+	[HHS_Admits_Last_24_Hours] = CASE
+		WHEN A.Pt_Age < 18
+			THEN 'Admits_In_Last_24_Hrs_0_17'
+		WHEN A.PT_AGE < 20
+			THEN 'Admits_In_Last_24_Hrs_18_19'
+		WHEN A.Pt_Age < 30
+			THEN 'Admits_In_Last_24_Hrs_20_29'
+		WHEN A.Pt_Age < 40
+			THEN 'Admits_In_Last_24_Hrs_30_39'
+		WHEN A.Pt_Age < 50
+			THEN 'Admits_In_Last_24_Hrs_40_49'
+		WHEN A.Pt_Age < 60
+			THEN 'Admits_In_Last_24_Hrs_50_59'
+		WHEN A.Pt_Age < 70
+			THEN 'Admits_In_Last_24_Hrs_60_69'
+		WHEN A.Pt_Age < 80
+			THEN 'Admits_In_Last_24_Hrs_70_79'
 		END,
 	[first_positive_flag_dtime] = CASE 
 		WHEN FIRST_RES.Result_DTime = (

@@ -131,6 +131,7 @@ plot_time_series(
     , end_date
   )
   , .plotly_slider = TRUE
+  , .interactive = FALSE
 )
 
 plot_seasonal_diagnostics(
@@ -270,6 +271,6 @@ refit_tbl %>%
   modeltime_forecast(h = "1 year", actual_data = df_anomalized_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25
-    , .interactive = interactive
+    , .interactive = FALSE
     , .title = "IP Discharges Excess Days Forecast 1 Year Out"
   )

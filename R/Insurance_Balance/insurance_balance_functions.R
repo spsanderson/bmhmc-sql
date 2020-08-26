@@ -1,80 +1,82 @@
 db_conn <-
 function() {
-    db_con <- dbConnect(
-        odbc()
-        , Driver = "SQL Server"
-        , Server = "BMH-HIDB"
-        , Database = "SMSPHDSSS0X0"
-        , Trusted_Connection = TRUE
-    )
-    
-    return(db_con)
+  db_con <- dbConnect(
+    odbc(),
+    Driver = "SQL Server",
+    Server = "BMH-HIDB",
+    Database = "SMSPHDSSS0X0",
+    Trusted_Connection = TRUE
+  )
+
+  return(db_con)
 }
 db_dconn <-
 function(connection) {
-    dbDisconnect(connection)
+  dbDisconnect(connection)
 }
 insbal_age_pvt_tbl <-
 function(
-    .data
-    , .rows_col
-) {
-    data_tbl   <- .data
+                               .data,
+                               .rows_col) {
+  data_tbl <- .data
 
-    row_expr   <- rlang::enquo(.rows_col)
-    
-    data_pvt <- data_tbl %>%
-        group_by((!! row_expr), age_group) %>%
-        summarise(ins_bal_amt = sum(ins_bal_amt, na.rm = TRUE)) %>%
-        ungroup() %>%
-        pivot_wider(
-            id_cols = (!! row_expr)
-            , names_from = age_group
-            , values_from = ins_bal_amt
-            , names_sort = TRUE
-            , values_fill = 0
-        ) %>%
-        as_tibble()
-    
-    return(data_pvt)
+  row_expr <- rlang::enquo(.rows_col)
+
+  data_pvt <- data_tbl %>%
+    group_by((!!row_expr), age_group) %>%
+    summarise(ins_bal_amt = sum(ins_bal_amt, na.rm = TRUE)) %>%
+    ungroup() %>%
+    pivot_wider(
+      id_cols = (!!row_expr),
+      names_from = age_group,
+      values_from = ins_bal_amt,
+      names_sort = TRUE,
+      values_fill = 0
+    ) %>%
+    as_tibble()
+
+  return(data_pvt)
 }
 insbal_age_pct_tbl <-
 function(
-    .data
-    , .rows_col
-) {
-    data_tbl   <- .data
+                               .data,
+                               .rows_col) {
+  data_tbl <- .data
 
-    row_expr   <- rlang::enquo(.rows_col)
-    
-    data_pvt <- data_tbl %>%
-        group_by((!! row_expr), age_group) %>%
-        summarise(ins_bal_amt = sum(ins_bal_amt, na.rm = TRUE)) %>%
-        ungroup() %>%
-        group_by(!! row_expr) %>%
-        mutate(ins_bal_pct = ins_bal_amt / sum(ins_bal_amt)) %>%
-        pivot_wider(
-            id_cols = (!! row_expr)
-            , names_from = age_group
-            , values_from = ins_bal_pct
-            , names_sort = TRUE
-            , values_fill = 0
-        ) %>%
-        as_tibble()
-    
-    return(data_pvt)
+  row_expr <- rlang::enquo(.rows_col)
+
+  data_pvt <- data_tbl %>%
+    group_by((!!row_expr), age_group) %>%
+    summarise(ins_bal_amt = sum(ins_bal_amt, na.rm = TRUE)) %>%
+    ungroup() %>%
+    group_by(!!row_expr) %>%
+    mutate(ins_bal_pct = ins_bal_amt / sum(ins_bal_amt)) %>%
+    mutate(ins_bal_pct = case_when(
+        is.nan(ins_bal_pct) ~ 0
+        , TRUE ~ ins_bal_pct
+    )) %>%
+    pivot_wider(
+      id_cols = (!!row_expr),
+      names_from = age_group,
+      values_from = ins_bal_pct,
+      names_sort = TRUE,
+      values_fill = 0
+    ) %>%
+    as_tibble()
+
+  return(data_pvt)
 }
 fin_class_query <-
 function() {
-    
-    # Db Conn
-    db_connection <- db_conn()
-    
-    # Query
-    query <- dbGetQuery(
-        conn = db_connection
-        , statement = paste0(
-            "
+
+  # Db Conn
+  db_connection <- db_conn()
+
+  # Query
+  query <- dbGetQuery(
+    conn = db_connection,
+    statement = paste0(
+      "
             SELECT pvt.fc
             , pvt.S0X0 AS [fc_group]
             , pvt.NTX0 AS [fc_desc]
@@ -93,69 +95,87 @@ function() {
             
             ORDER BY PVT.FC
             "
-        )
-    ) %>%
-        tibble::as_tibble() %>%
-        clean_names() %>%
-        mutate_if(is.character, str_squish) %>%
-        mutate(
-            fc_group = case_when(
-                fc  %in% c(1:9) ~ "BAD DEBT"
-                , TRUE ~ fc_group
-            )
-            , fc_desc = case_when(
-                fc %in% c(1:9) ~ "BAD DEBT"
-                , TRUE ~ fc_desc
-            )
-        )
-    
-    db_dconn(connection = db_connection)
-    
-    return(query)
+    )
+  ) %>%
+    tibble::as_tibble() %>%
+    clean_names() %>%
+    mutate_if(is.character, str_squish) %>%
+    mutate(
+      fc_group = case_when(
+        fc %in% c(1:9) ~ "BAD DEBT",
+        TRUE ~ fc_group
+      ),
+      fc_desc = case_when(
+        fc %in% c(1:9) ~ "BAD DEBT",
+        TRUE ~ fc_desc
+      )
+    )
+
+  db_dconn(connection = db_connection)
+
+  return(query)
 }
 ins_bal_age_query <-
 function() {
-    
-    # DB Conn
-    db_connection <- db_conn()
-    
-    # Query
-    query <- dbGetQuery(
-        conn = db_connection
-        , statement = paste0(
+
+  # DB Conn
+  db_connection <- db_conn()
+
+  # Query
+  query <- dbGetQuery(
+    conn = db_connection,
+    statement = paste0(
+      "
+    SELECT [pt_id]
+          ,[unit_seq_no]
+          ,[from_file_ind]
+          ,[fc]
+          ,[credit_rating]
+          ,[hosp_svc]
+          ,[pyr_cd]
+          ,[pyr_cd_DESC]
+          ,[pyr_group2]
+          , UPPER([ins_carrier]) AS [ins_carrier]
+          ,[pyr_seq_no]
+          ,[ins_bal_amt]
+          ,[IP_OP]
+          ,[Age_In_Days]
+          ,[Age_Group]
+          ,[Age_Group_Flag]
+          ,[Unitized_Flag]
+          ,[RunDate]
+          ,[RunDateTime]
+      FROM [smsdss].[c_ins_bal_amt_vectorized_v]
             "
-            SELECT *
-            FROM SMSDSS.c_ins_bal_amt_vectorized_v
-            "
-        )
+    )
+  ) %>%
+    tibble::as_tibble() %>%
+    clean_names() %>%
+    mutate_if(is.character, str_squish) %>%
+    mutate(age_group_flag = factor(age_group_flag)) %>%
+    mutate(age_group_flag_n = as.integer(age_group_flag)) %>%
+    mutate(pyr_group = pyr_group2) %>%
+    mutate(
+      age_group = factor(age_group) %>%
+        fct_reorder(age_group_flag_n)
     ) %>%
-        tibble::as_tibble() %>%
-        clean_names() %>%
-        mutate_if(is.character, str_squish) %>%
-        mutate(age_group_flag = factor(age_group_flag)) %>%
-        mutate(age_group_flag_n = as.integer(age_group_flag)) %>%
-        mutate(pyr_group = pyr_group2) %>%
-        mutate(
-            age_group = factor(age_group) %>% 
-                fct_reorder(age_group_flag_n)
-        ) %>%
-        select(-age_group_flag_n)
-    
-    db_dconn(connection = db_connection)
-    
-    return(query)
+    select(-age_group_flag_n)
+
+  db_dconn(connection = db_connection)
+
+  return(query)
 }
 ins_bal_trend_query <-
 function() {
-    
-    # DB Conn
-    db_connection <- db_conn()
-    
-    # Query
-    query <- dbGetQuery(
-        conn = db_connection
-        , statement = paste0(
-            "
+
+  # DB Conn
+  db_connection <- db_conn()
+
+  # Query
+  query <- dbGetQuery(
+    conn = db_connection,
+    statement = paste0(
+      "
             SELECT a.rundate,
         	a.fc,
         	a.hosp_svc,
@@ -294,67 +314,66 @@ function() {
         		ELSE 0
         		END
             "
-        )
+    )
+  ) %>%
+    tibble::as_tibble() %>%
+    mutate(rundate = as_date(rundate)) %>%
+    mutate_if(is.character, str_squish) %>%
+    clean_names() %>%
+    mutate(age_group_flag = factor(age_group_flag)) %>%
+    mutate(age_group_flag_n = as.integer(age_group_flag)) %>%
+    mutate(pyr_group = pyr_group2) %>%
+    mutate(
+      age_group = factor(age_group) %>%
+        fct_reorder(age_group_flag_n)
     ) %>%
-        tibble::as_tibble() %>%
-        mutate(rundate = as_date(rundate)) %>%
-        mutate_if(is.character, str_squish) %>%
-        clean_names() %>%
-        mutate(age_group_flag = factor(age_group_flag)) %>%
-        mutate(age_group_flag_n = as.integer(age_group_flag)) %>%
-        mutate(pyr_group = pyr_group2) %>%
-        mutate(
-            age_group = factor(age_group) %>% 
-                fct_reorder(age_group_flag_n)
-        ) %>%
-        select(-age_group_flag_n) %>%
-        mutate_if(is.character, str_squish)
-    
-    db_dconn(connection = db_connection)
-    
-    return(query)
+    select(-age_group_flag_n) %>%
+    mutate_if(is.character, str_squish)
+
+  db_dconn(connection = db_connection)
+
+  return(query)
 }
 ins_trend_tbl <-
 function(
-    .data
-    , .date_col
-    , .value_col
-    , ...
-) {
-    
-    # Tidyeval Setup
-    date_var_expr   <- rlang::enquo(.date_col)
-    value_var_expr  <- rlang::enquo(.value_col)
-    group_vars_expr <- rlang::quos(...)
-    
-    # Checks
-    if (!is.data.frame(.data)) {
-        stop(call. = FALSE, "(data) is not a data-frame or tibble. Please supply a data.frame or tibble.")
-    }
-    if (rlang::quo_is_missing(date_var_expr)) {
-        stop(call. = FALSE, "(date_var_expr) is missing. Please supply a date or date-time column.")
-    }
-    if (rlang::quo_is_missing(value_var_expr)) {
-        stop(call. = FALSE, "(value_var_expr) is missing. Please supply a numeric column.")
-    }
-    
-    if(length(group_vars_expr) == 0) {
-        message("A grouping variable was not selected so picking the first column in the data.frame")
-        group_vars_expr <- rlang::list2(rlang::sym(colnames(.data)[[1]]))
-        
-        data_grouped <- tibble::as_tibble(.data) %>%
-            dplyr::group_by(!!! group_vars_expr) %>%
-            dplyr::summarise(.value_mod = sum(!! value_var_expr)) %>%
-            dplyr::ungroup() 
-        
-        return(data_grouped)
-    }
-        
-    # Data setup
+                          .data,
+                          .date_col,
+                          .value_col,
+                          ...) {
+
+  # Tidyeval Setup
+  date_var_expr <- rlang::enquo(.date_col)
+  value_var_expr <- rlang::enquo(.value_col)
+  group_vars_expr <- rlang::quos(...)
+
+  # Checks
+  if (!is.data.frame(.data)) {
+    stop(call. = FALSE, "(data) is not a data-frame or tibble. Please supply a data.frame or tibble.")
+  }
+  if (rlang::quo_is_missing(date_var_expr)) {
+    stop(call. = FALSE, "(date_var_expr) is missing. Please supply a date or date-time column.")
+  }
+  if (rlang::quo_is_missing(value_var_expr)) {
+    stop(call. = FALSE, "(value_var_expr) is missing. Please supply a numeric column.")
+  }
+
+  if (length(group_vars_expr) == 0) {
+    message("A grouping variable was not selected so picking the first column in the data.frame")
+    group_vars_expr <- rlang::list2(rlang::sym(colnames(.data)[[1]]))
+
     data_grouped <- tibble::as_tibble(.data) %>%
-        dplyr::group_by(!! date_var_expr, !!! group_vars_expr) %>%
-        dplyr::summarise(.value_mod = sum(!! value_var_expr)) %>%
-        dplyr::ungroup() 
-    
+      dplyr::group_by(!!!group_vars_expr) %>%
+      dplyr::summarise(.value_mod = sum(!!value_var_expr)) %>%
+      dplyr::ungroup()
+
     return(data_grouped)
+  }
+
+  # Data setup
+  data_grouped <- tibble::as_tibble(.data) %>%
+    dplyr::group_by(!!date_var_expr, !!!group_vars_expr) %>%
+    dplyr::summarise(.value_mod = sum(!!value_var_expr)) %>%
+    dplyr::ungroup()
+
+  return(data_grouped)
 }
