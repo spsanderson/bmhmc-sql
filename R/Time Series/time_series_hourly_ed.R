@@ -18,6 +18,10 @@ pacman::p_load(
 
 interactive <- TRUE
 
+my_path <- ("S:/Global Finance/1 REVENUE CYCLE/Steve Sanderson II/Code/R/Functions/time_series/")
+file_list <- list.files(my_path, "*.R")
+map(paste0(my_path, file_list), source)
+
 # DB Connection -----------------------------------------------------------
 
 db_con <- dbConnect(
@@ -40,7 +44,7 @@ query <- dbGetQuery(
     FROM [SQL-WS\\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl]
     
     WHERE ARRIVAL >= '2010-01-01'
-    AND ARRIVAL < DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE()), 0)
+    AND ARRIVAL < DATEADD(DAY, DATEDIFF(DAY, 0, GETDATE()), 0)
     AND TIMELEFTED != '-- ::00'
     AND ARRIVAL != '-- ::00'
     
@@ -107,16 +111,16 @@ plot_stl_diagnostics(
   , .title = "STL Diagnositcs Last 30 Days"
 )
 
-# plot_anomaly_diagnostics(
-#     .data = filter_by_time(
-#     .data = query
-#     , .date_var = date_col
-#     , .start_date = CEILING_MONTH(end_date - dhours(30*24))
-#   )
-#   , .date_var = date_col
-#   , .value = value
-#   , .title = "Anomaly Diagnostics Last 30 Days"
-# )
+plot_anomaly_diagnostics(
+    .data = filter_by_time(
+    .data = query
+    , .date_var = date_col
+    , .start_date = (end_date - dhours(30*24))
+  )
+  , .date_var = date_col
+  , .value = value
+  , .title = "Anomaly Diagnostics Last 30 Days"
+)
 
 filter_by_time(
   .data = query
@@ -145,7 +149,7 @@ df_anomalized_tbl <- filter_by_time(
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(df_anomalized_tbl, prop = 0.9)
+splits <- initial_time_split(df_anomalized_tbl, prop = 0.8)
 
 # Models ----
 
@@ -180,6 +184,10 @@ model_fit_prophet <- prophet_reg() %>%
   set_engine(engine = "prophet") %>%
   fit(observed_cleaned ~ date_col, data = training(splits))
 
+model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
+  set_engine("prophet_xgboost") %>%
+  fit(observed_cleaned ~ date_col + as.numeric(date_col) + factor(hour(date_col), ordered = FALSE), data = training(splits))
+
 # TSLM --------------------------------------------------------------------
 
 model_fit_lm <- linear_reg() %>%
@@ -212,6 +220,7 @@ models_tbl <- modeltime_table(
   model_fit_arima_boosted,
   model_fit_ets,
   model_fit_prophet,
+  model_fit_prophet_boost,
   model_fit_lm, 
   wflw_fit_mars
 )
@@ -242,6 +251,15 @@ calibration_tbl %>%
   arrange(mae) %>%
   table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
 
+
+# Residuals ---------------------------------------------------------------
+
+models_tbl %>%
+  modeltime_calibrate(new_data = training(splits)) %>%
+  modeltime_residuals() %>%
+  plot_modeltime_residuals(.interactive = FALSE) +
+  facet_wrap(~ .model_desc, scales = "free_y")
+
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
@@ -266,3 +284,106 @@ refit_tbl %>%
     , .interactive = interactive
     , .title = "Hourly ED Arrivals Forecast 48 Hours Out"
   )
+
+
+# Misc --------------------------------------------------------------------
+
+ts_sum_arrivals_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = wk
+  , .ggplt_group_var = yr
+  , yr
+  , wk
+) + 
+  labs(
+    x = "Week of Arrival"
+    , y = "Total Arrivals"
+    , title = "Total ED Arrivals by Week from 2010 forward"
+    , subtitle = "Redline indicates current year. Grouped by Year"
+  )
+
+ts_sum_arrivals_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = hr
+  , .ggplt_group_var = yr
+  , yr
+  , hr
+) + 
+  labs(
+    x = "Hour of Arrival"
+    , y = "Total Arrivals"
+    , title = "Total ED Arrivals by Hour from 2010 forward"
+    , subtitle = "Redline indicats current year. Grouped by Year"
+  )
+
+ts_sum_arrivals_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = wd
+  , .ggplt_group_var = wk
+  , wk
+  , wd
+) + 
+  labs(
+    x = "Day of Arrival"
+    , y = "Total Arrivals"
+    , title = "Total ED Arrivals by Day of Week from 2010 forward"
+    , subtitle = "Redline indicates current year. Grouped by Week of the Year"
+  )
+
+ts_median_excess_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = hr
+  , .ggplt_group_var = yr
+  , .secondary_grp_var = hr
+  , yr
+  , hr
+) +
+  labs(
+    x = "Hour of Arrival"
+    , y = "Excess of Median"
+    , title = "Median Excess (+/-) by Hour of Day"
+    , subtitle = "Redline indicates current year. Grouped by Year"
+  )
+
+ts_median_excess_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = wk
+  , .ggplt_group_var = yr
+  , .secondary_grp_var = wk
+  , yr
+  , wk
+) + 
+  labs(
+    x = "Week of Arrival"
+    , y = "Excess of Median"
+    , title = "Median Excess (+/-) by Week of the Year"
+    , subtitle = "Redline indicates current year. Gruped by Year"
+  )
+
+ts_median_excess_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = wd
+  , .ggplt_group_var = wk
+  , .secondary_grp_var = wd
+  , wk
+  , wd
+) + 
+  labs(
+    x = "Day of Arrival"
+    , y = "Excess of Median"
+    , title = "Median Excess (+/-) by Day of the Weekk"
+    , subtitle = "Redline indicates current year. Gruped by Week"
+  )
+

@@ -1,31 +1,31 @@
 # Lib Load ----
-if(!require(pacman)) install.packages("pacman")
+if (!require(pacman)) install.packages("pacman")
 pacman::p_load(
-    "tidyverse"
-    , "dbplyr"
-    , "DBI"
-    , "odbc"
-    , "RDCOMClient"
-    , "janitor"
-    , "fs"
-    , "writexl"
+  "tidyverse",
+  "dbplyr",
+  "DBI",
+  "odbc",
+  "RDCOMClient",
+  "janitor",
+  "fs",
+  "writexl"
 )
 
 # DB Connection ----
 db_con <- dbConnect(
-    odbc(),
-    Driver = "SQL Server",
-    Server = "BMH-HIDB",
-    Database = "SMSPHDSSS0X0",
-    Trusted_Connection = T
+  odbc(),
+  Driver = "SQL Server",
+  Server = "BMH-HIDB",
+  Database = "SMSPHDSSS0X0",
+  Trusted_Connection = T
 )
 
 # Data ----
 # File: daily_sepsis_list.sql
 query <- dbGetQuery(
-    conn = db_con
-    , statement = paste0(
-        "
+  conn = db_con,
+  statement = paste0(
+    "
         SELECT A.Med_Rec_No
     	, A.PtNo_Num
     	, CAST(A.ADM_DATE AS date) AS [Adm_Date]
@@ -102,118 +102,118 @@ query <- dbGetQuery(
     		'018697'
     	)
         "
-    )
+  )
 ) %>%
-    as_tibble() %>%
-    clean_names() %>%
-    mutate(pt_no_num = str_squish(pt_no_num))
+  as_tibble() %>%
+  clean_names() %>%
+  mutate(pt_no_num = str_squish(pt_no_num))
 
 # Currently In sepsis tbl
 query_b <- dbGetQuery(
-    conn = db_con
-    , statement = paste0(
-        "
+  conn = db_con,
+  statement = paste0(
+    "
         SELECT MED_REC_NO
 		    FROM SMSDSS.C_ARCHWAY_SEPSIS_TBL
         "
-    )
+  )
 ) %>%
-    as_tibble() %>%
-    clean_names() %>%
-    mutate_all(as.character) %>%
-    mutate(med_rec_no = str_squish(med_rec_no)) %>%
-    mutate(flag = 1)
+  as_tibble() %>%
+  clean_names() %>%
+  mutate_all(as.character) %>%
+  mutate(med_rec_no = str_squish(med_rec_no)) %>%
+  mutate(flag = 1)
 
 readmits <- dbGetQuery(
-    conn = db_con
-    , statement = paste0(
-        "
+  conn = db_con,
+  statement = paste0(
+    "
         SELECT *
         FROM SMSDSS.vReadmits
         "
-    )
+  )
 ) %>%
-    as_tibble() %>%
-    clean_names() %>%
-    mutate_all(as.character) %>%
-    filter(readmit %in% query$pt_no_num)
+  as_tibble() %>%
+  clean_names() %>%
+  mutate_all(as.character) %>%
+  filter(readmit %in% query$pt_no_num)
 
 current_sepsis_encounters <- dbGetQuery(
-    conn = db_con
-    , statement = paste0(
-        "
+  conn = db_con,
+  statement = paste0(
+    "
         SELECT PtNo_Num
         FROM smsdss.c_archway_sepsis_tbl
         "
-    )
+  )
 ) %>%
-    as_tibble() %>%
-    clean_names() %>%
-    mutate(pt_no_num = str_squish(pt_no_num))
+  as_tibble() %>%
+  clean_names() %>%
+  mutate(pt_no_num = str_squish(pt_no_num))
 
 # DB Disconnect ----
 dbDisconnect(db_con)
 
 # Data Manipulation ----
 query_c <- query %>%
-    left_join(query_b, by = c("med_rec_no" = "med_rec_no")) %>%
-    mutate(mrn_in_tbl = case_when(
-        flag == 1 ~ 1
-        , TRUE ~ 0
-    )) %>%
-    select(-flag) %>%
-    left_join(readmits, by = c("pt_no_num" = "readmit", "med_rec_no" = "mrn")) %>%
-    mutate(previous_discharge = initial_discharge) %>%
-    mutate(within_90days = difftime(adm_date, initial_discharge, units = "days")) %>%
-    mutate(within_90days = as.integer(within_90days))
+  left_join(query_b, by = c("med_rec_no" = "med_rec_no")) %>%
+  mutate(mrn_in_tbl = case_when(
+    flag == 1 ~ 1,
+    TRUE ~ 0
+  )) %>%
+  select(-flag) %>%
+  left_join(readmits, by = c("pt_no_num" = "readmit", "med_rec_no" = "mrn")) %>%
+  mutate(previous_discharge = initial_discharge) %>%
+  mutate(within_90days = difftime(adm_date, initial_discharge, units = "days")) %>%
+  mutate(within_90days = as.integer(within_90days))
 
 final_tbl <- query_c %>%
-    select(
-        med_rec_no
-        , pt_no_num
-        , adm_date
-        , pt_name
-        , ins1_pol_no
-        , pt_birthdate
-        , pt_sex
-        , pt_addr_city
-        , pt_addr_state
-        , pt_phone_no
-        , attending_provider
-        , primary_procedure_provider
-        , mrn_in_tbl
-        , within_90days
-    ) %>%
-    filter(
-        (mrn_in_tbl == 0) |
-            (
-                !pt_no_num %in% current_sepsis_encounters$pt_no_num &
-                mrn_in_tbl == 1 &
-                within_90days > 90
-            )
-    )
+  select(
+    med_rec_no,
+    pt_no_num,
+    adm_date,
+    pt_name,
+    ins1_pol_no,
+    pt_birthdate,
+    pt_sex,
+    pt_addr_city,
+    pt_addr_state,
+    pt_phone_no,
+    attending_provider,
+    primary_procedure_provider,
+    mrn_in_tbl,
+    within_90days
+  ) %>%
+  filter(
+    (mrn_in_tbl == 0) |
+      (
+        !pt_no_num %in% current_sepsis_encounters$pt_no_num &
+          mrn_in_tbl == 1 &
+          within_90days > 90
+      )
+  )
 
 # Write to file ----
-if(nrow(final_tbl) == 0) {
+if (nrow(final_tbl) == 0) {
   rm(list = ls())
   stop("No records")
 }
 
 t <- Sys.Date()
 f_name <- str_c(
-    "Sepsis_List_rundate_"
-    , str_sub(t, 6, 7)
-    , str_sub(t, 9, 10)
-    , str_sub(t, 1, 4)
-    , ".xlsx"
+  "Sepsis_List_rundate_",
+  str_sub(t, 6, 7),
+  str_sub(t, 9, 10),
+  str_sub(t, 1, 4),
+  ".xlsx"
 )
 
 write_xlsx(
-    x = final_tbl
-    , path = paste0(
-        "G:\\Finance\\Mary Silva\\Daily_Sepsis_List\\"
-        , f_name
-    )
+  x = final_tbl,
+  path = paste0(
+    "G:\\Finance\\Mary Silva\\Daily_Sepsis_List\\",
+    f_name
+  )
 )
 
 # Compose Email ----
@@ -221,17 +221,17 @@ write_xlsx(
 Outlook <- COMCreate("Outlook.Application")
 
 # Create Email
-Email = Outlook$CreateItem(0)
+Email <- Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] = ""
-Email[["cc"]] = ""
-Email[["bcc"]] = ""
-Email[["subject"]] = "Weekly Sepsis List"
-Email[["body"]] = "Please see attached"
+Email[["to"]] <- ""
+Email[["cc"]] <- ""
+Email[["bcc"]] <- ""
+Email[["subject"]] <- "Weekly Sepsis List"
+Email[["body"]] <- "Please see attached"
 Email[["attachments"]]$Add(paste0(
-  "G:\\Finance\\Mary Silva\\Daily_Sepsis_List\\"
-  , f_name
+  "G:\\Finance\\Mary Silva\\Daily_Sepsis_List\\",
+  f_name
 ))
 
 # Send the email
@@ -248,15 +248,17 @@ db_con <- dbConnect(
 
 # Add records to DB ----
 dbWriteTable(
-  conn = db_con
-  , Id(
-    schema = "smsdss"
-    , table = "c_archway_sepsis_tbl"
-  )
-  , final_tbl %>%
-    select(med_rec_no, pt_no_num, adm_date, pt_name, ins1_pol_no, pt_birthdate,
-           pt_sex, pt_addr_city, pt_addr_state, pt_phone_no, attending_provider, 
-           primary_procedure_provider) %>%
+  conn = db_con,
+  Id(
+    schema = "smsdss",
+    table = "c_archway_sepsis_tbl"
+  ),
+  final_tbl %>%
+    select(
+      med_rec_no, pt_no_num, adm_date, pt_name, ins1_pol_no, pt_birthdate,
+      pt_sex, pt_addr_city, pt_addr_state, pt_phone_no, attending_provider,
+      primary_procedure_provider
+    ) %>%
     set_names(
       "Med_Rec_No",
       "PtNo_Num",
@@ -270,8 +272,8 @@ dbWriteTable(
       "Pt_Phone_No",
       "Attending_Provider",
       "Primary_Procedure_Provider"
-    )
-  , append = T
+    ),
+  append = T
 )
 
 # DB Disconnect ----

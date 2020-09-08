@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 8/21/2020 9:04:42 AM ******/
+/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 8/31/2020 8:45:48 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -66,7 +66,11 @@ Date		Version		Description
 							Admits_In_Last_24_Hrs_50_59
 							Admits_In_Last_24_Hrs_60_69
 							Admits_In_Last_24_Hrs_70_79
-
+2020-08-25	v5			Add HHS Age Grouping
+							Admits_In_Last_24_Hrs_80+
+2020-08-26	v6			Edit HHS Age Grouping column name and case statement values
+2020-08-31	v7			Add two test patient accounts in the account 
+						exclusion list.
 ***********************************************************************
 */
 
@@ -493,23 +497,24 @@ SELECT A.MRN,
 		WHEN A.PT_AGE > 84
 			THEN 'i - >84'
 		END,
-	[HHS_Admits_Last_24_Hours] = CASE
+	[HHS_Age_Group] = CASE
 		WHEN A.Pt_Age < 18
-			THEN 'Admits_In_Last_24_Hrs_0_17'
+			THEN '0-17'
 		WHEN A.PT_AGE < 20
-			THEN 'Admits_In_Last_24_Hrs_18_19'
+			THEN '18-19'
 		WHEN A.Pt_Age < 30
-			THEN 'Admits_In_Last_24_Hrs_20_29'
+			THEN '20-29'
 		WHEN A.Pt_Age < 40
-			THEN 'Admits_In_Last_24_Hrs_30_39'
+			THEN '30-39'
 		WHEN A.Pt_Age < 50
-			THEN 'Admits_In_Last_24_Hrs_40_49'
+			THEN '40-49'
 		WHEN A.Pt_Age < 60
-			THEN 'Admits_In_Last_24_Hrs_50_59'
+			THEN '50-59'
 		WHEN A.Pt_Age < 70
-			THEN 'Admits_In_Last_24_Hrs_60_69'
+			THEN '60-69'
 		WHEN A.Pt_Age < 80
-			THEN 'Admits_In_Last_24_Hrs_70_79'
+			THEN '70-79'
+		ELSE '80+'
 		END,
 	[first_positive_flag_dtime] = CASE 
 		WHEN FIRST_RES.Result_DTime = (
@@ -611,7 +616,7 @@ OUTER APPLY (
 	ORDER BY B.Result_DTime DESC,
 		B.Order_DTime DESC
 	) AS LAST_NEG
-WHERE A.PatientAccountID NOT IN ('14465701', '14244479', '14862411', '88998935', '14860845')
+WHERE A.PatientAccountID NOT IN ('14465701', '14244479', '14862411', '88998935', '14860845','14891139','14890891')
 	AND (
 		-- Capture all subsequent visits of previously positive patients
 		A.Subseqent_Visit_Flag = '1'

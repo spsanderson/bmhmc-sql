@@ -18,6 +18,10 @@ pacman::p_load(
 
 interactive <- TRUE
 
+my_path <- ("S:/Global Finance/1 REVENUE CYCLE/Steve Sanderson II/Code/R/Functions/time_series/")
+file_list <- list.files(my_path, "*.R")
+map(paste0(my_path, file_list), source)
+
 # DB Connection -----------------------------------------------------------
 
 db_con <- dbConnect(
@@ -111,7 +115,7 @@ df_anomalized_tbl <- query %>%
   anomalize(remainder, method = "gesd") %>%
   clean_anomalies() %>%
   time_recompose() %>%
-  select(date_col, observed_cleaned)
+  select(date_col, observed, observed_cleaned)
 
 # Data Split --------------------------------------------------------------
 
@@ -150,6 +154,12 @@ model_fit_prophet <- prophet_reg() %>%
   set_engine(engine = "prophet") %>%
   fit(observed_cleaned ~ date_col, data = training(splits))
 
+model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
+  set_engine("prophet_xgboost") %>%
+  fit(
+    observed_cleaned ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    , data = training(splits)
+  )
 # TSLM --------------------------------------------------------------------
 
 model_fit_lm <- linear_reg() %>%
@@ -182,6 +192,7 @@ models_tbl <- modeltime_table(
   model_fit_arima_boosted,
   model_fit_ets,
   model_fit_prophet,
+  model_fit_prophet_boost,
   model_fit_lm, 
   wflw_fit_mars
 )
@@ -233,4 +244,59 @@ refit_tbl %>%
     .legend_max_width = 25
     , .interactive = interactive
     , .title = "Monthly IP Discharges Forecast 1 Year Out"
+  )
+
+# Misc --------------------------------------------------------------------
+
+calibration_tbl %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(-.model) %>% 
+  tidyr::unnest(.calibration_data) %>% 
+  ggplot(
+    mapping = aes(
+      x = .residuals
+      , fill = .model_desc)
+  ) + 
+  geom_histogram(
+    binwidth = 25
+    , color = "black"
+  ) + 
+  facet_wrap(
+    ~ .model_desc
+    , scales = "free_x"
+  ) + 
+  scale_color_tq() + 
+  theme_tq()
+
+ts_sum_arrivals_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = mn
+  , .ggplt_group_var = yr
+  , yr
+  , mn
+) + 
+  labs(
+    x = "Month of Discharge"
+    , y = "Total Discharges"
+    , title = "Total Inpatient Discharges by Month"
+    , subtitle = "Redline indicates current year"
+  )
+
+ts_median_excess_plt(
+  .data = query
+  , .date_col = date_col
+  , .value_col = value
+  , .x_axis = mn
+  , .ggplt_group_var = yr
+  , .secondary_grp_var = mn
+  , yr
+  , mn
+) + 
+  labs(
+    x = "Month of Discharges"
+    , y = "Excess of Median (+/-)"
+    , title = "Total Median Discharges with Excess (+/-)"
+    , subtitle = "Redline indicates current year"
   )

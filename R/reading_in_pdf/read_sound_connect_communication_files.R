@@ -164,11 +164,11 @@ all.documents <- all.documents %>% mutate_all(as.character)
 all.documents <- bind_rows(all.documents, f.data.df)
 
 # Write file ####
-if(nrow(documents) != 0) {
-  write.csv(documents, "Sound_Connect_Communication.csv")
+if(exists("all.documents") && nrow(all.documents) != 0) {
+  write.csv(all.documents, "Sound_Connect_Communication.csv")
   rm(list = ls())
 } else {
-  write.csv(all.documents, "Sound_Connect_Communication.csv")
+  write.csv(documents, "Sound_Connect_Communication.csv")
   rm(list = ls())
 }
 

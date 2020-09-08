@@ -29,11 +29,12 @@ ip_rad_tbl <- dbGetQuery(
         , COUNT(B.ENCOUNTER) AS IP_RAD_ORDER_COUNT
         
         FROM smsdss.c_elos_bench_data AS A
-        LEFT JOIN smsdss.c_Lab_Rad_Order_Utilization       AS B
+        LEFT JOIN smsdss.c_LabRad_OrdUtil_by_DschDT AS B
         ON A.Encounter = B.Encounter
         
         WHERE B.ED_IP_FLAG = 'IP'
         AND B.Svc_Dept_Desc = 'RADIOLOGY'
+        AND LEFT(A.ENCOUNTER, 1) IN ('1', '8')
         
         GROUP BY A.Encounter
         , B.Encounter
@@ -51,11 +52,12 @@ ip_lab_tbl <- dbGetQuery(
         , COUNT(B.ENCOUNTER) AS IP_LAB_ORDER_COUNT
         
         FROM smsdss.c_elos_bench_data AS A
-        LEFT JOIN smsdss.c_Lab_Rad_Order_Utilization       AS B
+        LEFT JOIN smsdss.c_LabRad_OrdUtil_by_DschDT AS B
         ON A.Encounter = B.Encounter
         
         WHERE B.ED_IP_FLAG = 'IP'
         AND B.Svc_Dept_Desc = 'LABORATORY'
+        AND LEFT(A.ENCOUNTER, 1) IN ('1', '8')
         
         GROUP BY A.Encounter
         , B.Encounter
@@ -73,11 +75,12 @@ ed_rad_tbl <- dbGetQuery(
         , COUNT(B.ENCOUNTER) AS ED_RAD_ORDER_COUNT
         
         FROM smsdss.c_elos_bench_data AS A
-        LEFT JOIN smsdss.c_Lab_Rad_Order_Utilization       AS B
+        LEFT JOIN smsdss.c_LabRad_OrdUtil_by_DschDT AS B
         ON A.Encounter = B.Encounter
         
         WHERE B.ED_IP_FLAG = 'ED'
         AND B.Svc_Dept_Desc = 'RADIOLOGY'
+        AND LEFT(A.ENCOUNTER, 1) IN ('1', '8')
         
         GROUP BY A.Encounter
         , B.Encounter
@@ -95,11 +98,12 @@ ed_lab_tbl <- dbGetQuery(
         , COUNT(B.ENCOUNTER) AS ED_LAB_ORDER_COUNT
         
         FROM smsdss.c_elos_bench_data AS A
-        LEFT JOIN smsdss.c_Lab_Rad_Order_Utilization       AS B
+        LEFT JOIN smsdss.c_LabRad_OrdUtil_by_DschDT AS B
         ON A.Encounter = B.Encounter
         
         WHERE B.ED_IP_FLAG = 'ED'
         AND B.Svc_Dept_Desc = 'LABORATORY'
+        AND LEFT(A.ENCOUNTER, 1) IN ('1', '8')
         
         GROUP BY A.Encounter
         , B.Encounter
@@ -184,6 +188,7 @@ trend_long_tbl <- trend_tbl %>%
 
 order_type_labs <- c("Lab Orders Per Pt","Rad Orders Per Pt")
 trend_long_tbl %>%
+    filter(value != 0) %>%
     ggplot(mapping = aes(x = month_end, y = value, color = order_type_lbl)) +
     geom_point() +
     geom_line() +

@@ -1,24 +1,24 @@
 db_connect <-
-function(){
+  function() {
     db_con <- dbConnect(
-        odbc(),
-        Driver = "SQL Server",
-        Server = "BMH-HIDB",
-        Database = "SMSPHDSSS0X0",
-        Trusted_Connection = T
+      odbc(),
+      Driver = "SQL Server",
+      Server = "BMH-HIDB",
+      Database = "SMSPHDSSS0X0",
+      Trusted_Connection = T
     )
     return(db_con)
-}
+  }
 db_disconnect <-
-function(connection) {
+  function(connection) {
     dbDisconnect(connection)
-}
+  }
 orsos_data_query <-
-function() {
+  function() {
     query <- dbGetQuery(
-      conn = db_connect()
-      , statement = paste0(
-          "
+      conn = db_connect(),
+      statement = paste0(
+        "
           DECLARE @BMH_START_1 AS DATETIME;
           DECLARE @BMH_END_1   AS DATETIME;
           DECLARE @TODAY       AS DATETIME;
@@ -102,19 +102,19 @@ function() {
       clean_names() %>%
       mutate_if(is.character, str_squish) %>%
       mutate(md_id = case_when(
-        is.na(dss_crosswalk_id) ~ dss_src_pract_no_a
-        , TRUE ~ dss_crosswalk_id
-        ))
-    
+        is.na(dss_crosswalk_id) ~ dss_src_pract_no_a,
+        TRUE ~ dss_crosswalk_id
+      ))
+
     db_disconnect(connection = db_connect())
     return(query)
-}
+  }
 amb_surg_activity_query <-
-function() {
-  query <- dbGetQuery(
-    conn = db_connect()
-    , statement = paste0(
-      "
+  function() {
+    query <- dbGetQuery(
+      conn = db_connect(),
+      statement = paste0(
+        "
       SELECT pt_id
     	, SUM(actv_tot_qty) AS total_quantity
     	, SUM(chg_tot_amt)  AS total_charge
@@ -128,22 +128,22 @@ function() {
     	HAVING SUM(actv_tot_qty) > 0
     	AND SUM(chg_tot_amt) > 0
       "
-    )
-  ) %>%
-    as_tibble() %>%
-    clean_names() %>%
-    mutate_if(is.character, str_squish) %>%
-    mutate(encounter = str_sub(pt_id, 5, 13))
-  
-  db_disconnect(connection = db_connect())
-  return(query)
-}
+      )
+    ) %>%
+      as_tibble() %>%
+      clean_names() %>%
+      mutate_if(is.character, str_squish) %>%
+      mutate(encounter = str_sub(pt_id, 5, 13))
+
+    db_disconnect(connection = db_connect())
+    return(query)
+  }
 or_time_query <-
-function() {
-  query <- dbGetQuery(
-    conn = db_connect()
-    , statement = paste0(
-      "
+  function() {
+    query <- dbGetQuery(
+      conn = db_connect(),
+      statement = paste0(
+        "
       SELECT pt_id
     	, SUM(actv_tot_qty) AS total_quantity
     	, SUM(chg_tot_amt)  AS total_charge
@@ -165,51 +165,49 @@ function() {
     	HAVING SUM(actv_tot_qty) > 0
     	AND SUM(chg_tot_amt) > 0
       "
-    )
-  ) %>%
-    as_tibble() %>%
-    clean_names() %>%
-    mutate_if(is.character, str_squish) %>%
-    mutate(encounter = str_sub(pt_id, 5, 13))
-  
-  db_disconnect(connection = db_connect())
-  return(query)
-}
+      )
+    ) %>%
+      as_tibble() %>%
+      clean_names() %>%
+      mutate_if(is.character, str_squish) %>%
+      mutate(encounter = str_sub(pt_id, 5, 13))
+
+    db_disconnect(connection = db_connect())
+    return(query)
+  }
 rn_query <-
-function() {
-  
-  orsos_tbl    <- orsos_data_query()
-  amb_surg_tbl <- amb_surg_activity_query()
-  or_time      <- or_time_query()
-  
-  data_tbl <- orsos_tbl %>% 
-    left_join(amb_surg_tbl, by = c("dss_case_no" = "encounter")) %>% 
-    select(-pt_id) %>% 
-    rename(
-      "tot_amb_surg_quantity" = "total_quantity"
-      , "tot_amb_surg_chg" = "total_charge"
-      ) %>% 
-    left_join(or_time, by = c("dss_case_no" = "encounter")) %>% 
-    select(-pt_id) %>% 
-    rename(
-      "total_or_quantity" = "total_quantity"
-      , "total_or_chg" = "total_charge"
+  function() {
+    orsos_tbl <- orsos_data_query()
+    amb_surg_tbl <- amb_surg_activity_query()
+    or_time <- or_time_query()
+
+    data_tbl <- orsos_tbl %>%
+      left_join(amb_surg_tbl, by = c("dss_case_no" = "encounter")) %>%
+      select(-pt_id) %>%
+      rename(
+        "tot_amb_surg_quantity" = "total_quantity",
+        "tot_amb_surg_chg" = "total_charge"
       ) %>%
-    group_by(orsos_case_no) %>%
-    mutate(rn = row_number()) %>%
-    ungroup() %>%
-    filter(rn == 1) %>%
-    mutate(dss_case_no = as.character(dss_case_no))
-  
-  return(data_tbl)
-}
+      left_join(or_time, by = c("dss_case_no" = "encounter")) %>%
+      select(-pt_id) %>%
+      rename(
+        "total_or_quantity" = "total_quantity",
+        "total_or_chg" = "total_charge"
+      ) %>%
+      group_by(orsos_case_no) %>%
+      mutate(rn = row_number()) %>%
+      ungroup() %>%
+      filter(rn == 1) %>%
+      mutate(dss_case_no = as.character(dss_case_no))
+
+    return(data_tbl)
+  }
 pract_mstr_query <-
-function(){
-  
-  data_tbl <- dbGetQuery(
-    conn = db_connect()
-    , statement = paste0(
-      "
+  function() {
+    data_tbl <- dbGetQuery(
+      conn = db_connect(),
+      statement = paste0(
+        "
       SELECT A.pract_no
       , A.pract_rpt_name
       , A.spclty_cd1
@@ -221,13 +219,109 @@ function(){
       AND A.iss_orgz_cd = B.orgz_cd
       WHERE A.ISS_ORGZ_CD = 'S0X0'
       "
+      )
+    ) %>%
+      as_tibble() %>%
+      clean_names() %>%
+      mutate_if(is.character, str_squish) %>%
+      mutate(pract_rpt_name = str_to_title(pract_rpt_name))
+
+    db_disconnect(connection = db_connect())
+    return(data_tbl)
+  }
+
+pav_ip_tbl <- 
+  function() {
+ 
+  rn_data <- rn_query()
+  
+  data_tbl <- dbGetQuery(
+    conn = db_connect()
+    , statement = paste0(
+      "
+        DECLARE @TODAY       AS DATETIME;
+        DECLARE @START       AS DATETIME;
+        DECLARE @END         AS DATETIME;
+         
+        SET @TODAY = GETDATE();
+        --SET @START = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY) -1,0);
+        SET @START = '2015-01-01';
+        SET @END   = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY), 0);
+        
+        SELECT PtNo_Num
+        , hosp_svc
+        , tot_chg_amt
+        FROM SMSDSS.BMH_PLM_PTACCT_V
+        WHERE (
+        	pt_type NOT IN (
+        		'D', 'G'
+        	)
+        	AND hosp_svc NOT IN (
+        		'INF', 'CTH'
+        	)
+        	AND tot_chg_amt > 0
+        	AND Plm_Pt_Acct_Type = 'I'
+        	AND LEFT(PTNO_NUM, 1) = '1'
+        	AND ADM_DATE >= @START
+        	AND ADM_DATE < @END
+        )
+        "
     )
-  ) %>%
+  )  %>%
     as_tibble() %>%
     clean_names() %>%
     mutate_if(is.character, str_squish) %>%
-    mutate(pract_rpt_name = str_to_title(pract_rpt_name))
+    mutate(pt_no_num = as.character(pt_no_num) %>% str_squish()) %>%
+    filter(pt_no_num %in% rn_data$dss_case_no)
   
   db_disconnect(connection = db_connect())
   return(data_tbl)
 }
+
+pav_op_tbl <- 
+  function() {
+    
+    rn_data <- rn_query()
+    
+    data_tbl <- dbGetQuery(
+      conn = db_connect()
+      , statement = paste0(
+        "
+        DECLARE @TODAY       AS DATETIME;
+        DECLARE @START       AS DATETIME;
+        DECLARE @END         AS DATETIME;
+         
+        SET @TODAY = GETDATE();
+        --SET @START = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY) -1,0);
+        SET @START = '2015-01-01';
+        SET @END   = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY), 0);
+        
+        SELECT PtNo_Num
+        , hosp_svc
+        , tot_chg_amt
+        FROM SMSDSS.BMH_PLM_PTACCT_V
+        WHERE (
+        	pt_type IN (
+        		'D', 'G'
+        	)
+        	AND hosp_svc NOT IN (
+        		'INF', 'CTH'
+        	)
+        	AND tot_chg_amt > 0
+        	AND Plm_Pt_Acct_Type != 'I'
+        	AND LEFT(PTNO_NUM, 1) NOT IN ('8','9','1')
+        	AND ADM_DATE >= @START
+        	AND ADM_DATE < @END
+        )
+        "
+      )
+    )  %>%
+      as_tibble() %>%
+      clean_names() %>%
+      mutate_if(is.character, str_squish) %>%
+      mutate(pt_no_num = as.character(pt_no_num) %>% str_squish()) %>%
+      filter(pt_no_num %in% rn_data$dss_case_no)
+    
+    db_disconnect(connection = db_connect())
+    return(data_tbl)
+  }

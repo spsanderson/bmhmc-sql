@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BMH_FallRisk_SPS]    Script Date: 1/28/2020 2:35:44 PM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BMH_FallRisk_SPS]    Script Date: 9/4/2020 8:45:43 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -46,6 +46,19 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-01-27	v1			Initial Creation
+2020-09-04	v2			Modify BMAT section to have the following:
+							A_BMH_FailLev1
+							A_BMH_Levl1Equip
+							A_BMH_PassLevel1
+							A_BMH_FailLev2
+							A_BMH_Levl2Equip
+							A_BMH_PassLevel2
+							A_BMH_FailLev3
+							A_BMH_Levl3Equip
+							A_BMH_PassLevel3
+							A_BMH_FailLev4
+							A_BMH_Levl4Equip
+							A_BMH_PassLevel4
 ***********************************************************************
 */
 
@@ -81,20 +94,36 @@ DECLARE @BMAT_TBL TABLE (
 	Patient_OID INT
 	, PatientVisit_OID INT
 	, EnteredDT DATETIME
+	, Fail_Level1  VARCHAR(500)
 	, Equip_Level1 VARCHAR(500)
+	, Pass_Level1  VARCHAR(500)
+	, Fail_Level2  VARCHAR(500)
 	, Equip_Level2 VARCHAR(500)
+	, Pass_Level2  VARCHAR(500)
+	, Fail_Level3  VARCHAR(500)
 	, Equip_Level3 VARCHAR(500)
+	, Pass_Level3  VARCHAR(500)
+	, Fail_Level4  VARCHAR(500)
 	, Equip_Level4 VARCHAR(500)
+	, Pass_Level4  VARCHAR(500)
 )
 
 INSERT INTO @BMAT_TBL
 SELECT PVT.Patient_oid
 , PVT.PatientVisit_oid
 , PVT.EnteredDT
-, pVT.A_BMH_Levl1Equip
+, PVT.A_BMH_FailLev1
+, PVT.A_BMH_Levl1Equip
+, PVT.A_BMH_PassLevel1
+, PVT.A_BMH_FailLev2
 , PVT.A_BMH_Levl2Equip
+, PVT.A_BMH_PassLevel2
+, PVT.A_BMH_FailLev3
 , PVT.A_BMH_Levl3Equip
+, PVT.A_BMH_PassLevel3
+, PVT.A_BMH_FailLev4
 , PVT.A_BMH_Levl4Equip
+, PVT.A_BMH_PassLevel4
 FROM (
 	SELECT ha.Patient_oid
 	, HA.PatientVisit_oid
@@ -108,10 +137,18 @@ FROM (
 	AND HO.EndDT IS NULL
 	AND HA.AssessmentStatusCode IN ('1', '3')
 	AND HO.FindingAbbr IN (
+		'A_BMH_FailLev1',
 		'A_BMH_Levl1Equip',
+		'A_BMH_PassLevel1',
+		'A_BMH_FailLev2',
 		'A_BMH_Levl2Equip',
+		'A_BMH_PassLevel2',
+		'A_BMH_FailLev3',
 		'A_BMH_Levl3Equip',
-		'A_BMH_Levl4Equip'
+		'A_BMH_PassLevel3',
+		'A_BMH_FailLev4',
+		'A_BMH_Levl4Equip',
+		'A_BMH_PassLevel4'
 	)
 	AND HA.FormUsageDisplayName = 'Admission'
 ) AS BMAT
@@ -119,7 +156,10 @@ FROM (
 PIVOT(
 	MAX(Value)
 	FOR FindingAbbr IN (
-		"A_BMH_Levl1Equip","A_BMH_Levl2Equip","A_BMH_Levl3Equip","A_BMH_Levl4Equip"
+		"A_BMH_FailLev1","A_BMH_Levl1Equip","A_BMH_PassLevel1",
+		"A_BMH_FailLev2","A_BMH_Levl2Equip","A_BMH_PassLevel2",
+		"A_BMH_FailLev3","A_BMH_Levl3Equip","A_BMH_PassLevel3",
+		"A_BMH_FailLev4","A_BMH_Levl4Equip","A_BMH_PassLevel4"
 	)
 ) AS PVT
 
@@ -450,10 +490,19 @@ SELECT pt.patientoid,
 	p.ChiefComplaint,
 	UserName = @vchReportUserName,
 	BMAT.EnteredDT,
+	BMAT.Fail_Level1,
 	BMAT.Equip_Level1,
+	BMAT.Pass_Level1,
+	BMAT.Fail_Level2,
 	BMAT.Equip_Level2,
+	BMAT.Pass_Level2,
+	BMAT.Fail_Level3,
 	BMAT.Equip_Level3,
-	BMAT.Equip_Level4
+	BMAT.Pass_Level3,
+	BMAT.Fail_Level4,
+	BMAT.Equip_Level4,
+	BMAT.Pass_Level4
+
 FROM @PivotTable pt
 INNER JOIN @Patient p ON pt.patientoid = p.patientoid
 	AND pt.patientvisit_oid = p.patientvisitoid

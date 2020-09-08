@@ -64,7 +64,7 @@ alos_end_date <- Sys.Date() %>%
     floor_date(unit = "months")
 
 # Provider ----
-provider_id = '006924'
+provider_id = '013789'
 
 # Network Params ----
 min_weight = 2
