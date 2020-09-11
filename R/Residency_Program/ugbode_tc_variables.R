@@ -35,78 +35,7 @@ db_conn <- dbConnect(
 
 
 # Query -------------------------------------------------------------------
-hml_tbl <- dbGetQuery(
-  conn = db_conn,
-  statement = paste0(
-    "
-        SELECT c.PatientAccountID
-        , C.Patient_oid
-        , C.StartingVisitOID
-        , a.GenericName
-        , A.BrandName
-        FROM smsmir.mir_sc_vw_MRC_Medlist AS a
-        INNER JOIN smsmir.mir_sc_XMLDocStorage AS b
-        ON a.XMLDocStorageOid = b.XMLDocStorageOid
-        INNER JOIN smsmir.mir_sc_PatientVisit AS c
-        ON b.Patient_OID = c.Patient_oid
-            AND b.PatientVisit_OID = c.StartingVisitOID
-        WHERE a.DocumentType = 'hml'
-        AND (
-        		(
-        			A.BrandName LIKE '%prednisone%'
-        			OR
-        			A.BrandName LIKE '%METHYLPREDNISOLONE%'
-        			OR
-        			A.BrandName LIKE '%AZITHROMYCIN%'
-        			OR
-        			A.BrandName LIKE '%DEXAMETHASONE%'
-        			OR
-        			A.BrandName LIKE '%NOREPINEPHRINE%'
-        			OR
-        			A.BrandName LIKE '%LEVOPHED%'
-        			OR
-        			A.BrandName LIKE '%VASOPRESSIN%'
-        			OR
-        			A.BrandName LIKE '%DOPAMINE%'
-        			OR
-        			A.BrandName LIKE '%PHENYLEPHRINE%'
-        			OR
-        			A.BrandName LIKE '%CHLOROQUINE%'
-        			OR
-        			A.BrandName LIKE '%PLAQUENIL%'
-        		)
-        		OR
-        		(
-        			a.GenericName LIKE '%prednisone%'
-        			OR
-        			A.GenericName LIKE '%METHYLPREDISOLONE%'
-        			OR
-        			A.GenericName LIKE '%AZITHROMYCIN%'
-        			OR
-        			A.GenericName LIKE '%DEXAMETHASONE%'
-        			OR
-        			A.GenericName LIKE '%NOREPINEPHRINE%'
-        			OR
-        			A.GenericName LIKE '%LEVOPHED%'
-        			OR
-        			A.GenericName LIKE '%VASOPRESSIN%'
-        			OR
-        			A.GenericName LIKE '%DOPAMINE%'
-        			OR
-        			A.GenericName LIKE '%PHENYLEPHRINE%'
-        			OR
-        			A.GenericName LIKE '%CHLOROQUINE%'
-        			OR
-        			A.GenericName LIKE '%PLAQUENIL%'
-        		)
-        	)
-        
-        --AND b.PatientVisit_OID = '2077400'
-        AND a.DocumentStatus = 'Complete'
-        "
-  )
-)
-
+# Population ----
 population_tbl <- dbGetQuery(
   conn = db_conn,
   statement = paste0(
@@ -116,6 +45,7 @@ population_tbl <- dbGetQuery(
     	CAST(PAV.Adm_Date AS DATE) AS [Adm_Date],
     	CAST(PAV.Dsch_Date AS DATE) AS [Dsch_Date],
     	PAV.Pt_Sex,
+    	PAV.Pt_Age,
     	CASE 
     		WHEN PAV.Pt_Race = '1'
     			THEN 'Central American'
@@ -504,28 +434,107 @@ population_tbl <- dbGetQuery(
     ORDER BY PAV.Adm_Date;
         "
   )
-)
+) %>%
+  as_tibble() %>%
+  mutate_if(is.character, str_squish) %>%
+  mutate(PtNo_Num = as.character(PtNo_Num))
 
+# HML ----
+hml_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT c.PatientAccountID
+    , C.Patient_oid
+    , C.StartingVisitOID
+    , B.DocumentDTime
+    , B.LastCngDTime
+    , [Home_Med] = COALESCE(A.GenericName, A.BrandName)
+    , [rn] = ROW_NUMBER() OVER(
+    	PARTITION BY C.PatientAccountID, 
+    	A.GenericName
+    	ORDER BY B.DocumentDTime DESC
+    	)
+    FROM smsmir.mir_sc_vw_MRC_Medlist AS a
+    INNER JOIN smsmir.mir_sc_XMLDocStorage AS b
+    ON a.XMLDocStorageOid = b.XMLDocStorageOid
+    INNER JOIN smsmir.mir_sc_PatientVisit AS c
+    ON b.Patient_OID = c.Patient_oid
+        AND b.PatientVisit_OID = c.StartingVisitOID
+    WHERE a.DocumentType = 'hml'
+    "
+  )
+) %>%
+  as_tibble() %>%
+  filter(PatientAccountID %in% population_tbl$PtNo_Num)
+
+# Inhouse Meds ----
+inhouse_meds_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT EpisodeNo,
+  	GnrcName,
+  	BrandName,
+  	[med_name] = COALESCE(GnrcName, BrandName)
+  FROM smsmir.mir_PHM_Ord
+  WHERE (
+  		(
+  			BrandName LIKE '%prednisone%'
+  			OR BrandName LIKE '%METHYLPREDNISOLONE%'
+  			OR BrandName LIKE '%AZITHROMYCIN%'
+  			OR BrandName LIKE '%DEXAMETHASONE%'
+  			OR BrandName LIKE '%NOREPINEPHRINE%'
+  			OR BrandName LIKE '%LEVOPHED%'
+  			OR BrandName LIKE '%VASOPRESSIN%'
+  			OR BrandName LIKE '%DOPAMINE%'
+  			OR BrandName LIKE '%PHENYLEPHRINE%'
+  			OR BrandName LIKE '%CHLOROQUINE%'
+  			OR BrandName LIKE '%PLAQUENIL%'
+  			OR BrandName LIKE '%ACTEMRA%'
+  			)
+  		OR (
+  			GnrcName LIKE '%prednisone%'
+  			OR GnrcName LIKE '%METHYLPREDISOLONE%'
+  			OR GnrcName LIKE '%AZITHROMYCIN%'
+  			OR GnrcName LIKE '%DEXAMETHASONE%'
+  			OR GnrcName LIKE '%NOREPINEPHRINE%'
+  			OR GnrcName LIKE '%LEVOPHED%'
+  			OR GnrcName LIKE '%VASOPRESSIN%'
+  			OR GnrcName LIKE '%DOPAMINE%'
+  			OR GnrcName LIKE '%PHENYLEPHRINE%'
+  			OR GnrcName LIKE '%CHLOROQUINE%'
+  			OR GnrcName LIKE '%PLAQUENIL%'
+  			OR GnrcName LIKE '%ACTEMRA%'
+  			)
+  		)
+    "
+  )
+) %>%
+  as_tibble() %>%
+  filter(EpisodeNo %in% population_tbl$PtNo_Num)
+
+# Vitals ----
 vitals_tbl <- dbGetQuery(
   conn = db_conn,
   statement = paste0(
     "
-        SELECT episode_no,
-    	obsv_cd_name,
-    	obsv_cd,
-    	perf_dtime,
-    	obsv_cre_dtime,
-    	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [dsply_val],
-    	form_usage,
-    	id_num = row_number() OVER (
-    		PARTITION BY episode_no,
-    		obsv_cd_name ORDER BY episode_no,
-    			perf_dtime ASC
-    		)
+    SELECT episode_no,
+  	obsv_cd_name,
+  	obsv_cd,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [dsply_val],
+  	form_usage,
+  	id_num = row_number() OVER (
+  		PARTITION BY episode_no,
+  		obsv_cd_name ORDER BY episode_no,
+  			perf_dtime ASC
+  		)
     FROM SMSMIR.sr_obsv
-    WHERE form_usage = 'Admission'
+    --WHERE form_usage = 'Admission'
     	--AND episode_no = '14617765'
-    	AND LEN(EPISODE_NO) = 8
+    WHERE LEN(EPISODE_NO) = 8
     	AND OBSV_CD IN (
     		'A_BMH_DoYouSomeD', 'A_BMI', 'HT', 'WT', 'A_BP', 'A_PULSE', 'a_respirations', 'A_DC O2 Sat. %', 'A_Temperature',
     		-- SMOKING
@@ -541,31 +550,33 @@ vitals_tbl <- dbGetQuery(
   )
 ) %>%
   as_tibble() %>%
-  filter(id_num == 1)
+  filter(id_num == 1) %>%
+  filter(episode_no %in% population_tbl$PtNo_Num)
 
+# Labs ----
 labs_tbl <- dbGetQuery(
   conn = db_conn,
   statement = paste0(
     "
-        SELECT episode_no,
-    	obsv_cd_name,
-    	obsv_cd,
-    	perf_dtime,
-    	obsv_cre_dtime,
-    	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [dsply_val],
-    	form_usage,
-    	id_num = row_number() OVER (
-    		PARTITION BY episode_no,
-    		obsv_cd_name ORDER BY episode_no,
-    			perf_dtime ASC
-    		)
+    SELECT episode_no,
+  	obsv_cd_name,
+  	obsv_cd,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [dsply_val],
+  	form_usage,
+  	id_num = row_number() OVER (
+  		PARTITION BY episode_no,
+  		obsv_cd_name ORDER BY episode_no,
+  			perf_dtime ASC
+  		)
     FROM smsmir.SR_obsv
     WHERE obsv_cd IN (
     		'1010' --hgb
-    		, '00407296' --hct
-    		, '00402958' --plt
-    		, '00408492' --TROPONIN
-    		, '00400945' --CREATININE
+    		, '00407296' -- hct
+    		, '00402958' -- plt
+    		, '00408492' -- TROPONIN
+    		, '00400945' -- CREATININE
     		, '00400937' -- crp
     		, '00409656' -- D-Dimer
     		, '00406090' -- ferritin
@@ -574,29 +585,112 @@ labs_tbl <- dbGetQuery(
     		, '00403493' -- alt
     		, '00401695' -- ggt
     		, '00425389' -- nt-probnp
-    		, 'A_BIPAPNasalCPAP' -- BIPAP
-    		-- Echocardiograms
-    		, '8409', '00720011', '00720060', '00720052', 'EC', '00720011', '00720037', '00720045', '00720078', 'MQ_TransEcho', 'TE', '00720029'
+    		, '2012'     -- inr
     		)
         "
   )
 ) %>%
   as_tibble() %>%
-  filter(id_num == 1)
+  filter(episode_no %in% population_tbl$PtNo_Num) %>%
+  filter(!is.na(obsv_cd_name))
 
+# Respiratory ----
+respiratory_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT episode_no,
+  	obsv_cd_name,
+  	obsv_cd,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [dsply_val],
+  	form_usage,
+  	id_num = row_number() OVER (
+  		PARTITION BY episode_no,
+  		obsv_cd_name ORDER BY episode_no,
+  			perf_dtime ASC
+  		)
+    FROM smsmir.SR_obsv
+    WHERE obsv_cd IN ('A_BIPAPNasalCPAP') -- BIPAP
+    "
+  )
+) %>%
+  as_tibble() %>%
+  filter(episode_no %in% population_tbl$PtNo_Num)
+
+# Imaging ----
+imaging_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT episode_no,
+  	obsv_cd_name,
+  	obsv_cd,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [dsply_val],
+  	form_usage,
+  	id_num = row_number() OVER (
+  		PARTITION BY episode_no,
+  		obsv_cd_name ORDER BY episode_no,
+  			perf_dtime ASC
+  		)
+    FROM smsmir.SR_obsv
+    WHERE obsv_cd IN (
+    -- Echocardiograms
+    '8409'
+    , '00720011'
+    , '00720060'
+    , '00720052'
+    , 'EC'
+    , '00720011'
+    , '00720037'
+    , '00720045'
+    , '00720078'
+    , 'MQ_TransEcho'
+    , 'TE'
+    , '00720029'
+    )
+    "
+  )
+) %>% 
+  as_tibble() %>%
+  filter(episode_no %in% population_tbl$PtNo_Num)
+
+# ICU First Date ----
 icu_first_day_tbl <- dbGetQuery(
   conn = db_conn,
   statement = paste0(
     "
-        SELECT pt_id,
-        	nurs_sta,
-        	cen_date,
-        	id_num = ROW_NUMBER() OVER (
-        		PARTITION BY PT_ID ORDER BY CEN_DATE
-        		)
-        FROM SMSDSS.dly_cen_occ_fct_v
-        WHERE nurs_sta IN ('CCU', 'MICU', 'SICU')
-        "
+    SELECT pt_id,
+    	nurs_sta,
+    	cen_date,
+    	id_num = ROW_NUMBER() OVER (
+    		PARTITION BY PT_ID ORDER BY CEN_DATE
+    		)
+    FROM SMSDSS.dly_cen_occ_fct_v
+    WHERE nurs_sta IN ('CCU', 'MICU', 'SICU')
+    "
+  )
+) %>%
+  as_tibble() %>%
+  filter(id_num == 1)
+
+# ICU Last Date ----
+icu_last_day_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT pt_id,
+    	nurs_sta,
+    	cen_date,
+    	id_num = ROW_NUMBER() OVER (
+    		PARTITION BY PT_ID ORDER BY CEN_DATE DESC
+    		)
+    FROM SMSDSS.dly_cen_occ_fct_v
+    WHERE nurs_sta IN ('CCU', 'MICU', 'SICU')
+    "
   )
 ) %>%
   as_tibble() %>%
@@ -616,41 +710,65 @@ population_tbl <- population_tbl %>%
   mutate(pt_no_num = as.character(pt_no_num))
 
 hml_tbl <- hml_tbl %>%
-  select(-BrandName) %>%
-  mutate_if(is.character, str_squish) %>%
-  dummy_cols(select_columns = "GenericName") %>%
   as_tibble() %>%
-  select(-GenericName) %>%
-  pivot_longer(
-    cols = c(
-      -PatientAccountID,
-      -Patient_oid,
-      -StartingVisitOID
-    ),
-    names_to = "home_med"
-  ) %>%
+  filter(rn == 1) %>%
+  clean_names() %>%
+  mutate_if(is.character, str_squish) %>%
+  mutate(patient_account_id = as.character(patient_account_id)) %>%
+  select(-rn, -document_d_time, -last_cng_d_time) %>%
+  filter(patient_account_id %in% population_tbl$pt_no_num) %>%
+  group_by(patient_account_id, patient_oid, starting_visit_oid) %>%
+  mutate(home_med_num = paste0("home_med_", row_number())) %>%
+  ungroup() %>%
   pivot_wider(
-    id_cols = c(PatientAccountID, Patient_oid, StartingVisitOID),
-    names_from = "home_med",
-    values_from = "value",
-    values_fn = max
+    id_cols = c(patient_account_id, patient_oid, starting_visit_oid)
+    , names_from = "home_med_num"
+    , values_from = "home_med"
+  )
+
+inhouse_meds_wide_tbl <- inhouse_meds_tbl %>%
+  clean_names() %>%
+  mutate_if(is.character, str_squish) %>%
+  select(episode_no, med_name) %>%
+  distinct(episode_no, med_name) %>%
+  count(episode_no, med_name) %>%
+  mutate(med_name = str_to_title(med_name)) %>%
+  pivot_wider(
+    id_cols = episode_no
+    , names_from = med_name
+    , values_from = med_name
   ) %>%
   clean_names()
-
-hml_tbl <- hml_tbl %>%
-  mutate(
-    total_home_meds = hml_tbl %>%
-      select(starts_with("generic_name")) %>%
-      rowSums()
-  ) %>%
-  filter(patient_account_id %in% population_tbl$pt_no_num)
 
 icu_first_day_tbl <- icu_first_day_tbl %>%
   mutate_if(is.character, str_squish) %>%
   mutate(cen_date = format(cen_date, "%Y-%m-%d") %>% ymd()) %>%
   mutate(pt_no_num = str_sub(pt_id, start = 5)) %>%
   filter(pt_no_num %in% population_tbl$pt_no_num) %>%
-  select(-id_num)
+  select(-id_num) %>%
+  set_names("pt_id","first_icu_station","icu_admit_date","pt_no_num") %>%
+  select(-pt_id)
+
+icu_last_day_tbl <- icu_last_day_tbl %>%
+  mutate_if(is.character, str_squish) %>%
+  mutate(cen_date = format(cen_date, "%Y-%m-%d") %>% ymd()) %>%
+  mutate(pt_no_num = str_sub(pt_id, start = 5)) %>%
+  filter(pt_no_num %in% population_tbl$pt_no_num) %>%
+  select(-id_num) %>%
+  set_names("pt_id","last_icu_station","icu_discharge_date","pt_no_num") %>%
+  select(-pt_id)
+
+respiratory_tbl <- respiratory_tbl %>%
+  clean_names() %>%
+  mutate_if(is.character, str_squish) %>%
+  filter(episode_no %in% population_tbl$pt_no_num) %>%
+  filter(id_num == 1)
+
+imaging_tbl <- imaging_tbl %>%
+  clean_names() %>%
+  mutate_if(is.character, str_squish) %>%
+  filter(episode_no %in% population_tbl$pt_no_num) %>%
+  filter(id_num == 1)
 
 labs_tbl <- labs_tbl %>%
   mutate_if(is.character, str_squish) %>%
@@ -665,14 +783,111 @@ labs_tbl <- labs_tbl %>%
     "lab_form_name",
     "id_num"
   ) %>%
-  select(-id_num)
+  mutate(
+    clean_lab_value = str_squish(lab_value) %>%
+      str_replace_all("<", "") %>%
+      str_replace_all(">", "") %>%
+      str_squish() %>%
+      str_sub(1, str_locate(lab_value, ' ')[,1]) %>%
+      str_squish() %>%
+      as.character()
+  ) %>% 
+  mutate(
+    lab_value = case_when(
+      !is.na(clean_lab_value) ~ clean_lab_value
+      , TRUE ~ lab_value
+    )
+  )
 
-labs_wide_tbl <- labs_tbl %>%
+first_labs_tbl <- labs_tbl %>%
+  filter(id_num == 1) %>%
+  filter(lab_cd %in% c(
+    "1010","00406090","00407296"
+  ))  %>%
+  select(episode_no, lab_cd_name, lab_cd, lab_value)
+
+highest_labs_tbl <- labs_tbl %>%
+  filter(
+    lab_cd %in% c(
+      "00400937"
+      ,"00400945"
+      ,"2012"
+      ,'00403576'
+      ,'00403493'
+      ,'00401695'
+    )
+  ) %>%
+  group_by(episode_no, lab_cd_name, lab_cd) %>%
+  summarise(lab_value = max(lab_value)) %>%
+  ungroup()
+
+fixed_highest_labs_tbl <- labs_tbl %>%
+  filter(
+    lab_cd %in% c(
+      "00409656"
+      ,"00408492"
+      ,"00425389"
+    )
+  ) %>%
+  mutate(
+    clean_lab_value = str_squish(lab_value) %>%
+      str_replace_all("<", "") %>%
+      str_replace_all(">", "") %>%
+      str_squish() %>%
+      str_sub(1, str_locate(lab_value, ' ')[,1]) %>%
+      str_squish() %>%
+      as.character()
+  ) %>%
+  group_by(episode_no, lab_cd_name, lab_cd) %>%
+  summarise(lab_value = max(clean_lab_value)) %>%
+  ungroup()
+
+high_labs_tbl <- union_all(highest_labs_tbl, fixed_highest_labs_tbl) %>%
+  arrange(episode_no)
+
+low_labs_tbl <- labs_tbl %>%
+  filter(
+    lab_cd %in% c(
+      "00402958"
+      ,"00009522"
+    )
+  ) %>%
+  group_by(episode_no, lab_cd_name, lab_cd) %>%
+  summarise(lab_value = min(lab_value)) %>%
+  ungroup() %>%
+  arrange(episode_no)
+
+labs_union_tbl <- union_all(
+  high_labs_tbl
+  , low_labs_tbl
+  , first_labs_tbl
+)
+
+labs_wide_tbl <- labs_union_tbl %>%
   select(episode_no, lab_cd_name, lab_value) %>%
   pivot_wider(
     id_cols = episode_no,
     names_from = lab_cd_name,
     values_from = lab_value
+  ) %>%
+  clean_names()
+
+imaging_wide_tbl <- imaging_tbl %>%
+  set_names(
+    "episode_no",
+    "imaging_cd_name",
+    "imaging_cd",
+    "imaging_perf_dtime",
+    "imaging_obsv_cre_dtime",
+    "imaging_value",
+    "imaging_form_name",
+    "id_num"
+  ) %>%
+  select(episode_no, imaging_cd, imaging_cd_name, imaging_value) %>%
+  pivot_wider(
+    id_cols = episode_no
+    , names_from = imaging_cd_name
+    , values_from = imaging_value
   )
 
 vitals_tbl <- vitals_tbl %>%
@@ -696,7 +911,8 @@ vitals_wide_tbl <- vitals_tbl %>%
     id_cols = episode_no,
     names_from = vitals_cd_name,
     values_from = vitals_value
-  )
+  ) %>%
+  clean_names()
 
 # Join Data ---------------------------------------------------------------
 
@@ -706,7 +922,15 @@ final_tbl <- population_tbl %>%
     by = c("pt_no_num" = "patient_account_id")
   ) %>%
   left_join(
+    inhouse_meds_wide_tbl,
+    by = c("pt_no_num" = "episode_no")
+  ) %>%
+  left_join(
     icu_first_day_tbl,
+    by = c("pt_no_num" = "pt_no_num")
+  ) %>%
+  left_join(
+    icu_last_day_tbl,
     by = c("pt_no_num" = "pt_no_num")
   ) %>%
   left_join(
@@ -716,12 +940,20 @@ final_tbl <- population_tbl %>%
   left_join(
     vitals_wide_tbl,
     by = c("pt_no_num" = "episode_no")
+  ) %>%
+  left_join(
+    respiratory_tbl,
+    by = c("pt_no_num" = "episode_no")
+  ) %>%
+  left_join(
+    imaging_wide_tbl,
+    by = c("pt_no_num" = "episode_no")
   )
 
 # Write Data --------------------------------------------------------------
 
 f_name <- "takotsubo_with_variables_rundate_"
-f_date <- Sys.Date() %>% format("%m%d%Y")
+f_date <- Sys.Date() %>% format("%m_%d_%Y")
 writexl::write_xlsx(
   x = final_tbl,
   path = paste0(

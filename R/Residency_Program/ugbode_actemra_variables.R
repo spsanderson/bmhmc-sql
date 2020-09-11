@@ -417,16 +417,11 @@ population_tbl <- dbGetQuery(
     	AND MARITAL_STATUS.src_sys_id = '#PASS0X0'
     LEFT OUTER JOIN SMSDSS.DX_CD_DIM_V AS DX_CD ON PAV.prin_dx_cd = DX_CD.dx_cd
     WHERE PAV.Pt_No IN (
-    		SELECT DISTINCT A.PT_ID
-    		FROM smsmir.dx_grp AS A
-    		WHERE (
-    				A.DX_CD IN ('U07.1','B97.29','O98.5')
-    				)
-    			AND LEFT(A.DX_CD_TYPE, 2) = 'DF'
+    		'000089023832','000014862700','000014863732','000014862742',
+    		'000014881007','000014882013','000014884035','000014886360'
     		)
     	AND PAV.Pt_Age >= 18
     	AND PAV.tot_chg_amt > 0
-    	--AND PAV.Plm_Pt_Acct_Type = 'I'
     	AND LEFT(PAV.PTNO_NUM, 1) != '2'
     	AND LEFT(PAV.PTNO_NUM, 4) != '1999'
     --WHERE PAV.PtNo_Num = ''
@@ -590,8 +585,7 @@ labs_tbl <- dbGetQuery(
   )
 ) %>%
   as_tibble() %>%
-  filter(episode_no %in% population_tbl$PtNo_Num) %>%
-  filter(!is.na(obsv_cd_name))
+  filter(episode_no %in% population_tbl$PtNo_Num)
 
 # Respiratory ----
 respiratory_tbl <- dbGetQuery(
@@ -768,7 +762,7 @@ imaging_tbl <- imaging_tbl %>%
   mutate_if(is.character, str_squish) %>%
   filter(episode_no %in% population_tbl$pt_no_num) %>%
   filter(id_num == 1)
-
+  
 labs_tbl <- labs_tbl %>%
   mutate_if(is.character, str_squish) %>%
   filter(episode_no %in% population_tbl$pt_no_num) %>%
@@ -781,21 +775,6 @@ labs_tbl <- labs_tbl %>%
     "lab_value",
     "lab_form_name",
     "id_num"
-  ) %>%
-  mutate(
-    clean_lab_value = str_squish(lab_value) %>%
-      str_replace_all("<", "") %>%
-      str_replace_all(">", "") %>%
-      str_squish() %>%
-      str_sub(1, str_locate(lab_value, ' ')[,1]) %>%
-      str_squish() %>%
-      as.character()
-  ) %>% 
-  mutate(
-    lab_value = case_when(
-      !is.na(clean_lab_value) ~ clean_lab_value
-      , TRUE ~ lab_value
-    )
   )
 
 first_labs_tbl <- labs_tbl %>%
@@ -951,7 +930,7 @@ final_tbl <- population_tbl %>%
 
 # Write Data --------------------------------------------------------------
 
-f_name <- "covid19_with_variables_rundate_"
+f_name <- "actemra_with_variables_rundate_"
 f_date <- Sys.Date() %>% format("%m_%d_%Y")
 writexl::write_xlsx(
   x = final_tbl,
