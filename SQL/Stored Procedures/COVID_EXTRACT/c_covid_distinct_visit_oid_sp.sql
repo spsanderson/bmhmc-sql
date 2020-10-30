@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [dbo].[c_covid_distinct_visit_oid_sp]    Script Date: 10/30/2020 1:26:58 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -22,6 +22,7 @@ Tables/Views:
 	[smsdss].[c_covid_miscref_tbl]
 	[smsdss].[c_covid_ext_pos_tbl]
 	[smsdss].[c_covid_posres_subsequent_visits_tbl]
+	[smsdss].[c_covid_flu_results_tbl]
 
 Creates Table:
 	smsdss.c_covid_ptvisitoid_tbl
@@ -40,10 +41,11 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
+2020-10-30	v2			Add flu results tbl to union list
 ***********************************************************************
 */
 
-CREATE PROCEDURE [dbo].[c_covid_distinct_visit_oid_sp]
+ALTER PROCEDURE [dbo].[c_covid_distinct_visit_oid_sp]
 AS
 
 	SET ANSI_NULLS ON
@@ -100,6 +102,11 @@ BEGIN
 	
 		SELECT PatientVisitOID
 		FROM [smsdss].[c_covid_posres_subsequent_visits_tbl]
+
+		UNION
+
+		SELECT PatientVisitOID
+		FROM smsdss.c_covid_flu_results_tbl
 		) AS A
 
 	SELECT *
