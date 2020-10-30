@@ -411,7 +411,19 @@ population_tbl <- dbGetQuery(
     			THEN 1
     		ELSE 0
     		END,
-    	[prin_dx_desc] = DX_CD.alt_clasf_desc
+    	[prin_dx_desc] = DX_CD.alt_clasf_desc,
+    	[dialysis] = CASE
+		WHEN (
+				SELECT DISTINCT A.Pt_No
+				FROM SMSDSS.BMH_PLM_PtAcct_Svc_V_Hold AS A
+				WHERE LEFT(A.SVC_CD, 3) = '054'
+					AND A.Pt_No = PAV.Pt_No
+					AND A.Bl_Unit_key = PAV.Bl_Unit_Key
+					AND A.Pt_Key = PAV.Pt_Key
+				) IS NOT NULL
+			THEN 1
+		ELSE 0
+		END
     FROM smsdss.BMH_PLM_PtAcct_V AS PAV
     LEFT OUTER JOIN SMSDSS.marital_sts_dim_v AS MARITAL_STATUS ON PAV.Pt_Marital_Sts = MARITAL_STATUS.src_marital_sts
     	AND MARITAL_STATUS.src_sys_id = '#PASS0X0'
@@ -585,13 +597,17 @@ labs_tbl <- dbGetQuery(
     		, '00401695' -- ggt
     		, '00425389' -- nt-probnp
     		, '2012'     -- inr
+    		, '00411769' -- A1c
+    		, '00400929' -- CPK
+    		, '00404061' -- TSH
+    		, '00400408' -- Total Bilirubin
+    		, '73990'    -- Culture Report
     		)
         "
   )
 ) %>%
   as_tibble() %>%
-  filter(episode_no %in% population_tbl$PtNo_Num) %>%
-  filter(!is.na(obsv_cd_name))
+  filter(episode_no %in% population_tbl$PtNo_Num)
 
 # Respiratory ----
 respiratory_tbl <- dbGetQuery(
@@ -611,7 +627,11 @@ respiratory_tbl <- dbGetQuery(
   			perf_dtime ASC
   		)
     FROM smsmir.SR_obsv
-    WHERE obsv_cd IN ('A_BIPAPNasalCPAP') -- BIPAP
+    WHERE obsv_cd IN (
+    'A_BIPAPNasalCPAP' -- BIPAP
+    , 'A_BMH_VFSTART'  -- Vent Start
+    , 'A_BMH_VFSTOP'   -- Vent Stop
+    )
     "
   )
 ) %>%
@@ -695,6 +715,133 @@ icu_last_day_tbl <- dbGetQuery(
   as_tibble() %>%
   filter(id_num == 1)
 
+# Comorbidities ----
+# Check covid extract from Admit assessment
+comorbidity_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT episode_no,
+  	obsv_cd_name,
+  	obsv_cd,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [Display_Value],
+  	form_usage,
+  	id_num = row_number() OVER (
+  		PARTITION BY episode_no,
+  		obsv_cd_name ORDER BY episode_no,
+  			perf_dtime DESC
+  		)
+    FROM SMSMIR.obsv
+    WHERE obsv_cd IN (
+    		'A_BMH_ListCoMorb'
+    	)
+    	AND form_usage = 'Admission'
+    	AND LEN(EPISODE_NO) = 8
+    ORDER BY episode_no,
+    	perf_dtime DESC;
+    "
+  )
+) %>%
+  as_tibble() %>%
+  filter(id_num == 1) %>%
+  filter(episode_no %in% population_tbl$PtNo_Num)
+
+# Nasal Cannula ----
+nasal_cannula_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT episode_no,
+  	obsv_cd_name,
+  	obsv_cd,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [Display_Value],
+  	form_usage,
+  	id_num = row_number() OVER (
+  		PARTITION BY episode_no,
+  		obsv_cd_name ORDER BY episode_no,
+  			perf_dtime DESC
+  		)
+    FROM SMSMIR.obsv
+    WHERE obsv_cd IN (
+    		'A_O2 Del Device','A_O2 Del Method'
+    	)
+    	AND dsply_val = 'Nasal Cannula'
+    	AND LEN(EPISODE_NO) = 8
+    ORDER BY episode_no,
+    	perf_dtime DESC;
+    "
+  )
+) %>%
+  as_tibble() %>%
+  filter(id_num == 1) %>%
+  filter(episode_no %in% population_tbl$PtNo_Num)
+
+# Cultures Table ----
+cultures_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+  SELECT episode_no,
+  	obsv_cd_name,
+  	obsv_cd,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	coll_dtime,
+    ord_occr_no,
+    ord_occr_obj_id,
+    ord_seq_no,
+  	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [Display_Value]
+  FROM SMSMIR.obsv
+  WHERE obsv_cd IN (
+  		'73990',
+  		'70021'
+  	)
+	AND LEN(EPISODE_NO) = 8
+  ORDER BY episode_no,
+  	perf_dtime,
+  	obsv_cre_dtime,
+  	coll_dtime,
+    ord_occr_no,
+    ord_occr_obj_id,
+    ord_seq_no
+    "
+  )
+) %>%
+  as_tibble() %>%
+  filter(episode_no %in% population_tbl$PtNo_Num)
+
+# Isolate ID ----
+isolate_id_tbl <- dbGetQuery(
+  conn = db_conn,
+  statement = paste0(
+    "
+    SELECT episode_no,
+    	obsv_cd_name,
+    	obsv_cd,
+    	perf_dtime,
+    	obsv_cre_dtime,
+    	coll_dtime,
+    	ord_occr_no,
+    	ord_occr_obj_id,
+    	ord_seq_no,
+    	REPLACE(REPLACE(REPLACE(REPLACE(dsply_val, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [Display_Value]
+    FROM SMSMIR.obsv
+    WHERE obsv_cd IN (
+    		'74000'
+    	)
+    	AND LEN(EPISODE_NO) = 8
+    ORDER BY episode_no,
+    	perf_dtime DESC;
+    "
+  )
+) %>%
+  as_tibble() %>%
+  # filter(id_num == 1) %>%
+  filter(episode_no %in% population_tbl$PtNo_Num)
 
 # DB Disconnect -----------------------------------------------------------
 
@@ -761,7 +908,25 @@ respiratory_tbl <- respiratory_tbl %>%
   clean_names() %>%
   mutate_if(is.character, str_squish) %>%
   filter(episode_no %in% population_tbl$pt_no_num) %>%
-  filter(id_num == 1)
+  filter(id_num == 1) %>%
+  select(episode_no, obsv_cd, obsv_cd_name, perf_dtime, dsply_val) %>%
+  mutate(obsv_desc = case_when(
+    obsv_cd == 'A_BMH_VFStart' ~ "Vent_Start_DTime"
+    , obsv_cd == 'A_BMH_VFStop' ~ "Vent_Stop_DTime"
+    , obsv_cd == 'A_BIPAPNasalCPAP' ~ "Bipap"
+  )) %>%
+  mutate(
+    resp_value = ifelse(
+      obsv_cd %in% c('A_BMH_VFStart','A_BMH_VFStop')
+      , as.character(perf_dtime)
+      , dsply_val
+    )
+  ) %>%
+  pivot_wider(
+    id_cols = c(episode_no, obsv_cd)
+    , names_from = obsv_desc
+    , values_from = resp_value
+  )
 
 imaging_tbl <- imaging_tbl %>%
   clean_names() %>%
@@ -781,27 +946,12 @@ labs_tbl <- labs_tbl %>%
     "lab_value",
     "lab_form_name",
     "id_num"
-  ) %>%
-  mutate(
-    clean_lab_value = str_squish(lab_value) %>%
-      str_replace_all("<", "") %>%
-      str_replace_all(">", "") %>%
-      str_squish() %>%
-      str_sub(1, str_locate(lab_value, ' ')[,1]) %>%
-      str_squish() %>%
-      as.character()
-  ) %>% 
-  mutate(
-    lab_value = case_when(
-      !is.na(clean_lab_value) ~ clean_lab_value
-      , TRUE ~ lab_value
-    )
   )
 
 first_labs_tbl <- labs_tbl %>%
   filter(id_num == 1) %>%
   filter(lab_cd %in% c(
-    "1010","00406090","00407296"
+    "1010","00406090","00407296","00411769","73990"
   ))  %>%
   select(episode_no, lab_cd_name, lab_cd, lab_value)
 
@@ -814,6 +964,8 @@ highest_labs_tbl <- labs_tbl %>%
       ,'00403576'
       ,'00403493'
       ,'00401695'
+      ,'00400929'
+      ,'00400408'
     )
   ) %>%
   group_by(episode_no, lab_cd_name, lab_cd) %>%
@@ -844,7 +996,7 @@ fixed_highest_labs_tbl <- labs_tbl %>%
 high_labs_tbl <- union_all(highest_labs_tbl, fixed_highest_labs_tbl) %>%
   arrange(episode_no)
 
-low_labs_tbl <- labs_tbl %>%
+lowest_labs_tbl <- labs_tbl %>%
   filter(
     lab_cd %in% c(
       "00402958"
@@ -854,6 +1006,24 @@ low_labs_tbl <- labs_tbl %>%
   group_by(episode_no, lab_cd_name, lab_cd) %>%
   summarise(lab_value = min(lab_value)) %>%
   ungroup() %>%
+  arrange(episode_no)
+
+fixed_lowest_labs_tbl <- labs_tbl %>%
+  filter(lab_cd == "00404061") %>%
+  mutate(
+    clean_lab_value = str_squish(lab_value) %>%
+      str_replace_all("<", "") %>%
+      str_replace_all(">", "") %>%
+      str_squish() %>%
+      str_sub(1, str_locate(lab_value, ' ')[,1]) %>%
+      str_squish() %>%
+      as.character()
+  ) %>%
+  group_by(episode_no, lab_cd_name, lab_cd) %>%
+  summarise(lab_value = min(clean_lab_value)) %>%
+  ungroup()
+
+low_labs_tbl <- union_all(lowest_labs_tbl, fixed_lowest_labs_tbl) %>%
   arrange(episode_no)
 
 labs_union_tbl <- union_all(
@@ -913,6 +1083,65 @@ vitals_wide_tbl <- vitals_tbl %>%
   ) %>%
   clean_names()
 
+comorbidity_wide_tbl <- comorbidity_tbl %>%
+  set_names(
+    "episode_no",
+    "comorbidity_cd_name",
+    "comorbidity_cd",
+    "comorbidity_perf_dtime",
+    "comorbidity_obsv_cre_dtime",
+    "comorbidity_value",
+    "comorbidity_form_name",
+    "id_num"
+  ) %>%
+  select(episode_no, comorbidity_value) %>%
+  mutate(comorbidity_value = str_to_upper(comorbidity_value)) %>%
+  separate(
+    col = comorbidity_value,
+    into = str_c("comorbidity_", 1:50),
+    sep = "[,;]",
+    remove = FALSE,
+    fill = "right"
+  ) %>%
+  # select a column if any of the rows are not NA
+  select_if(function(x) any(!is.na(x))) %>%
+  mutate_if(is.character, str_squish)
+
+cultures_wide_tbl <- cultures_tbl %>% 
+  mutate_if(is.character, str_squish) %>% 
+  select(episode_no, contains("ord"), obsv_cd_name, Display_Value) %>% 
+  filter(!is.na(ord_occr_no), !is.na(ord_occr_obj_id), !is.na(ord_seq_no)) %>%
+  pivot_wider(names_from = obsv_cd_name, values_from = Display_Value) %>% 
+  set_names(
+    "episode_no","ord_occr_no","ord_occr_obj_id","ord_seq_no",
+    "test_name","report_value"
+  ) %>% 
+  group_by(episode_no, test_name) %>%
+  mutate(max_ord_occr_no = (ord_occr_no == max(ord_occr_no))) %>%
+  ungroup() %>%
+  filter(max_ord_occr_no == TRUE) %>%
+  select(episode_no, test_name, report_value) %>%
+  pivot_wider(names_from = test_name, values_from = report_value) %>% 
+  clean_names() %>% 
+  select(
+    episode_no, urine_culture, blood_culture, 
+    sputum_culture, urine_culture, gram_stain, body_fluid_culture, 
+    anaerobic_culture, fungal_culture, acid_fast_culture)
+
+# Get last isolate id
+isolate_id_wide_tbl <- isolate_id_tbl %>%
+  mutate_if(is.character, str_squish) %>%
+  select(episode_no, ord_occr_no, obsv_cd_name, Display_Value) %>% 
+  group_by(episode_no) %>%
+  mutate(max_ord_occr_no = (ord_occr_no == max(ord_occr_no))) %>%
+  ungroup() %>%
+  filter(max_ord_occr_no == TRUE) %>%
+  select(-max_ord_occr_no, -ord_occr_no, -obsv_cd_name) %>%
+  set_names(
+    "episode_no","isolate_report_value"
+  )
+
+
 # Join Data ---------------------------------------------------------------
 
 final_tbl <- population_tbl %>%
@@ -947,7 +1176,16 @@ final_tbl <- population_tbl %>%
   left_join(
     imaging_wide_tbl,
     by = c("pt_no_num" = "episode_no")
+  ) %>%
+  left_join(
+    cultures_wide_tbl,
+    by = c("pt_no_num" = "episode_no")
+  ) %>%
+  left_join(
+    isolate_id_wide_tbl,
+    by = c("pt_no_num" = "episode_no")
   )
+
 
 # Write Data --------------------------------------------------------------
 
