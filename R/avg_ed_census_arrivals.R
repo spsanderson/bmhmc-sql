@@ -6,7 +6,7 @@ pacman::p_load(
 )
 
 # Load File ####
-file.to.choose <- file.choose(new = T)
+file.to.choose <- "G:/R Studio Projects/ED_Avg_Hourly_Census/data.csv"
 df <- read.csv(file.to.choose)
 df.tibble <- as_tibble(df)
 head(df.tibble, 5)
@@ -168,7 +168,7 @@ df_cen_bucket <- df.census.gathered %>%
   mutate(hour_bucket = hour_bucket %>% as_factor())
 
 # Visualize ####
-capt <- "From 12-29-2019 to 09-05-2020"
+capt <- "From 12-29-2019 to 10-24-2020"
 
 arrivals.boxplt <- df.arrivals.gathered %>% ggplot(
   aes(
