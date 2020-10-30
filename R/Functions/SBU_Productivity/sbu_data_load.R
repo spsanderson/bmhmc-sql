@@ -329,7 +329,7 @@ df_tbl <- df_tbl %>%
     left_join(
         pyr_grp_tbl
         , by = c("pyr1_co_plan_cd" = "src_pyr_cd")
-    )
+    ) 
 
 # DB Disconnect ----
 dbDisconnect(db_con)
@@ -341,7 +341,8 @@ df_tbl <- df_tbl %>%
         by = c("pract_no" = "pract_no")
     ) %>% 
     distinct(pt_id, .keep_all = TRUE) %>%
-    clean_names()
+    clean_names() %>%
+    filter(!is.na(division))
 
 # Write out RDS to be used in mainp script
 f_path <- "G:\\R Studio Projects\\SBU_Productivity\\00_data\\"
