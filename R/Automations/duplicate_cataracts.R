@@ -88,11 +88,10 @@ unioned_tbl %>%
             , x = proc_eff_date
         )
     ) %>%
-    ungroup()
-
-# Write file ----
-unioned_tbl %>%
-    write_csv(path = "G:/HIM/dupe_cataracts.csv")
+    ungroup() %>%
+    arrange(med_rec_no, proc_eff_date) %>%
+    filter(rn > 1) %>%
+    write_csv(file = "G:/HIM/dupe_cataracts.csv")
 
 # Compose Email ----
 # Files
