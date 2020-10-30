@@ -169,8 +169,8 @@ trend_tbl <- joined_tbl %>%
         , ed_rad_per_pt = sum(ed_rad_count) / visit_count
         , ed_lab_per_pt = sum(ed_lab_count) / visit_count
     ) %>%
-    filter(month_end >= '2016-01-01') %>%
     ungroup() %>%
+    filter(month_end >= '2016-01-01') %>%
     select(month_end, starts_with("ip"))
 
 trend_long_tbl <- trend_tbl %>%
@@ -186,7 +186,6 @@ trend_long_tbl <- trend_tbl %>%
         )
     )
 
-order_type_labs <- c("Lab Orders Per Pt","Rad Orders Per Pt")
 trend_long_tbl %>%
     filter(value != 0) %>%
     ggplot(mapping = aes(x = month_end, y = value, color = order_type_lbl)) +
