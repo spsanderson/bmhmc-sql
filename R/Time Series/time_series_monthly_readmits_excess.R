@@ -358,3 +358,4 @@ ts_median_excess_plt(
     , title = "Median Excess (+/-) Readmit Rate by Month"
     , subtitle = "Redline indicates current year. Grouped by Year."
   )
+
