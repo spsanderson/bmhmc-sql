@@ -86,82 +86,59 @@ DECLARE @FormUsageName VARCHAR(255),
 	@ChapterName VARCHAR(255),
 	@iUseroid INT,
 	@vchReportUserName VARCHAR(184)
-
 /*
 BMAT DATA
 */
 DECLARE @BMAT_TBL TABLE (
-	Patient_OID INT
-	, PatientVisit_OID INT
-	, EnteredDT DATETIME
-	, Fail_Level1  VARCHAR(500)
-	, Equip_Level1 VARCHAR(500)
-	, Pass_Level1  VARCHAR(500)
-	, Fail_Level2  VARCHAR(500)
-	, Equip_Level2 VARCHAR(500)
-	, Pass_Level2  VARCHAR(500)
-	, Fail_Level3  VARCHAR(500)
-	, Equip_Level3 VARCHAR(500)
-	, Pass_Level3  VARCHAR(500)
-	, Fail_Level4  VARCHAR(500)
-	, Equip_Level4 VARCHAR(500)
-	, Pass_Level4  VARCHAR(500)
-)
+	Patient_OID INT,
+	PatientVisit_OID INT,
+	EnteredDT DATETIME,
+	Fail_Level1 VARCHAR(500),
+	Equip_Level1 VARCHAR(500),
+	Pass_Level1 VARCHAR(500),
+	Fail_Level2 VARCHAR(500),
+	Equip_Level2 VARCHAR(500),
+	Pass_Level2 VARCHAR(500),
+	Fail_Level3 VARCHAR(500),
+	Equip_Level3 VARCHAR(500),
+	Pass_Level3 VARCHAR(500),
+	Fail_Level4 VARCHAR(500),
+	Equip_Level4 VARCHAR(500),
+	Pass_Level4 VARCHAR(500)
+	)
 
 INSERT INTO @BMAT_TBL
-SELECT PVT.Patient_oid
-, PVT.PatientVisit_oid
-, PVT.EnteredDT
-, PVT.A_BMH_FailLev1
-, PVT.A_BMH_Levl1Equip
-, PVT.A_BMH_PassLevel1
-, PVT.A_BMH_FailLev2
-, PVT.A_BMH_Levl2Equip
-, PVT.A_BMH_PassLevel2
-, PVT.A_BMH_FailLev3
-, PVT.A_BMH_Levl3Equip
-, PVT.A_BMH_PassLevel3
-, PVT.A_BMH_FailLev4
-, PVT.A_BMH_Levl4Equip
-, PVT.A_BMH_PassLevel4
+SELECT PVT.Patient_oid,
+	PVT.PatientVisit_oid,
+	PVT.EnteredDT,
+	PVT.A_BMH_FailLev1,
+	PVT.A_BMH_Levl1Equip,
+	PVT.A_BMH_PassLevel1,
+	PVT.A_BMH_FailLev2,
+	PVT.A_BMH_Levl2Equip,
+	PVT.A_BMH_PassLevel2,
+	PVT.A_BMH_FailLev3,
+	PVT.A_BMH_Levl3Equip,
+	PVT.A_BMH_PassLevel3,
+	PVT.A_BMH_FailLev4,
+	PVT.A_BMH_Levl4Equip,
+	PVT.A_BMH_PassLevel4
 FROM (
-	SELECT ha.Patient_oid
-	, HA.PatientVisit_oid
-	, HA.EnteredDT
-	, HO.FindingAbbr
-	, HO.Value
-	, HA.FormUsageDisplayName
+	SELECT ha.Patient_oid,
+		HA.PatientVisit_oid,
+		HA.EnteredDT,
+		HO.FindingAbbr,
+		HO.Value,
+		HA.FormUsageDisplayName
 	FROM HAssessment AS ha WITH (NOLOCK)
 	INNER JOIN HObservation AS ho WITH (NOLOCK) ON ha.assessmentid = ho.assessmentid
 	WHERE HA.EndDT IS NULL
-	AND HO.EndDT IS NULL
-	AND HA.AssessmentStatusCode IN ('1', '3')
-	AND HO.FindingAbbr IN (
-		'A_BMH_FailLev1',
-		'A_BMH_Levl1Equip',
-		'A_BMH_PassLevel1',
-		'A_BMH_FailLev2',
-		'A_BMH_Levl2Equip',
-		'A_BMH_PassLevel2',
-		'A_BMH_FailLev3',
-		'A_BMH_Levl3Equip',
-		'A_BMH_PassLevel3',
-		'A_BMH_FailLev4',
-		'A_BMH_Levl4Equip',
-		'A_BMH_PassLevel4'
-	)
-	AND HA.FormUsageDisplayName = 'Admission'
-) AS BMAT
-
-PIVOT(
-	MAX(Value)
-	FOR FindingAbbr IN (
-		"A_BMH_FailLev1","A_BMH_Levl1Equip","A_BMH_PassLevel1",
-		"A_BMH_FailLev2","A_BMH_Levl2Equip","A_BMH_PassLevel2",
-		"A_BMH_FailLev3","A_BMH_Levl3Equip","A_BMH_PassLevel3",
-		"A_BMH_FailLev4","A_BMH_Levl4Equip","A_BMH_PassLevel4"
-	)
-) AS PVT
+		AND HO.EndDT IS NULL
+		AND HA.AssessmentStatusCode IN ('1', '3')
+		AND HO.FindingAbbr IN ('A_BMH_FailLev1', 'A_BMH_Levl1Equip', 'A_BMH_PassLevel1', 'A_BMH_FailLev2', 'A_BMH_Levl2Equip', 'A_BMH_PassLevel2', 'A_BMH_FailLev3', 'A_BMH_Levl3Equip', 'A_BMH_PassLevel3', 'A_BMH_FailLev4', 'A_BMH_Levl4Equip', 'A_BMH_PassLevel4')
+		AND HA.FormUsageDisplayName = 'Admission'
+	) AS BMAT
+PIVOT(MAX(Value) FOR FindingAbbr IN ("A_BMH_FailLev1", "A_BMH_Levl1Equip", "A_BMH_PassLevel1", "A_BMH_FailLev2", "A_BMH_Levl2Equip", "A_BMH_PassLevel2", "A_BMH_FailLev3", "A_BMH_Levl3Equip", "A_BMH_PassLevel3", "A_BMH_FailLev4", "A_BMH_Levl4Equip", "A_BMH_PassLevel4")) AS PVT
 
 --*************************************************************************************************  
 -- Temp Tables declaration for Assessments Report --  
@@ -279,7 +256,7 @@ INNER JOIN @PatientTable pt ON ha.Patient_oid = pt.pat_oid
 		INNER JOIN HObservation ho WITH (NOLOCK) ON ha.assessmentid = ho.assessmentid
 		WHERE ha.patient_oid = pt.pat_oid
 			AND ha.patientvisit_oid = pt.pvisit_oid
-			AND ho.FindingAbbr = 'A_MorseFallRisk' --added 'A_MorseFallRisk'
+			AND HO.FindingAbbr IN ('A_BMH_FailLev1', 'A_BMH_Levl1Equip', 'A_BMH_PassLevel1', 'A_BMH_FailLev2', 'A_BMH_Levl2Equip', 'A_BMH_PassLevel2', 'A_BMH_FailLev3', 'A_BMH_Levl3Equip', 'A_BMH_PassLevel3', 'A_BMH_FailLev4', 'A_BMH_Levl4Equip', 'A_BMH_PassLevel4', 'A_MorseFallRisk') --added 'A_MorseFallRisk'
 			AND ha.assessmentstatuscode IN ('1', '3')
 			AND ha.enddt IS NULL
 			AND ho.EndDt IS NULL
@@ -287,7 +264,7 @@ INNER JOIN @PatientTable pt ON ha.Patient_oid = pt.pat_oid
 		)
 WHERE ha.EndDt IS NULL
 	AND ho.EndDt IS NULL
-	AND ho.FindingAbbr = 'A_MorseFallRisk' --added 'A_MorseFallRisk'
+	AND HO.FindingAbbr IN ('A_BMH_FailLev1', 'A_BMH_Levl1Equip', 'A_BMH_PassLevel1', 'A_BMH_FailLev2', 'A_BMH_Levl2Equip', 'A_BMH_PassLevel2', 'A_BMH_FailLev3', 'A_BMH_Levl3Equip', 'A_BMH_PassLevel3', 'A_BMH_FailLev4', 'A_BMH_Levl4Equip', 'A_BMH_PassLevel4', 'A_MorseFallRisk') --added 'A_MorseFallRisk'
 	AND ha.assessmentstatuscode IN ('1', '3')
 ORDER BY ha.patient_oid,
 	ha.EnteredDT DESC
@@ -334,8 +311,10 @@ INNER JOIN HObservation ho WITH (NOLOCK) ON ai.assessmentid = ho.assessmentid
 	AND ho.EndDt IS NULL
 	AND ha.enddt IS NULL
 WHERE --ho.Findingabbr = ('A_Fall Risk')
-	ho.Findingabbr = ('A_Fall Risk Cmnt')
-	OR ho.Findingabbr = ('A_MorseFallRisk') --added
+	ho.Findingabbr IN ('A_BMH_FailLev1', 'A_BMH_Levl1Equip', 'A_BMH_PassLevel1', 'A_BMH_FailLev2', 'A_BMH_Levl2Equip', 'A_BMH_PassLevel2', 'A_BMH_FailLev3', 'A_BMH_Levl3Equip', 'A_BMH_PassLevel3', 'A_BMH_FailLev4', 'A_BMH_Levl4Equip', 'A_BMH_PassLevel4', 'A_MorseFallRisk', 'A_Fall Risk Cmnt')
+--ho.FindingAbbr = 'A_MorseFallRisk'
+--OR ho.Findingabbr = ('A_Fall Risk Cmnt')
+--OR ho.Findingabbr = ('A_MorseFallRisk') --added
 ORDER BY ai.Patientoid,
 	ai.PatientVisitoid
 
@@ -345,7 +324,19 @@ DECLARE @PivotTable TABLE (
 	patientvisit_oid VARCHAR(10),
 	FallRisk VARCHAR(255),
 	FallRiskComments VARCHAR(255),
-	CollectedDate DATETIME
+	CollectedDate DATETIME,
+	Fail_Level1 VARCHAR(500),
+	Equip_Level1 VARCHAR(500),
+	Pass_Level1 VARCHAR(500),
+	Fail_Level2 VARCHAR(500),
+	Equip_Level2 VARCHAR(500),
+	Pass_Level2 VARCHAR(500),
+	Fail_Level3 VARCHAR(500),
+	Equip_Level3 VARCHAR(500),
+	Pass_Level3 VARCHAR(500),
+	Fail_Level4 VARCHAR(500),
+	Equip_Level4 VARCHAR(500),
+	Pass_Level4 VARCHAR(500)
 	)
 
 INSERT INTO @PivotTable (
@@ -451,7 +442,7 @@ SELECT
 	PatientOID = pt.ObjectID,
 	PatientVisitOID = pv.ObjectID,
 	EntityOID = pv.Entity_oid
-FROM HPatientVisit pv with(nolock)
+FROM HPatientVisit pv WITH (NOLOCK)
 INNER JOIN HPatient pt WITH (NOLOCK) ON pt.ObjectID = pv.Patient_OID
 INNER JOIN HPerson per WITH (NOLOCK) ON pt.ObjectID = per.ObjectID
 LEFT OUTER JOIN HReferringInstitution ri WITH (NOLOCK) ON pv.ReferringInstitution_oid = ri.ObjectID
@@ -470,7 +461,7 @@ BEGIN
 	WHERE PatientOID = - 1
 END
 
-SELECT pt.patientoid,
+SELECT DISTINCT pt.patientoid,
 	pt.patientvisit_oid,
 	pt.FallRisk,
 	pt.FallRiskComments,
@@ -489,7 +480,7 @@ SELECT pt.patientoid,
 	p.VisitStartDateTime,
 	p.ChiefComplaint,
 	UserName = @vchReportUserName,
-	BMAT.EnteredDT,
+	--BMAT.EnteredDT,
 	BMAT.Fail_Level1,
 	BMAT.Equip_Level1,
 	BMAT.Pass_Level1,
@@ -502,16 +493,9 @@ SELECT pt.patientoid,
 	BMAT.Fail_Level4,
 	BMAT.Equip_Level4,
 	BMAT.Pass_Level4
-
 FROM @PivotTable pt
 INNER JOIN @Patient p ON pt.patientoid = p.patientoid
 	AND pt.patientvisit_oid = p.patientvisitoid
 LEFT OUTER JOIN @BMAT_TBL AS BMAT ON PT.patientoid = BMAT.Patient_OID
 	AND PT.patientvisit_oid = BMAT.PatientVisit_OID
 ORDER BY pt.patientoid
-
-
-
-
-
-
