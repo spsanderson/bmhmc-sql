@@ -136,7 +136,7 @@ l <- leaflet(data = dsch_count_shp) %>%
         , position = "topright"
       )
     ) %>%
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = pal
     , values = ~dsch_bin
@@ -209,8 +209,7 @@ alosl <- leaflet(data = dsch_alos_shp) %>%
       , position = "topright"
     )
   ) %>%
-
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = palAlos
     , values = ~ALOS
@@ -283,7 +282,7 @@ soil <- leaflet(data = dsch_soi_shp) %>%
       , position = "topright"
     )
   ) %>%
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = palSOI
     , values = ~avgSOI
@@ -355,7 +354,7 @@ cvarl <- leaflet(data = dsch_cvar_shp) %>%
       , position = "topright"
     )
   ) %>%
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = palcvar
     , values = ~avgVar
@@ -436,7 +435,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
     )
   ) %>%
   
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = pal
     , values = dsch_count_shp$dsch_bin
@@ -444,7 +443,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
     , opacity = 1
   ) %>%
   
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = palAlos
     , values = dsch_alos_shp$ALOS
@@ -452,7 +451,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
     , opacity = 1
   ) %>%
   
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = palSOI
     , values = dsch_soi_shp$avgSOI
@@ -460,7 +459,7 @@ mlmap <- leaflet(data = dsch_cvar_shp) %>%
     , opacity = 1
   ) %>%
   
-  addLegend(
+  leaflet::addLegend(
     "topright"
     , pal = palcvar
     , values = dsch_cvar_shp$avgVar
