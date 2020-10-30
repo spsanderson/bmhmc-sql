@@ -90,6 +90,7 @@ plot_time_series(
     , end_date
   )
   , .plotly_slider = TRUE
+  , .smooth_period = "24 hours"
 )
 
 plot_seasonal_diagnostics(
@@ -145,7 +146,7 @@ df_anomalized_tbl <- filter_by_time(
   anomalize(remainder, method = "gesd") %>%
   clean_anomalies() %>%
   time_recompose() %>%
-  select(date_col, observed, observed_cleaned)
+  select(date_col, observed, observed_cleaned) 
 
 # Data Split --------------------------------------------------------------
 
@@ -367,7 +368,7 @@ ts_median_excess_plt(
     x = "Week of Arrival"
     , y = "Excess of Median"
     , title = "Median Excess (+/-) by Week of the Year"
-    , subtitle = "Redline indicates current year. Gruped by Year"
+    , subtitle = "Redline indicates current year. Grouped by Year"
   )
 
 ts_median_excess_plt(
@@ -384,6 +385,6 @@ ts_median_excess_plt(
     x = "Day of Arrival"
     , y = "Excess of Median"
     , title = "Median Excess (+/-) by Day of the Weekk"
-    , subtitle = "Redline indicates current year. Gruped by Week"
+    , subtitle = "Redline indicates current year. Grouped by Week"
   )
 
