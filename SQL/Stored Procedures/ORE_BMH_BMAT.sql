@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BMH_FallRisk_SPS_test]    Script Date: 9/22/2020 12:59:39 PM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BMH_BMAT_test]    Script Date: 11/24/2020 8:38:23 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -46,29 +46,32 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-09-22	v1			Initial Creation
+2020-11-24	v2			Add AND ha.FormUsageDisplayName IN ('Admission','Shift Assessment')
+						two the Assessment ID Section
 ***********************************************************************
 */
 
-CREATE PROCEDURE [dbo].[ORE_BMH_BMAT_test] @pvchLocation VARCHAR(2000) = NULL,
+ALTER PROCEDURE [dbo].[ORE_BMH_BMAT_test] @pvchLocation VARCHAR(2000) = NULL,
 	@HSF_SESSION_USEROID AS VARCHAR(20) = NULL,
 	@pchReportUsage AS CHAR(1) = '2'
 AS
+
 --*************************************************************************************************  
 -- Variables declaration for Vitals Sign Report --  
 --*************************************************************************************************  
-DECLARE @FormUsageName VARCHAR(255),
-	@FindingName VARCHAR(64),
-	@iPatientOID INT,
-	@iVisitOID INT,
-	@FindingAbbrName VARCHAR(16),
-	@dStartDate DATETIME,
-	@dEndDate DATETIME,
-	@dtDschDtFrom DATETIME,
-	@dtDschDtTo DATETIME,
+DECLARE --@FormUsageName VARCHAR(255),
+	--@FindingName VARCHAR(64),
+	--@iPatientOID INT,
+	--@iVisitOID INT,
+	--@FindingAbbrName VARCHAR(16),
+	--@dStartDate DATETIME,
+	--@dEndDate DATETIME,
+	--@dtDschDtFrom DATETIME,
+	--@dtDschDtTo DATETIME,
 	@iRecCount INT,
-	@vcFormUsageName CHAR(3),
-	@iHours INT,
-	@ChapterName VARCHAR(255),
+	--@vcFormUsageName CHAR(3),
+	--@iHours INT,
+	--@ChapterName VARCHAR(255),
 	@iUseroid INT,
 	@vchReportUserName VARCHAR(184)
 --*************************************************************************************************  
@@ -187,6 +190,7 @@ INNER JOIN @PatientTable pt ON ha.Patient_oid = pt.pat_oid
 			AND ha.patientvisit_oid = pt.pvisit_oid
 			AND HO.FindingAbbr IN ('A_BMH_FailLev1', 'A_BMH_Levl1Equip', 'A_BMH_PassLevel1', 'A_BMH_FailLev2', 'A_BMH_Levl2Equip', 'A_BMH_PassLevel2', 'A_BMH_FailLev3', 'A_BMH_Levl3Equip', 'A_BMH_PassLevel3', 'A_BMH_FailLev4', 'A_BMH_Levl4Equip', 'A_BMH_PassLevel4')
 			AND ha.assessmentstatuscode IN ('1', '3')
+			AND ha.FormUsageDisplayName IN ('Admission', 'Shift Assessment')
 			AND ha.enddt IS NULL
 			AND ho.EndDt IS NULL
 		ORDER BY ha.EnteredDT DESC
@@ -195,6 +199,7 @@ WHERE ha.EndDt IS NULL
 	AND ho.EndDt IS NULL
 	AND HO.FindingAbbr IN ('A_BMH_FailLev1', 'A_BMH_Levl1Equip', 'A_BMH_PassLevel1', 'A_BMH_FailLev2', 'A_BMH_Levl2Equip', 'A_BMH_PassLevel2', 'A_BMH_FailLev3', 'A_BMH_Levl3Equip', 'A_BMH_PassLevel3', 'A_BMH_FailLev4', 'A_BMH_Levl4Equip', 'A_BMH_PassLevel4')
 	AND ha.assessmentstatuscode IN ('1', '3')
+	AND ha.FormUsageDisplayName IN ('Admission', 'Shift Assessment')
 ORDER BY ha.patient_oid,
 	ha.EnteredDT DESC
 
@@ -239,6 +244,7 @@ INNER JOIN HObservation ho WITH (NOLOCK) ON ai.assessmentid = ho.assessmentid
 	AND ho.EndDt IS NULL
 	AND ha.enddt IS NULL
 WHERE ho.Findingabbr IN ('A_BMH_FailLev1', 'A_BMH_Levl1Equip', 'A_BMH_PassLevel1', 'A_BMH_FailLev2', 'A_BMH_Levl2Equip', 'A_BMH_PassLevel2', 'A_BMH_FailLev3', 'A_BMH_Levl3Equip', 'A_BMH_PassLevel3', 'A_BMH_FailLev4', 'A_BMH_Levl4Equip', 'A_BMH_PassLevel4')
+	AND ha.FormUsageDisplayName IN ('Admission', 'Shift Assessment')
 ORDER BY ai.Patientoid,
 	ai.PatientVisitoid
 
@@ -509,3 +515,4 @@ FROM @PivotTable pt
 INNER JOIN @Patient p ON pt.patientoid = p.patientoid
 	AND pt.patientvisit_oid = p.patientvisitoid
 ORDER BY pt.patientoid
+
