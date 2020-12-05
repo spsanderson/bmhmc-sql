@@ -57,11 +57,17 @@ query <- dbGetQuery(
   as_tibble() %>%
   clean_names() %>%
   mutate(arrival_date = arrival_date %>% ymd_hms()) %>%
-  mutate(date_col = floor_date(arrival_date, unit = "hour")) %>%
-  select(-arrival_date) %>%
-  group_by(date_col) %>%
-  summarise(value = sum(visit_count, na.rm = TRUE)) %>%
-  ungroup() %>%
+  rename(date_col = arrival_date)
+  
+
+# Manipulate --------------------------------------------------------------
+
+query <- query %>%
+  summarise_by_time(
+    .date_var = date_col
+    , .by = "hour"
+    , value = sum(visit_count, na.rm = TRUE)
+  ) %>%
   pad_by_time(
     .date_var = date_col
     , .by = "hour"
@@ -133,24 +139,9 @@ filter_by_time(
   plot_anomaly_decomposition() +
   labs(title = "Anomaly Diagnostics")
 
-# Anomalize Data ----------------------------------------------------------
-
-df_anomalized_tbl <- filter_by_time(
-    .data = query
-    , .date_var = date_col
-    , .start_date = CEILING_MONTH(end_date - dhours(60*24))
-  ) %>%
-  tibbletime::as_tbl_time(index = date_col) %>%
-  arrange(date_col) %>%
-  time_decompose(value, method = "twitter") %>%
-  anomalize(remainder, method = "gesd") %>%
-  clean_anomalies() %>%
-  time_recompose() %>%
-  select(date_col, observed, observed_cleaned) 
-
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(df_anomalized_tbl, prop = 0.8)
+splits <- initial_time_split(query, prop = 0.8)
 
 # Models ----
 
@@ -158,7 +149,7 @@ splits <- initial_time_split(df_anomalized_tbl, prop = 0.8)
 
 model_fit_arima_no_boost <- arima_reg() %>%
   set_engine(engine = "auto_arima") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(value ~ date_col, data = training(splits))
 
 
 # Boosted Auto ARIMA ------------------------------------------------------
@@ -169,7 +160,12 @@ model_fit_arima_boosted <- arima_boost(
 ) %>%
   set_engine(engine = "auto_arima_xgboost") %>%
   fit(
-    observed_cleaned ~ date_col + as.numeric(date_col) + factor(hour(date_col), ordered = FALSE)
+    value ~ date_col 
+    + as.numeric(date_col) 
+    + month(date_col, label = TRUE)
+    + wday(date_col, label = TRUE)
+    + week(date_col)
+    + factor(hour(date_col), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -177,24 +173,24 @@ model_fit_arima_boosted <- arima_boost(
 
 model_fit_ets <- exp_smoothing() %>%
   set_engine(engine = "ets") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(value ~ date_col, data = training(splits))
 
 # Prophet -----------------------------------------------------------------
 
 model_fit_prophet <- prophet_reg() %>%
   set_engine(engine = "prophet") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(value ~ date_col, data = training(splits))
 
 model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
   set_engine("prophet_xgboost") %>%
-  fit(observed_cleaned ~ date_col + as.numeric(date_col) + factor(hour(date_col), ordered = FALSE), data = training(splits))
+  fit(value ~ date_col + as.numeric(date_col) + factor(hour(date_col), ordered = FALSE), data = training(splits))
 
 # TSLM --------------------------------------------------------------------
 
 model_fit_lm <- linear_reg() %>%
   set_engine("lm") %>%
   fit(
-    observed_cleaned ~ as.numeric(date_col) + factor(hour(date_col), ordered = FALSE)
+    value ~ as.numeric(date_col) + factor(hour(date_col), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -203,7 +199,7 @@ model_fit_lm <- linear_reg() %>%
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
-recipe_spec <- recipe(observed_cleaned ~ date_col, data = training(splits)) %>%
+recipe_spec <- recipe(value ~ date_col, data = training(splits)) %>%
   step_date(date_col, features = "month", ordinal = FALSE) %>%
   step_mutate(date_num = as.numeric(date_col)) %>%
   step_normalize(date_num) %>%
@@ -218,7 +214,7 @@ wflw_fit_mars <- workflow() %>%
 
 models_tbl <- modeltime_table(
   model_fit_arima_no_boost,
-  model_fit_arima_boosted,
+  #model_fit_arima_boosted,
   model_fit_ets,
   model_fit_prophet,
   model_fit_prophet_boost,
@@ -240,7 +236,7 @@ calibration_tbl
 calibration_tbl %>%
   modeltime_forecast(
     new_data = testing(splits),
-    actual_data = df_anomalized_tbl
+    actual_data = query
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
@@ -264,7 +260,7 @@ models_tbl %>%
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
-  modeltime_refit(data = df_anomalized_tbl) %>%
+  modeltime_refit(data = query) %>%
   filter(!is.na(.type))
 
 top_two_models <- refit_tbl %>% 
@@ -274,7 +270,7 @@ top_two_models <- refit_tbl %>%
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = 48, actual_data = df_anomalized_tbl) %>%
+  modeltime_forecast(h = 48, actual_data = query) %>%
   filter_by_time(
     .date_var = .index
     , .start_date = (end_date - dhours(7*24))

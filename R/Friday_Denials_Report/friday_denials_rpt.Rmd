@@ -52,8 +52,8 @@ query <- dbGetQuery(
         SET @TODAY = GETDATE();
         SET @START = DATEADD(WK, DATEDIFF(WK, 0, @TODAY), - 3)
         SET @END   = DATEADD(DD, DATEDIFF(DD, 0, @TODAY), - 1);
-        --SET @START = '2019-09-01'
-        --SET @END   = '2019-10-01'
+        --SET @START = '2020-11-20'
+        --SET @END   = '2020-10-30'
         
         SELECT PAV.Med_Rec_No
         , PAV.PtNo_Num

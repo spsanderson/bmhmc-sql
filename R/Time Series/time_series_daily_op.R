@@ -62,15 +62,22 @@ query <- dbGetQuery(
 ) %>%
   as_tibble() %>%
   clean_names() %>%
-  mutate(date_col = EOMONTH(dsch_date)) %>%
-  group_by(date_col) %>%
-  summarise(visit_count = sum(dsch_count, na.rm = TRUE)) %>%
-  ungroup()
+  rename(date_col = dsch_date) %>%
+  mutate(date_col = lubridate::ymd(date_col))
 
 # DB Disconnect -----------------------------------------------------------
 
 dbDisconnect(db_con)
 
+
+# Manipulate --------------------------------------------------------------
+
+query <- query %>%
+  summarise_by_time(
+    .date_var = date_col
+    , .by = "month"
+    , visit_count = sum(dsch_count)
+  )
 
 # TS Plot -----------------------------------------------------------------
 
@@ -103,20 +110,9 @@ plot_anomaly_diagnostics(
 )
 
 
-# Anomalize Data ----------------------------------------------------------
-
-df_anomalized_tbl <- query %>%
-  tibbletime::as_tbl_time(index = date_col) %>%
-  arrange(date_col) %>%
-  time_decompose(visit_count, method = "twitter") %>%
-  anomalize(remainder, method = "gesd") %>%
-  clean_anomalies() %>%
-  time_recompose() %>%
-  select(date_col, observed_cleaned)
-
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(df_anomalized_tbl, prop = 0.9)
+splits <- initial_time_split(query, prop = 0.9)
 
 # Models ----
 
@@ -124,7 +120,7 @@ splits <- initial_time_split(df_anomalized_tbl, prop = 0.9)
 
 model_fit_arima_no_boost <- arima_reg() %>%
   set_engine(engine = "auto_arima") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(visit_count ~ date_col, data = training(splits))
 
 
 # Boosted Auto ARIMA ------------------------------------------------------
@@ -135,7 +131,9 @@ model_fit_arima_boosted <- arima_boost(
 ) %>%
   set_engine(engine = "auto_arima_xgboost") %>%
   fit(
-    observed_cleaned ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    visit_count ~ date_col 
+    + as.numeric(date_col) 
+    + factor(month(date_col, label = TRUE), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -143,18 +141,18 @@ model_fit_arima_boosted <- arima_boost(
 
 model_fit_ets <- exp_smoothing() %>%
   set_engine(engine = "ets") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(visit_count ~ date_col, data = training(splits))
 
 # Prophet -----------------------------------------------------------------
 
 model_fit_prophet <- prophet_reg() %>%
   set_engine(engine = "prophet") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(visit_count ~ date_col, data = training(splits))
 
 model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
   set_engine("prophet_xgboost") %>%
   fit(
-    observed_cleaned ~ date_col + 
+    visit_count ~ date_col + 
       as.numeric(date_col) + 
       factor(month(date_col), label = TRUE)
     , data = training(splits)
@@ -166,7 +164,8 @@ model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>%
 model_fit_lm <- linear_reg() %>%
   set_engine("lm") %>%
   fit(
-    observed_cleaned ~ as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    visit_count ~ as.numeric(date_col) 
+    + factor(month(date_col, label = TRUE), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -175,7 +174,7 @@ model_fit_lm <- linear_reg() %>%
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
-recipe_spec <- recipe(observed_cleaned ~ date_col, data = training(splits)) %>%
+recipe_spec <- recipe(visit_count ~ date_col, data = training(splits)) %>%
   step_date(date_col, features = "month", ordinal = FALSE) %>%
   step_mutate(date_num = as.numeric(date_col)) %>%
   step_normalize(date_num) %>%
@@ -211,7 +210,7 @@ calibration_tbl
 calibration_tbl %>%
   modeltime_forecast(
     new_data = testing(splits),
-    actual_data = df_anomalized_tbl
+    actual_data = query
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
@@ -226,7 +225,7 @@ calibration_tbl %>%
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
-  modeltime_refit(data = df_anomalized_tbl)
+  modeltime_refit(data = query)
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
@@ -235,7 +234,7 @@ top_two_models <- refit_tbl %>%
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "1 year", actual_data = df_anomalized_tbl) %>%
+  modeltime_forecast(h = "1 year", actual_data = query) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25
     , .interactive = interactive

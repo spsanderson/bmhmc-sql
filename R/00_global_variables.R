@@ -1,0 +1,28 @@
+globalVariables(
+  names = c(
+    "value","median_value","last_flag","excess","RespParty","adm_date","dsch_date",
+    "med_rec_no","days_stay","clasf_cd","year","month","month.lbl","day","wday.lbl",
+    "wday","week.iso","record_flag","pt_no","attending_md","n","end_of_month",
+    "end_of_week","ts","los","elos","los_group","los_index","los_ra_var",
+    "rar_index","readmit_flag","readmit_rate","visit_flag","med_staff_dept",
+    "pract_rpt_name","spclty_desc","provider_name","admission_date", "discharge_date",
+    "Encounter","FullAddress","ZipCode","lon","lat","Id","PartitalAddress",
+    "tot_qty","PartialAddress","PtNo_Num","Pt_Addr_Zip","SPROC","encounter",
+    "proc_cd_prio","actv_date","proc_eff_date","resp_pty_cd","last_dsch_ord_d_time",
+    "vst_end_dtime","proc_cd_modf1","pt_id","rn","row_number","coder","lag",
+    "DX01","DX02","DX03","DX04","DX05","DX06","DX07","DX08","DX09","DX10",
+    "dsch_disp","dx_cd","dx_cd_prio","interim","plm_pt_acct_type","pt_age",
+    "pt_name","pt_no_num","readmit","Count","data_tbl","desc","pyr_group2",
+    "adm_recovery_date","anes_end_date","anes_start_date","leave_recovery_date",
+    "orsos_start_date","attending_id","attending_name","cen_date","cen_mo","cen_yr",
+    "hosp_svc","hospitalist_atn_flag","hospitalist_private","kick_out_flag",
+    "nurs_sta","private_atn_flag","summary_data","tot_cen","Episode_No","Fi02_Min_Val",
+    "Fi02_Stability","Peep_Min_Val","Peep_Stability",
+    "Perf_Date","VAE_Flag_Final","episode_no","fl1","fl2","fl_sum","l_1","l_2",
+    "last_event_flag","min_val","obsv_cd","obsv_cd_name","obsv_user_id",
+    "peep_equivalent","perf_date","pl1","pl2","pl_sum","stable_flag","stable_flag.x",
+    "stable_flag.y","tae","val_clean","tbe","tmpG","tmp_a","tmp_b",
+    "dsch","dsch_count","lihn_svc_line","ra_flag","readmit_bench","readmit_count",
+    "rr_bench","severity_of_illness"
+  )
+)

@@ -5,6 +5,8 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
+  "modeltime.ensemble",
+  "modeltime.resample",
   "tidyverse",
   "lubridate",
   "timetk",
@@ -12,8 +14,7 @@ pacman::p_load(
   "DBI",
   "janitor",
   "timetk",
-  "tidyquant",
-  "anomalize"
+  "tidyquant"
 )
 
 interactive <- TRUE
@@ -41,7 +42,7 @@ query <- dbGetQuery(
     DECLARE @START DATE;
     DECLARE @END   DATE;
     
-    SET @START = '2014-04-01';
+    SET @START = '2016-04-01';
     SET @END   = DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE()) - 1, 0)
     
     SELECT CAST(A.DSCH_DATE AS date) AS [Dsch_Date]
@@ -104,35 +105,38 @@ query <- dbGetQuery(
     , ra_flag
     , rr_bench
   ) %>%
-  mutate(dsch_date = as.Date.character(dsch_date, format = c("%Y-%m-%d"))) %>%
-  mutate(date_col = EOMONTH(dsch_date)) %>%
-  select(-dsch_date) %>%
-  select(date_col, dsch, ra_flag, rr_bench) %>%
-  group_by(date_col) %>%
-  summarise(
-    dsch_count      = sum(dsch, na.rm = TRUE)
-    , readmit_count = sum(ra_flag, na.rm = TRUE)
-    , readmit_rate  = round(readmit_count / dsch_count, 4) * 100
-    , readmit_bench = round(mean(rr_bench, na.rm = TRUE), 4)  * 100
-    , value         = round((readmit_rate - readmit_bench), 2)
-  ) %>%
-  #select(date_col, value) %>%
-  ungroup() %>%
-  select(date_col, value) %>%
-  filter(year(date_col) >= 2016)
-
+  mutate(dsch_date = lubridate::ymd(dsch_date)) %>%
+  select(dsch_date, dsch, ra_flag, rr_bench)
+  
 # DB Disconnect -----------------------------------------------------------
 
 dbDisconnect(db_con)
 
 
+# Manipulation ------------------------------------------------------------
+
+ra_excess_summary_tbl <- query %>%
+  summarise_by_time(
+    .date_var = dsch_date
+    , .by = "month"
+    , dsch_count = n()
+    , dsch_count      = sum(dsch, na.rm = TRUE)
+    , readmit_count = sum(ra_flag, na.rm = TRUE)
+    , readmit_rate  = round(readmit_count / dsch_count, 4) * 100
+    , readmit_bench = round(mean(rr_bench, na.rm = TRUE), 4)  * 100
+    , value         = round((readmit_rate - readmit_bench), 2)
+  ) %>%
+  rename(date_col = dsch_date) %>%
+  select(date_col, value)
+
+
 # TS Plot -----------------------------------------------------------------
 
-start_date <- min(query$date_col)
-end_date   <- max(query$date_col)
+start_date <- min(ra_excess_summary_tbl$date_col)
+end_date   <- max(ra_excess_summary_tbl$date_col)
 
 plot_time_series(
-  .data = query
+  .data = ra_excess_summary_tbl
   , .date_var = date_col
   , .value = value
   , .title = paste0(
@@ -145,38 +149,41 @@ plot_time_series(
 )
 
 plot_seasonal_diagnostics(
-  .data = query
+  .data = ra_excess_summary_tbl
   , .date_var = date_col
   , .value = value
 )
 
 plot_stl_diagnostics(
-  .data = query
+  .data = ra_excess_summary_tbl
   , .date_var = date_col
   , .value = value
 )
 
-# plot_anomaly_diagnostics(
-#   .data = query
-#   , .date_var = date_col
-#   , .value = value
-# )
+plot_anomaly_diagnostics(
+  .data = ra_excess_summary_tbl
+  , .date_var = date_col
+  , .value = value
+)
 
-
-# Anomalize Data ----------------------------------------------------------
-
-df_anomalized_tbl <- query %>%
-  tibbletime::as_tbl_time(index = date_col) %>%
-  arrange(date_col) %>%
-  time_decompose(value, method = "twitter") %>%
-  anomalize(remainder, method = "gesd") %>%
-  clean_anomalies() %>%
-  time_recompose() %>%
-  select(date_col, observed_cleaned)
+ra_excess_summary_tbl %>%
+  tk_anomaly_diagnostics(
+    .date_var = date_col
+    , .value = value
+  )
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(df_anomalized_tbl, prop = 0.9)
+splits <- initial_time_split(ra_excess_summary_tbl, prop = 0.9)
+
+# Time Series Regressoins
+
+ra_excess_summary_tbl %>%
+  plot_time_series_regression(
+    .date_var = date_col
+    , .formula = value ~ as.numeric(date_col)
+    + month(date_col, label = TRUE)
+  )
 
 # Models ----
 
@@ -184,7 +191,7 @@ splits <- initial_time_split(df_anomalized_tbl, prop = 0.9)
 
 model_fit_arima_no_boost <- arima_reg() %>%
   set_engine(engine = "auto_arima") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(value ~ date_col, data = training(splits))
 
 
 # Boosted Auto ARIMA ------------------------------------------------------
@@ -195,7 +202,7 @@ model_fit_arima_boosted <- arima_boost(
 ) %>%
   set_engine(engine = "auto_arima_xgboost") %>%
   fit(
-    observed_cleaned ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    value ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -203,18 +210,18 @@ model_fit_arima_boosted <- arima_boost(
 
 model_fit_ets <- exp_smoothing() %>%
   set_engine(engine = "ets") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(value ~ date_col, data = training(splits))
 
 # Prophet -----------------------------------------------------------------
 
 model_fit_prophet <- prophet_reg() %>%
   set_engine(engine = "prophet") %>%
-  fit(observed_cleaned ~ date_col, data = training(splits))
+  fit(value ~ date_col, data = training(splits))
 
 model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
   set_engine("prophet_xgboost") %>%
   fit(
-    observed_cleaned ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    value ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -223,7 +230,7 @@ model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>%
 model_fit_lm <- linear_reg() %>%
   set_engine("lm") %>%
   fit(
-    observed_cleaned ~ as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    value ~ as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
     , data = training(splits)
   )
 
@@ -232,7 +239,7 @@ model_fit_lm <- linear_reg() %>%
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
-recipe_spec <- recipe(observed_cleaned ~ date_col, data = training(splits)) %>%
+recipe_spec <- recipe(value ~ date_col, data = training(splits)) %>%
   step_date(date_col, features = "month", ordinal = FALSE) %>%
   step_mutate(date_num = as.numeric(date_col)) %>%
   step_normalize(date_num) %>%
@@ -268,7 +275,7 @@ calibration_tbl
 calibration_tbl %>%
   modeltime_forecast(
     new_data = testing(splits),
-    actual_data = df_anomalized_tbl
+    actual_data = ra_excess_summary_tbl
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
@@ -283,7 +290,7 @@ calibration_tbl %>%
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
-  modeltime_refit(data = df_anomalized_tbl)
+  modeltime_refit(data = ra_excess_summary_tbl)
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
@@ -292,7 +299,7 @@ top_two_models <- refit_tbl %>%
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "1 year", actual_data = df_anomalized_tbl) %>%
+  modeltime_forecast(h = "1 year", actual_data = ra_excess_summary_tbl) %>%
   filter_by_time(
     .date_var = .index
     , .start_date = FLOOR_YEAR(end_date - dyears(2)) %>% 
@@ -327,7 +334,7 @@ calibration_tbl %>%
   theme_tq()
 
 ts_sum_arrivals_plt(
-  .data = query
+  .data = ra_excess_summary_tbl
   , .date_col = date_col
   , .value_col = value
   , .x_axis = mn
@@ -343,7 +350,7 @@ ts_sum_arrivals_plt(
   )
 
 ts_median_excess_plt(
-  .data = query
+  .data = ra_excess_summary_tbl
   , .date_col = date_col
   , .value_col = value
   , .x_axis = mn
