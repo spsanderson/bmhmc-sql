@@ -1,10 +1,8 @@
 USE [SMSPHDSSS0X0]
 GO
-
-/****** Object:  StoredProcedure [dbo].[c_covid_flu_results_sp]    Script Date: 10/16/2020 3:34:01 PM ******/
+/****** Object:  StoredProcedure [dbo].[c_covid_flu_results_sp]    Script Date: 11/3/2020 2:53:23 PM ******/
 SET ANSI_NULLS ON
 GO
-
 SET QUOTED_IDENTIFIER ON
 GO
 
@@ -44,6 +42,8 @@ Date		Version		Description
 ----		----		----
 2020-10-16	v1			Initial Creation
 2020-10-30 	v2			Update query to use update logic
+2020-11-03	v3			Overhaul only pull in data from investigation results
+						drop lastcngdtime
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_covid_flu_results_sp]
@@ -59,85 +59,6 @@ BEGIN
 
 	SET @START_DATE = CAST(GETDATE() - 30 AS DATE)
 
-	-- FLU ORDERS
-	DECLARE @FluOrders TABLE (
-		id_num INT IDENTITY(1, 1),
-		PatientVisitOID VARCHAR(50),
-		OrderID INT,
-		OrderAbbreviation VARCHAR(50),
-		CreationTime DATETIME2,
-		ObjectID INT, -- links to HOrderOccurrence.Order_OID
-		LastCngDtime SMALLDATETIME,
-		UpdatedOrder_Flag INT
-		);
-
-	INSERT INTO @FluOrders
-	SELECT PatientVisit_oid,
-		OrderId,
-		OrderAbbreviation,
-		CreationTime,
-		ObjectID,
-		LastCngDtime,
-		[UpdatedOrder_Flag] = CASE 
-			WHEN OrderId IN (
-					SELECT OrderID
-					FROM smsdss.c_covid_flu_results_tbl
-					)
-				THEN 1
-			ELSE 0
-			END
-	FROM [SC_server].[Soarian_Clin_Prd_1].[DBO].[HORDER]
-	WHERE OrderAbbreviation = '00424762'
-		AND CreationTime >= @START_DATE
-		AND OrderStatusModifier NOT IN ('Cancelled', 'Discontinue', 'Invalid-DC Order')
-		AND (
-			OrderID NOT IN (
-				SELECT ZZZ.OrderID
-				FROM smsdss.c_covid_flu_results_tbl AS ZZZ
-				)
-			OR OrderID IN (
-				SELECT ZZZ.OrderID
-				FROM smsdss.c_covid_flu_results_tbl AS ZZZ
-				WHERE ZZZ.LastCngDtime > LastCngDtime
-				)
-			)
-	ORDER BY PatientVisit_oid,
-		CreationTime DESC;
-
-	-- ORDER OCCURRENCE
-	DECLARE @FluOrderOcc TABLE (
-		id_num INT,
-		-- links to HOrder.ObjectID
-		Order_OID INT,
-		CreationTime DATETIME2,
-		OrderOccurrenceStatus VARCHAR(500),
-		StatusEnteredDatetime DATETIME2,
-		ObjectID INT, -- Links to HInvestigationResults.Occurence_OID
-		LastCngDtime SMALLDATETIME
-		)
-
-	INSERT INTO @FluOrderOcc
-	SELECT [RN] = ROW_NUMBER() OVER (
-			PARTITION BY A.ORDER_OID ORDER BY A.STATUSENTEREDDATETIME DESC
-			),
-		A.Order_oid,
-		A.CreationTime,
-		A.OrderOccurrenceStatus,
-		A.StatusEnteredDatetime,
-		A.ObjectID,
-		A.LastCngDtime
-	FROM [SC_server].[Soarian_Clin_Prd_1].[DBO].[HOCCURRENCEORDER] AS A
-	INNER JOIN @FluOrders AS B ON A.Order_oid = B.ObjectID
-		AND A.CreationTime = B.CreationTime
-	WHERE A.OrderOccurrenceStatus NOT IN ('DISCONTINUE', 'CANCEL')
-	ORDER BY A.Order_oid,
-		A.ObjectID;
-
-	-- DE-DUPE
-	DELETE
-	FROM @FluOrderOcc
-	WHERE id_num != 1;
-
 	-- GET ORER RESULTS
 	DECLARE @FluResults TABLE (
 		id_num INT,
@@ -147,7 +68,9 @@ BEGIN
 		ResultDateTime DATETIME2,
 		ResultValue VARCHAR(500),
 		PatientVisitOID INT,
-		LastCngDtime SMALLDATETIME
+		--LastCngDtime SMALLDATETIME,
+		NewRecord_Flag INT,
+		UpdateOrder_Flag INT
 		)
 
 	INSERT INTO @FluResults
@@ -161,105 +84,113 @@ BEGIN
 		A.ResultDateTime,
 		REPLACE(REPLACE(A.ResultValue, CHAR(13), ' '), CHAR(10), ' ') AS [ResultValue],
 		A.PatientVisit_OID,
-		A.LastCngDtime
+		--A.LastCngDtime,
+		[NewRecord_Flag] = CASE 
+			WHEN A.PatientVisit_oid NOT IN (
+					SELECT DISTINCT zzz.PatientVisitOID
+					FROM smsdss.c_covid_flu_results_tbl AS ZZZ
+					)
+				THEN 1
+			ELSE 0
+			END,
+		[UpdateOrder_Flag] = CASE 
+			WHEN A.PatientVisit_oid = (
+					SELECT ZZZ.PatientVisitOID
+					FROM smsdss.c_covid_flu_results_tbl AS ZZZ
+					WHERE CAST(A.ResultDateTime AS SMALLDATETIME) > CAST(ZZZ.ResultDateTime AS SMALLDATETIME)
+						AND A.PatientVisit_oid = ZZZ.PatientVisitOID
+					)
+				THEN 1
+			ELSE 0
+			END
 	FROM [SC_server].[Soarian_Clin_Prd_1].[DBO].[HInvestigationResult] AS A
-	INNER JOIN @FluOrderOcc AS B ON A.Occurrence_oid = B.ObjectID
 	WHERE A.FindingAbbreviation IN ('00424721', '00424739')
 		AND A.ResultValue IS NOT NULL
-	ORDER BY A.PatientVisit_oid,
-		A.ResultDateTime DESC;
+		AND A.CreationTime >= @START_DATE
+	ORDER BY PatientVisit_oid,
+		ResultDateTime DESC;
 
+	-- grab only the newest records
 	DELETE
 	FROM @FluResults
 	WHERE id_num != 1;
 
-	-- PULL TOGETHER
-	SELECT A.PatientVisitOID,
-		A.OrderID,
-		A.OrderAbbreviation,
-		A.CreationTime AS [FluOrders_CreationTime],
-		A.ObjectID AS [FluOrders_ObjectID],
-		B.Order_OID,
-		B.CreationTime AS [FluOrdersOccurrence_CreationTime],
-		B.OrderOccurrenceStatus,
-		B.StatusEnteredDatetime,
-		B.ObjectID AS [FluOrdersOccurrence_ObjectID],
-		C.OccurrenceOID,
-		C.FindingAbbreviation,
-		C.ResultDateTime,
-		C.ResultValue,
-		A.LastCngDtime,
-		A.UpdatedOrder_Flag
-	INTO #TEMPA
-	FROM @FluOrders AS A
-	LEFT OUTER JOIN @FluOrderOcc AS B ON A.ObjectID = B.Order_OID
-	LEFT OUTER JOIN @FluResults AS C ON B.ObjectID = C.OccurrenceOID
-		AND A.PatientVisitOID = C.PatientVisitOID
-	WHERE C.ResultValue IS NOT NULL
-	ORDER BY A.PatientVisitOID,
-		C.ResultDateTime DESC;
-
-	-- RECORD PIVOT
+	-- Pivot Records to get one row per patientvisit_oid
 	SELECT PVT.PatientVisitOID,
-		PVT.OrderID,
-		PVT.OrderAbbreviation,
 		PVT.ResultDateTime,
-		PVT.LastCngDtime,
-		PVT.UpdatedOrder_Flag,
+		--PVT.LastCngDtime,
+		PVT.UpdateOrder_Flag,
+		PVT.NewRecord_Flag,
 		PVT.[00424721] AS [Flu_A],
-		PVT.[00424739] AS [Flu_B]
-	INTO #TEMPB
+		PVT.[00424739] AS [Flu_B],
+		RN = ROW_NUMBER() OVER (
+			PARTITION BY PVT.PatientVisitOID ORDER BY PVT.ResultDateTime
+			)
+	INTO #TEMPA
 	FROM (
 		SELECT PatientVisitOID,
-			OrderID,
-			OrderAbbreviation,
 			FindingAbbreviation,
-			ResultDateTime,
-			LastCngDtime,
 			ResultValue,
-			UpdatedOrder_Flag
-		FROM #TEMPA
-		) A
-	PIVOT(MAX(RESULTVALUE) FOR FINDINGABBREVIATION IN ("00424721", "00424739")) AS PVT;
+			ResultDateTime,
+			--LastCngDtime,
+			UpdateOrder_Flag,
+			NewRecord_Flag
+		FROM @FluResults
+		WHERE (
+				NewRecord_Flag = 1
+				OR UpdateOrder_Flag = 1
+				)
+		) AS A
+	PIVOT(MAX(ResultValue) FOR FindingAbbreviation IN ("00424721", "00424739")) AS PVT
+	ORDER BY PVT.PatientVisitOID,
+		PVT.ResultDateTime DESC;
+		--PVT.LastCngDtime DESC;
 
-	-- Insert New Records, those where the UpdatedOrder_Flag = 0
+	-- grab only the newest records
+	DELETE
+	FROM #TEMPA
+	WHERE RN != 1;
+
+	-- Insert new records not yet in table
 	INSERT INTO smsdss.c_covid_flu_results_tbl
-	SELECT A.PatientVisitOID,
-		A.OrderID,
-		A.OrderAbbreviation,
-		A.ResultDateTime,
-		A.LastCngDtime,
-		A.Flu_A,
-		A.Flu_B
-	FROM #TEMPB AS A
-	WHERE UpdatedOrder_Flag = 0
+	SELECT PatientVisitOID,
+		ResultDateTime,
+		--LastCngDtime,
+		Flu_A,
+		Flu_B
+	FROM #TEMPA
+	WHERE NewRecord_Flag = 1;
 
-	-- Update Records where UpdatedOrder_Flag = 1
+	-- UPDATE EXISTING RECORDS IF APPLICABLE
+	-- MAKE UPDATE TABLE
 	SELECT A.PatientVisitOID,
-		A.OrderID,
-		A.OrderAbbreviation,
 		A.ResultDateTime,
-		A.LastCngDtime,
+		--A.LastCngDtime,
 		A.Flu_A,
 		A.Flu_B
 	INTO #UpdateTable
-	FROM #TEMPB AS A
-	WHERE UpdatedOrder_Flag = 1;
+	FROM #TEMPA AS A
+	WHERE A.UpdateOrder_Flag = 1;
 
-	UPDATE SMSDSS.c_covid_flu_results_tbl
-	SET PatientVisitOID = UT.PatientVisitOID,
-		OrderID = UT.OrderID,
-		OrderAbbreviation = UT.OrderAbbreviation,
-		ResultDateTime = UT.ResultDateTime,
-		LastCngDtime = UT.LastCngDtime,
-		Flu_A = UT.Flu_A,
-		Flu_B = UT.Flu_B
-	FROM #UpdateTable AS UT
-	WHERE UT.PatientVisitOID IS NOT NULL;
+	-- DROP OLD RECORDS from table
+	DELETE
+	FROM SMSDSS.c_covid_flu_results_tbl
+	WHERE PatientVisitOID IN (
+			SELECT DISTINCT PatientVisitOID
+			FROM #UpdateTable
+			);
+
+	-- insert the updated records
+	INSERT INTO SMSDSS.c_covid_flu_results_tbl
+	SELECT UT.PatientVisitOID,
+		UT.ResultDateTime,
+		--UT.LastCngDtime,
+		UT.Flu_A,
+		UT.Flu_B
+	FROM #UpdateTable AS UT;
 
 	DROP TABLE #TEMPA;
 
-	DROP TABLE #TEMPB;
-
 	DROP TABLE #UpdateTable;
-END;
+END
+;
