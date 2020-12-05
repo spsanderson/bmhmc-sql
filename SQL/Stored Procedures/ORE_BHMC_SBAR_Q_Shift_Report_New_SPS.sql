@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 8/17/2020 10:34:19 AM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 11/20/2020 9:09:53 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -50,6 +50,7 @@ Date    	Revised By   			Description
 2019-12-06	Steven Sanderson MPH	Change OrderName to OrderDescAsWritten for Last
 									Orders
 2020-08-17	Steven Sanderson MPH	Add Bed Rest Orders
+2020-11-20  Steven Sanderson MPH	Add MEWSScore
 ------------------------------------------------------------------------------- 
 */  
     
@@ -459,7 +460,8 @@ BEGIN
 		PresSoreSite8TypeOther VARCHAR(2000),
 		PresSoreSite8DressingCondition VARCHAR(2000),
 		PresSoreSite8DressConOther VARCHAR(2000),
-		WeightObtainedDT DATETIME
+		WeightObtainedDT DATETIME,
+		MEWSScore VARCHAR(2000)
 		)
 
 	IF isnumeric(@HSF_CONTEXT_PATIENTID) = 1
@@ -625,7 +627,7 @@ BEGIN
 			'A_PresSoreSite6','A_BMH_SiteOth6','A_BMH_Later6','A_BMH_Type6','A_BMH_PrOnAdm6','A_BMH_TypOth6','A_BMH_DressCon6','A_BMH_DreCoOth6',
 			'A_PresSoreSite7','A_BMH_SiteOth7','A_BMH_Later7','A_BMH_Type7','A_BMH_PrOnAdm7','A_BMH_TypOth7','A_BMH_DressCon7','A_BMH_DreCoOth7',
 			'A_PresSoreSite8','A_BMH_SiteOth8','A_BMH_Later8','A_BMH_Type8','A_BMH_PrOnAdm8','A_BMH_TypOth8','A_BMH_DressCon8','A_BMH_DreCoOth8',
-			'A_WeightObtained'
+			'A_WeightObtained','A_BMH_MEWSScore'
 			)
 		AND (
 			ha.FindingAbbr NOT IN ('A_BMH_Trach', 'A_Tube/Drain1', 'A_T/D1 Loc', 'A_Tube/Drain2', 'A_T/D2 Loc')
@@ -1138,7 +1140,8 @@ BEGIN
 		PresSoreSite8TypeOther,
 		PresSoreSite8DressingCondition,
 		PresSoreSite8DressConOther,
-		WeightObtainedDT
+		WeightObtainedDT,
+		MEWSScore
 		)
 	SELECT tov.PatientOID,
 		tov.PatientVisitOID,
@@ -2164,6 +2167,11 @@ BEGIN
 				WHEN 'A_WeightObtained'
 					THEN tov.CollectedDateTime
 					ELSE ''
+				END),
+		MEWSScore = MAX(CASE tov.FindingAbbr
+				WHEN 'A_BMH_MEWSScore'
+					THEN tov.FindingValue
+					ELSE ''
 				END)
 	FROM @AssessmentObsValues tov
 	GROUP BY tov.PatientOID,
@@ -2508,6 +2516,7 @@ BEGIN
 		tov.PresSoreSite8DressingCondition,
 		tov.PresSoreSite8DressConOther,
 		tov.WeightObtainedDT,
+		tov.MEWSScore,
 		LDIET.LastDietaryOrder,
 		LDIET.LastDietaryOrderEnteredDateTime,
 		LTELE.LastTelemetryOrder,
