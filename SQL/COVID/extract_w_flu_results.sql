@@ -155,7 +155,7 @@ LEFT OUTER JOIN smsdss.c_covid_miscref_tbl AS MISCREF ON PVD.PatientVisitOID = M
 LEFT OUTER JOIN smsdss.c_covid_ext_pos_tbl AS EXTPOS ON PVD.PatientVisitOID = EXTPOS.PatientVisitOID
 LEFT OUTER JOIN smsdss.c_covid_wellsoft_tbl AS WS ON PVD.PatientAccountID = WS.Account
 LEFT OUTER JOIN smsdss.c_covid_vents_tbl AS VENT ON PVD.PatientVisitOID = VENT.PatientVisitOID
--- Flue
+-- Flu
 LEFT OUTER JOIN SMSDSS.c_covid_flu_results_tbl AS FLU ON PVD.PatientVisitOID = FLU.PatientVisitOID
 -- SUBSEQUENT VISIT FLAG
 LEFT OUTER JOIN smsdss.c_covid_posres_subsequent_visits_tbl AS SUB ON PVD.PatientVisitOID = SUB.PatientVisitOID
