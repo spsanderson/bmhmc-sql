@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 8/31/2020 8:45:48 AM ******/
+/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 11/13/2020 3:51:03 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -71,6 +71,8 @@ Date		Version		Description
 2020-08-26	v6			Edit HHS Age Grouping column name and case statement values
 2020-08-31	v7			Add two test patient accounts in the account 
 						exclusion list.
+2020-11-13	v8			Add Employee flag
+2020-11-24	v9			Add employer field from smsmir.mir_pers_addr pers_type = 'PE'
 ***********************************************************************
 */
 
@@ -216,7 +218,15 @@ BEGIN
 	PVD.Isolation_Indicator_Abbr,
 	ADT02FINALTBL.Dx_Order_Abbr,
 	PDOC.DC_Summary_Abbr,
-	PDOC.Clinical_Note_Abbr
+	PDOC.Clinical_Note_Abbr,
+	CASE
+		WHEN (
+			FLU.Flu_A LIKE '%POSITIVE%'
+			OR FLU.Flu_B LIKE '%POSITIVE%'
+		)
+			THEN 1
+		ELSE 0
+		END AS [Positive_Flu_Flag]
 INTO #TEMPA
 FROM smsdss.c_covid_patient_visit_data_tbl AS PVD
 LEFT OUTER JOIN smsdss.c_covid_rt_census_tbl AS RT ON PVD.PatientVisitOID = RT.PatientVisitOID
@@ -229,6 +239,8 @@ LEFT OUTER JOIN smsdss.c_covid_miscref_tbl AS MISCREF ON PVD.PatientVisitOID = M
 LEFT OUTER JOIN smsdss.c_covid_ext_pos_tbl AS EXTPOS ON PVD.PatientVisitOID = EXTPOS.PatientVisitOID
 LEFT OUTER JOIN smsdss.c_covid_wellsoft_tbl AS WS ON PVD.PatientAccountID = WS.Account
 LEFT OUTER JOIN smsdss.c_covid_vents_tbl AS VENT ON PVD.PatientVisitOID = VENT.PatientVisitOID
+-- Flu
+LEFT OUTER JOIN SMSDSS.c_covid_flu_results_tbl AS FLU ON PVD.PatientVisitOID = FLU.PatientVisitOID
 -- SUBSEQUENT VISIT FLAG
 LEFT OUTER JOIN smsdss.c_covid_posres_subsequent_visits_tbl AS SUB ON PVD.PatientVisitOID = SUB.PatientVisitOID
 -- Comorbidities, Admitted From, Height, Weight
@@ -320,6 +332,9 @@ CREATE TABLE smsdss.c_covid_extract_tbl (
 	--,[Trig]
 	--,[A1c]
 	[Occupation] VARCHAR(8000) NULL,
+	[PT_Employer] VARCHAR(500) NULL,
+	[2BMHEMPL] VARCHAR(500) NULL,
+	[2EMPCODE] VARCHAR(500) NULL,
 	[PT_DOB] DATETIME2 NULL,
 	[State_Age_Group] VARCHAR(100) NULL,
 	[HHS_Admits_Last_24_Hours] VARCHAR(100) NULL,
@@ -341,6 +356,7 @@ CREATE TABLE smsdss.c_covid_extract_tbl (
 	[Dx_Order_Abbr] VARCHAR(500) NULL,
 	[DC_Summary_Abbr] VARCHAR(500) NULL,
 	[Clinical_Note_Abbr] VARCHAR(500) NULL,
+	[Positive_Flu_Flag] INT NULL,
 	[RunDateTime] DATETIME2
 	);
 
@@ -476,6 +492,9 @@ SELECT A.MRN,
 	--A.Trig,
 	--A.A1c,
 	PTOcc.user_data_text AS [Occupation],
+	EMPLOYER.LAST_NAME AS [EMPLOYER],
+	EMPLOYEE.[2BMHEMPL],
+	EMPLOYEE.[2EMPCODE],
 	A.PT_DOB,
 	[State_Age_Group] = CASE 
 		WHEN A.Pt_Age < 1
@@ -565,11 +584,37 @@ SELECT A.MRN,
 	A.Dx_Order_Abbr,
 	A.DC_Summary_Abbr,
 	A.Clinical_Note_Abbr,
+	A.Positive_Flu_Flag,
 	GETDATE() AS [RunDateTime]
 FROM #TEMPA AS A
 -- occupation
 LEFT OUTER JOIN SMSMIR.pms_user_episo AS PTOcc ON CAST(A.PatientAccountID AS VARCHAR) = CAST(PTOcc.episode_no AS VARCHAR)
 	AND PTOcc.user_data_cd = '2PTEMP01'
+-- EMPLOYEE 
+LEFT OUTER JOIN (
+	SELECT PVT.episode_no
+	, PVT.[2BMHEMPL]
+	, PVT.[2EMPCODE]
+	FROM (
+		SELECT episode_no
+		, user_data_cd
+		, user_data_text
+		FROM smsmir.pms_user_episo
+		WHERE user_data_cd IN (
+			'2BMHEMPL',
+			'2EMPCODE'
+		)
+	) AS A
+	PIVOT(
+		MAX(USER_DATA_TEXT)
+		FOR USER_DATA_CD IN ("2BMHEMPL","2EMPCODE")
+	) PVT
+	--WHERE PVT.[2BMHEMPL] = 'Y'
+) AS EMPLOYEE
+ON A.PatientAccountID = EMPLOYEE.episode_no
+-- MIR_PERS_ADDR = 'PE'
+LEFT OUTER JOIN SMSMIR.MIR_PERS_ADDR AS EMPLOYER ON CAST(A.PatientAccountID AS VARCHAR) = SUBSTRING(EMPLOYER.PT_ID , 5, 8)
+	AND EMPLOYER.PERS_TYPE = 'PE'
 OUTER APPLY (
 	SELECT TOP 1 B.MRN,
 		B.PatientAccountID,
@@ -627,6 +672,8 @@ WHERE A.PatientAccountID NOT IN ('14465701', '14244479', '14862411', '88998935',
 			)
 		-- capture all patients who had a result but maybe no order
 		OR A.Result_Flag = '1'
+		-- capture all patients who had a positive flu result but maybe no covid order
+		OR A.Positive_Flu_Flag = '1'
 		-- captrue all currently in house patients
 		OR A.In_House = '1'
 		)
