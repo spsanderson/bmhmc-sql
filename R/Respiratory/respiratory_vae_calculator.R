@@ -233,40 +233,30 @@ pre_vae_tbl <- joined_tbl %>%
 tst <- pre_vae_tbl %>%
     group_by(Episode_No) %>%
     mutate(last_event_flag = case_when(
-        VAE_Flag == "VAE" ~ 1, 
+        VAE_Flag == "VAE" ~ 1,
         TRUE ~ 0
-    )) %>%
-    mutate(
-        last_event_index = cumsum(last_event_flag) + 1
-    ) %>%
-    mutate(
-        last_event_index = c(
-            1,
-            last_event_index[1:length(last_event_index) - 1]
-        )
-    ) %>%
-    ungroup()
+    ))
 
-tst <- tst %>%
+df <- tst %>%
+    mutate(tmpG = cumsum(c(FALSE, as.logical(diff(last_event_flag))))) %>%
     group_by(Episode_No) %>%
-    mutate(
-        last_event_date = c(
-            as.Date(NA),
-            tst[which(tst$last_event_flag == 1), "Perf_Date"]
-        )[last_event_index]
-    ) %>%
-    mutate(
-        tae = Perf_Date - last_event_date
-    ) %>%
-    ungroup()
+    mutate(tmp_a = c(0, diff(Perf_Date)) * !last_event_flag,
+                  tmp_b = c(diff(Perf_Date), 0) * !last_event_flag) %>%
+    group_by(tmpG) %>%
+    mutate(tmp_a = as.integer(tmp_a)
+                  , tmp_b = as.integer(tmp_b)) %>%
+    mutate(tae = cumsum(tmp_a),
+                  tbe = rev(cumsum(rev(tmp_b)))) %>%
+    ungroup() %>%
+    select(-c(tmp_a, tmp_b, tmpG, tbe))
 
-final_tbl <- tst %>%
-    mutate(VAE_Flag_Final = case_when(
+final_tbl <- df %>%
+    dplyr::mutate(VAE_Flag_Final = dplyr::case_when(
         ((VAE_Flag == "VAE") & (tae > 13)) ~ "VAE-Positive",
         ((VAE_Flag == "VAE") & (is.na(tae))) ~ "VAE-Positive",
         TRUE ~ "VAE-Negative"
     )) %>%
-    select(
+    dplyr::select(
         Episode_No,
         Perf_Date,
         Fi02_Min_Val,

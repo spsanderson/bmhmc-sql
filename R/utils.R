@@ -77,3 +77,54 @@ save_to_excel <- function(.data, .file_name) {
   )
 
 }
+
+#' Named list from a grouped tibble
+#'
+#' @author Steven P. Sanderson II, MPH
+#'
+#' @description
+#' Takes in a data.frame/tibble and creates a named list that can be
+#' used in conjunction with something like [save_to_excel()]
+#'
+#' @details
+#' - Needs a grouped data.frame/tibble
+#'
+#' @param .data The grouped data.frame/tibble
+#' @param .grouping_var The column that contains the grouping variable
+#'
+#' @examples
+#' \dontrun{
+#' named_item_list(.data = df, .grouping_var = service_line)
+#' }
+#'
+#' @export
+#'
+
+named_item_list <- function(.data, .grouping_var){
+
+  # Tidyeval
+  group_var_expr <- rlang::enquo(.grouping_var)
+
+  # Checks
+  if(!is.data.frame(.data)) {
+    stop(call. = FALSE,"(.data) is not a data.frame/tibble. Please supply")
+  }
+
+  if(rlang::quo_is_missing(group_var_expr)){
+    stop(call. = FALSE,"(.grouping_var) is missing. Please supply.")
+  }
+
+  data_tbl <- tibble::as_tibble(.data)
+
+  data_tbl_list <- data_tbl %>%
+    dplyr::group_split({{group_var_expr}})
+
+  names(data_tbl_list) <- data_tbl_list %>%
+    purrr::map(~ dplyr::pull(., {{group_var_expr}})) %>%
+    purrr::map(~ base::as.character(.)) %>%
+    purrr::map(~ base::unique(.))
+
+  # Return
+  return(data_tbl_list)
+
+}

@@ -109,10 +109,37 @@ plot_anomaly_diagnostics(
   , .value = sum_days
 )
 
+plot_acf_diagnostics(
+  .data = query
+  , .date_var = date_col
+  , .value = sum_days
+)
+
+plot_stl_diagnostics(
+  .data = query
+  , .date_var = date_col
+  , .value = sum_days
+)
+
+query %>%
+  plot_time_series_regression(
+    .date_var = date_col
+    , .formula = log1p(sum_days) ~ as.numeric(date_col)
+      + wday(date_col, label = TRUE)
+      + month(date_col, label = TRUE)
+    , .show_summary = TRUE
+  )
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(query, prop = 0.9)
+splits <- initial_time_split(query, prop = 0.8)
+
+splits %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(
+    .date_var = date_col
+    , .value = sum_days
+  )
 
 # Models ----
 
@@ -131,7 +158,10 @@ model_fit_arima_boosted <- arima_boost(
 ) %>%
   set_engine(engine = "auto_arima_xgboost") %>%
   fit(
-    sum_days ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    sum_days ~ date_col 
+    + as.numeric(date_col) 
+    + wday(date_col, label = TRUE)
+    + month(date_col, label = TRUE)
     , data = training(splits)
   )
 
@@ -150,7 +180,10 @@ model_fit_prophet <- prophet_reg() %>%
 model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
   set_engine("prophet_xgboost") %>%
   fit(
-    sum_days ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    sum_days ~ date_col 
+    + as.numeric(date_col) 
+    + wday(date_col, label = TRUE)
+    + month(date_col, label = TRUE)
     , data = training(splits)
   )
 
@@ -159,7 +192,9 @@ model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>%
 model_fit_lm <- linear_reg() %>%
   set_engine("lm") %>%
   fit(
-    sum_days ~ as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
+    sum_days ~ as.numeric(date_col) 
+    + wday(date_col, label = TRUE)
+    + month(date_col, label = TRUE)
     , data = training(splits)
   )
 
@@ -169,14 +204,20 @@ model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
 recipe_spec <- recipe(sum_days ~ date_col, data = training(splits)) %>%
-  step_date(date_col, features = "month", ordinal = FALSE) %>%
-  step_mutate(date_num = as.numeric(date_col)) %>%
-  step_normalize(date_num) %>%
-  step_rm(date_col)
+  # TS Signature
+  step_timeseries_signature(date_col) %>%
+  
+  step_rm(ends_with(".iso")) %>%
+  step_rm(ends_with(".xts")) %>%
+  step_rm(contains(c("hour", "minute", "second", "am.pm"))) %>%
+  
+  step_normalize(ends_with(c("index.num", "_year"))) %>%
+  step_dummy(all_nominal())
+
 
 wflw_fit_mars <- workflow() %>%
-  add_recipe(recipe_spec) %>%
   add_model(model_spec_mars) %>%
+  add_recipe(recipe_spec) %>%
   fit(training(splits))
 
 # Model Table -------------------------------------------------------------
@@ -289,3 +330,4 @@ ts_median_excess_plt(
     , title = "Median Excess (+/-) Inpatient Days by Month"
     , ssubtitle = "Redline indicates current year. Grouped by Year"
   )
+

@@ -38,7 +38,7 @@ coded_consults_query <-
     "
       )
     ) %>%
-      dplyr::filter(RespParty == (!!resp_party_var_expr))
+      dplyr::filter(RespParty == {{resp_party_var_expr}})
 
     # DB Disconnect
     DBI::dbDisconnect(db_con_obj)
@@ -53,7 +53,7 @@ coded_consults_query <-
         adm_date = lubridate::ymd(adm_date),
         dsch_date = lubridate::ymd(dsch_date)
       ) %>%
-      timetk::pad_by_time(.date_var = dsch_date) %>%
+      #timetk::pad_by_time(.date_var = dsch_date) %>%
       timetk::tk_augment_timeseries_signature(.date_var = dsch_date) %>%
       dplyr::select(
         med_rec_no:clasf_cd,

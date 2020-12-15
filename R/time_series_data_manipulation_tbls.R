@@ -25,6 +25,7 @@
 #' 2. value - the excess readmit rate.
 #'
 #' @param .data The data passed in from [ts_monthly_readmit_excess_query()]
+#' @param .date_col The column containing the date variable of interest
 #' @param .by_time The choices are "year", "month", "week", defaults to "month"
 #'
 #' @examples

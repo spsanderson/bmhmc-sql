@@ -231,7 +231,7 @@ qec_cdi_automation <- function(.delete_file = FALSE, .email) {
   file_name <- "\\QEC_CDI.csv"
   f_pn <- base::paste0(file_path, file_name)
 
-  utils::write.csv(x = data_tbl, file = f_pn)
+  writexl::write_xlsx(x = data_tbl, path = f_pn)
 
   # * Compose Email ----
   # Open Outlook
@@ -322,7 +322,7 @@ code64_automation <- function(.delete_file = FALSE, .email) {
   )
   f_pn <- base::paste0(file_path, file_name)
 
-  readr::write_csv(x = data_tbl, file = f_pn)
+  writexl::write_xlsx(x = data_tbl, path = f_pn)
 
   # * Compose Email ----
   # Open Outlook
@@ -401,7 +401,7 @@ orsos_to_sproc_automation <- function(.data, .delete_file = FALSE, .email) {
   file_name <- "\\orsos_to_sproc_reconcilliation.csv"
   f_pn <- base::paste0(file_path, file_name)
 
-  utils::write.csv(x = data_tbl, file = f_pn)
+  writexl::write_xlsx(x = data_tbl, path = f_pn)
 
   # * Compose Email ----
   # Open Outlook
@@ -478,7 +478,7 @@ congenital_malformation_automation <- function(.delete_file = FALSE, .email) {
   file_name <- "\\congenital_malformation.csv"
   f_pn <- base::paste0(file_path, file_name)
 
-  readr::write_csv(x = data_tbl, path = f_pn)
+  writexl::write_xlsx(x = data_tbl, path = f_pn)
 
   # * Compose Email ----
   # Open Outlook
