@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 11/13/2020 3:51:03 PM ******/
+/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 12/16/2020 10:00:46 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -33,6 +33,10 @@ Tables/Views:
 	smsdss.c_covid_indicator_text_tbl
 	smsdss.c_covid_dx_cd_ind_tbl
 	smsdss.c_covid_pdoc_tbl
+	smsdss.c_positive_covid_visits_tbl
+	smsdss.BMH_UserTwoFact_V
+	smsmir.mir_pers_addr
+	smsmir.pms_user_episo
 
 Creates Table:
 	smsdss.c_covid_extract_tbl
@@ -73,6 +77,9 @@ Date		Version		Description
 						exclusion list.
 2020-11-13	v8			Add Employee flag
 2020-11-24	v9			Add employer field from smsmir.mir_pers_addr pers_type = 'PE'
+2020-12-16	v10			Add OR (A.Result_Flag = '0' AND A.Order_Flag = '1')
+						but keep commented out for now.
+						Add Arrival Mode and Arrival Mode Desc
 ***********************************************************************
 */
 
@@ -357,6 +364,8 @@ CREATE TABLE smsdss.c_covid_extract_tbl (
 	[DC_Summary_Abbr] VARCHAR(500) NULL,
 	[Clinical_Note_Abbr] VARCHAR(500) NULL,
 	[Positive_Flu_Flag] INT NULL,
+	--[Arrival_Mode] VARCHAR(500) NULL,
+	--[Arrival_Mode_Description] VARCHAR(500) NULL,
 	[RunDateTime] DATETIME2
 	);
 
@@ -516,7 +525,7 @@ SELECT A.MRN,
 		WHEN A.PT_AGE > 84
 			THEN 'i - >84'
 		END,
-	[HHS_Age_Group] = CASE
+	[HHS_Age_Group] = CASE 
 		WHEN A.Pt_Age < 18
 			THEN '0-17'
 		WHEN A.PT_AGE < 20
@@ -585,6 +594,9 @@ SELECT A.MRN,
 	A.DC_Summary_Abbr,
 	A.Clinical_Note_Abbr,
 	A.Positive_Flu_Flag,
+	-- Comment back in when Cathy Returns
+	--ArrivalMode.Arrival_Mode,
+	--ArrivalMode.Arrival_Mode_Description,
 	GETDATE() AS [RunDateTime]
 FROM #TEMPA AS A
 -- occupation
@@ -592,29 +604,42 @@ LEFT OUTER JOIN SMSMIR.pms_user_episo AS PTOcc ON CAST(A.PatientAccountID AS VAR
 	AND PTOcc.user_data_cd = '2PTEMP01'
 -- EMPLOYEE 
 LEFT OUTER JOIN (
-	SELECT PVT.episode_no
-	, PVT.[2BMHEMPL]
-	, PVT.[2EMPCODE]
+	SELECT PVT.episode_no,
+		PVT.[2BMHEMPL],
+		PVT.[2EMPCODE]
 	FROM (
-		SELECT episode_no
-		, user_data_cd
-		, user_data_text
+		SELECT episode_no,
+			user_data_cd,
+			user_data_text
 		FROM smsmir.pms_user_episo
-		WHERE user_data_cd IN (
-			'2BMHEMPL',
-			'2EMPCODE'
-		)
-	) AS A
-	PIVOT(
-		MAX(USER_DATA_TEXT)
-		FOR USER_DATA_CD IN ("2BMHEMPL","2EMPCODE")
-	) PVT
-	--WHERE PVT.[2BMHEMPL] = 'Y'
-) AS EMPLOYEE
-ON A.PatientAccountID = EMPLOYEE.episode_no
+		WHERE user_data_cd IN ('2BMHEMPL', '2EMPCODE')
+		) AS A
+	PIVOT(MAX(USER_DATA_TEXT) FOR USER_DATA_CD IN ("2BMHEMPL", "2EMPCODE")) PVT
+		--WHERE PVT.[2BMHEMPL] = 'Y'
+	) AS EMPLOYEE ON A.PatientAccountID = EMPLOYEE.episode_no
 -- MIR_PERS_ADDR = 'PE'
-LEFT OUTER JOIN SMSMIR.MIR_PERS_ADDR AS EMPLOYER ON CAST(A.PatientAccountID AS VARCHAR) = SUBSTRING(EMPLOYER.PT_ID , 5, 8)
+LEFT OUTER JOIN SMSMIR.MIR_PERS_ADDR AS EMPLOYER ON CAST(A.PatientAccountID AS VARCHAR) = SUBSTRING(EMPLOYER.PT_ID, 5, 8)
 	AND EMPLOYER.PERS_TYPE = 'PE'
+-- Comment back in when Cathy Comes Back
+--LEFT OUTER JOIN (
+--	SELECT pvt.PtNo_Num,
+--	PVT.[52] AS [Arrival_Mode],
+--	pvt.[54] AS [Arrival_Mode_Description]
+--	FROM (
+--		SELECT A.PtNo_Num,
+--		A.UserDataKey,
+--		A.UserDataText
+--		FROM SMSDSS.BMH_UserTwoFact_V AS A
+--		INNER JOIN SMSDSS.c_covid_patient_visit_data_tbl AS B
+--		ON A.PtNo_Num = B.PatientAccountID
+--		WHERE A.UserDataKey IN ('52','54')
+--	) AS A
+--	PIVOT (
+--		MAX(UserDataText)
+--		FOR UserDataKey IN ("52","54")
+--	) AS PVT
+--) AS ArrivalMode
+--ON A.PatientAccountID = ArrivalMode.PtNo_Num
 OUTER APPLY (
 	SELECT TOP 1 B.MRN,
 		B.PatientAccountID,
@@ -661,7 +686,7 @@ OUTER APPLY (
 	ORDER BY B.Result_DTime DESC,
 		B.Order_DTime DESC
 	) AS LAST_NEG
-WHERE A.PatientAccountID NOT IN ('14465701', '14244479', '14862411', '88998935', '14860845','14891139','14890891')
+WHERE A.PatientAccountID NOT IN ('14465701', '14244479', '14862411', '88998935', '14860845', '14891139', '14890891')
 	AND (
 		-- Capture all subsequent visits of previously positive patients
 		A.Subseqent_Visit_Flag = '1'
@@ -672,6 +697,8 @@ WHERE A.PatientAccountID NOT IN ('14465701', '14244479', '14862411', '88998935',
 			)
 		-- capture all patients who had a result but maybe no order
 		OR A.Result_Flag = '1'
+		-- OR Patients with an order AND no result
+		--OR (A.Result_Flag = '0' AND A.Order_Flag = '1')
 		-- capture all patients who had a positive flu result but maybe no covid order
 		OR A.Positive_Flu_Flag = '1'
 		-- captrue all currently in house patients
@@ -681,7 +708,7 @@ ORDER BY A.Pt_Name,
 	A.Result_DTime DESC,
 	A.Order_DTime DESC;
 
+DROP TABLE #TEMPA;
 
-	DROP TABLE #TEMPA;
 
 END;

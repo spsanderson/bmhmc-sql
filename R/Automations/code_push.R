@@ -13,6 +13,7 @@ zipr(
         ,"S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\SQL"
         ,"S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\VB"
         ,"C:\\Users\\bha485\\Documents\\PowerShell_Scripts"
+        ,"C:\\Users\\bha485\\Desktop\\LICHospitalR\\R"
         )
     , include_directories = TRUE
     )

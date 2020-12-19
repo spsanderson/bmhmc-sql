@@ -70,7 +70,7 @@ a <- pdv %>%
             "pt_id"="Pt_No"
             , "from_file_ind" = "from_file_ind"
             )
-        , keep = T
+        #, keep = T
     ) 
 
 add_geo <- a %>%
@@ -79,7 +79,7 @@ add_geo <- a %>%
         , by = c(
             "PtNo_Num" = "Encounter"
         )
-        , keep = T
+        #, keep = T
     ) %>% 
     select(
         PtNo_Num

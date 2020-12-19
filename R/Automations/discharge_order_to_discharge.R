@@ -25,13 +25,14 @@ tempa <- dbGetQuery(
         DECLARE @TODAY DATE;
         DECLARE @START DATE;
         DECLARE @END   DATE;
-        
+
         SET @TODAY = CAST(GETDATE() AS DATE);
         SET @START = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY) - 1, 0);
         SET @END   = DATEADD(MONTH, DATEDIFF(MONTH, 0, @TODAY), 0);
-        
-        
-        SELECT PDV.pyr_group2
+
+
+        SELECT PAV.ptno_num
+        , PDV.pyr_group2
         , CAST(PAV.DSCH_DATE AS DATE) AS [Dsch_Date]
         , DschOrdDT.ent_dtime AS [Last_Dsch_Ord_DTime]
         , PAV.vst_end_dtime
@@ -54,7 +55,7 @@ tempa <- dbGetQuery(
         	WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = '1A' THEN 'Postoperative Death, Autopsy'
         	WHEN LEFT(PAV.dsch_disp, 1) IN ('C', 'D') THEN 'Mortality'
         END AS [Dispo]
-        
+
         FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
         -- Get last dsch ord
         LEFT OUTER JOIN (
@@ -77,7 +78,7 @@ tempa <- dbGetQuery(
         LEFT OUTER JOIN SMSDSS.PYR_DIM_V AS PDV
         ON PAV.PYR1_co_PLAN_CD = PDV.SRC_PYR_CD
         	AND PAV.REGN_HOSP = PDV.ORGZ_CD
-        
+
         WHERE PAV.tot_chg_amt > 0
         AND LEFT(PAV.PTNO_NUM, 1) != '2'
         AND LEFT(PAV.PTNO_NUM, 4) != '1999'
@@ -106,10 +107,13 @@ tempa <- tempa %>%
         )
     )
 
-tempa %>% write.csv("G:\\Care Management\\dsch_ord_to_dsch.csv")
-
 # DB Disconnect ----
 dbDisconnect(db_con)
+
+
+# Write File --------------------------------------------------------------
+
+tempa %>% write.csv("G:\\Care Management\\dsch_ord_to_dsch.csv")
 
 # Compose Email ----
 # Open Outlook

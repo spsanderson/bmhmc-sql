@@ -1,9 +1,8 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [dbo].[c_er_rt_esi_staff_sp]    Script Date: 12/14/2020 3:43:08 PM ******/
 SET ANSI_NULLS ON
 GO
-
 SET QUOTED_IDENTIFIER ON
 GO
 
@@ -44,9 +43,14 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-12-10	v1			Initial Creation
+2020-12-10	v1			Change 
+						From: PVT.[Registered Nurse]
+						To:   PVT.[Registered Nurse] - 5 AS [Registered Nurse]
+						To take counts away from Walk In Triage, Express Care,
+						Charge Nurse, Ambulance Bay, and Treatment Room
 ***********************************************************************
 */
-CREATE PROCEDURE [dbo].[c_er_rt_esi_staff_sp] (@LookBackPeriods AS INT = N'96')
+ALTER PROCEDURE [dbo].[c_er_rt_esi_staff_sp] (@LookBackPeriods AS INT = N'96')
 AS
 SET ANSI_NULLS ON
 SET ANSI_WARNINGS ON
@@ -140,7 +144,7 @@ BEGIN
 	SELECT PVT.Staff_DateTime,
 		PVT.[Nurse Aide],
 		PVT.[Nurse Aide II],
-		PVT.[Registered Nurse]
+		PVT.[Registered Nurse] - 5 AS [Registered Nurse]
 	FROM (
 		SELECT Staff_DateTime,
 			Staff_Title,
@@ -196,6 +200,3 @@ BEGIN
 	WHERE id_num <= @LookBackPeriods
 	ORDER BY Census_DateTime;
 END
-GO
-
-
