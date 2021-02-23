@@ -34,6 +34,10 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
+2021-01-25	v2			Add [COVID_test_within_30_days]
+2021-02-01	v3			Add Covid_Order Case statement 
+						Fix WHERE CLAUSE
+						Push to prod
 ***********************************************************************
 */
 
@@ -45,12 +49,12 @@ AS
 	SET QUOTED_IDENTIFIER ON
 
 BEGIN
-	
 	SET NOCOUNT ON;
+
 	-- Create a new table called 'c_covid_wellsoft_tbl' in schema 'smsdss'
 	-- Drop the table if it already exists
 	IF OBJECT_ID('smsdss.c_covid_wellsoft_tbl', 'U') IS NOT NULL
-	DROP TABLE smsdss.c_covid_wellsoft_tbl;
+		DROP TABLE smsdss.c_covid_wellsoft_tbl;
 
 	/*
 	ED Table Information
@@ -69,9 +73,15 @@ BEGIN
 
 	INSERT INTO @WellSoft
 	SELECT B.ObjectID,
-		a.covid_Tested_Outside_Hosp AS [Covid_Order],
+		--A.COVID_TESTED_OUTSIDE_HOSP AS [COVID_ORDER]
+		CASE 
+			WHEN A.COVID_TEST_WITHIN_30_DAYS IS NOT NULL
+				THEN A.COVID_TEST_WITHIN_30_DAYS
+			ELSE a.covid_Tested_Outside_Hosp
+			END AS [Covid_Order],
 		a.covid_Where_Tested AS [Order_Status],
 		a.covid_Test_Results AS [Result],
+		--a.covid_test_within_30_days,
 		A.Account,
 		A.MR#,
 		A.Patient,
@@ -83,13 +93,16 @@ BEGIN
 			A.COVID_TESTED_OUTSIDE_HOSP IS NOT NULL -- tested yes
 			OR A.COVID_WHERE_TESTED IS NOT NULL
 			OR A.COVID_TEST_RESULTS IS NOT NULL
+			OR A.[COVID_test_within_30_days] IS NOT NULL
 			)
-		AND A.COVID_TESTED_OUTSIDE_HOSP != '(((('
-		AND A.Covid_Tested_Outside_Hosp = 'Yes'
+		--AND A.COVID_TESTED_OUTSIDE_HOSP != '(((('
+		AND (
+			A.Covid_Tested_Outside_Hosp = 'Yes'
+			OR A.[COVID_test_within_30_days] LIKE '%Yes%'
+			)
 		AND LEFT(A.Account, 1) = '1';
 
 	SELECT *
 	INTO smsdss.c_covid_wellsoft_tbl
 	FROM @WellSoft;
-
 END;

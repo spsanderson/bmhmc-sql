@@ -1,10 +1,11 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BMH_MEWS_SCORE]    Script Date: 11/20/2020 10:15:41 AM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BMH_MEWS_SCORE_test]    Script Date: 2/11/2021 3:47:40 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
+
 
 
 
@@ -48,13 +49,14 @@ Revision History:
 Date        Author		        Description  
 ----        ------				-----------  
 2020-11-20	Steve				Initial Creation
+2021-02-11	Steve				Fix location and pivot out results
 ***********************************************************************
 */  
    
-ALTER PROCEDURE [dbo].[ORE_BMH_MEWS_SCORE] @pvchLocation VARCHAR(2000) = NULL,
+ALTER PROCEDURE [dbo].[ORE_BMH_MEWS_SCORE_test] @pvchLocation VARCHAR(2000) = NULL,
 	@HSF_SESSION_USEROID AS VARCHAR(20) = NULL,
 	@pchReportUsage AS CHAR(1) = '2'
-	--declare @pvchlocation varchar(20)
+	--DECLARE@pvchlocation varchar(20)
 	--set @pvchLocation =  'CSU,'
 AS
 --*************************************************************************************************  
@@ -93,8 +95,9 @@ ELSE
 
 --Table to hold parsed visit oids from incoming @ptxOrderTypeNames  parameter
 --DECLARE @PVCHLOCATION VARCHAR(10)
---SET @pvchLocation = 'All'
+--SET @pvchLocation = '2nor'
 DECLARE @tblLocation TABLE (Location VARCHAR(75))
+
 INSERT INTO @tblLocation (Location)
 SELECT *
 FROM fn_GetStrParmTable(@pvchLocation)
@@ -131,29 +134,31 @@ DECLARE @AssessmentIDs TABLE (
 	CollectedDT SMALLDATETIME,
 	RN INT
 	)
+
 INSERT INTO @AssessmentIDs
 SELECT PatientOID = ha.Patient_OID,
 	PatientVisitOID = ha.PatientVisit_OID,
 	AssessmentID = ha.AssessmentID,
 	CollectedDT = ha.EnteredDT,
-	RN = ROW_NUMBER() OVER(PARTITION BY HA.PATIENT_OID ORDER BY HA.ENTEREDDT DESC)
+	RN = ROW_NUMBER() OVER (
+		PARTITION BY HA.PATIENT_OID ORDER BY HA.ENTEREDDT DESC
+		)
 FROM HAssessment ha WITH (NOLOCK)
 INNER JOIN @PatientTable pt ON ha.Patient_oid = pt.pat_oid
 	AND ha.PatientVisit_OID = pt.pvisit_oid
 INNER JOIN HObservation ho WITH (NOLOCK) ON ha.assessmentid = ho.assessmentid
-	AND ha.EnteredDT = (
-		SELECT TOP 1 ha.EnteredDT
-		FROM hassessment ha
-		INNER JOIN HObservation ho WITH (NOLOCK) ON ha.assessmentid = ho.assessmentid
-		WHERE ha.patient_oid = pt.pat_oid
-			AND ha.patientvisit_oid = pt.pvisit_oid
-			AND ho.FindingAbbr = 'A_BMH_MEWSScore'
-			AND ha.assessmentstatuscode IN ('1', '3')
-			AND ha.enddt IS NULL
-			AND ho.EndDt IS NULL
-		ORDER BY ha.EnteredDT DESC
-		)
-
+--AND ha.EnteredDT = (
+--	SELECT TOP 1 ha.EnteredDT
+--	FROM hassessment ha
+--	INNER JOIN HObservation ho WITH (NOLOCK) ON ha.assessmentid = ho.assessmentid
+--	WHERE ha.patient_oid = pt.pat_oid
+--		AND ha.patientvisit_oid = pt.pvisit_oid
+--		AND ho.FindingAbbr = 'A_BMH_MEWSScore'
+--		AND ha.assessmentstatuscode IN ('1', '3')
+--		AND ha.enddt IS NULL
+--		AND ho.EndDt IS NULL
+--	ORDER BY ha.EnteredDT DESC
+--	)
 WHERE ha.EndDt IS NULL
 	AND ho.EndDt IS NULL
 	AND ho.FindingAbbr = 'A_BMH_MEWSScore'
@@ -164,8 +169,9 @@ ORDER BY ha.patient_oid,
 
 DELETE
 FROM @AssessmentIDs
-WHERE RN != 1;
+WHERE RN > 4;
 
+--SELECT * FROM @AssessmentIDs
 --select * from @AssessmentIDs
 DECLARE @tmpAssessment TABLE (
 	Patientoid INT,
@@ -211,7 +217,7 @@ WHERE ho.Findingabbr = ('A_BMH_MEWSScore')
 ORDER BY ai.Patientoid,
 	ai.PatientVisitoid
 
----select * from @tmpAssessment ORDER BY PATIENTOID, EnteredDateTime DESC
+--select * from @tmpAssessment ORDER BY PATIENTOID, EnteredDateTime DESC
 DECLARE @PivotTable TABLE (
 	patientoid VARCHAR(10),
 	patientvisit_oid VARCHAR(10),
@@ -265,6 +271,7 @@ DECLARE @Patient TABLE (
 	PatientVisitOID INTEGER,
 	EntityOID INTEGER
 	)
+
 -- First Create Dummy Records 
 INSERT INTO @Patient
 SELECT [PatientName] = '',
@@ -297,7 +304,7 @@ SELECT [PatientName] = '',
 	[EntityOID] = 0
 
 INSERT INTO @Patient
-SELECT
+SELECT DISTINCT
 	--	       PatientName = isnull (pt.LastName + ' , ' + pt.FirstName + ' ' + isnull(substring(pt.MiddleName,1,1), ' '),''),
 	PatientName = CASE ISNULL(pt.GenerationQualifier, '')
 		WHEN ''
@@ -357,10 +364,13 @@ BEGIN
 	WHERE PatientOID = - 1
 END
 
+--SELECT * FROM @PivotTable
+--SELECT * FROM @Patient
+--SELECT * FROM @tmpAssessment
 SELECT pt.patientoid,
 	pt.patientvisit_oid,
-	pt.MEWS_Score,
-	AI.[CollectedDateTime],
+	TA.OBSValue AS [MEWS_Score],
+	TA.CollectedDateTime,
 	p.PatientName,
 	p.PatientNumber,
 	p.PatientAcctNum,
@@ -374,16 +384,53 @@ SELECT pt.patientoid,
 	p.RoomBed,
 	p.VisitStartDateTime,
 	p.ChiefComplaint,
-	UserName = @vchReportUserName
+	UserName = @vchReportUserName,
+	[rn] = ROW_NUMBER() OVER (
+		PARTITION BY PT.PATIENTOID ORDER BY TA.COLLECTEDDATETIME
+		)
+INTO #TEMP
 FROM @PivotTable pt
 INNER JOIN @Patient p ON pt.patientoid = p.patientoid
 	AND pt.patientvisit_oid = p.patientvisitoid
-OUTER APPLY (
-	SELECT TOP 1 AI.CollectedDT AS CollectedDateTime
-	FROM @AssessmentIDs AS AI
-	WHERE pt.patientoid = ai.PatientOID
-		AND pt.patientvisit_oid = ai.PatientVisitOID
-	) AS ai
+INNER JOIN @tmpAssessment AS TA ON PT.patientoid = TA.Patientoid
+	AND PT.patientvisit_oid = TA.PatientVisitoid
 ORDER BY pt.patientoid
 
-;
+SELECT A.patientoid,
+	A.patientvisit_oid,
+	A.PatientName,
+	A.PatientNumber,
+	A.MRNumber,
+	A.BirthDate,
+	A.Sex,
+	A.Height,
+	A.[Weight],
+	A.Age,
+	A.Location,
+	A.RoomBed,
+	A.VisitStartDateTime,
+	A.ChiefComplaint,
+	A.UserName,
+	A.MEWS_Score AS [SCORE_1],
+	A.CollectedDateTime AS [SCORE_1_CollectDateTime],
+	B.MEWS_Score AS [SCORE2],
+	B.CollectedDateTime AS [SCORE_2_CollectDateTime],
+	C.MEWS_Score AS [SCORE_3],
+	C.CollectedDateTime AS [SCORE_3_CollectDateTime],
+	D.MEWS_Score AS [SCORE4],
+	D.CollectedDateTime AS [SCORE_4_CollectDateTime],
+	A.rn
+FROM #TEMP AS A
+LEFT OUTER JOIN #TEMP AS B ON A.patientoid = B.patientoid
+	AND A.patientvisit_oid = B.patientvisit_oid
+	AND B.rn = 2
+LEFT OUTER JOIN #TEMP AS C ON A.patientoid = C.patientoid
+	AND A.patientvisit_oid = B.patientvisit_oid
+	AND C.rn = 3
+LEFT OUTER JOIN #TEMP AS D ON A.patientoid = D.patientoid
+	AND A.patientvisit_oid = B.patientvisit_oid
+	AND D.RN = 4
+WHERE A.RN = 1
+
+DROP TABLE #TEMP;
+

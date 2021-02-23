@@ -19,6 +19,7 @@ v4	-	2020-04-16	- Add PublicityCodeID, PublicityCodeText and InjuryCode
 						Injury Code	Changed to "Where were you tested for Covid-19"
 v5		2020-06-04	- Add AccessRmAssigned column
 v6	-	2020-06-05	- Remove schema bindings
+v7	-	2021-01-28	- Add field COVIDTestWI30Days
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_sp]
@@ -78,6 +79,7 @@ BEGIN
 	, PublicityCodeText
 	, InjuryCode
 	, AccessRmAssigned
+	, COVIDTestWI30Days
 	
 	INTO c_Wellsoft_Rpt_tbl_tmp
 	

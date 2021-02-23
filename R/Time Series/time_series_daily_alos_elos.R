@@ -161,7 +161,7 @@ plot_anomaly_diagnostics(
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(query, prop = 0.9)
+splits <- initial_time_split(query, prop = 0.9, cumulative = TRUE)
 
 # Models ----
 

@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 11/20/2020 9:09:53 AM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 1/27/2021 9:15:39 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -51,6 +51,7 @@ Date    	Revised By   			Description
 									Orders
 2020-08-17	Steven Sanderson MPH	Add Bed Rest Orders
 2020-11-20  Steven Sanderson MPH	Add MEWSScore
+2021-01-27	Steven Sanderson MPH	Pivot out at most 4 Last Activity Orders
 ------------------------------------------------------------------------------- 
 */  
     
@@ -163,7 +164,8 @@ BEGIN
 		PatientOID INT,
 		PatientVisitOID INT,
 		LastActivityOrder VARCHAR(MAX),
-		LastActivityOrderEnteredDateTime VARCHAR(50)
+		LastActivityOrderEnteredDateTime VARCHAR(50),
+		OrderNumber INT
 	)
 	DECLARE @BedrestOrders TABLE (
 		PatientOID INT,
@@ -790,8 +792,14 @@ BEGIN
 	, A.PatientVisitOID
 	, A.OrderDescAsWritten
 	, A.EnterdDateTime
+	, [OrderNumber] = ROW_NUMBER() OVER(ORDER BY PatientOID)
 	FROM @ActivityOrders AS A
 	WHERE slNO = 1
+	;
+
+	DELETE
+	FROM @LastActivityOrder
+	WHERE OrderNumber > 4
 	;
 
 	INSERT INTO @BedrestOrders
@@ -2525,6 +2533,12 @@ BEGIN
 		LPT.LastPTOrderEnteredDateTime,
 		LACT.LastActivityOrder,
 		LACT.LastActivityOrderEnteredDateTime,
+		[LastActivityOrder2] = LACT2.LastActivityOrder,
+		[LastActivityOrderEnteredDateTime2] = LACT2.LastActivityOrderEnteredDateTime,
+		[LastActivityOrder3] = LACT3.LastActivityOrder,
+		[LastActivityOrderEnteredDateTime3] = LACT3.LastActivityOrderEnteredDateTime,
+		[LastActivityOrder4] = LACT4.LastActivityOrder,
+		[LastActivityOrderEnteredDateTime4] = LACT4.LastActivityOrderEnteredDateTime,
 		LGLUCOSE.LastGlucoseOrder,
 		LGLUCOSE.LastGlucoseOrderEnteredDateTime,
 		LNEURO.LastNeuroOrder,
@@ -2548,8 +2562,6 @@ BEGIN
 		AND TP.PatientVisitOID = LTELE.PatientVisitOID
 	LEFT OUTER JOIN @LastPhysicalTherapyOrder as LPT ON TP.PatientOID = LPT.patientOID
 		AND TP.PatientVisitOID = LPT.PatientVisitoid
-	LEFT OUTER JOIN @LastActivityOrder AS LACT ON TP.PatientOID = LACT.PatientOID
-		AND TP.PatientVisitOID = LACT.patientvisitoid
 	LEFT OUTER JOIN @LastGlucoseOrder AS LGLUCOSE ON TP.PatientOID = LGLUCOSE.PatientOID
 		AND TP.PatientVisitOID = LGLUCOSE.PatientVisitOID
 	LEFT OUTER JOIN @LastNeuroCheckOrder AS LNEURO ON TP.PatientOID = LNEURO.PatientOID
@@ -2560,5 +2572,20 @@ BEGIN
 		AND TP.PatientVisitOID = GLUCOSERESULT.PatientVisitOID
 	LEFT OUTER JOIN @LastBedrestOrder AS BEDREST ON TP.PatientOID = BEDREST.PatientOID
 		AND TP.PatientVisitOID = BEDREST.PatientVisitOID
+	LEFT OUTER JOIN @LastActivityOrder AS LACT ON TP.PatientOID = LACT.PatientOID
+		AND TP.PatientVisitOID = LACT.patientvisitoid
+		AND LACT.OrderNumber = 1
+	-- SECOND ORDER
+	LEFT OUTER JOIN @LastActivityOrder AS LACT2 ON LACT.PatientOID = LACT2.PatientOID
+		AND LACT.PatientVisitOID = LACT2.PatientVisitOID
+		AND LACT2.OrderNumber = 2
+	-- THIRD ORDER
+	LEFT OUTER JOIN @LastActivityOrder AS LACT3 ON LACT.PatientOID = LACT3.PatientOID
+		AND LACT.PatientVisitOID = LACT3.PatientVisitOID
+		AND LACT3.OrderNumber = 3
+	-- Forth Order
+	LEFT OUTER JOIN @LastActivityOrder AS LACT4 ON LACT.PatientOID = LACT4.PatientOID
+		AND LACT.PatientVisitOID = LACT4.PatientVisitOID
+		AND LACT4.OrderNumber = 4
 	ORDER BY tp.PatientName
 END

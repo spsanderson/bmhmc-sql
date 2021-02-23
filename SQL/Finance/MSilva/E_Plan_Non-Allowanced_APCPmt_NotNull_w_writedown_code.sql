@@ -22,6 +22,7 @@ Date		Version		Description
 ----		----		----
 2018-09-24	v1			Initial Creation
 2019-06-21	v2			Minimize code
+2020-12-23	v3			E26 Dropped per KJ
 -------------------------------------------------------------------------------- 
 */
 
@@ -100,10 +101,12 @@ LEFT JOIN SMSMIR.mir_pyr_plan_user AS INS_NAME ON PYRPLAN.PT_ID = INS_NAME.PT_ID
 	AND INS_NAME.pyr_seq_no = '1'
 WHERE VST.vst_end_date IS NOT NULL
 	AND PYRPLAN.PYR_CD IN (
-		'E01', 'E08', 'E10', 'E12', 'E13', 'E14', 'E18', 'E19', 'E26', 'E27', 'E28', 'E39', --100% OF APC
+		'E01', 'E08', 'E10', 'E12', 'E13', 'E14', 'E18', 'E19', 
+		--'E26', 
+		'E27', 'E28', 'E39', --100% OF APC
 		'E09', --103.5% OF APC
 		'E29', --125% OF APC
-		'E47' --102% OF APC
+		'E47'  --102% OF APC
 		)
 	AND VST.tot_bal_amt > 0
 	AND PYRPLAN.tot_amt_due > 0

@@ -20,6 +20,7 @@ v3	- 2020-04-16	- Add PublicityCodeID, PublicityCodeText and InjuryCode
 						Publicity Code Text	Changed to "What were the Covid-19 test Results"
 						Injury Code	Changed to "Where were you tested for Covid-19"
 v4	- 2020-06-05	- remove schema bindings
+v5	- 2021-01-25	- Add COVIDTestWI30Days
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp] 
@@ -167,6 +168,7 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 9, 2) + ':' +
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 11, 2) + ':00',
 	  120)																  AS [Access_Rm_Assigned]
+	 , COVIDTestWI30Days                                                  AS [COVID_test_within_30_days]
 	  
 	INTO c_Wellsoft_Rpt_tbl
 

@@ -35,8 +35,10 @@ inpatient_coding_lag_tbl <- function(.data) {
     stop(call. = FALSE,"(.data) is not a data.frame/tibble. Please supply.")
   }
 
+  # * Get Data ----
   data_tbl <- tibble::as_tibble(.data)
 
+  # * Manipulate ----
   coder_tbl <- data_tbl %>%
     dplyr::select(coder, lag) %>%
     dplyr::group_by(coder) %>%
@@ -55,6 +57,7 @@ inpatient_coding_lag_tbl <- function(.data) {
 
   final_tbl <- base::rbind(coder_tbl, gt_tbl)
 
+  # * Return ----
   return(final_tbl)
 
 }
@@ -445,7 +448,7 @@ infection_prevention_patient_days_tbl <- function(.data){
     dplyr::mutate(
       rn = dplyr::with_order(
         order_by = cen_date
-        , fun = row_number
+        , fun = dplyr::row_number
         , x = cen_date
       )
     ) %>%
@@ -741,5 +744,49 @@ respiratory_vae_tbl <- function(.data) {
 
   # * Return ----
   return(final_tbl)
+
+}
+
+#' Readmit Psych To Psych Tibble
+#'
+#' @author Steven P. Sanderson II, MPH
+#'
+#' @description
+#' This function will take the results of the [readmit_psy_to_psy_query()] and
+#' ensure that the results are in a `tibble`
+#'
+#' @details
+#' - Takes in the data from [readmit_psy_to_psy_query()]
+#'
+#' @param .data The data you want to pass, namely [readmit_psy_to_psy_query()]
+#'
+#' @examples
+#' \dontrun{
+#' readmit_psy_to_psy_query() %>%
+#'   readmit_psy_to_psy_tbl()
+#' }
+#'
+#' @return
+#' A tibble
+#'
+#' @export
+#'
+
+readmit_psy_to_psy_tbl <- function(.data){
+
+  # Checks
+  if(!is.data.frame(.data)){
+    stop(call. = FALSE, "(.data) is missing. Please supply.")
+  }
+
+  # * Get Data ----
+  data_tbl <- tibble::as_tibble(.data)
+
+  # * Manipulate ----
+  data_tbl <- data_tbl %>%
+    janitor::clean_names()
+
+  # * Return ----
+  return(data_tbl)
 
 }

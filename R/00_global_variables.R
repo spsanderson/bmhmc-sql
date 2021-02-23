@@ -23,6 +23,8 @@ globalVariables(
     "peep_equivalent","perf_date","pl1","pl2","pl_sum","stable_flag","stable_flag.x",
     "stable_flag.y","tae","val_clean","tbe","tmpG","tmp_a","tmp_b",
     "dsch","dsch_count","lihn_svc_line","ra_flag","readmit_bench","readmit_count",
-    "rr_bench","severity_of_illness"
+    "rr_bench","severity_of_illness","alos","bench_yr","dsch_yr","performance",
+    "sum_days","sum_exp_days","visit_count","date_col","Adm_Date","Dsch_Date",
+    "Readmit_Count","Readmit_Rate_Bench","ent_date"
   )
 )

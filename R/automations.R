@@ -7,7 +7,7 @@
 #'
 #' @details
 #' - Requires a connection to DSS, uses both [db_connect()] and [db_disconnect()]
-#' - Uses the [geocode_discharges_query()]
+#' - Uses the [geocode_discharges_query()] internally.
 #' - Saves a file to where you specify for accounts that could not be automatically geocoded
 #' - This can be run numerous times a day since the records are inserted into a table after
 #' geocoding and lookedup to make sure they do not already exist there.
@@ -205,7 +205,7 @@ geocode_discharges_automation <- function() {
 #'
 #' @param .delete_file Default is FALSE, TRUE will delete the file.
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -228,7 +228,7 @@ qec_cdi_automation <- function(.delete_file = FALSE, .email) {
 
   # * File Path ----
   file_path <- utils::choose.dir()
-  file_name <- "\\QEC_CDI.csv"
+  file_name <- "\\QEC_CDI.xlsx"
   f_pn <- base::paste0(file_path, file_name)
 
   writexl::write_xlsx(x = data_tbl, path = f_pn)
@@ -264,7 +264,7 @@ qec_cdi_automation <- function(.delete_file = FALSE, .email) {
 #' @author Steven P. Sanderson II, MPH
 #'
 #' @description
-#' Run the [code64_charged_accounts_query()] and email them to Performance Improvment
+#' Run the [code64_charged_accounts_query()] and email them to Performance Improvement
 #' and the Medical Chairperson
 #'
 #' The RDCOMClient Library must be called into the `namespace` first with any of the following
@@ -276,17 +276,17 @@ qec_cdi_automation <- function(.delete_file = FALSE, .email) {
 #' @details
 #' - Requires a connection to DSS, uses both [db_connect()] and [db_disconnect()]
 #' - Will ask you where you want to save the file so you can email it out, will
-#' delete the file upon email send
+#' delete the file upon email send.
+#' - Uses the [code64_charged_accounts_query()] internally.
 #'
 #' @param .delete_file Default is FALSE, TRUE will delete file.
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
 #' \dontrun{
 #' library(RDCOMClient)
-#' library(tidyverse)
 #' code64_automation(.email = "someone@@email.com")
 #' }
 #'
@@ -318,7 +318,7 @@ code64_automation <- function(.delete_file = FALSE, .email) {
     file_month,
     "_rundate_",
     file_rundate,
-    ".csv"
+    ".xlsx"
   )
   f_pn <- base::paste0(file_path, file_name)
 
@@ -373,7 +373,7 @@ code64_automation <- function(.delete_file = FALSE, .email) {
 #' @param .data The data that is passed from [orsos_to_sproc_tbl()]
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -398,7 +398,7 @@ orsos_to_sproc_automation <- function(.data, .delete_file = FALSE, .email) {
 
   # * File Path ----
   file_path <- utils::choose.dir()
-  file_name <- "\\orsos_to_sproc_reconcilliation.csv"
+  file_name <- "\\orsos_to_sproc_reconcilliation.xlsx"
   f_pn <- base::paste0(file_path, file_name)
 
   writexl::write_xlsx(x = data_tbl, path = f_pn)
@@ -447,18 +447,17 @@ orsos_to_sproc_automation <- function(.data, .delete_file = FALSE, .email) {
 #' - pacman::p_load("RDCOMClient")
 #'
 #' @details
-#' - Uses the [congenital_malformation_query()]
+#' - Uses the [congenital_malformation_query()] internally.
 #' - Requires a connection to DSS and uses [db_connect()] and [db_disconnect()]
 #'
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
 #' \dontrun{
 #' library(RDCOMClient)
-#' library(tidyverse)
 #' congenital_malformation_automation(.email= "someone@@email.com")
 #' }
 #'
@@ -475,7 +474,7 @@ congenital_malformation_automation <- function(.delete_file = FALSE, .email) {
 
   # * File Path ----
   file_path <- utils::choose.dir()
-  file_name <- "\\congenital_malformation.csv"
+  file_name <- "\\congenital_malformation.xlsx"
   f_pn <- base::paste0(file_path, file_name)
 
   writexl::write_xlsx(x = data_tbl, path = f_pn)
@@ -526,16 +525,16 @@ congenital_malformation_automation <- function(.delete_file = FALSE, .email) {
 #' @details
 #' - Gets the last discharge order written for a visit and compares that with the
 #' time that was input as the discharge date time
+#' - Uses the [discharge_order_to_discharge_query()] internally to get the data.
 #'
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
 #' \dontrun{
 #' library(RDCOMClient)
-#' library(tidyverse)
 #' discharge_order_to_discharge_automation(.email = "someone@@gmail.com")
 #' }
 #'
@@ -600,10 +599,11 @@ discharge_order_to_discharge_automation <- function(.delete_file = FALSE, .email
 #' @details
 #' - Gets the last discharge order written for a visit and compares that with the
 #' time that was input as the discharge date time
+#' - Uses the [duplicate_coded_cataract_query()] internally to get data.
 #'
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -682,7 +682,7 @@ duplicate_coded_cataracts_automation <- function(.delete_file = FALSE, .email) {
 #' @param .data The data that comes in typically from the [inpatient_coding_lag_tbl()]
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -769,7 +769,7 @@ inpatient_coding_lag_automation <- function(.data, .delete_file = FALSE, .email)
 #' @param .data The output from the tbl function [monthly_psy_admits_discharges_tbl()]
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -844,7 +844,7 @@ monthly_psy_admits_discharges_automation <- function(.data, .delete_file = FALSE
 #' @param .data The output from the tbl function [monthly_trauma_tbl()]
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -922,7 +922,7 @@ monthly_trauma_automation <- function(.data, .delete_file = FALSE, .email) {
 #' @param .delete_file FALSE is the default, so the file will be kept, TRUE will
 #' delete the file after function completion
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -1000,7 +1000,7 @@ myhealth_monthly_surgery_automation <- function(.data, .delete_file = FALSE, .em
 #' @param .delete_file FALSE is the default, so the file will be kept, TRUE will
 #' delete the file after function completion
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -1084,7 +1084,7 @@ weekly_psy_discharges_automation <- function(.data, .delete_file = FALSE, .email
 #' @param .delete_file FALSE is the default, so the file will be kept, TRUE will
 #' delete the file after function completion
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -1168,7 +1168,7 @@ orsos_j_accounts_automation <- function(.data, .delete_file = FALSE, .email) {
 #' @param .data The output from the tbl function [infection_prevention_patient_days_tbl()]
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \\email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -1241,14 +1241,14 @@ infection_prevention_patient_days_automation <- function(.data, .delete_file = F
 #'
 #' @details
 #' Takes the output from [respiratory_vae_tbl()] and saves it to
-#' an excel workbook using the [xlsx::saveWorkbook()] function. The file is saved
+#' an excel workbook using the [writexl::write_xlsx()] function. The file is saved
 #' to a location specified by the user and upon successful function completion the
 #' file is deleted.
 #'
 #' @param .data The output from the tbl function [respiratory_vae_tbl()]
 #' @param .delete_file Default is FALSE, TRUE will delete file
 #' @param .email Provide the email address for the recipient. The email must be
-#' in double quotes like so: \email{"person@@licommunityhospital.org";"person2@@licommunityhospital.org"}
+#' in double quotes like so: \email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
 #' using a semi-colon if there is more than one address.
 #'
 #' @examples
@@ -1295,6 +1295,86 @@ respiratory_vae_automation <- function(.data, .delete_file = FALSE, .email) {
   Email[["cc"]] <- ""
   Email[["bcc"]] <- ""
   Email[["subject"]] <- "Respiratory VAE File"
+  Email[["body"]] <- "Please see the attached for the latest report"
+  Email[["attachments"]]$Add(f_pn)
+
+  # Send the email
+  Email$Send()
+
+  # Delete saved file
+  if (.delete_file == TRUE) {
+    if (file.exists(f_pn)) {
+      file.remove(f_pn)
+    }
+  }
+}
+
+#' Readmit Psyh To Psyc Automation
+#'
+#' @author Steven P. Sanderson II, MPH
+#'
+#' @description
+#' This takes in the data from [readmit_psy_to_psy_query()] and [readmit_psy_to_psy_tbl()]
+#' puts it into an excel file using save_to_excel.
+#'
+#' The RDCOMClient Library must be called into the `namespace` first with any of the following
+#' - library(RDCOMClient)
+#' - require(RDCOMClient)
+#' - if(!require(pacman)) {install.packages("pacman")}
+#' - pacman::p_load("RDCOMClient")
+#'
+#' @details
+#' Takes the output from [readmit_psy_to_psy_tbl()] and saves it to
+#' an excel workbook using the [writexl::write_xlsx] function. The file is saved
+#' to a location specified by the user and upon successful function completion the
+#' file is deleted.
+#'
+#' @param .data The output from the tbl function [readmit_psy_to_psy_tbl()]
+#' @param .delete_file Default is FALSE, TRUE will delete file
+#' @param .email Provide the email address for the recipient. The email must be
+#' in double quotes like so: \\email{c("person@@licommunityhospital.org;person2@@licommunityhospital.org")}
+#' using a semi-colon if there is more than one address.
+#'
+#' @examples
+#' \dontrun{
+#' library(RDCOMClient)
+#' library(magritter)
+#' readmit_psy_to_psy_query() %>%
+#'   readmit_psy_to_psy_tbl() %>%
+#'   readmit_psy_to_psy_automation(.email = "someone@@email.com")
+#' }
+#'
+#' @export
+#'
+
+readmit_psy_to_psy_autmation <- function(.data, .delete_file = FALSE, .email){
+
+  # * Tidyeval ----
+  email <- .email
+
+  # * Get Data ----
+  data_wb <- .data
+
+  # * File Path ----
+  file_path <- utils::choose.dir()
+  file_name <- "\\psy_to_psy_readmits.xlsx"
+  f_pn <- base::paste0(file_path, file_name)
+
+  # Save file
+  writexl::write_xlsx(x = data_tbl, path = f_pn)
+
+  # * Compose Email ----
+  # Open Outlook
+  Outlook <- RDCOMClient::COMCreate("Outlook.Application")
+
+  # Create Email
+  Email <- Outlook$CreateItem(0)
+
+  # Set fields
+  Email[["to"]] <- email
+  Email[["cc"]] <- ""
+  Email[["bcc"]] <- ""
+  Email[["subject"]] <- "Psych to Psych Readmits"
   Email[["body"]] <- "Please see the attached for the latest report"
   Email[["attachments"]]$Add(f_pn)
 
