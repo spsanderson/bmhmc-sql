@@ -1347,7 +1347,7 @@ respiratory_vae_automation <- function(.data, .delete_file = FALSE, .email) {
 #' @export
 #'
 
-readmit_psy_to_psy_autmation <- function(.data, .delete_file = FALSE, .email){
+readmit_psy_to_psy_automation <- function(.data, .delete_file = FALSE, .email){
 
   # * Tidyeval ----
   email <- .email

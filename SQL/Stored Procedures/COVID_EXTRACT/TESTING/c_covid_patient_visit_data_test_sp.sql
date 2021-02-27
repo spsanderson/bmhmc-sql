@@ -8,7 +8,7 @@ GO
 
 /*
 ***********************************************************************
-File: c_covid_patient_visit_data_sp.sql
+File: c_covid_patient_visit_data_test_sp.sql
 
 Input Parameters:
 	None
@@ -22,7 +22,7 @@ Tables/Views:
 	
 
 Creates Table:
-	smsdss.c_covid_patient_visit_data_tbl
+	smsdss.c_covid_patient_visit_data_test_tbl
 
 Functions:
 	None
@@ -40,10 +40,11 @@ Date		Version		Description
 2020-07-07	v1			Initial Creation
 2020-08-04	v2			Add Isolation_Indicator
 						Add Isolation_Indicator_Abbr
+2020-02-23	v3			Complete re-write
 ***********************************************************************
 */
 
-ALTER PROCEDURE [dbo].[c_covid_patient_visit_data_sp]
+ALTER PROCEDURE [dbo].[c_covid_patient_visit_data_test_sp]
 AS
 SET ANSI_NULLS ON
 SET ANSI_WARNINGS ON
@@ -52,12 +53,19 @@ SET QUOTED_IDENTIFIER ON
 BEGIN
 	SET NOCOUNT ON;
 
-	-- Create a new table called 'c_covid_patient_visit_data_tbl' in schema 'smsdss'
+	-- Create a new table called 'c_covid_patient_visit_data_test_tbl' in schema 'smsdss'
 	-- Drop the table if it already exists
-	IF OBJECT_ID('smsdss.c_covid_patient_visit_data_tbl', 'U') IS NOT NULL
-		DROP TABLE smsdss.c_covid_patient_visit_data_tbl;
+	IF OBJECT_ID('smsdss.c_covid_patient_visit_data_test_tbl', 'U') IS NOT NULL
+		DROP TABLE smsdss.c_covid_patient_visit_data_test_tbl;
 
-	DECLARE @PatientVisitData TABLE (
+	-- Get all of the PatientVisitOID for which we want data
+	DECLARE @VisitOID TABLE (PatientVisitOID INT)
+
+	INSERT INTO @VisitOID
+	SELECT DISTINCT PatientVisitOID
+	FROM SMSDSS.c_covid_ptvisitoid_tbl
+	-- Get data from DSS first
+	DECLARE @PatientVisitDataDSS TABLE (
 		MRN INT,
 		PatientAccountID INT,
 		Pt_Name VARCHAR(250),
@@ -82,7 +90,84 @@ BEGIN
 		--PT_Occupation VARCHAR(100)
 		);
 
-	INSERT INTO @PatientVisitData
+	INSERT INTO @PatientVisitDataDSS
+	SELECT B.pt_med_rec_no AS [MRN],
+		A.PATIENTACCOUNTID AS [PTNO_NUM],
+		CAST(B.PT_LAST_NAME AS VARCHAR) + ', ' + CAST(B.PT_FIRST_NAME AS VARCHAR) AS [PT_NAME],
+		ROUND((DATEDIFF(MONTH, B.pt_birth_date, A.VisitStartDateTime) / 12), 0) AS [PT_AGE],
+		B.pt_gender,
+		SUBSTRING(RACECD.RACE_CD_DESC, 1, CHARINDEX('  ', RACECD.RACE_CD_DESC, 1)) AS RACE_CD_DESC,
+		A.VISITSTARTDATETIME AS [ADM_DTIME],
+		A.ACCOMMODATIONTYPE AS [PT_Accomodation],
+		REPLACE(REPLACE(REPLACE(REPLACE(A.PatientReasonforSeekingHC, CHAR(43), ' '), CHAR(45), ' '), CHAR(13), ' '), CHAR(10), ' ') AS [PatientReasonforSeekingHC],
+		A.VisitEndDateTime,
+		A.DischargeDisposition,
+		[Mortality_Flag] = CASE 
+			WHEN LEFT(A.DischargeDisposition, 1) IN ('C', 'D')
+				THEN 1
+			ELSE 0
+			END,
+		A.ObjectID,
+		SUBSTRING(LTRIM(RTRIM(HCUNIT.Abbreviation)), 1, 3),
+		B.pt_street_addr,
+		B.pt_city,
+		B.pt_state,
+		B.pt_zip_cd,
+		B.pt_birth_date,
+		ISNULL(A.IsolationIndicator, '') AS [IsolationIndicator],
+		CASE 
+			WHEN PATINDEX('%/%', A.IsolationIndicator) != 0
+				THEN CAST(UPPER(SUBSTRING(A.IsolationIndicator, 1, 1)) AS VARCHAR) + CAST(UPPER(SUBSTRING(A.IsolationIndicator, PATINDEX('%/%', A.IsolationIndicator) + 1, 1)) AS VARCHAR)
+			ELSE CAST(UPPER(SUBSTRING(A.IsolationIndicator, 1, 1)) AS VARCHAR)
+			END AS [Isolation_Indicator_Abbr]
+	FROM SMSMIR.mir_sc_PatientVisit AS A
+	LEFT OUTER JOIN SMSMIR.HL7_PT AS B ON A.PatientAccountID = B.pt_id
+	LEFT OUTER JOIN SMSDSS.race_cd_dim_v AS RACECD ON B.pt_race = RACECD.src_race_cd
+		AND A.SrcSysId = B.src_sys_id
+	INNER JOIN smsmir.mir_sc_HealthCareUnit AS HCUNIT ON A.UnitContacted_oid = HCUNIT.ObjectID
+	WHERE A.ObjectID IN (
+			SELECT PatientVisitOID
+			FROM @VisitOID
+			)
+
+	-- Get accounts that are not yet in DSS
+	DECLARE @MissingVisitOID TABLE (PatientVisitOID INT)
+
+	INSERT INTO @MissingVisitOID
+	SELECT PatientVisitOID
+	FROM @VisitOID
+	
+	EXCEPT
+	
+	SELECT PatientVisitOID
+	FROM @PatientVisitDataDSS
+	-- Get missing accounts from PRD
+	DECLARE @PatientVisitDataPRD TABLE (
+		MRN INT,
+		PatientAccountID INT,
+		Pt_Name VARCHAR(250),
+		Pt_Age INT,
+		Pt_Gender VARCHAR(5),
+		Race_Cd_Desc VARCHAR(100),
+		Adm_Dtime DATETIME2,
+		Pt_Accomodation VARCHAR(50),
+		PatientReasonforSeekingHC VARCHAR(MAX),
+		DC_DTime DATETIME2,
+		DC_Disp VARCHAR(MAX),
+		Mortality_Flag CHAR(1),
+		PatientVisitOID INT,
+		Hosp_Svc VARCHAR(10),
+		PT_Street_Address VARCHAR(100),
+		PT_City VARCHAR(100),
+		PT_State VARCHAR(50),
+		PT_Zip_CD VARCHAR(10),
+		PT_DOB DATETIME2,
+		Isolation_Indicator VARCHAR(500),
+		Isolation_Indicator_Abbr VARCHAR(500)
+		--PT_Occupation VARCHAR(100)
+		);
+
+	INSERT INTO @PatientVisitDataPRD
 	SELECT B.pt_med_rec_no AS [MRN],
 		A.PATIENTACCOUNTID AS [PTNO_NUM],
 		CAST(B.PT_LAST_NAME AS VARCHAR) + ', ' + CAST(B.PT_FIRST_NAME AS VARCHAR) AS [PT_NAME],
@@ -119,10 +204,78 @@ BEGIN
 	INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HHealthCareUnit AS HCUNIT ON A.UnitContacted_OID = HCUNIT.objectid
 	WHERE A.ObjectID IN (
 			SELECT PatientVisitOID
-			FROM smsdss.c_covid_ptvisitoid_tbl
+			FROM @MissingVisitOID
 			);
 
-	SELECT *
-	INTO smsdss.c_covid_patient_visit_data_tbl
-	FROM @PatientVisitData;
+	SELECT A.MRN,
+		A.PatientAccountID,
+		A.Pt_Name,
+		A.Pt_Age,
+		A.Pt_Gender,
+		A.Race_Cd_Desc,
+		A.Adm_Dtime,
+		A.Pt_Accomodation,
+		A.PatientReasonforSeekingHC,
+		A.DC_DTime,
+		A.DC_Disp,
+		A.Mortality_Flag,
+		A.PatientVisitOID,
+		A.Hosp_Svc,
+		A.PT_Street_Address,
+		A.PT_City,
+		A.PT_State,
+		A.PT_Zip_CD,
+		A.PT_DOB,
+		A.Isolation_Indicator,
+		A.Isolation_Indicator_Abbr
+	INTO smsdss.c_covid_patient_visit_data_test_tbl
+	FROM (
+		SELECT MRN,
+			PatientAccountID,
+			Pt_Name,
+			Pt_Age,
+			Pt_Gender,
+			Race_Cd_Desc,
+			Adm_Dtime,
+			Pt_Accomodation,
+			PatientReasonforSeekingHC,
+			DC_DTime,
+			DC_Disp,
+			Mortality_Flag,
+			PatientVisitOID,
+			Hosp_Svc,
+			PT_Street_Address,
+			PT_City,
+			PT_State,
+			PT_Zip_CD,
+			PT_DOB,
+			Isolation_Indicator,
+			Isolation_Indicator_Abbr
+		FROM @PatientVisitDataDSS
+		
+		UNION
+		
+		SELECT MRN,
+			PatientAccountID,
+			Pt_Name,
+			Pt_Age,
+			Pt_Gender,
+			Race_Cd_Desc,
+			Adm_Dtime,
+			Pt_Accomodation,
+			PatientReasonforSeekingHC,
+			DC_DTime,
+			DC_Disp,
+			Mortality_Flag,
+			PatientVisitOID,
+			Hosp_Svc,
+			PT_Street_Address,
+			PT_City,
+			PT_State,
+			PT_Zip_CD,
+			PT_DOB,
+			Isolation_Indicator,
+			Isolation_Indicator_Abbr
+		FROM @PatientVisitDataPRD
+		) AS A;
 END;

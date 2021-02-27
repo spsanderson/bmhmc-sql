@@ -25,6 +25,6 @@ globalVariables(
     "dsch","dsch_count","lihn_svc_line","ra_flag","readmit_bench","readmit_count",
     "rr_bench","severity_of_illness","alos","bench_yr","dsch_yr","performance",
     "sum_days","sum_exp_days","visit_count","date_col","Adm_Date","Dsch_Date",
-    "Readmit_Count","Readmit_Rate_Bench","ent_date"
+    "Readmit_Count","Readmit_Rate_Bench","ent_date","atn_dr_no","ptno_num"
   )
 )

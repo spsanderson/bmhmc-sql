@@ -25,7 +25,13 @@ SELECT PAV.PTNO_NUM
 , SUBSTRING(pt.pt_last, 1, 20) AS [pt_last]
 -- CONVERT(VARCHAR(10), fmdate(), 101)
 , CONVERT(VARCHAR(10), PT.pt_dob, 101) AS [pt_dob]
-, 'SSN' AS [ID_Type]
+, CASE
+	WHEN CAST(PT.PT_SOCIAL AS VARCHAR) = '000000000'
+		THEN 'NO ID'
+	WHEN CAST(PT.PT_SOCIAL AS VARCHAR) IS NULL
+		THEN 'NO ID'
+	ELSE 'SSN' END AS [ID_Type]
+--, 'SSN' AS [ID_Type]
 , CAST(PT.Pt_Social AS VARCHAR) AS [Pt_Social]
 , PAV.Pt_Sex
 --, pav.PtNo_Num
