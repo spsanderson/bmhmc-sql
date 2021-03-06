@@ -16,6 +16,8 @@ Input Parameters:
 Tables/Views:
 	[SC_server].[Soarian_Clin_Prd_1].DBO.HORDER
 	[SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER
+	SMSMIR.mir_sc_OccurrenceOrder
+	smsmir.mir_sc_Order
 
 Creates Table:
 	smsdss.c_covid_orders_test_tbl
