@@ -324,8 +324,7 @@ oppe_readmit_query <- function(){
 #' @author Steven P. Sanderson II, MPH
 #'
 #' @description
-#' Get the CPOE data from DSS in order to run the OPPE report. The data in this
-#' report goes back 18 months and the dates are set dynamically in the sql.
+#' Get the CPOE data from DSS in order to run the OPPE report.
 #'
 #' @details
 #' - Requires a connection to DSS, uses both [db_connect()] and [db_disconnect()]
@@ -360,6 +359,7 @@ oppe_readmit_query <- function(){
 #'
 #' @export
 #'
+
 oppe_cpoe_query <- function(){
 
   # * DB Connection ----
@@ -390,6 +390,7 @@ oppe_cpoe_query <- function(){
       FROM smsdss.c_CPOE_Rpt_Tbl_Rollup_v AS A
       LEFT OUTER JOIN smsdss.pract_dim_v AS B ON A.req_pty_cd = B.src_pract_no
       	AND B.orgz_cd = 'S0X0'
+      WHERE A.req_pty_cd NOT IN ('000000','000059')
       "
     )
   ) %>%
