@@ -1,8 +1,9 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [dbo].[c_covid_patient_visit_data_sp]    Script Date: 8/4/2020 9:14:00 AM ******/
+
 SET ANSI_NULLS ON
 GO
+
 SET QUOTED_IDENTIFIER ON
 GO
 
@@ -14,12 +15,13 @@ Input Parameters:
 	None
 
 Tables/Views:
-	[SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit
+	smsdss.c_covid_ptvisitoid_tbl
+	SMSMIR.mir_sc_PatientVisit
+	smsmir.mir_sc_HealthCareUnit
 	SMSMIR.HL7_PT AS B ON A.PATIENTACCOUNTID
 	SMSDSS.RACE_CD_DIM_V
+	[SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit
 	[SC_server].[Soarian_Clin_Prd_1].DBO.HHealthCareUnit
-	smsdss.c_covid_ptvisitoid_tbl
-	
 
 Creates Table:
 	smsdss.c_covid_patient_visit_data_test_tbl
@@ -40,10 +42,10 @@ Date		Version		Description
 2020-07-07	v1			Initial Creation
 2020-08-04	v2			Add Isolation_Indicator
 						Add Isolation_Indicator_Abbr
-2020-02-23	v3			Complete re-write
+2021-02-23	v3			Complete re-write
+2021-03-03	v4			Use LastCngDtime
 ***********************************************************************
 */
-
 ALTER PROCEDURE [dbo].[c_covid_patient_visit_data_test_sp]
 AS
 SET ANSI_NULLS ON
@@ -64,6 +66,11 @@ BEGIN
 	INSERT INTO @VisitOID
 	SELECT DISTINCT PatientVisitOID
 	FROM SMSDSS.c_covid_ptvisitoid_tbl
+
+	DECLARE @START DATE;
+
+	SET @START = DATEADD(DAY, DATEDIFF(DAY, 0, GETDATE()) - 1, 0)
+
 	-- Get data from DSS first
 	DECLARE @PatientVisitDataDSS TABLE (
 		MRN INT,
@@ -87,7 +94,6 @@ BEGIN
 		PT_DOB DATETIME2,
 		Isolation_Indicator VARCHAR(500),
 		Isolation_Indicator_Abbr VARCHAR(500)
-		--PT_Occupation VARCHAR(100)
 		);
 
 	INSERT INTO @PatientVisitDataDSS
@@ -123,25 +129,14 @@ BEGIN
 	FROM SMSMIR.mir_sc_PatientVisit AS A
 	LEFT OUTER JOIN SMSMIR.HL7_PT AS B ON A.PatientAccountID = B.pt_id
 	LEFT OUTER JOIN SMSDSS.race_cd_dim_v AS RACECD ON B.pt_race = RACECD.src_race_cd
-		AND A.SrcSysId = B.src_sys_id
+		AND RACECD.src_sys_id = '#PMSNTX0'
 	INNER JOIN smsmir.mir_sc_HealthCareUnit AS HCUNIT ON A.UnitContacted_oid = HCUNIT.ObjectID
 	WHERE A.ObjectID IN (
 			SELECT PatientVisitOID
 			FROM @VisitOID
 			)
 
-	-- Get accounts that are not yet in DSS
-	DECLARE @MissingVisitOID TABLE (PatientVisitOID INT)
-
-	INSERT INTO @MissingVisitOID
-	SELECT PatientVisitOID
-	FROM @VisitOID
-	
-	EXCEPT
-	
-	SELECT PatientVisitOID
-	FROM @PatientVisitDataDSS
-	-- Get missing accounts from PRD
+	-- Get Data from PRD
 	DECLARE @PatientVisitDataPRD TABLE (
 		MRN INT,
 		PatientAccountID INT,
@@ -164,7 +159,6 @@ BEGIN
 		PT_DOB DATETIME2,
 		Isolation_Indicator VARCHAR(500),
 		Isolation_Indicator_Abbr VARCHAR(500)
-		--PT_Occupation VARCHAR(100)
 		);
 
 	INSERT INTO @PatientVisitDataPRD
@@ -202,11 +196,27 @@ BEGIN
 	LEFT OUTER JOIN SMSDSS.RACE_CD_DIM_V AS RACECD ON B.pt_race = RACECD.src_race_cd
 		AND RACECD.src_sys_id = '#PMSNTX0'
 	INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HHealthCareUnit AS HCUNIT ON A.UnitContacted_OID = HCUNIT.objectid
-	WHERE A.ObjectID IN (
-			SELECT PatientVisitOID
-			FROM @MissingVisitOID
-			);
+	WHERE CAST(A.LastCngDtime AS DATE) >= @START
 
+	-- Delete records from DSS table if they are in the PRD table
+	DELETE pvdss
+	FROM @PatientVisitDataDSS pvdss
+	WHERE EXISTS (
+			SELECT 1
+			FROM @PatientVisitDataPRD AS V
+			WHERE V.PatientVisitOID = PVDSS.PatientVisitOID
+			)
+
+	-- Delete records from the PRD table if they are not in the original VisitOID table
+	DELETE pvprd
+	FROM @PatientVisitDataPRD pvprd
+	WHERE NOT EXISTS (
+			SELECT 1
+			FROM @VisitOID AS V
+			WHERE v.PatientVisitOID = pvprd.PatientVisitOID
+			)
+
+	-- Insert records into smsdss.c_covid_patient_visit_data_test_tbl
 	SELECT A.MRN,
 		A.PatientAccountID,
 		A.Pt_Name,
@@ -253,7 +263,7 @@ BEGIN
 			Isolation_Indicator_Abbr
 		FROM @PatientVisitDataDSS
 		
-		UNION
+		UNION ALL
 		
 		SELECT MRN,
 			PatientAccountID,
