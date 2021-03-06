@@ -31,6 +31,7 @@ Date		Version		Description
 2021-02-01	v2			Add @right_now between '' and '' to case statement
 						Add ORDER BY to final select
 						Add group_num != 0 to WHERE clause
+2021-03-04	v3			Add Admission Date before unit/room column
 *************************************************************************
 */
 
@@ -55,6 +56,7 @@ AS (
 	SELECT mrn,
 		PTNO_NUM,
 		Pt_Name,
+		Adm_Dtime,
 		Nurs_sta,
 		bed,
 		result_clean,
