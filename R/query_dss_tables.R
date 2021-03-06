@@ -874,8 +874,7 @@ code64_charged_accounts_query <- function() {
   LICHospitalR::db_disconnect(.connection = db_con_obj)
 
   # Manipulation
-  data_tbl <- query %>%
-    dplyr::filter(tot_qty > 0)
+  data_tbl <- base::subset(query, query$tot_qty > 0)
 
   # * Return ----
   return(data_tbl)
