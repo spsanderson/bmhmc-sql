@@ -41,10 +41,12 @@ Date		Version		Description
 2020-08-04	v2			Add Clinical_Note_Abbr
 						Add Dc_Summary_Abbr
 2021-02-10  v3          re-write
+2021-03-02	v4			Fix issue that would allow records that were not
+						the newest into the table
 ***********************************************************************
 */
 
-CREATE PROCEDURE [dbo].[c_covid_pdoc_test_sp]
+ALTER PROCEDURE [dbo].[c_covid_pdoc_test_sp]
 AS
 SET ANSI_NULLS ON
 SET ANSI_WARNINGS ON
@@ -63,6 +65,7 @@ BEGIN
 	PDOC
 
 	*/
+
 	DECLARE @START DATE;
 
 	SET @START = DATEADD(DAY, DATEDIFF(DAY, 0, GETDATE()) - 10, 0);
@@ -75,11 +78,7 @@ BEGIN
 		A.CollectedDTime,
 		C.DocumentStatusCd,
 		a.LeafConceptId,
-		A.DdcDoc_OID,
-		[RN] = ROW_NUMBER() OVER (
-			PARTITION BY A.PATIENTVISIT_OID,
-			A.LEAFCONCEPTID ORDER BY A.CREATEDTIME DESC
-			)
+		A.DdcDoc_OID
 	INTO #CTE_DSS
 	FROM smsmir.sc_DdcAnswer AS A
 	JOIN smsmir.sc_DdcDoc AS B ON A.DdcDoc_OID = B.DdcDoc_OID
@@ -97,51 +96,10 @@ BEGIN
 			SELECT MAX(XXX.CreateDTime)
 			FROM smsmir.mir_sc_DdcAnswer AS XXX
 			WHERE XXX.DdcDoc_OID = A.DdcDoc_OID
-				--WHERE XXX.PatientVisit_OID = A.PatientVisit_OID
 				AND XXX.LeafConceptId IN ('X0S0t2614', 'X0S0t2613')
 			)
 		AND A.isvalued = '1'
 		AND A.CollectedDTime < @START
-
-	SELECT DISTINCT Patient_OID,
-		PatientVisit_OID
-	INTO #PDOC_DistinctPV_DSS
-	FROM #CTE_DSS
-
-	SELECT A.Patient_OID,
-		A.PatientVisit_OID
-		--, C1.LeafconceptID
-		,
-		C1.TextValue AS [DC_Summary_CV19_Dx],
-		CASE 
-			WHEN C1.TextValue = 'NON-COVID-19 / COVID-19 RULED-OUT'
-				THEN 'NCRO'
-			WHEN C1.TextValue = 'COVID-19 CLINICALLY CONFIRMED / LAB POSITIVE'
-				THEN 'CCCLP'
-			END AS [Dc_Summary_Abbr],
-		C1.CreateDTime AS [DC_Summary_CV19_Dx_CreatedDTime]
-		--, C2.LeafConceptID
-		,
-		C2.TextValue AS [Clinical_Note_CV19_Dx],
-		CASE 
-			WHEN C2.TextValue = 'COVID 19 SUSPECTED'
-				THEN 'CS'
-			WHEN C2.TextValue = 'COVID 19 CLINICALLY DIAGNOSED'
-				THEN 'CCD'
-			WHEN C2.TextValue = 'NON-COVID 19 / ASYMPTOMATIC'
-				THEN 'NCA'
-			WHEN C2.TextValue = 'COVID 19 POSITIVE LAB TEST'
-				THEN 'CPL'
-			END AS [Clinical_Note_Abbr],
-		C2.CreateDTime AS [Clinical_Note_CV19_Dx_CreatedDTime]
-	INTO #PDOC_DSS
-	FROM #PDOC_DistinctPV_DSS AS A
-	LEFT OUTER JOIN #CTE_DSS AS C1 ON A.PatientVisit_OID = C1.PatientVisit_OID
-		AND C1.RN = 1
-		AND C1.LeafConceptId = 'X0S0t2614'
-	LEFT OUTER JOIN #CTE_DSS AS C2 ON A.PatientVisit_OID = C2.PatientVisit_OID
-		AND C2.RN = 1
-		AND C2.LeafConceptId = 'X0S0t2613';
 
 	-- Get PRD Results
 	SELECT A.Patient_OID,
@@ -151,11 +109,7 @@ BEGIN
 		A.CollectedDTime,
 		C.DocumentStatusCd,
 		a.LeafConceptId,
-		A.DdcDoc_OID,
-		[RN] = ROW_NUMBER() OVER (
-			PARTITION BY A.PATIENTVISIT_OID,
-			A.LEAFCONCEPTID ORDER BY A.CREATEDTIME DESC
-			)
+		A.DdcDoc_OID
 	INTO #CTE_PRD
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.DdcAnswer AS A
 	JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.DdcDoc AS B ON A.DdcDoc_OID = B.DdcDoc_OID
@@ -173,21 +127,63 @@ BEGIN
 			SELECT MAX(XXX.CreateDTime)
 			FROM [SC_server].[Soarian_Clin_Prd_1].[dbo].DdcAnswer AS XXX
 			WHERE XXX.DdcDoc_OID = A.DdcDoc_OID
-				--WHERE XXX.PatientVisit_OID = A.PatientVisit_OID
 				AND XXX.LeafConceptId IN ('X0S0t2614', 'X0S0t2613')
 			)
 		AND A.isvalued = '1'
 		AND A.CollectedDTime >= @START
 
+	-- UNION TABLES
+	SELECT A.Patient_OID,
+		A.PatientVisit_OID,
+		A.TextValue,
+		A.CreateDTime,
+		A.CollectedDTime,
+		A.DocumentStatusCd,
+		A.LeafConceptId,
+		A.DdcDoc_OID,
+		[RN] = ROW_NUMBER() OVER (
+			PARTITION BY A.PatientVisit_OID,
+			A.LeafConceptId ORDER BY A.CreateDTime DESC
+			)
+	INTO #UNIONEDTBL
+	FROM (
+		SELECT Patient_OID,
+			PatientVisit_OID,
+			TextValue,
+			CreateDTime,
+			CollectedDTime,
+			DocumentStatusCd,
+			LeafConceptId,
+			DdcDoc_OID
+		FROM #CTE_DSS
+		
+		UNION ALL
+		
+		SELECT Patient_OID,
+			PatientVisit_OID,
+			TextValue,
+			CreateDTime,
+			CollectedDTime,
+			DocumentStatusCd,
+			LeafConceptId,
+			DdcDoc_OID
+		FROM #CTE_PRD
+		) AS A;
+
+	-- DROP ALL BUT NEWEST RECORD
+	DELETE
+	FROM #UNIONEDTBL
+	WHERE RN != 1;
+
+	-- GET DISTINCT LIST OF PV OID'S
 	SELECT DISTINCT Patient_OID,
 		PatientVisit_OID
-	INTO #PDOC_DistinctPV_PRD
-	FROM #CTE_PRD
+	INTO #PDOC_DistinctPV
+	FROM #UNIONEDTBL
 
-	SELECT B.Patient_OID,
-		B.PatientVisit_OID
-		--, C1.LeafconceptID
-		,
+	-- FINAL RESULTS
+	SELECT A.Patient_OID,
+		A.PatientVisit_OID,
 		C1.TextValue AS [DC_Summary_CV19_Dx],
 		CASE 
 			WHEN C1.TextValue = 'NON-COVID-19 / COVID-19 RULED-OUT'
@@ -210,59 +206,16 @@ BEGIN
 				THEN 'CPL'
 			END AS [Clinical_Note_Abbr],
 		C2.CreateDTime AS [Clinical_Note_CV19_Dx_CreatedDTime]
-	INTO #PDOC_PRD
-	FROM #PDOC_DistinctPV_PRD AS B
-	LEFT OUTER JOIN #CTE_PRD AS C1 ON B.PatientVisit_OID = C1.PatientVisit_OID
-		AND C1.RN = 1
-		AND C1.LeafConceptId = 'X0S0t2614'
-	LEFT OUTER JOIN #CTE_PRD AS C2 ON B.PatientVisit_OID = C2.PatientVisit_OID
-		AND C2.RN = 1
-		AND C2.LeafConceptId = 'X0S0t2613';
-
-	-- Union results together
-	SELECT A.Patient_OID,
-		A.PatientVisit_OID,
-		A.DC_Summary_CV19_Dx,
-		A.Dc_Summary_Abbr,
-		A.DC_Summary_CV19_Dx_CreatedDTime,
-		A.Clinical_Note_CV19_Dx,
-		A.Clinical_Note_Abbr,
-		A.Clinical_Note_CV19_Dx_CreatedDTime
 	INTO smsdss.c_covid_pdoc_test_tbl
-	FROM (
-		SELECT Patient_OID,
-			PatientVisit_OID,
-			DC_Summary_CV19_Dx,
-			Dc_Summary_Abbr,
-			DC_Summary_CV19_Dx_CreatedDTime,
-			Clinical_Note_CV19_Dx,
-			Clinical_Note_Abbr,
-			Clinical_Note_CV19_Dx_CreatedDTime
-		FROM #PDOC_PRD
-		
-		UNION ALL
-		
-		SELECT Patient_OID,
-			PatientVisit_OID,
-			DC_Summary_CV19_Dx,
-			Dc_Summary_Abbr,
-			DC_Summary_CV19_Dx_CreatedDTime,
-			Clinical_Note_CV19_Dx,
-			Clinical_Note_Abbr,
-			Clinical_Note_CV19_Dx_CreatedDTime
-		FROM #PDOC_DSS
-		) AS A
+	FROM #PDOC_DistinctPV AS A
+	LEFT OUTER JOIN #UNIONEDTBL AS C1 ON A.PatientVisit_OID = C1.PatientVisit_OID
+		AND C1.LeafConceptId = 'X0S0t2614'
+	LEFT OUTER JOIN #UNIONEDTBL AS C2 ON A.PatientVisit_OID = C2.PatientVisit_OID
+		AND C2.LeafConceptId = 'X0S0t2613'
 
 	-- DROP TEMP TABLES
-	DROP TABLE #CTE_DSS
-
-	DROP TABLE #CTE_PRD
-
-	DROP TABLE #PDOC_DistinctPV_DSS
-
-	DROP TABLE #PDOC_DistinctPV_PRD
-
-	DROP TABLE #PDOC_DSS
-
-	DROP TABLE #PDOC_PRD
+	DROP TABLE #CTE_DSS,
+		#CTE_PRD,
+		#PDOC_DistinctPV,
+		#UNIONEDTBL
 END;
