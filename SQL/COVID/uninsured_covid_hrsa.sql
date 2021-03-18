@@ -110,6 +110,10 @@ AND (
 			)
 		)
 	)
+	OR (
+		PAV.Plm_Pt_Acct_Type != 'I'
+		AND PAV.prin_dx_cd IN ('U07.1','97.29')
+	)
 )
 AND PAV.HOSP_SVC NOT IN ('DMS','DIA')
 AND PAV.TOT_AMT_DUE > 0
