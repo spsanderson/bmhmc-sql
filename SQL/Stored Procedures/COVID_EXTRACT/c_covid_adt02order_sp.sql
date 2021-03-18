@@ -36,6 +36,8 @@ Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
 2020-08-04	v2			Add Dx_Order_Abbr column
+2021-03-09	v3			Drop looking up order occurrence since it is a 
+						one to one with the actual order.
 ***********************************************************************
 */
 
@@ -96,36 +98,36 @@ BEGIN
 	ORDER BY PatientVisit_OID,
 		CreationTime DESC;
 
-	DECLARE @ADT02OrderOcc TABLE (
-		id_num INT,
-		-- links to HOrder.ObjectID
-		Order_OID INT,
-		CreationTime DATETIME2,
-		OrderOccurrenceStatus VARCHAR(500),
-		StatusEnteredDatetime DATETIME2,
-		ObjectID INT -- Links to HInvestigationResults.Occurence_OID
-		)
+	--DECLARE @ADT02OrderOcc TABLE (
+	--	id_num INT,
+	--	-- links to HOrder.ObjectID
+	--	Order_OID INT,
+	--	CreationTime DATETIME2,
+	--	OrderOccurrenceStatus VARCHAR(500),
+	--	StatusEnteredDatetime DATETIME2,
+	--	ObjectID INT -- Links to HInvestigationResults.Occurence_OID
+	--	)
 
-	INSERT INTO @ADT02OrderOcc
-	SELECT [RN] = ROW_NUMBER() OVER (
-			PARTITION BY A.Order_OID ORDER BY A.StatusEnteredDateTime DESC
-			),
-		A.Order_OID,
-		A.CreationTime,
-		A.OrderOccurrenceStatus,
-		A.StatusEnteredDateTime,
-		A.ObjectID
-	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS A
-	INNER JOIN @ADT02Orders AS B ON A.ORDER_OID = B.ObjectID
-		AND A.CreationTime = B.CreationTime
-	WHERE A.OrderOccurrenceStatus NOT IN ('DISCONTINUE', 'Cancel')
-	ORDER BY A.Order_OID,
-		A.ObjectID;
+	--INSERT INTO @ADT02OrderOcc
+	--SELECT [RN] = ROW_NUMBER() OVER (
+	--		PARTITION BY A.Order_OID ORDER BY A.StatusEnteredDateTime DESC
+	--		),
+	--	A.Order_OID,
+	--	A.CreationTime,
+	--	A.OrderOccurrenceStatus,
+	--	A.StatusEnteredDateTime,
+	--	A.ObjectID
+	--FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER AS A
+	--INNER JOIN @ADT02Orders AS B ON A.ORDER_OID = B.ObjectID
+	--	AND A.CreationTime = B.CreationTime
+	--WHERE A.OrderOccurrenceStatus NOT IN ('DISCONTINUE', 'Cancel')
+	--ORDER BY A.Order_OID,
+	--	A.ObjectID;
 
-	-- de duplicate
-	DELETE
-	FROM @ADT02OrderOcc
-	WHERE id_num != 1;
+	---- de duplicate
+	--DELETE
+	--FROM @ADT02OrderOcc
+	--WHERE id_num != 1;
 
 	DECLARE @ADT02Final_Tbl TABLE (
 		PatientVisit_OID INT,
@@ -133,9 +135,9 @@ BEGIN
 		OrderAbbreviation VARCHAR(100),
 		Order_DTime DATETIME2,
 		Dx_Order VARCHAR(1000),
-		Dx_Order_Abbr VARCHAR(50),
-		OrderOccurrenceStatus VARCHAR(100),
-		StatusEnteredDateTime DATETIME2
+		Dx_Order_Abbr VARCHAR(50)--,
+		--OrderOccurrenceStatus VARCHAR(100),
+		--StatusEnteredDateTime DATETIME2
 		)
 
 	INSERT INTO @ADT02Final_Tbl
@@ -144,12 +146,12 @@ BEGIN
 		A.OrderAbbreviation,
 		A.CreationTime,
 		A.Dx_Order,
-		A.Dx_Order_Abbr,
-		B.OrderOccurrenceStatus,
-		B.StatusEnteredDatetime
+		A.Dx_Order_Abbr--,
+	--	B.OrderOccurrenceStatus,
+	--	B.StatusEnteredDatetime
 	FROM @ADT02Orders AS A
-	INNER JOIN @ADT02OrderOcc AS B ON A.ObjectID = B.Order_OID
-		AND A.CreationTime = B.CreationTime;
+	--INNER JOIN @ADT02OrderOcc AS B ON A.ObjectID = B.Order_OID
+	--	AND A.CreationTime = B.CreationTime;
 
 	SELECT *
 	INTO smsdss.c_covid_adt02order_tbl
