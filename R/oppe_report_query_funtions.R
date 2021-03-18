@@ -44,7 +44,7 @@
 #'   * smsdss.pract_dim_v
 #'   * smsdss.c_LIHN_APR_DRG_OutlierThresholds
 #'   * smsdss.pyr_dim_v
-#'   * SMSMIR.vst_rpt
+#'   * smsmir.vst_rpt
 #'
 #' @examples
 #' library(dplyr)
@@ -90,7 +90,7 @@ oppe_alos_query <- function(){
       , b.Atn_Dr_No AS [atn_dr_no]
       , e.pract_rpt_name
       , b.drg_no
-      , a.LIHN_Svc_Line AS [lich_service_line]
+      , a.LIHN_Svc_Line AS [lihn_service_line]
       , CASE
       	WHEN e.src_spclty_cd = 'hosim'
       		THEN 'Hospitalist'
@@ -570,3 +570,4 @@ oppe_denials_detail_query <- function(.provider_id){
 
   return(data_tbl)
 }
+
