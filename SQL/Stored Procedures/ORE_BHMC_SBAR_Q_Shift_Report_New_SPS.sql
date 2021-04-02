@@ -1,6 +1,6 @@
 USE [Soarian_Clin_Tst_1]
 GO
-/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS]    Script Date: 1/27/2021 9:15:39 AM ******/
+/****** Object:  StoredProcedure [dbo].[ORE_BHMC_SBAR_Q_Shift_Report_New_SPS_test]    Script Date: 4/1/2021 9:28:02 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -52,6 +52,8 @@ Date    	Revised By   			Description
 2020-08-17	Steven Sanderson MPH	Add Bed Rest Orders
 2020-11-20  Steven Sanderson MPH	Add MEWSScore
 2021-01-27	Steven Sanderson MPH	Pivot out at most 4 Last Activity Orders
+2021-04-01	Steven Sanderson MPH	Add last 4 dietary orders womp womp womp
+									Add last 4 bed rest orders womp womp womp
 ------------------------------------------------------------------------------- 
 */  
     
@@ -125,7 +127,8 @@ BEGIN
 		PatientOID INT,
 		PatientVisitOID INT,
 		LastDietaryOrder VARCHAR(MAX),
-		LastDietaryOrderEnteredDateTime VARCHAR(50)
+		LastDietaryOrderEnteredDateTime VARCHAR(50),
+		OrderNumber INT
 	)
 	DECLARE @TelemetryOrders TABLE (
 		PatientOID INT,
@@ -178,7 +181,8 @@ BEGIN
 		PatientOID INT,
 		PatientVisitOID INT,
 		LastBedrestOrder VARCHAR(MAX),
-		LastBedrestOrderEnteredDateTime VARCHAR(50)
+		LastBedrestOrderEnteredDateTime VARCHAR(50),
+		OrderNumber INT
 	)
 	DECLARE @GlucoseOrders TABLE (
 		PatientOID INT,
@@ -715,8 +719,14 @@ BEGIN
 	, A.PatientVisitOID
 	, A.OrderDescAsWritten
 	, A.EnterdDateTime
+	, [OrderNumber] = ROW_NUMBER() OVER(ORDER BY PatientOID)
 	FROM @DietaryOrders AS A
 	WHERE slNO = 1
+	;
+
+	DELETE
+	FROM @LastDietaryOrder
+	WHERE OrderNumber > 4
 	;
 
 	INSERT INTO @TelemetryOrders
@@ -823,8 +833,14 @@ BEGIN
 	, A.PatientVisitOID
 	, A.OrderDescAsWritten
 	, A.EnterdDateTime
+	, [OrderNumber] = ROW_NUMBER() OVER(ORDER BY PatientOID)
 	FROM @BedrestOrders AS A
 	WHERE slNO = 1
+	;
+
+	DELETE
+	FROM @LastBedrestOrder
+	WHERE OrderNumber > 4
 	;
 
 	INSERT INTO @GlucoseOrders
@@ -2527,6 +2543,12 @@ BEGIN
 		tov.MEWSScore,
 		LDIET.LastDietaryOrder,
 		LDIET.LastDietaryOrderEnteredDateTime,
+		[LastDietaryOrder2] = LDIET2.LastDietaryOrder,
+		[LastDietaryOrderEneteredDateTime2] = LDIET2.LastDietaryOrderEnteredDateTime,
+		[LastDietaryOrder3] = LDIET3.LastDietaryOrder,
+		[LastDietaryOrderEneteredDateTime3] = LDIET3.LastDietaryOrderEnteredDateTime,
+		[LastDietaryOrder4] = LDIET4.LastDietaryOrder,
+		[LastDietaryOrderEneteredDateTime4] = LDIET4.LastDietaryOrderEnteredDateTime,
 		LTELE.LastTelemetryOrder,
 		LTELE.LastTeleOrderEnteredDateTime,
 		LPT.LastPTOrder,
@@ -2548,7 +2570,13 @@ BEGIN
 		GLUCOSERESULT.LastGlucoseResult,
 		GLUCOSERESULT.LastGlucoseResultCreationDateTime,
 		BEDREST.LastBedrestOrder,
-		BEDREST.LastBedrestOrderEnteredDateTime
+		BEDREST.LastBedrestOrderEnteredDateTime,
+		[LastBedRestOrder2] = BEDREST2.LastBedrestOrder,
+		[LastBedRestOrderEnteredDateTime2] = BEDREST2.LastBedrestOrderEnteredDateTime,
+		[LastBedRestOrder3] = BEDREST3.LastBedrestOrder,
+		[LastBedRestOrderEnteredDateTime3] = BEDREST3.LastBedrestOrderEnteredDateTime,
+		[LastBedRestOrder4] = BEDREST4.LastBedrestOrder,
+		[LastBedRestOrderEnteredDateTime4] = BEDREST4.LastBedrestOrderEnteredDateTime
 	FROM @Patient tp
 	LEFT OUTER JOIN @pivotObsValues tov ON tp.PatientOID = tov.PatientOID
 		AND tp.PatientVisitOID = tov.PatientVisitOID
@@ -2556,8 +2584,6 @@ BEGIN
 		AND tdm.PatientVisitOID = tp.PatientVisitOID
 	LEFT OUTER JOIN @pivotAssessmentStatus tas ON tas.PatientOID = tp.PatientOID
 		AND tas.PatientVisitOID = tp.PatientVisitOID
-	LEFT OUTER JOIN @LastDietaryOrder AS LDIET ON TP.PatientOID = LDIET.PatientOID
-		AND TP.PatientVisitOID = LDIET.PatientVisitOID
 	LEFT OUTER JOIN @LastTelemetryOrder AS LTELE ON TP.PatientOID = LTELE.PatientOID
 		AND TP.PatientVisitOID = LTELE.PatientVisitOID
 	LEFT OUTER JOIN @LastPhysicalTherapyOrder as LPT ON TP.PatientOID = LPT.patientOID
@@ -2570,8 +2596,6 @@ BEGIN
 		AND TP.PatientVisitOID = IVORDERS.PatientVisitOID
 	LEFT OUTER JOIN @LastGlucoseResult AS GLUCOSERESULT ON TP.PatientOID = GLUCOSERESULT.PatientOID
 		AND TP.PatientVisitOID = GLUCOSERESULT.PatientVisitOID
-	LEFT OUTER JOIN @LastBedrestOrder AS BEDREST ON TP.PatientOID = BEDREST.PatientOID
-		AND TP.PatientVisitOID = BEDREST.PatientVisitOID
 	LEFT OUTER JOIN @LastActivityOrder AS LACT ON TP.PatientOID = LACT.PatientOID
 		AND TP.PatientVisitOID = LACT.patientvisitoid
 		AND LACT.OrderNumber = 1
@@ -2587,5 +2611,39 @@ BEGIN
 	LEFT OUTER JOIN @LastActivityOrder AS LACT4 ON LACT.PatientOID = LACT4.PatientOID
 		AND LACT.PatientVisitOID = LACT4.PatientVisitOID
 		AND LACT4.OrderNumber = 4
+	-- Dietary Orders
+	-- 1
+	LEFT OUTER JOIN @LastDietaryOrder AS LDIET ON TP.PatientOID = LDIET.PatientOID
+		AND TP.PatientVisitOID = LDIET.PatientVisitOID
+		AND LDIET.OrderNumber = 1
+	-- 2
+	LEFT OUTER JOIN @LastDietaryOrder AS LDIET2 ON TP.PatientOID = LDIET.PatientOID
+		AND TP.PatientVisitOID = LDIET2.PatientVisitOID
+		AND LDIET.OrderNumber = 2
+	-- 3
+	LEFT OUTER JOIN @LastDietaryOrder AS LDIET3 ON TP.PatientOID = LDIET.PatientOID
+		AND TP.PatientVisitOID = LDIET3.PatientVisitOID
+		AND LDIET.OrderNumber = 3
+	-- 4
+	LEFT OUTER JOIN @LastDietaryOrder AS LDIET4 ON TP.PatientOID = LDIET.PatientOID
+		AND TP.PatientVisitOID = LDIET4.PatientVisitOID
+		AND LDIET.OrderNumber = 4
+	-- Bed Rest Orders
+	-- 1
+	LEFT OUTER JOIN @LastBedrestOrder AS BEDREST ON TP.PatientOID = BEDREST.PatientOID
+		AND TP.PatientVisitOID = BEDREST.PatientVisitOID
+		AND BEDREST.OrderNumber = 1
+	-- 2
+	LEFT OUTER JOIN @LastBedrestOrder AS BEDREST2 ON TP.PatientOID = BEDREST.PatientOID
+		AND TP.PatientVisitOID = BEDREST2.PatientVisitOID
+		AND BEDREST.OrderNumber = 2
+	-- 3
+	LEFT OUTER JOIN @LastBedrestOrder AS BEDREST3 ON TP.PatientOID = BEDREST.PatientOID
+		AND TP.PatientVisitOID = BEDREST3.PatientVisitOID
+		AND BEDREST.OrderNumber = 3
+	-- 4
+	LEFT OUTER JOIN @LastBedrestOrder AS BEDREST4 ON TP.PatientOID = BEDREST.PatientOID
+		AND TP.PatientVisitOID = BEDREST4.PatientVisitOID
+		AND BEDREST.OrderNumber = 4
 	ORDER BY tp.PatientName
 END
