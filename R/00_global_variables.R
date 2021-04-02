@@ -27,6 +27,9 @@ globalVariables(
     "sum_days","sum_exp_days","visit_count","date_col","Adm_Date","Dsch_Date",
     "Readmit_Count","Readmit_Rate_Bench","ent_date","atn_dr_no","ptno_num",
     "sum_value","mean_value","lihn_service_line","z_score","req_pty_cd","ord_type_abbr",
-    "where"
+    "where",".","drg_cost_weight","mean_cmi","mean_soi","mean_z_score","name",
+    "cpoe","df","hospitalist_np_pa_flag","order_type","order_type_count","prop_of_tltal",
+    "telephone","total_orders","verbal_order","written",".cluster","centers","glance"<
+      "k_means","prop_of_total","tot.withinss","x","y","aes"
   )
 )
