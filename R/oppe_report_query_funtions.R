@@ -176,7 +176,8 @@ oppe_alos_query <- function(){
       , pract_name      = stringr::str_to_title(pract_rpt_name)
     ) %>%
     dplyr::select(-pract_rpt_name) %>%
-    dplyr::rename("pract_rpt_name" = "pract_name")
+    dplyr::rename("pract_rpt_name" = "pract_name") %>%
+    dplyr::mutate(severity_of_illness = as.double(severity_of_illness))
 
   return(data_tbl)
 
@@ -348,6 +349,10 @@ oppe_readmit_query <- function(){
 #'   * smsdss.c_CPOE_Rpt_Tbl_Rollup_v
 #'   * smsdss.pract_dim_v
 #'
+#' @param .start_date The start date of the data, if null then it will bring back
+#' all data from the table. Uses the [timetk::filter_by_time()] function to filter
+#' the time.
+#'
 #' @examples
 #' library(dplyr)
 #'
@@ -360,7 +365,9 @@ oppe_readmit_query <- function(){
 #' @export
 #'
 
-oppe_cpoe_query <- function(){
+oppe_cpoe_query <- function(.start_date = ""){
+
+  start_date <- .start_date
 
   # * DB Connection ----
   #base::source("R/db_con.R")
@@ -390,6 +397,7 @@ oppe_cpoe_query <- function(){
       FROM smsdss.c_CPOE_Rpt_Tbl_Rollup_v AS A
       LEFT OUTER JOIN smsdss.pract_dim_v AS B ON A.req_pty_cd = B.src_pract_no
       	AND B.orgz_cd = 'S0X0'
+      	AND A.ent_date < DATEADD(MONTH, DATEDIFF(MONTH, 0, CAST(GETDATE() AS DATE)), 0)
       WHERE A.req_pty_cd NOT IN ('000000','000059')
       "
     )
@@ -405,6 +413,13 @@ oppe_cpoe_query <- function(){
     dplyr::mutate(pract_name = stringr::str_to_title(pract_rpt_name)) %>%
     dplyr::select(-pract_rpt_name) %>%
     dplyr::rename("pract_rpt_name" = "pract_name")
+
+  if(!is.null(start_date)){
+    data_tbl <- data_tbl %>%
+      timetk::filter_by_time(.date_var = ent_date, .start_date = start_date)
+  } else {
+    data_tbl <- data_tbl
+  }
 
   return(data_tbl)
 }
