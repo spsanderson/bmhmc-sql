@@ -13,11 +13,16 @@ file_1 <- readxl::read_excel(
 file_2 <- readxl::read_excel(
   path = "C:/Users/bha485/Desktop/matt_2.xlsx"
 )
-
+file_3 <- readxl::read_excel(
+  path = "C:/Users/bha485/Desktop/matt_3.xlsx"
+)
+file_4 <- readxl::read_excel(
+  path = "C:/Users/bha485/Desktop/matt_4.xlsx"
+)
 
 # Data Manipulation -------------------------------------------------------
 
-unioned_files <- union_all(x = file_1, y = file_2)
+unioned_files <- bind_rows(list(file_1, file_2, file_3, file_4))
 
 df_tbl <- unioned_files %>%
   janitor::clean_names() %>%
