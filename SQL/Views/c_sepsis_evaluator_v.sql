@@ -28,6 +28,13 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2021-02-24	v1			Initial Creation
+2021-03-24	v2			Add the following columns:
+							a.vst_start_dtime,
+							a.vst_end_dtime,
+							a.unit_seq_no,
+							a.from_file_ind,
+							a.Bl_Unit_Key,
+							a.Pt_Key
 ***********************************************************************
 */
 
@@ -47,6 +54,12 @@ SELECT a.Pt_No,
 	a.Med_Rec_No,
 	a.Adm_Date,
 	a.Dsch_Date,
+	a.vst_start_dtime,
+	a.vst_end_dtime,
+	a.unit_seq_no,
+	a.from_file_ind,
+	a.Bl_Unit_Key,
+	a.Pt_Key,
 	a.Pt_Birthdate,
 	a.Adm_Source,
 	a.dsch_disp,
