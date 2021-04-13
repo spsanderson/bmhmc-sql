@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-
+/****** Object:  StoredProcedure [dbo].[c_covid_positive_tbl_test_sp]    Script Date: 4/6/2021 8:13:33 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -17,7 +17,7 @@ Tables/Views:
 	[SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit
 	[SC_server].[Soarian_Clin_Prd_1].DBO.HOrder
 	[SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult
-	smsdss.bmh_plm_ptacct_v
+	smsmir.hl7_pt
 
 Creates Table:
 	c_positive_covid_visits_test_tbl
@@ -43,10 +43,12 @@ Date		Version		Description
 2020-04-13	v1			Initial Creation
 2020-05-08	v2			Add MRN column
 2021-02-11  v3          Re-write, split by dates for PRD and DSS
+2021-04-06	v4			swap out smsdss.bmh_plm_ptacct_v for smsmir.hl7_pt
+						to obtain the pt mrn
 ***********************************************************************
 */
 
-CREATE PROCEDURE [dbo].[c_covid_positive_tbl_test_sp]
+ALTER PROCEDURE [dbo].[c_covid_positive_tbl_test_sp]
 AS
 SET ANSI_NULLS ON
 SET ANSI_WARNINGS ON
@@ -162,9 +164,11 @@ BEGIN
 	SELECT DISTINCT A.PATIENTACCOUNTID,
 		A.Patient_OID,
 		A.Patientvisit_OID,
-		B.Med_Rec_No
+		--B.Med_Rec_No
+		B.pt_med_rec_no
 	FROM #FULLTBL AS A
-	INNER JOIN SMSDSS.BMH_PLM_PTACCT_V AS B ON A.PatientAccountID = B.PtNo_Num
+	--INNER JOIN SMSDSS.BMH_PLM_PTACCT_V AS B ON A.PatientAccountID = B.PtNo_Num
+	INNER JOIN smsmir.hl7_pt AS B ON A.PatientAccountID = B.pt_id
 	WHERE A.Positive_Negative = 'Positive'
 
 	-- DROP TABLES
