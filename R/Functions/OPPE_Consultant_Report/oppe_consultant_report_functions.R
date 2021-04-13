@@ -19,7 +19,7 @@ coded_consults_query <-
     db_con_obj <- DBI::dbConnect(
       odbc::odbc(),
       Driver = "SQL Server",
-      Server = "BMH-HIDB",
+      Server = "LI-HIDB",
       Database = "SMSPHDSSS0X0",
       Trusted_Connection = TRUE
     )
