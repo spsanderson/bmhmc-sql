@@ -27,7 +27,7 @@ map(paste0(my_path, file_list), source)
 db_con <- dbConnect(
   odbc(),
   Driver = "SQL Server",
-  Server = "BMH-HIDB",
+  Server = "LI-HIDB",
   Database = "SMSPHDSSS0X0",
   Trusted_Connection = T
 )
@@ -115,15 +115,15 @@ dbDisconnect(db_con)
 
 query <- query %>%
   summarise_by_time(
-    .date_var = dsch_date
-    , .by = "month"
-    , visit_count = n()
-    , sum_days = sum(los, na.rm = TRUE)
+    .date_var      = dsch_date
+    , .by          = "month"
+    , visit_count  = n()
+    , sum_days     = sum(los, na.rm = TRUE)
     , sum_exp_days = sum(performance, na.rm = TRUE)
-    , alos = sum_days / visit_count
-    , elos = sum_exp_days / visit_count
-    , excess_days = sum_days - sum_exp_days
-    , avg_excess = alos - elos
+    , alos         = sum_days / visit_count
+    , elos         = sum_exp_days / visit_count
+    , excess_days  = sum_days - sum_exp_days
+    , avg_excess   = alos - elos
   ) %>%
   rename(date_col = dsch_date)
 
