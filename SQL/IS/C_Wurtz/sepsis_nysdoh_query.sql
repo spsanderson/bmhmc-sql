@@ -9,10 +9,10 @@ Tables/Views:
 	smsdss.c_sepsis_evaluator_v
 
 Creates Table:
-	
+	None
 
 Functions:
-	
+	None
 
 Author: Steven P Sanderson II, MPH
 
@@ -41,16 +41,16 @@ Date		Version		Description
 
 -- Get the base population of persons we are interested in
 DROP TABLE IF EXISTS #BasePopulation
-CREATE TABLE #BasePopulation (
-	Pt_No VARCHAR(12),
-	PtNo_Num VARCHAR(12),
-	unit_seq_no VARCHAR(12),
-	from_file_ind VARCHAR(10),
-	Bl_Unit_Key VARCHAR(25),
-	Pt_Key VARCHAR(25),
-	vst_start_dtime DATETIME,
-	vst_end_dtime DATETIME
-	)
+	CREATE TABLE #BasePopulation (
+		Pt_No VARCHAR(12),
+		PtNo_Num VARCHAR(12),
+		unit_seq_no VARCHAR(12),
+		from_file_ind VARCHAR(10),
+		Bl_Unit_Key VARCHAR(25),
+		Pt_Key VARCHAR(25),
+		vst_start_dtime DATETIME,
+		vst_end_dtime DATETIME
+		)
 
 INSERT INTO #BasePopulation (
 	Pt_No,
@@ -83,49 +83,51 @@ WHERE (
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
-
--- Comorbidities
+-- Comorbidities ------------------------------------------------------
 -- acute cardiovascular conditions
-WITH ACC
-AS (
-	SELECT DISTINCT A.pt_id,
-		B.icd10_cm_code,
-		B.icd10_cm_code_description,
-		B.subcategory,
-		CASE 
-			WHEN B.subcategory = 'Stroke/TIA'
-				THEN '2'
-			WHEN B.subcategory = 'MI'
-				THEN '1'
-			ELSE '0'
-			END AS [acute_cardiovascular_conditions]
-	FROM smsmir.dx_grp AS A
-	INNER JOIN smsdss.c_nysdoh_sepsis_acute_cardiovascular_conditions_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
-	)
-SELECT PVT.pt_id,
-	SUBSTRING(PVT.PT_ID, 5, 8) AS [PtNo_Num],
-	[acute_cardiovascular_conditions] = CASE 
-		WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 2
-			THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 1)
-		WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 4
-			THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 3)
-		WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 6
-			THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 5)
-		END
-INTO #acc_tbl
-FROM ACC
-INNER JOIN #BasePopulation AS BP ON ACC.pt_id = BP.Pt_No
-PIVOT(MAX(ACUTE_CARDIOVASCULAR_CONDITIONS) FOR ACUTE_CARDIOVASCULAR_CONDITIONS IN ("0", "1", "2")) AS PVT;
-
+DROP TABLE IF EXISTS #acc_tbl;
+	WITH ACC
+	AS (
+		SELECT DISTINCT A.pt_id,
+			B.icd10_cm_code,
+			B.icd10_cm_code_description,
+			B.subcategory,
+			CASE 
+				WHEN B.subcategory = 'Stroke/TIA'
+					THEN '2'
+				WHEN B.subcategory = 'MI'
+					THEN '1'
+				ELSE '0'
+				END AS [acute_cardiovascular_conditions]
+		FROM smsmir.dx_grp AS A
+		INNER JOIN smsdss.c_nysdoh_sepsis_acute_cardiovascular_conditions_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+		)
+	SELECT PVT.pt_id,
+		SUBSTRING(PVT.PT_ID, 5, 8) AS [PtNo_Num],
+		[acute_cardiovascular_conditions] = CASE 
+			WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 2
+				THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 1)
+			WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 4
+				THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 3)
+			WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 6
+				THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 5)
+			END
+	INTO #acc_tbl
+	FROM ACC
+	INNER JOIN #BasePopulation AS BP ON ACC.pt_id = BP.Pt_No
+	PIVOT(MAX(ACUTE_CARDIOVASCULAR_CONDITIONS) FOR ACUTE_CARDIOVASCULAR_CONDITIONS IN ("0", "1", "2")) AS PVT;
 
 -- AIDS / HIV
 DROP TABLE IF EXISTS #aids_hiv_tbl
-CREATE TABLE #aids_hiv_tbl (
-	pt_id VARCHAR(12),
-	aids_hiv VARCHAR(10)
-	)
+	CREATE TABLE #aids_hiv_tbl (
+		pt_id VARCHAR(12),
+		aids_hiv VARCHAR(10)
+		)
 
-INSERT INTO #aids_hiv_tbl
+INSERT INTO #aids_hiv_tbl (
+	pt_id,
+	aids_hiv
+	)
 SELECT DISTINCT A.pt_id,
 	[aids_hiv] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -136,15 +138,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_aids_hiv_disease_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
 
-
 -- altered mental status
 DROP TABLE IF EXISTS #ams
-CREATE TABLE #ams (
-	pt_id VARCHAR(12),
-	altered_mental_status VARCHAR(10)
-	)
+	CREATE TABLE #ams (
+		pt_id VARCHAR(12),
+		altered_mental_status VARCHAR(10)
+		)
 
-INSERT INTO #ams
+INSERT INTO #ams (
+	pt_id,
+	altered_mental_status
+	)
 SELECT DISTINCT A.pt_id,
 	[altered_mental_status] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -155,15 +159,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_altered_mental_status_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
-
 -- Asthma
 DROP TABLE IF EXISTS #asthma
-CREATE TABLE #asthma (
-	pt_id VARCHAR(12),
-	asthma VARCHAR(10)
-	)
+	CREATE TABLE #asthma (
+		pt_id VARCHAR(12),
+		asthma VARCHAR(10)
+		)
 
-INSERT INTO #asthma
+INSERT INTO #asthma (
+	pt_id,
+	asthma
+	)
 SELECT DISTINCT A.pt_id,
 	[asthma] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -174,15 +180,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_asthma_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
 
-
 -- Chronic Liver Disease
 DROP TABLE IF EXISTS #cld
-CREATE TABLE #cld (
-	pt_id VARCHAR(12),
-	chronic_liver_disease VARCHAR(10)
-	)
+	CREATE TABLE #cld (
+		pt_id VARCHAR(12),
+		chronic_liver_disease VARCHAR(10)
+		)
 
-INSERT INTO #cld
+INSERT INTO #cld (
+	pt_id,
+	chronic_liver_disease
+	)
 SELECT DISTINCT A.pt_id,
 	[chronic_liver_disease] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -193,15 +201,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_chronic_liver_disease_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
 
-
 -- Chronic Renal Failure
 DROP TABLE IF EXISTS #crf
-CREATE TABLE #crf (
-	pt_id VARCHAR(12),
-	chronic_renal_failure VARCHAR(10)
-	)
+	CREATE TABLE #crf (
+		pt_id VARCHAR(12),
+		chronic_renal_failure VARCHAR(10)
+		)
 
-INSERT INTO #crf
+INSERT INTO #crf (
+	pt_id,
+	chronic_renal_failure
+	)
 SELECT DISTINCT A.pt_id,
 	[chronic_renal_failure] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -212,15 +222,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_chronic_renal_failure_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.PT_NO
 
-
 -- Chronic Respiratory Failure
-DROP TABLE IF EXISTS #crespfailure 
-CREATE TABLE #crespfailure (
-	pt_id VARCHAR(12),
-	chronic_respiratory_failure VARCHAR(10)
-	)
+DROP TABLE IF EXISTS #crespfailure
+	CREATE TABLE #crespfailure (
+		pt_id VARCHAR(12),
+		chronic_respiratory_failure VARCHAR(10)
+		)
 
-INSERT INTO #crespfailure
+INSERT INTO #crespfailure (
+	pt_id,
+	chronic_respiratory_failure
+	)
 SELECT DISTINCT A.pt_id,
 	[chronic_respiratory_failure] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -231,15 +243,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_chronic_respiratory_failure_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
 
-
 -- Coagulopathy
 DROP TABLE IF EXISTS #coagulopathy
-CREATE TABLE #coagulopathy (
-	pt_id VARCHAR(12),
-	coagulopathy VARCHAR(10)
-	)
+	CREATE TABLE #coagulopathy (
+		pt_id VARCHAR(12),
+		coagulopathy VARCHAR(10)
+		)
 
-INSERT INTO #coagulopathy
+INSERT INTO #coagulopathy (
+	pt_id,
+	coagulopathy
+	)
 SELECT DISTINCT A.pt_id,
 	[coagulopathy] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -250,16 +264,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_coagulopathy_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
 
-
-
 -- Congestive Heart Failure
 DROP TABLE IF EXISTS #chf
-CREATE TABLE #chf (
-	pt_id VARCHAR(12),
-	congestive_heart_failure VARCHAR(10)
-	)
+	CREATE TABLE #chf (
+		pt_id VARCHAR(12),
+		congestive_heart_failure VARCHAR(10)
+		)
 
-INSERT INTO #chf
+INSERT INTO #chf (
+	pt_id,
+	congestive_heart_failure
+	)
 SELECT DISTINCT A.pt_id,
 	[congestive_heart_failure] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -270,15 +285,17 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_congestive_heart_failure_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
-
 -- COPD
 DROP TABLE IF EXISTS #copd
-CREATE TABLE #copd (
-	pt_id VARCHAR(12),
-	copd VARCHAR(10)
-	)
+	CREATE TABLE #copd (
+		pt_id VARCHAR(12),
+		copd VARCHAR(10)
+		)
 
-INSERT INTO #copd
+INSERT INTO #copd (
+	pt_id,
+	copd
+	)
 SELECT DISTINCT A.pt_id,
 	[copd] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -289,8 +306,278 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_copd_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- Organ Dysfunction CNS
+DROP TABLE IF EXISTS #od_cns
+	CREATE TABLE #od_cns (
+		pt_id VARCHAR(12),
+		organ_dysfunc_cns VARCHAR(10)
+		)
 
--- Severity Variables
+INSERT INTO #od_cns (
+	pt_id,
+	organ_dysfunc_cns
+	)
+SELECT DISTINCT pt_id,
+	[organ_dysfunc_cns] = CASE 
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_copd_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Organ Dysfunction Respiratory
+DROP TABLE IF EXISTS #od_resp
+	CREATE TABLE #od_resp (
+		pt_id VARCHAR(12),
+		organ_dysfunc_respiratory VARCHAR(10)
+		)
+
+INSERT INTO #od_resp
+SELECT DISTINCT pt_id,
+	[organ_dysfunc_respiratory] = CASE 
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_organ_dysfunc_respiratory_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+
+-- Dementia
+DROP TABLE IF EXISTS #dementia_tbl
+CREATE TABLE #dementia_tbl (
+	pt_id VARCHAR(12),
+	dementia VARCHAR(10)
+	)
+
+INSERT INTO #dementia_tbl (
+	pt_id,
+	dementia
+	)
+SELECT DISTINCT A.pt_id,
+	[dementia] = CASE 
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_dementia_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
+
+
+-- DIABETES
+DROP TABLE IF EXISTS #diabetes_tbl
+CREATE TABLE #diabetes_tbl (
+	pt_id VARCHAR(12),
+	diabetes VARCHAR(10)
+	)
+
+INSERT INTO #diabetes_tbl (
+	pt_id,
+	diabetes
+	)
+SELECT DISTINCT A.pt_id,
+	[diabetes] = CASE 
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_diabetes_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
+
+
+-- dialysis_comorbidity
+DROP TABLE IF EXISTS #dialysis_comorbidity_tbl
+CREATE TABLE #dialysis_comorbidity_tbl (
+	pt_id VARCHAR(12),
+	dialysis_comorbidity VARCHAR(10)
+	)
+
+INSERT INTO #dialysis_comorbidity_tbl (
+	pt_id,
+	dialysis_comorbidity
+	)
+SELECT DISTINCT A.pt_id,
+	[dialysis_comorbidity] = CASE 
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_dialysis_comorbidity_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
+
+
+-- History Of COVID
+DROP TABLE IF EXISTS #history_of_covid_tbl
+CREATE TABLE #history_of_covid_tbl (
+	pt_id VARCHAR(12),
+	history_of_covid DATETIME
+	)
+
+INSERT INTO #history_of_covid_tbl (
+	pt_id,
+	history_of_covid
+	)
+SELECT DISTINCT A.PTNO_NUM,
+	[history_of_covid] = A.first_positive_flag_dtime
+FROM SMSDSS.c_covid_extract_tbl AS a
+INNER JOIN #BasePopulation AS BP ON A.PTNO_NUM = BP.PtNo_Num
+WHERE A.first_positive_flag_dtime IS NOT NULL
+
+
+-- History of Other CVD 
+/*
+subcategory
+Cerebrovascular Disease      - 4
+Coronary Heart Disease       - 1
+Peripheral arterial disease  - 2 
+Valve disorder               - 3
+
+1 = Coronary heart disease (e.g. angina pectoris, coronary atherosclerosis)
+2 = Peripheral artery disease
+3 = Valve disorder
+4 = Cerebrovascular disease
+0 = No history of coronary heart disease, peripheral artery disease, valve disorder or cerebrovascular disease
+*/
+DROP TABLE IF EXISTS #history_of_other_cvd_tbl
+CREATE TABLE #history_of_other_cvd_tbl (
+	pt_id VARCHAR(12),
+	subcategory VARCHAR(100)
+	)
+
+INSERT INTO #history_of_other_cvd_tbl (
+	pt_id,
+	subcategory
+	)
+SELECT DISTINCT A.pt_id,
+	b.subcategory
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_history_of_other_cvd_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
+
+
+DROP TABLE IF EXISTS #history_of_other_cvd_pvt_tbl
+CREATE TABLE #history_of_other_cvd_pvt_tbl (
+	pt_id VARCHAR(12),
+	cvd VARCHAR(50),
+	chd VARCHAR(50),
+	pad VARCHAR(50),
+	vd VARCHAR(50)
+	)
+
+INSERT INTO #history_of_other_cvd_pvt_tbl
+SELECT PVT_HX_OTHER_CVD.pt_id,
+	PVT_HX_OTHER_CVD.[Cerebrovascular Disease] AS [cvd],
+	PVT_HX_OTHER_CVD.[Coronary Heart Disease] AS [chd],
+	PVT_HX_OTHER_CVD.[Peripheral arterial disease] AS [pad],
+	PVT_HX_OTHER_CVD.[Valve disorder] AS [vd]
+FROM (
+	SELECT pt_id,
+		subcategory
+	FROM #history_of_other_cvd_tbl
+	) AS A
+PIVOT(MAX(SUBCATEGORY) FOR SUBCATEGORY IN ("Cerebrovascular Disease", "Coronary Heart Disease", "Peripheral arterial disease", "Valve disorder")) AS PVT_HX_OTHER_CVD
+
+
+DROP TABLE IF EXISTS #history_of_other_cvd_pvt_final_tbl
+CREATE TABLE #history_of_other_cvd_pvt_final_tbl (
+	pt_id VARCHAR(12),
+	CHD VARCHAR(1),
+	PAD VARCHAR(1),
+	VD VARCHAR(1),
+	CVD VARCHAR(1)
+	)
+
+INSERT INTO #history_of_other_cvd_pvt_final_tbl (
+	pt_id,
+	CHD,
+	PAD,
+	VD,
+	CVD
+	)
+SELECT pt_id,
+	CASE 
+		WHEN chd IS NOT NULL
+			THEN 1
+		ELSE NULL
+		END AS CHD,
+	CASE 
+		WHEN PAD IS NOT NULL
+			THEN 2
+		ELSE NULL
+		END AS PAD,
+	CASE 
+		WHEN VD IS NOT NULL
+			THEN 3
+		ELSE NULL
+		END AS VD,
+	CASE 
+		WHEN CVD IS NOT NULL
+			THEN 4
+		ELSE NULL
+		END AS CVD
+FROM #history_of_other_cvd_pvt_tbl
+
+
+DROP TABLE IF EXISTS #hx_of_other_cvd_tbl
+CREATE TABLE #hx_of_other_cvd_tbl (
+	pt_id VARCHAR(12),
+	history_of_other_cvd VARCHAR(20)
+)
+INSERT INTO #hx_of_other_cvd_tbl (pt_id, history_of_other_cvd)
+SELECT pt_id,
+	CASE
+		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 1
+			THEN CONCAT(chd,pad,vd,cvd)
+		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 2
+			THEN SUBSTRING(CONCAT(chd,pad,vd,cvd), 1, 1) 
+				+ ':' 
+				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 2, 1)
+		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 3
+			THEN SUBSTRING(CONCAT(chd,pad,vd,cvd), 1, 1) 
+				+ ':' 
+				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 2, 1) 
+				+ ':' 
+				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 3, 1)
+		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 4
+			THEN SUBSTRING(CONCAT(chd,pad,vd,cvd), 1, 1) 
+				+ ':' 
+				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 2, 1) 
+				+ ':' 
+				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 3, 1)
+				+ ':'
+				+ SUBSTRING(CONCAT(CHD,PAD,VD,CVD), 4, 1)
+		END
+FROM #history_of_other_cvd_pvt_final_tbl
+
+-- HYPERTENSION
+DROP TABLE IF EXISTS #hyptertension
+CREATE TABLE #hypertension (
+	pt_id VARCHAR(12),
+	hypertension VARCHAR(10)
+	)
+
+INSERT INTO #hypertension (
+	pt_id,
+	hypertension
+	)
+SELECT A.pt_id,
+	[hypertension] = CASE 
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN SMSDSS.c_nysdoh_sepsis_hypertension_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+
+-- Severity Variables -------------------------------------------------
 -- aPPT
 DROP TABLE IF EXISTS #appt
 CREATE TABLE #appt (
@@ -300,7 +587,12 @@ CREATE TABLE #appt (
 	disp_val VARCHAR(200)
 	)
 
-INSERT INTO #appt
+INSERT INTO #appt (
+	episode_no,
+	coll_dtime,
+	lab_number,
+	disp_val
+	)
 SELECT A.episode_no,
 	A.coll_dtime,
 	[lab_number] = ROW_NUMBER() OVER (
@@ -317,6 +609,7 @@ INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = '00403154'
 
 
+
 DROP TABLE IF EXISTS #max_appt
 CREATE TABLE #max_appt (
 	episode_no VARCHAR(12),
@@ -325,7 +618,12 @@ CREATE TABLE #max_appt (
 	rn INT
 	)
 
-INSERT INTO #max_appt
+INSERT INTO #max_appt (
+	episode_no,
+	appt_max,
+	appt_dt_max,
+	rn
+	)
 SELECT episode_no,
 	disp_val,
 	coll_dtime,
@@ -334,8 +632,10 @@ SELECT episode_no,
 		)
 FROM #appt
 
+DELETE
+FROM #max_appt
+WHERE RN != 1
 
-DELETE FROM #max_appt WHERE RN != 1
 
 DROP TABLE IF EXISTS #appt_pvt 
 CREATE TABLE #appt_pvt (
@@ -378,6 +678,7 @@ PIVOT(MAX(coll_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
 GROUP BY episode_no
 
 
+
 -- Diastolic BP
 -- WellSoft
 DROP TABLE IF EXISTS #ws_diastolic
@@ -387,7 +688,11 @@ CREATE TABLE #ws_diastolic (
 	collected_datetime DATETIME
 	)
 
-INSERT INTO #ws_diastolic
+INSERT INTO #ws_diastolic (
+	episode_no,
+	bp_diastolic,
+	collected_datetime
+	)
 SELECT A.account,
 	A.bp_diastolic,
 	A.collected_datetime
@@ -395,6 +700,7 @@ FROM smsdss.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE bp_diastolic IS NOT NULL
 	AND bp_diastolic NOT IN ('Patient refused', 'Refused', 'refused v/s', 'unknown')
+
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_diastolic
@@ -404,13 +710,18 @@ CREATE TABLE #sr_diastolic (
 	obsv_cre_dtime DATETIME
 	)
 
-INSERT INTO #sr_diastolic
+INSERT INTO #sr_diastolic (
+	episode_no,
+	bp_diastolic,
+	obsv_cre_dtime
+	)
 SELECT episode_no,
 	bp_diastolic = RIGHT(DSPLY_VAL, CHARINDEX('/', REVERSE(DSPLY_VAL), 1) - 1),
 	obsv_cre_dtime
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = 'A_BP'
+
 
 
 DROP TABLE IF EXISTS #bp_diastolic
@@ -421,7 +732,12 @@ CREATE TABLE #bp_diastolic (
 	bp_reading_num INT
 	)
 
-INSERT INTO #bp_diastolic
+INSERT INTO #bp_diastolic (
+	episode_no,
+	bp_diastolic,
+	obsv_dtime,
+	bp_reading_num
+	)
 SELECT A.episode_no,
 	A.bp_diastolic,
 	A.collected_datetime,
@@ -439,6 +755,7 @@ FROM (
 	) AS A
 
 
+
 DROP TABLE IF EXISTS #min_ws_diastolic
 CREATE TABLE #min_ws_diastolic (
 	episode_no VARCHAR(12),
@@ -447,7 +764,12 @@ CREATE TABLE #min_ws_diastolic (
 	rn INT
 	)
 
-INSERT INTO #min_ws_diastolic
+INSERT INTO #min_ws_diastolic (
+	episode_no,
+	diastolic_min,
+	diastolic_dt_min,
+	rn
+	)
 SELECT episode_no,
 	bp_diastolic,
 	obsv_dtime,
@@ -459,6 +781,7 @@ FROM #bp_diastolic
 DELETE
 FROM #min_ws_diastolic
 WHERE rn != 1;
+
 
 
 DROP TABLE IF EXISTS #ws_bp_diastolic_pvt
@@ -511,7 +834,12 @@ CREATE TABLE #inr (
 	disp_val VARCHAR(200)
 	)
 
-INSERT INTO #inr
+INSERT INTO #inr (
+	episode_no,
+	coll_dtime,
+	lab_number,
+	disp_val
+	)
 SELECT A.episode_no,
 	A.coll_dtime,
 	[lab_number] = ROW_NUMBER() OVER (
@@ -527,6 +855,7 @@ INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '2012'
 
 
+
 DROP TABLE IF EXISTS #max_inr
 CREATE TABLE #max_inr (
 	episode_no VARCHAR(12),
@@ -535,7 +864,12 @@ CREATE TABLE #max_inr (
 	rn INT
 	)
 
-INSERT INTO #max_inr
+INSERT INTO #max_inr (
+	episode_no,
+	inr_max,
+	inr_dt_max,
+	rn
+	)
 SELECT episode_no,
 	disp_val,
 	coll_dtime,
@@ -544,10 +878,10 @@ SELECT episode_no,
 		)
 FROM #inr
 
-
-DELETE 
+DELETE
 FROM #max_inr
 WHERE rn != 1
+
 
 DROP TABLE IF EXISTS #inr_pvt
 CREATE TABLE #inr_pvt (
@@ -590,7 +924,1049 @@ PIVOT(MAX(coll_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
 GROUP BY episode_no
 
 
--- Get
+-- lactate
+DROP TABLE IF EXISTS #lactate
+CREATE TABLE #lactate (
+	episode_no VARCHAR(12),
+	coll_dtime DATETIME,
+	lab_number INT,
+	disp_val VARCHAR(200)
+	)
+
+INSERT INTO #lactate (
+	episode_no,
+	coll_dtime,
+	lab_number,
+	disp_val
+	)
+SELECT a.episode_no,
+	a.coll_dtime,
+	[lab_number] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.coll_dtime
+		),
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1))) AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd = '00402347'
+
+
+DROP TABLE IF EXISTS #max_lactate
+CREATE TABLE #max_lactate (
+	episode_no VARCHAR(12),
+	lactate_level_max VARCHAR(20),
+	lactate_level_dt_max DATETIME,
+	rn INT
+	)
+
+INSERT INTO #max_lactate (
+	episode_no,
+	lactate_level_max,
+	lactate_level_dt_max,
+	rn
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY disp_val DESC
+		)
+FROM #lactate
+
+DELETE
+FROM #max_lactate
+WHERE RN != 1
+
+
+DROP TABLE IF EXISTS #lactate_pvt
+CREATE TABLE #lactate_pvt (
+	episode_no VARCHAR(12),
+	lactate_level_1 VARCHAR(10) NULL,
+	lactate_level_dt_1 DATETIME NULL,
+	lactate_level_2 VARCHAR(10) NULL,
+	lactate_level_dt_2 DATETIME NULL,
+	lactate_level_3 VARCHAR(10) NULL,
+	lactate_level_dt_3 DATETIME NULL
+	)
+
+INSERT INTO #lactate_pvt (
+	episode_no,
+	lactate_level_1,
+	lactate_level_dt_1,
+	lactate_level_2,
+	lactate_level_dt_2,
+	lactate_level_3,
+	lactate_level_dt_3
+	)
+SELECT episode_no,
+	MAX([1]) AS [lactate_level_1],
+	MAX([01]) AS [lactate_level_dt_1],
+	MAX([2]) AS [lactate_level_2],
+	MAX([02]) AS [lactate_level_dt_2],
+	MAX([3]) AS [lactate_level_3],
+	MAX([03]) AS [lactate_level_dt_3]
+FROM (
+	SELECT episode_no,
+		disp_val,
+		coll_dtime,
+		lab_number,
+		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
+	FROM #lactate
+	WHERE lab_number <= 3
+	) AS A
+PIVOT(MAX(disp_val) FOR LAB_NUMBER IN ("1", "2", "3")) AS PVT_INR
+PIVOT(MAX(coll_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
+GROUP BY episode_no
+
+
+-- Organ Dysfunction Hepatic
+DROP TABLE IF EXISTS #od_bilirubin
+CREATE TABLE #od_bilirubin (
+	episode_no VARCHAR(12),
+	coll_dtime DATETIME,
+	lab_number INT,
+	disp_val VARCHAR(200)
+	)
+
+INSERT INTO #od_bilirubin (
+	episode_no,
+	coll_dtime,
+	lab_number,
+	disp_val
+	)
+SELECT A.episode_no,
+	A.coll_dtime,
+	[lab_number] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.coll_dtime
+		),
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1))) AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END
+--[dsply_val] = LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1)))
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE obsv_cd = '00400408'
+
+
+DROP TABLE IF EXISTS #arrival_bilirubin
+CREATE TABLE #arrival_bilirubin (
+	episode_no VARCHAR(12),
+	organ_dysfunc_hepatic_arrival VARCHAR(20),
+	organ_dysfunc_hepatic_arrival_dt DATETIME,
+	)
+
+INSERT INTO #arrival_bilirubin (
+	episode_no,
+	organ_dysfunc_hepatic_arrival,
+	organ_dysfunc_hepatic_arrival_dt
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime
+FROM #od_bilirubin
+WHERE lab_number = 1
+
+
+DROP TABLE IF EXISTS #max_bilirubin
+CREATE TABLE #max_bilirubin (
+	episode_no VARCHAR(12),
+	organ_dysfunc_hepatic_max VARCHAR(20),
+	organ_dysfunc_hepatic_max_dt DATETIME,
+	rn INT
+	)
+
+INSERT INTO #max_bilirubin (
+	episode_no,
+	organ_dysfunc_hepatic_max,
+	organ_dysfunc_hepatic_max_dt,
+	rn
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY disp_val DESC
+		)
+FROM #od_bilirubin
+
+DELETE
+FROM #max_bilirubin
+WHERE RN != 1
+
+
+-- Organ Dysfunction Renal (creatinine)
+DROP TABLE IF EXISTS #od_renal
+CREATE TABLE #od_renal (
+	episode_no VARCHAR(12),
+	coll_dtime DATETIME,
+	lab_number INT,
+	disp_val VARCHAR(200)
+	)
+
+INSERT INTO #od_renal (
+	episode_no,
+	coll_dtime,
+	lab_number,
+	disp_val
+	)
+SELECT A.episode_no,
+	A.coll_dtime,
+	[lab_number] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.coll_dtime
+		),
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1))) AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END
+--[dsply_val] = LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1)))
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE obsv_cd = '00400945'
+
+
+DROP TABLE IF EXISTS #arrival_creatinine
+CREATE TABLE #arrival_creatinine (
+	episode_no VARCHAR(12),
+	organ_dysfunc_renal_arrival VARCHAR(20),
+	organ_dysfunc_renal_arrival_dt DATETIME
+	)
+
+INSERT INTO #arrival_creatinine (
+	episode_no,
+	organ_dysfunc_renal_arrival,
+	organ_dysfunc_renal_arrival_dt
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime
+FROM #od_renal
+WHERE lab_number = 1
+
+
+DROP TABLE IF EXISTS #max_creatinine
+CREATE TABLE #max_creatinine (
+	episode_no VARCHAR(12),
+	organ_dysfunc_renal_max VARCHAR(20),
+	organ_dysfunc_renal_max_dt DATETIME,
+	rn INT
+	)
+
+INSERT INTO #max_creatinine (
+	episode_no,
+	organ_dysfunc_renal_max,
+	organ_dysfunc_renal_max_dt,
+	rn
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY disp_val DESC
+		)
+FROM #od_renal
+
+DELETE
+FROM #max_creatinine
+WHERE RN != 1
+
+
+-- Platelets
+DROP TABLE IF EXISTS #platelets
+CREATE TABLE #platelets (
+	episode_no VARCHAR(12),
+	coll_dtime DATETIME,
+	lab_number INT,
+	disp_val VARCHAR(200)
+	)
+
+INSERT INTO #platelets (
+	episode_no,
+	coll_dtime,
+	lab_number,
+	disp_val
+	)
+SELECT A.episode_no,
+	A.coll_dtime,
+	[lab_number] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.coll_dtime
+		),
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1))) AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd = '00402958'
+
+
+DROP TABLE IF EXISTS #min_platelet
+CREATE TABLE #min_platelet (
+	episode_no VARCHAR(12),
+	platelets_min VARCHAR(20),
+	platelets_dt_min DATETIME,
+	rn INT
+	)
+
+INSERT INTO #min_platelet (
+	episode_no,
+	platelets_min,
+	platelets_dt_min,
+	rn
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY disp_val
+		)
+FROM #platelets
+
+DELETE
+FROM #min_platelet
+WHERE RN != 1
+
+
+DROP TABLE IF EXISTS #platelet_pvt 
+CREATE TABLE #platelet_pvt (
+	episode_no VARCHAR(12),
+	platelets_1 VARCHAR(10) NULL,
+	platelets_dt_1 DATETIME NULL,
+	platelets_2 VARCHAR(10) NULL,
+	platelets_dt_2 DATETIME NULL,
+	platelets_3 VARCHAR(10) NULL,
+	platelets_dt_3 DATETIME NULL
+	)
+
+INSERT INTO #platelet_pvt (
+	episode_no,
+	platelets_1,
+	platelets_dt_1,
+	platelets_2,
+	platelets_dt_2,
+	platelets_3,
+	platelets_dt_3
+	)
+SELECT episode_no,
+	MAX([1]),
+	MAX([01]),
+	MAX([2]),
+	MAX([02]),
+	MAX([3]),
+	MAX([03])
+FROM (
+	SELECT episode_no,
+		disp_val,
+		coll_dtime,
+		lab_number,
+		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
+	FROM #platelets
+	WHERE lab_number <= 3
+	) AS A
+PIVOT(MAX(disp_val) FOR LAB_NUMBER IN ("1", "2", "3")) AS PVT_INR
+PIVOT(MAX(coll_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
+GROUP BY episode_no
+
+
+-- Heartrate
+DROP TABLE IF EXISTS #ws_hr
+CREATE TABLE #ws_hr (
+	episode_no VARCHAR(12),
+	sirs_heartrate VARCHAR(10),
+	coll_dtime DATETIME
+	)
+
+INSERT INTO #ws_hr (
+	episode_no,
+	sirs_heartrate,
+	coll_dtime
+	)
+SELECT A.account,
+	A.heart_rate,
+	A.collected_datetime
+FROM SMSDSS.c_sepsis_ws_vitals_tbl AS A
+INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
+WHERE A.heart_rate NOT IN ('100-110', '101-114', '107-135', '110-130', '114-142', '115-130', '118-136', '120-145', '145-155', '158-173', '49-51', '82-100', '88-106', '98-130', 'CPR', 'rare', 'refused')
+	AND A.heart_rate IS NOT NULL
+
+
+-- Soarian
+DROP TABLE IF EXISTS #sr_hr 
+CREATE TABLE #sr_hr (
+	episode_no VARCHAR(12),
+	sirs_heartrate VARCHAR(20),
+	coll_dtime DATETIME
+	)
+
+INSERT INTO #sr_hr (
+	episode_no,
+	sirs_heartrate,
+	coll_dtime
+	)
+SELECT episode_no,
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(A.dsply_val AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END,
+	A.obsv_cre_dtime
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE obsv_cd = 'A_Pulse'
+
+
+DROP TABLE IF EXISTS #sirs_hr
+CREATE TABLE #sirs_hr (
+	episode_no VARCHAR(12),
+	sirs_heartrate VARCHAR(20),
+	obsv_dtime DATETIME,
+	lab_number INT
+	)
+
+INSERT INTO #sirs_hr (
+	episode_no,
+	sirs_heartrate,
+	obsv_dtime,
+	lab_number
+	)
+SELECT a.episode_no,
+	a.sirs_heartrate,
+	a.coll_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.coll_dtime
+		)
+FROM (
+	SELECT episode_no,
+		sirs_heartrate,
+		coll_dtime
+	FROM #ws_hr
+	
+	UNION
+	
+	SELECT episode_no,
+		sirs_heartrate,
+		coll_dtime
+	FROM #sr_hr
+	) AS A
+
+
+DROP TABLE IF EXISTS #max_sirs_hr
+CREATE TABLE #max_sirs_hr (
+	episode_no VARCHAR(12),
+	sirs_heartrate_max VARCHAR(10),
+	sirs_heartrate_dt_max DATETIME,
+	rn INT
+	)
+
+INSERT INTO #max_sirs_hr (
+	episode_no,
+	sirs_heartrate_max,
+	sirs_heartrate_dt_max,
+	rn
+	)
+SELECT episode_no,
+	sirs_heartrate,
+	obsv_dtime,
+	[rn] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY CAST(sirs_heartrate AS INT) ASC
+		)
+FROM #sirs_hr
+
+DELETE
+FROM #max_sirs_hr
+WHERE RN != 1
+
+
+DROP TABLE IF EXISTS #sirs_hr_pvt
+CREATE TABLE #sirs_hr_pvt (
+	episode_no VARCHAR(12),
+	sirs_heartrate_1 VARCHAR(10),
+	sirs_heartrate_dt_1 DATETIME,
+	sirs_heartrate_2 VARCHAR(10),
+	sirs_heartrate_dt_2 DATETIME,
+	sirs_heartrate_3 VARCHAR(10),
+	sirs_heartrate_dt_3 DATETIME,
+	)
+
+INSERT INTO #sirs_hr_pvt (
+	episode_no,
+	sirs_heartrate_1,
+	sirs_heartrate_dt_1,
+	sirs_heartrate_2,
+	sirs_heartrate_dt_2,
+	sirs_heartrate_3,
+	sirs_heartrate_dt_3
+	)
+SELECT episode_no,
+	MAX([1]),
+	MAX([01]),
+	MAX([2]),
+	MAX([02]),
+	MAX([3]),
+	MAX([03])
+FROM (
+	SELECT episode_no,
+		sirs_heartrate,
+		obsv_dtime,
+		lab_number,
+		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
+	FROM #sirs_hr
+	WHERE lab_number <= 3
+	) AS A
+PIVOT(MAX(sirs_heartrate) FOR LAB_NUMBER IN ("1", "2", "3")) AS PVT_HR
+PIVOT(MAX(obsv_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
+GROUP BY episode_no
+
+
+-- WBC
+DROP TABLE IF EXISTS #wbc
+CREATE TABLE #wbc (
+	episode_no VARCHAR(12),
+	coll_dtime DATETIME,
+	disp_val VARCHAR(200)
+	)
+
+INSERT INTO #wbc (
+	episode_no,
+	coll_dtime,
+	disp_val
+	)
+SELECT A.episode_no,
+	A.coll_dtime,
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1))) AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END
+FROM SMSMIR.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd = '1000'
+
+DELETE
+FROM #wbc
+WHERE disp_val = '. '
+
+
+DROP TABLE IF EXISTS #arr_wbc
+CREATE TABLE #arr_wbc (
+	episode_no VARCHAR(12),
+	sirs_leuckocyte_arrival VARCHAR(200),
+	sirs_leuckocyte_arrival_dt DATETIME,
+	rn INT
+	)
+
+INSERT INTO #arr_wbc (
+	episode_no,
+	sirs_leuckocyte_arrival,
+	sirs_leuckocyte_arrival_dt,
+	rn
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime,
+	[rn] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY coll_dtime
+		)
+FROM #wbc
+
+DELETE
+FROM #arr_wbc
+WHERE RN != 1
+
+
+DROP TABLE IF EXISTS #min_wbc
+CREATE TABLE #min_wbc (
+	episode_no VARCHAR(12),
+	sirs_leuckocyte_min VARCHAR(200),
+	sirs_leuckocyte_min_dt DATETIME,
+	rn INT
+	)
+
+INSERT INTO #min_wbc (
+	episode_no,
+	sirs_leuckocyte_min,
+	sirs_leuckocyte_min_dt,
+	rn
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime,
+	[rn] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT)
+		)
+FROM #wbc
+
+DELETE
+FROM #min_wbc
+WHERE RN != 1
+
+
+DROP TABLE IF EXISTS #max_wbc
+CREATE TABLE #max_wbc (
+	episode_no VARCHAR(12),
+	sirs_leuckocyte_max VARCHAR(20),
+	sirs_leuckocyte_max_dt DATETIME,
+	rn INT
+	)
+
+INSERT INTO #max_wbc (
+	episode_no,
+	sirs_leuckocyte_max,
+	sirs_leuckocyte_max_dt,
+	rn
+	)
+SELECT episode_no,
+	disp_val,
+	coll_dtime,
+	[rn] = ROW_NUMBER() OVER (
+		PARTITION BY episode_NO ORDER BY CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT) DESC
+		)
+FROM #wbc
+
+DELETE
+FROM #max_wbc
+WHERE RN != 1
+
+
+-- SIRS RESPIRATORY RATE
+-- WellSoft
+DROP TABLE IF EXISTS #ws_resp_rate
+CREATE TABLE #ws_resp_rate (
+	episode_no VARCHAR(12),
+	sirs_respiratoryrate VARCHAR(10),
+	coll_dtime DATETIME
+	)
+
+INSERT INTO #ws_resp_rate
+SELECT A.account,
+	a.respiratory_rate,
+	a.collected_datetime
+FROM SMSDSS.c_sepsis_ws_vitals_tbl AS A
+INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
+WHERE A.respiratory_rate IS NOT NULL
+	AND A.respiratory_rate NOT IN ('4 0', 'AGONAL', 'assisted', 'rare')
+
+
+-- Soarian
+DROP TABLE IF EXISTS #sr_resp_rate
+CREATE TABLE #sr_resp_rate (
+	episode_no VARCHAR(12),
+	sirs_respiratoryrate VARCHAR(200),
+	coll_dtime DATETIME
+	)
+
+INSERT INTO #sr_resp_rate
+SELECT a.episode_no,
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(a.dsply_val AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END,
+	a.obsv_cre_dtime
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd = 'A_Respirations'
+
+
+DROP TABLE IF EXISTS #sirs_respiratoryrate 
+CREATE TABLE #sirs_respiratoryrate (
+	episode_no VARCHAR(12),
+	sirs_respiratoryrate VARCHAR(20),
+	obsv_dtime DATETIME,
+	lab_number INT
+	)
+
+INSERT INTO #sirs_respiratoryrate (
+	episode_no,
+	sirs_respiratoryrate,
+	obsv_dtime,
+	lab_number
+	)
+SELECT A.episode_no,
+	A.sirs_respiratoryrate,
+	A.coll_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.coll_dtime
+		)
+FROM (
+	SELECT episode_no,
+		sirs_respiratoryrate,
+		coll_dtime
+	FROM #ws_resp_rate
+	
+	UNION
+	
+	SELECT episode_no,
+		sirs_respiratoryrate,
+		coll_dtime
+	FROM #sr_resp_rate
+	) AS A
+
+
+DROP TABLE IF EXISTS #max_sirs_respiratoryrate
+CREATE TABLE #max_sirs_respiratoryrate (
+	episode_no VARCHAR(12),
+	sirs_respiratoryrate_max VARCHAR(20),
+	sirs_respiratoryrate_dt_max DATETIME,
+	rn INT
+	)
+
+INSERT INTO #max_sirs_respiratoryrate (
+	episode_no,
+	sirs_respiratoryrate_max,
+	sirs_respiratoryrate_dt_max,
+	rn
+	)
+SELECT episode_no,
+	sirs_respiratoryrate,
+	obsv_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY CAST(sirs_respiratoryrate AS INT) DESC
+		)
+FROM #sirs_respiratoryrate
+
+DELETE
+FROM #max_sirs_respiratoryrate
+WHERE RN != 1
+
+
+DROP TABLE IF EXISTS #sirs_resp_pvt
+CREATE TABLE #sirs_resp_pvt (
+	episode_no VARCHAR(12),
+	sirs_respiratoryrate_1 VARCHAR(10),
+	sirs_respiratoryrate_dt_1 DATETIME,
+	sirs_respiratoryrate_2 VARCHAR(10),
+	sirs_respiratoryrate_dt_2 DATETIME,
+	sirs_respiratoryrate_3 VARCHAR(10),
+	sirs_respiratoryrate_dt_3 DATETIME
+	)
+
+INSERT INTO #sirs_resp_pvt (
+	episode_no,
+	sirs_respiratoryrate_1,
+	sirs_respiratoryrate_dt_1,
+	sirs_respiratoryrate_2,
+	sirs_respiratoryrate_dt_2,
+	sirs_respiratoryrate_3,
+	sirs_respiratoryrate_dt_3
+	)
+SELECT episode_no,
+	MAX([1]),
+	MAX([01]),
+	MAX([2]),
+	MAX([02]),
+	MAX([3]),
+	MAX([03])
+FROM (
+	SELECT episode_no,
+		sirs_respiratoryrate,
+		obsv_dtime,
+		lab_number,
+		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
+	FROM #sirs_respiratoryrate
+	WHERE lab_number <= 3
+	) AS A
+PIVOT(MAX(sirs_respiratoryrate) FOR LAB_NUMBER IN ("1", "2", "3")) AS PVT_HR
+PIVOT(MAX(obsv_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
+GROUP BY episode_no
+
+
+-- SIRS Temperature
+DROP TABLE IF EXISTS #ws_temp
+CREATE TABLE #ws_temp (
+	episode_no VARCHAR(12),
+	sirs_temperature VARCHAR(10),
+	coll_dtime DATETIME
+	)
+
+INSERT INTO #ws_temp
+SELECT A.account,
+	a.TEMP,
+	a.collected_datetime
+FROM SMSDSS.c_sepsis_ws_vitals_tbl AS A
+INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
+WHERE A.TEMP IS NOT NULL
+	AND A.TEMP NOT IN ('*** DELETE ***', '.', '<90.0', '100 . 0', '33.1ºC', '33.3ºC', '33.7ºC', '34.6 C', '34.6ºC', '35.0ºC', '35.6C', '36.8 C', 'patient refused', 'Pt left', 'pt refused temp', 'ref vs', 'refudes', 'refused', 'refused oral temp', 'refused temp', 'Unable to assess')
+
+
+-- Soarian
+DROP TABLE IF EXISTS #sr_temp
+CREATE TABLE #sr_temp (
+	episode_no VARCHAR(12),
+	sirs_temperature VARCHAR(200),
+	coll_dtime DATETIME
+	)
+
+INSERT INTO #sr_temp
+SELECT a.episode_no,
+	[disp_val] = CASE 
+		WHEN CAST(a.val_no AS VARCHAR) IS NULL
+			THEN CAST(a.dsply_val AS VARCHAR)
+		ELSE CAST(A.VAL_NO AS VARCHAR)
+		END,
+	a.obsv_cre_dtime
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd = 'A_Temperature'
+
+
+DROP TABLE IF EXISTS #sirs_temp
+CREATE TABLE #sirs_temp (
+	episode_no VARCHAR(12),
+	sirs_temperature VARCHAR(20),
+	obsv_dtime DATETIME,
+	lab_number INT
+	)
+
+INSERT INTO #sirs_temp (
+	episode_no,
+	sirs_temperature,
+	obsv_dtime,
+	lab_number
+	)
+SELECT A.episode_no,
+	A.sirs_temperature,
+	A.coll_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.coll_dtime
+		)
+FROM (
+	SELECT episode_no,
+		sirs_temperature,
+		coll_dtime
+	FROM #ws_temp
+	
+	UNION
+	
+	SELECT episode_no,
+		sirs_temperature,
+		coll_dtime
+	FROM #sr_temp
+	) AS A
+
+
+DROP TABLE IF EXISTS #max_sirs_temp
+CREATE TABLE #max_sirs_temp (
+	episode_no VARCHAR(12),
+	sirs_temperature_max VARCHAR(20),
+	sirs_temperature_dt_max DATETIME,
+	rn INT
+	)
+
+INSERT INTO #max_sirs_temp (
+	episode_no,
+	sirs_temperature_max,
+	sirs_temperature_dt_max,
+	rn
+	)
+SELECT episode_no,
+	sirs_temperature,
+	obsv_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY CAST(sirs_temperature AS FLOAT) DESC
+		)
+FROM #sirs_temp
+
+DELETE
+FROM #max_sirs_temp
+WHERE RN != 1
+
+
+DROP TABLE IF EXISTS #sirs_temp_pvt
+CREATE TABLE #sirs_temp_pvt (
+	episode_no VARCHAR(12),
+	sirs_temperature_1 VARCHAR(10),
+	sirs_temperature_dt_1 DATETIME,
+	sirs_temperature_2 VARCHAR(10),
+	sirs_temperature_dt_2 DATETIME,
+	sirs_temperature_3 VARCHAR(10),
+	sirs_temperature_dt_3 DATETIME
+	)
+
+INSERT INTO #sirs_temp_pvt (
+	episode_no,
+	sirs_temperature_1,
+	sirs_temperature_dt_1,
+	sirs_temperature_2,
+	sirs_temperature_dt_2,
+	sirs_temperature_3,
+	sirs_temperature_dt_3
+	)
+SELECT episode_no,
+	MAX([1]),
+	MAX([01]),
+	MAX([2]),
+	MAX([02]),
+	MAX([3]),
+	MAX([03])
+FROM (
+	SELECT episode_no,
+		sirs_temperature,
+		obsv_dtime,
+		lab_number,
+		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
+	FROM #sirs_temp
+	WHERE lab_number <= 3
+	) AS A
+PIVOT(MAX(sirs_temperature) FOR LAB_NUMBER IN ("1", "2", "3")) AS PVT_HR
+PIVOT(MAX(obsv_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
+GROUP BY episode_no
+
+
+-- Systolic BP
+-- WellSoft
+DROP TABLE IF EXISTS #ws_systolic
+CREATE TABLE #ws_systolic (
+	episode_no VARCHAR(10),
+	bp_systolic VARCHAR(10),
+	collected_datetime DATETIME
+	)
+
+INSERT INTO #ws_systolic (
+	episode_no,
+	bp_systolic,
+	collected_datetime
+	)
+SELECT A.account,
+	A.bp_systolic,
+	A.collected_datetime
+FROM smsdss.c_sepsis_ws_vitals_tbl AS A
+INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
+WHERE ISNUMERIC(bp_systolic) = 1
+
+
+-- Soarian
+DROP TABLE IF EXISTS #sr_systolic
+CREATE TABLE #sr_systolic (
+	episode_no VARCHAR(12),
+	bp_systolic VARCHAR(20),
+	obsv_cre_dtime DATETIME
+	)
+
+INSERT INTO #sr_systolic (
+	episode_no,
+	bp_systolic,
+	obsv_cre_dtime
+	)
+SELECT episode_no,
+	bp_systolic = LEFT(DSPLY_VAL, CHARINDEX('/', (DSPLY_VAL), 1) - 1),
+	obsv_cre_dtime
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE obsv_cd = 'A_BP'
+
+
+DROP TABLE IF EXISTS #bp_systolic
+CREATE TABLE #bp_systolic (
+	episode_no VARCHAR(12),
+	bp_systolic VARCHAR(20),
+	obsv_dtime DATETIME,
+	bp_reading_num INT
+	)
+
+INSERT INTO #bp_systolic (
+	episode_no,
+	bp_systolic,
+	obsv_dtime,
+	bp_reading_num
+	)
+SELECT A.episode_no,
+	A.bp_systolic,
+	A.collected_datetime,
+	[bp_reading_num] = ROW_NUMBER() OVER (
+		PARTITION BY A.episode_no ORDER BY A.collected_datetime
+		)
+FROM (
+	SELECT episode_no,
+		bp_systolic,
+		collected_datetime
+	FROM #ws_systolic
+	
+	UNION
+	
+	SELECT episode_no,
+		bp_systolic,
+		obsv_cre_dtime
+	FROM #sr_systolic
+	) AS A
+
+
+DROP TABLE IF EXISTS #min_systolic
+CREATE TABLE #min_systolic (
+	episode_no VARCHAR(12),
+	systolic_min VARCHAR(10),
+	systolic_dt_min DATETIME,
+	rn INT
+	)
+
+INSERT INTO #min_systolic (
+	episode_no,
+	systolic_min,
+	systolic_dt_min,
+	rn
+	)
+SELECT episode_no,
+	bp_systolic,
+	obsv_dtime,
+	[RN] = ROW_NUMBER() OVER (
+		PARTITION BY episode_no ORDER BY CAST(bp_systolic AS INT) ASC
+		)
+FROM #bp_systolic
+
+DELETE
+FROM #min_systolic
+WHERE rn != 1;
+
+
+
+DROP TABLE IF EXISTS #bp_systolic_pvt
+CREATE TABLE #bp_systolic_pvt (
+	episode_no VARCHAR(10),
+	systolic_1 VARCHAR(10),
+	systolic_dt_1 DATETIME,
+	systolic_2 VARCHAR(10),
+	systolic_dt_2 DATETIME,
+	systolic_3 VARCHAR(10),
+	systolic_dt_3 DATETIME
+	)
+
+INSERT INTO #bp_systolic_pvt (
+	episode_no,
+	systolic_1,
+	systolic_dt_1,
+	systolic_2,
+	systolic_dt_2,
+	systolic_3,
+	systolic_dt_3
+	)
+SELECT episode_no,
+	MAX([1]),
+	MAX([01]),
+	MAX([2]),
+	MAX([02]),
+	MAX([3]),
+	MAX([03])
+FROM (
+	SELECT episode_no,
+		bp_systolic,
+		obsv_dtime,
+		bp_reading_num,
+		bp_reading_num2 = '0' + CAST(bp_reading_num AS VARCHAR)
+	FROM #bp_systolic
+	WHERE bp_reading_num <= 3
+	) AS A
+PIVOT(MAX(bp_systolic) FOR bp_reading_num IN ("1", "2", "3")) AS PVT_BP_SYSTOLIC
+PIVOT(MAX(obsv_dtime) FOR bp_reading_num2 IN ("01", "02", "03")) AS PVT_BP_COLL_DTIME
+GROUP BY episode_no
+
+
+-- Pull it all together
 SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CONVERT(CHAR(5), PV.VisitStartDateTime, 108),
 	[arrival_dt] = CONVERT(CHAR(10), PV.PresentingDateTime, 126) + ' ' + CONVERT(CHAR(5), PV.PresentingDateTime, 108),
 	[date_of_birth] = CONVERT(CHAR(10), PAV.Pt_Birthdate, 126),
@@ -853,30 +2229,137 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN 0
 		ELSE 1
 		END,
+	[dementia] = CASE 
+		WHEN DEMENTIA.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[diabetes] = CASE 
+		WHEN DIABETES.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[dialysis_comorbidity] = CASE 
+		WHEN DIALYSIS_COMORBID.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[history_of_covid] = CASE 
+		WHEN COVID_HIST.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[history_of_covid_dt] = CASE 
+		WHEN COVID_HIST.history_of_covid IS NULL
+			THEN NULL
+		ELSE CONVERT(CHAR(10), COVID_HIST.history_of_covid, 126) + ' ' + CONVERT(CHAR(5), COVID_HIST.history_of_covid, 108)
+		END,
+	CASE 
+		WHEN HX_OTH_CVD.history_of_other_cvd IS NULL
+			THEN '0'
+		ELSE HX_OTH_CVD.history_of_other_cvd
+		END AS history_of_other_cvd,
+	[hypertension] = CASE 
+		WHEN HYPERTENSION.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	APPT_PVT.appt_1,
 	APPT_PVT.appt_2,
 	APPT_PVT.appt_3,
 	MAX_APPT.appt_max,
-	APPT_PVT.appt_dt_1,
-	appt_pvt.appt_dt_2,
-	appt_pvt.appt_dt_3,
-	MAX_APPT.appt_dt_max,
+	CONVERT(CHAR(10), APPT_PVT.appt_dt_1, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_1, 108) AS appt_dt_1,
+	CONVERT(CHAR(10), APPT_PVT.appt_dt_2, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_2, 108) AS appt_dt_2,
+	CONVERT(CHAR(10), APPT_PVT.appt_dt_3, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_3, 108) AS appt_dt_3,
+	CONVERT(CHAR(10), MAX_APPT.appt_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_APPT.appt_dt_max, 108) AS appt_dt_max,
 	WS_BPD_PVT.diastolic_1,
 	WS_BPD_PVT.diastolic_2,
 	WS_BPD_PVT.diastolic_3,
-	WS_BPD_PVT.diastolic_dt_1,
-	WS_BPD_PVT.diastolic_dt_2,
-	WS_BPD_PVT.diastolic_dt_3,
+	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_1, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_1, 108) AS diastolic_dt_1,
+	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_3, 108) AS diastolic_dt_2,
+	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_3, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_3, 108) AS diastolic_dt_3,
 	WS_MIN_BPD.diastolic_min,
-	WS_MIN_BPD.diastolic_dt_min,
+	CONVERT(CHAR(10), WS_MIN_BPD.diastolic_dt_min, 126) + ' ' + CONVERT(CHAR(5), WS_MIN_BPD.diastolic_dt_min, 108) AS diastolic_dt_min,
 	INR_PVT.inr_1,
 	INR_PVT.inr_2,
 	INR_PVT.inr_3,
 	MAX_INR.inr_max,
-	INR_PVT.inr_dt_1,
-	INR_PVT.inr_dt_2,
-	INR_PVT.inr_dt_3,
-	MAX_INR.inr_dt_max
+	CONVERT(CHAR(10), INR_PVT.inr_dt_1, 126) + ' ' + CONVERT(CHAR(5), INR_PVT.inr_dt_1, 108) AS inr_dt_1,
+	CONVERT(CHAR(10), INR_PVT.inr_dt_2, 126) + ' ' + CONVERT(CHAR(5), INR_PVT.inr_dt_2, 108) AS inr_dt_2,
+	CONVERT(CHAR(10), INR_PVT.inr_dt_3, 126) + ' ' + CONVERT(CHAR(5), INR_PVT.inr_dt_3, 108) AS inr_dt_3,
+	CONVERT(CHAR(10), MAX_INR.inr_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_INR.inr_dt_max, 108) AS inr_dt_max,
+	LACTATE_PVT.lactate_level_1,
+	LACTATE_PVT.lactate_level_2,
+	LACTATE_PVT.lactate_level_3,
+	MAX_LACTATE.lactate_level_max,
+	CONVERT(CHAR(10), LACTATE_PVT.lactate_level_dt_1, 126) + ' ' + CONVERT(CHAR(5), LACTATE_PVT.lactate_level_dt_1, 108) AS lactate_level_dt_1,
+	CONVERT(CHAR(10), LACTATE_PVT.lactate_level_dt_2, 126) + ' ' + CONVERT(CHAR(5), LACTATE_PVT.lactate_level_dt_2, 108) AS lactate_level_dt_2,
+	CONVERT(CHAR(10), LACTATE_PVT.lactate_level_dt_3, 126) + ' ' + CONVERT(CHAR(5), LACTATE_PVT.lactate_level_dt_3, 108) AS lactate_level_dt_3,
+	CONVERT(CHAR(10), MAX_LACTATE.lactate_level_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_LACTATE.lactate_level_dt_max, 108) AS lactate_level_dt_max,
+	[organ_dysfunc_cns] = CASE 
+		WHEN OD_CNS.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival,
+	MAX_BILIRUBIN.organ_dysfunc_hepatic_max,
+	CONVERT(CHAR(10), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 108) AS organ_dysfunc_hepatic_arrival_dt,
+	CONVERT(CHAR(10), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 108) AS organ_dysfunc_hepatic_max_dt,
+	ARR_CREATININE.organ_dysfunc_renal_arrival,
+	MAX_CREATININE.organ_dysfunc_renal_max,
+	CONVERT(CHAR(10), ARR_CREATININE.organ_dysfunc_renal_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_CREATININE.organ_dysfunc_renal_arrival_dt, 108) AS organ_dysfunc_renal_arrival_dt,
+	CONVERT(CHAR(10), MAX_CREATININE.organ_dysfunc_renal_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_CREATININE.organ_dysfunc_renal_max_dt, 108) AS organ_dysfunc_renal_max_dt,
+	[organ_dysfunc_respiratory] = CASE 
+		WHEN OD_RESP.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	PLT_PVT.platelets_1,
+	PLT_PVT.platelets_2,
+	PLT_PVT.platelets_3,
+	MIN_PLT.platelets_min,
+	CONVERT(CHAR(10), PLT_PVT.platelets_dt_1, 126) + ' ' + CONVERT(CHAR(5), PLT_PVT.platelets_dt_1, 108) AS platelets_dt_1,
+	CONVERT(CHAR(10), PLT_PVT.platelets_dt_2, 126) + ' ' + CONVERT(CHAR(5), PLT_PVT.platelets_dt_2, 108) AS platelets_dt_2,
+	CONVERT(CHAR(10), PLT_PVT.platelets_dt_3, 126) + ' ' + CONVERT(CHAR(5), PLT_PVT.platelets_dt_3, 108) AS platelets_dt_3,
+	CONVERT(CHAR(10), MIN_PLT.platelets_dt_min, 126) + ' ' + CONVERT(CHAR(5), MIN_PLT.platelets_dt_min, 108) AS platelets_dt_min,
+	SIRS_HR_PVT.sirs_heartrate_1,
+	SIRS_HR_PVT.sirs_heartrate_2,
+	SIRS_HR_PVT.sirs_heartrate_3,
+	MAX_HR.sirs_heartrate_max,
+	CONVERT(CHAR(10), SIRS_HR_PVT.sirs_heartrate_dt_1, 126) + ' ' + CONVERT(CHAR(5), SIRS_HR_PVT.sirs_heartrate_dt_1, 108) AS sirs_heartrate_dt_1,
+	CONVERT(CHAR(10), SIRS_HR_PVT.sirs_heartrate_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_HR_PVT.sirs_heartrate_dt_2, 108) AS sirs_heartrate_dt_2,
+	CONVERT(CHAR(10), SIRS_HR_PVT.sirs_heartrate_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_HR_PVT.sirs_heartrate_dt_3, 108) AS sirs_heartrate_dt_3,
+	CONVERT(CHAR(10), MAX_HR.sirs_heartrate_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_HR.sirs_heartrate_dt_max, 108) AS sirs_heartrate_dt_max,
+	ARR_WBC.sirs_leuckocyte_arrival,
+	MIN_WBC.sirs_leuckocyte_min,
+	MAX_WBC.sirs_leuckocyte_max,
+	CONVERT(CHAR(10), ARR_WBC.sirs_leuckocyte_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_WBC.sirs_leuckocyte_arrival_dt, 108) AS sirs_leuckocyte_arrival_dt,
+	CONVERT(CHAR(10), MIN_WBC.sirs_leuckocyte_min_dt, 126) + ' ' + CONVERT(CHAR(5), MIN_WBC.sirs_leuckocyte_min_dt, 108) AS sirs_keuckocyte_min_dt,
+	CONVERT(CHAR(10), MAX_WBC.sirs_leuckocyte_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_WBC.sirs_leuckocyte_max_dt, 108) AS sirs_leuckocyte_max_dt,
+	SIRS_RESP_PVT.sirs_respiratoryrate_1,
+	SIRS_RESP_PVT.sirs_respiratoryrate_2,
+	SIRS_RESP_PVT.sirs_respiratoryrate_3,
+	CONVERT(CHAR(10), SIRS_RESP_PVT.sirs_respiratoryrate_dt_1, 126) + ' ' + CONVERT(CHAR(5), SIRS_RESP_PVT.sirs_respiratoryrate_dt_1, 108) AS sirs_respiratoryrate_dt_1,
+	CONVERT(CHAR(10), SIRS_RESP_PVT.sirs_respiratoryrate_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_RESP_PVT.sirs_respiratoryrate_dt_2, 108) AS sirs_respiratoryrate_dt_2,
+	CONVERT(CHAR(10), SIRS_RESP_PVT.sirs_respiratoryrate_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_RESP_PVT.sirs_respiratoryrate_dt_3, 108) AS sirs_respiratoryrate_dt_3,
+	MAX_SIRS_RESP_RATE.sirs_respiratoryrate_max,
+	CONVERT(CHAR(10), MAX_SIRS_RESP_RATE.sirs_respiratoryrate_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_SIRS_RESP_RATE.sirs_respiratoryrate_dt_max, 108) AS sirs_respiratoryrate_dt_max,
+	SIRS_TEMP_PVT.sirs_temperature_1,
+	SIRS_TEMP_PVT.sirs_temperature_2,
+	SIRS_TEMP_PVT.sirs_temperature_3,
+	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_1, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_1, 108) AS sirs_temperature_dt_1,
+	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_2, 108) AS sirs_temperature_dt_2,
+	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_3, 108) AS sirs_temperature_dt_3,
+	MAX_SIRS_TEMP.sirs_temperature_max,
+	CONVERT(CHAR(10), MAX_SIRS_TEMP.sirs_temperature_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_SIRS_TEMP.sirs_temperature_dt_max, 108) AS sirs_temperature_dt_max,
+	BP_SYS_PVT.systolic_1,
+	BP_SYS_PVT.systolic_2,
+	BP_SYS_PVT.systolic_3,
+	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_1, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_1, 108) AS systolic_dt_1,
+	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_2, 108) AS systolic_dt_2,
+	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_3, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_3, 108) AS systolic_dt_3,
+	MIN_SYS.systolic_min,
+	CONVERT(CHAR(10), MIN_SYS.systolic_dt_min, 126) + ' ' + CONVERT(CHAR(5), MIN_SYS.systolic_dt_min, 108) AS systolic_dt_min
 FROM #BasePopulation AS BP
 INNER JOIN SMSMIR.sc_PatientVisit AS PV ON BP.PtNo_Num = PV.PatientAccountID
 INNER JOIN SMSDSS.BMH_PLM_PtAcct_V AS PAV ON BP.PtNo_Num = PAV.PtNo_Num
@@ -1009,7 +2492,30 @@ LEFT JOIN #ws_bp_diastolic_pvt AS WS_BPD_PVT ON PAV.PtNo_Num = WS_BPD_PVT.episod
 LEFT JOIN #min_ws_diastolic AS WS_MIN_BPD ON PAV.PtNo_Num = WS_MIN_BPD.episode_no
 LEFT JOIN #inr_pvt AS INR_PVT ON PAV.PtNo_Num = INR_PVT.episode_no
 LEFT JOIN #max_inr AS MAX_INR ON PAV.PtNo_Num = MAX_INR.episode_no
-
-
---DROP TABLE #BasePopulation,#acc_tbl,#aids_hiv_tbl,#ams,#asthma,#cld,#crf,#crespfailure,#coagulopathy,#chf
---SELECT * FROM #BasePopulation
+LEFT JOIN #lactate_pvt AS LACTATE_PVT ON PAV.PtNo_Num = LACTATE_PVT.episode_no
+LEFT JOIN #max_lactate AS MAX_LACTATE ON PAV.PtNo_Num = MAX_LACTATE.episode_no
+LEFT JOIN #od_cns AS OD_CNS ON PAV.Pt_No = OD_CNS.pt_id
+LEFT JOIN #arrival_bilirubin AS ARR_BILIRUBIN ON PAV.PtNo_Num = ARR_BILIRUBIN.episode_no
+LEFT JOIN #max_bilirubin AS MAX_BILIRUBIN ON PAV.PtNo_Num = MAX_BILIRUBIN.episode_no
+LEFT JOIN #arrival_creatinine AS ARR_CREATININE ON PAV.PtNo_Num = ARR_CREATININE.episode_no
+LEFT JOIN #max_creatinine AS MAX_CREATININE ON PAV.PtNo_Num = MAX_CREATININE.episode_no
+LEFT JOIN #od_resp AS OD_RESP ON PAV.PT_NO = OD_RESP.pt_id
+LEFT JOIN #platelet_pvt AS PLT_PVT ON PAV.PtNo_Num = PLT_PVT.episode_no
+LEFT JOIN #min_platelet AS MIN_PLT ON PAV.PtNo_Num = MIN_PLT.episode_no
+LEFT JOIN #sirs_hr_pvt AS SIRS_HR_PVT ON PAV.PtNo_Num = SIRS_HR_PVT.episode_no
+LEFT JOIN #max_sirs_hr AS MAX_HR ON PAV.PtNo_Num = MAX_HR.episode_no
+LEFT JOIN #arr_wbc AS ARR_WBC ON PAV.PtNo_Num = ARR_WBC.episode_no
+LEFT JOIN #min_wbc AS MIN_WBC ON PAV.PtNo_Num = MIN_WBC.episode_no
+LEFT JOIN #max_wbc AS MAX_WBC ON PAV.PtNo_Num = MAX_WBC.episode_no
+LEFT JOIN #sirs_resp_pvt AS SIRS_RESP_PVT ON PAV.PtNo_Num = SIRS_RESP_PVT.episode_no
+LEFT JOIN #max_sirs_respiratoryrate AS MAX_SIRS_RESP_RATE ON PAV.PtNo_Num = MAX_SIRS_RESP_RATE.episode_no
+LEFT JOIN #sirs_temp_pvt AS SIRS_TEMP_PVT ON PAV.PtNo_Num = SIRS_TEMP_PVT.episode_no
+LEFT JOIN #max_sirs_temp AS MAX_SIRS_TEMP ON PAV.PtNo_Num = MAX_SIRS_TEMP.episode_no
+LEFT JOIN #bp_systolic_pvt AS BP_SYS_PVT ON PAV.PtNo_Num = BP_SYS_PVT.episode_no
+LEFT JOIN #min_systolic AS MIN_SYS ON PAV.PtNo_Num = MIN_SYS.episode_no
+LEFT JOIN #dementia_tbl AS DEMENTIA ON PAV.PT_NO = DEMENTIA.pt_id
+LEFT JOIN #diabetes_tbl AS DIABETES ON PAV.PT_NO = DIABETES.pt_id
+LEFT JOIN #dialysis_comorbidity_tbl AS DIALYSIS_COMORBID ON PAV.Pt_No = DIALYSIS_COMORBID.pt_id
+LEFT JOIN #history_of_covid_tbl AS COVID_HIST ON PAV.PtNo_Num = COVID_HIST.pt_id
+LEFT JOIN #hx_of_other_cvd_tbl AS HX_OTH_CVD ON PAV.Pt_No = HX_OTH_CVD.pt_id
+LEFT JOIN #hypertension AS HYPERTENSION ON PAV.Pt_No = HYPERTENSION.pt_id
