@@ -28,7 +28,7 @@ map(paste0(my_path, file_list), source)
 db_con <- dbConnect(
   odbc(),
   Driver = "SQL Server",
-  Server = "BMH-HIDB",
+  Server = "LI-HIDB",
   Database = "SMSPHDSSS0X0",
   Trusted_Connection = T
 )
@@ -117,10 +117,10 @@ dbDisconnect(db_con)
 
 ra_excess_summary_tbl <- query %>%
   summarise_by_time(
-    .date_var = dsch_date
-    , .by = "month"
-    , dsch_count = n()
-    , dsch_count      = sum(dsch, na.rm = TRUE)
+    .date_var       = dsch_date
+    , .by           = "month"
+    , dsch_count    = n()
+    , dsch_count    = sum(dsch, na.rm = TRUE)
     , readmit_count = sum(ra_flag, na.rm = TRUE)
     , readmit_rate  = round(readmit_count / dsch_count, 4) * 100
     , readmit_bench = round(mean(rr_bench, na.rm = TRUE), 4)  * 100
@@ -174,10 +174,12 @@ ra_excess_summary_tbl %>%
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(ra_excess_summary_tbl, prop = 0.9)
+splits <- initial_time_split(
+  ra_excess_summary_tbl
+  , prop = 0.9, cumulative = TRUE
+  )
 
-# Time Series Regressoins
-
+# Time Series Regressions
 ra_excess_summary_tbl %>%
   plot_time_series_regression(
     .date_var = date_col
