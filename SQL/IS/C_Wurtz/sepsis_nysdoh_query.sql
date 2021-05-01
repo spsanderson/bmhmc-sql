@@ -576,6 +576,271 @@ FROM SMSMIR.dx_grp AS A
 INNER JOIN SMSDSS.c_nysdoh_sepsis_hypertension_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- IMMUNOCOMPROMISING
+DROP TABLE IF EXISTS #immunocompromising
+CREATE TABLE #immunocompromising (
+	pt_id VARCHAR(12),
+	immunocompromising VARCHAR(10)
+)
+INSERT INTO #immunocompromising (
+	pt_id,
+	immunocompromising
+	)
+SELECT A.pt_id,
+	[immunocompromising] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN SMSDSS.c_nysdoh_sepsis_immunocompromising_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Lymphoma Leukemia Multiple Myeloma
+DROP TABLE IF EXISTS #llmL_tbl
+CREATE TABLE #llml_tbl (
+	pt_id VARCHAR(12),
+	lymphoma_leukemia_multi_myeloma VARCHAR(10)
+	)
+INSERT INTO #llml_tbl (
+	pt_id,
+	lymphoma_leukemia_multi_myeloma
+	)
+SELECT A.pt_id,
+	[lymphoma_leukemia_multi_myeloma] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_lymphoma_leukemia_multi_myeloma_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.PT_NO
+
+-- Mechanical Vent
+DROP TABLE IF EXISTS #vent_tbl
+CREATE TABLE #vent_tbl (
+	pt_id VARCHAR(12),
+	mechanical_vent_comorbidity VARCHAR(10)
+	)
+INSERT INTO #vent_tbl (
+	pt_id,
+	mechanical_vent_comorbidity
+	)
+SELECT A.pt_id,
+	[mechanical_vent_comorbidity] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_mechanical_vent_comorbidity_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- MEDICATION ANTICOAGULATION
+
+-- MEDICATION IMMUNE MODIFYING
+
+-- METASTATIC CANCER
+DROP TABLE IF EXISTS #metastatic_cx_tbl
+CREATE TABLE #metastatic_cx_tbl (
+	pt_id VARCHAR(12),
+	metastatic_cancer VARCHAR(10)
+	)
+INSERT INTO #metastatic_cx_tbl (
+	pt_id,
+	metastatic_cancer
+	)
+SELECT A.pt_id,
+	[metastatic_cancer] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_metastatic_cancer_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- OBESITY
+DROP TABLE IF EXISTS #obesity_tbl
+CREATE TABLE #obesity_tbl (
+	pt_id VARCHAR(12),
+	obesity VARCHAR(10)
+	)
+INSERT INTO #obesity_tbl (
+	pt_id,
+	obesity
+	)
+SELECT A.pt_id,
+	[obesity] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_obesity_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- pregnancy comorbidity
+DROP TABLE IF EXISTS #preg_comorbid_tbl
+CREATE TABLE #preg_comorbid_tbl (
+	pt_id VARCHAR(12),
+	pregnancy_comorbidity VARCHAR(10)
+	)
+INSERT INTO #preg_comorbid_tbl (
+	pt_id,
+	pregnancy_comorbidity
+	)
+SELECT A.pt_id,
+	[pregnancy_comorbidity] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_pregnancy_comorbidity_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- pregnancy status
+DROP TABLE IF EXISTS #preg_status_tbl
+CREATE TABLE #preg_status_tbl (
+	pt_id VARCHAR(12),
+	pregnancy_status VARCHAR(10)
+	)
+INSERT INTO #preg_status_tbl (
+	pt_id,
+	pregnancy_status
+	)
+SELECT A.pt_id,
+	[pregnancy_status] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_pregnancy_status_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- smoking vaping
+DROP TABLE IF EXISTS #smoking_vaping_tbl
+CREATE TABLE #smoking_vaping_tbl (
+	pt_id VARCHAR(12),
+	smoking_vaping VARCHAR(10)
+	)
+INSERT INTO #smoking_vaping_tbl (
+	pt_id,
+	smoking_vaping
+	)
+SELECT A.pt_id,
+	[smoking_vaping] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_smoking_vaping_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- trach on arrival
+DROP TABLE IF EXISTS #trach_arrival_tbl
+CREATE TABLE #trach_arrival_tbl (
+	pt_id VARCHAR(12),
+	tracheostomy_on_arrival VARCHAR(10)
+	)
+INSERT INTO #trach_arrival_tbl (
+	pt_id,
+	tracheostomy_on_arrival
+	)
+SELECT A.pt_id,
+	[tracheostomy_on_arrival] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_tracheostomy_on_arrival_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- exposure variables
+-- covid exposure
+DROP TABLE IF EXISTS #covid_exposure_tbl
+CREATE TABLE #covid_exposure_tbl (
+	pt_id VARCHAR(12),
+	covid_exposure VARCHAR(10)
+	)
+INSERT INTO #covid_exposure_tbl (
+	pt_id,
+	covid_exposure
+	)
+SELECT A.pt_id,
+	[covid_exposure] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_covid_exposure_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- covid virus
+DROP TABLE IF EXISTS #covid_virus_tbl
+CREATE TABLE #covid_virus_tbl (
+	pt_id VARCHAR(12),
+	covid_virus VARCHAR(10)
+	)
+INSERT INTO #covid_virus_tbl (
+	pt_id,
+	covid_virus
+	)
+SELECT A.pt_id,
+	[covid_virus] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_covid_virus_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- drug resistant pathogen
+DROP TABLE IF EXISTS #drp_tbl
+CREATE TABLE #drp_tbl (
+	pt_id VARCHAR(12),
+	drug_resistant_pathogen VARCHAR(10)
+	)
+INSERT INTO #drp_tbl (
+	pt_id,
+	drug_resistant_pathogen
+	)
+SELECT A.pt_id,
+	[drug_resistant_pathogen] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_drug_resistant_pathogen_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- flu positive
+DROP TABLE IF EXISTS #flu_pos_tbl
+CREATE TABLE #flu_pos_tbl (
+	pt_id VARCHAR(12),
+	flu_positive VARCHAR(10)
+	)
+INSERT INTO #flu_pos_tbl (
+	pt_id,
+	flu_positive
+	)
+SELECT A.pt_id,
+	[flu_positive] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_flu_positive_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
 
 -- Severity Variables -------------------------------------------------
 -- aPPT
@@ -2264,6 +2529,75 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN 0
 		ELSE 1
 		END,
+	[immunocompromising] = CASE
+		WHEN IMMUNO.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[lymphoma_leukemia_multi_myeloma] = CASE
+		WHEN LLML.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[mechaical_vent_comorbidity] = CASE
+		WHEN VENTS.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[medication_anticoagulation] = '',
+	[medication_immune_modifying] = '',
+	[metastatic_cancer] = CASE
+		WHEN METASTATIC_CX.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[obesity] = CASE
+		WHEN OBESITY.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[patient_care_concerns] = '',
+	[patient_care_considerations_date] = '',
+	[pregnancy_comorbidity] = CASE
+		WHEN PREG_COMORBID.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[pregnancy_status] = CASE
+		WHEN PREG_STATUS.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[smoking_vaping] = CASE
+		WHEN SMOKING_VAPING.pt_id IS NULL
+			THEN 1
+		ELSE 0
+		END,
+	[tracheostomy_on_arrival] = CASE
+		WHEN TRACH_ARR.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[covid_exposure] = CASE
+		WHEN CV_EXPOSURE.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[covid_virus] = CASE
+		WHEN CV_VIRUS.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[drug_resistant_pathogen] = CASE
+		WHEN DRP_TBL.PT_ID IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[flu_positive] = CASE
+		WHEN FLU_POS.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	APPT_PVT.appt_1,
 	APPT_PVT.appt_2,
 	APPT_PVT.appt_3,
@@ -2519,3 +2853,16 @@ LEFT JOIN #dialysis_comorbidity_tbl AS DIALYSIS_COMORBID ON PAV.Pt_No = DIALYSIS
 LEFT JOIN #history_of_covid_tbl AS COVID_HIST ON PAV.PtNo_Num = COVID_HIST.pt_id
 LEFT JOIN #hx_of_other_cvd_tbl AS HX_OTH_CVD ON PAV.Pt_No = HX_OTH_CVD.pt_id
 LEFT JOIN #hypertension AS HYPERTENSION ON PAV.Pt_No = HYPERTENSION.pt_id
+LEFT JOIN #immunocompromising AS IMMUNO ON PAV.PT_no = IMMUNO.pt_id
+LEFT JOIN #llml_tbl AS LLML ON PAV.Pt_NO = LLML.pt_id
+LEFT JOIN #vent_tbl AS VENTS ON PAV.Pt_No = VENTS.pt_id
+LEFT JOIN #metastatic_cx_tbl AS METASTATIC_CX ON PAV.Pt_No = METASTATIC_CX.pt_id
+LEFT JOIN #obesity_tbl AS OBESITY ON PAV.PT_NO = OBESITY.pt_id
+LEFT JOIN #preg_comorbid_tbl AS PREG_COMORBID ON PAV.PT_NO = PREG_COMORBID.pt_id
+LEFT JOIN #preg_status_tbl AS PREG_STATUS ON PAV.Pt_No = PREG_STATUS.pt_id
+LEFT JOIN #smoking_vaping_tbl AS SMOKING_VAPING ON PAV.Pt_No = SMOKING_VAPING.pt_id
+LEFT JOIN #trach_arrival_tbl AS TRACH_ARR ON PAV.Pt_No = TRACH_ARR.pt_id
+LEFT JOIN #covid_exposure_tbl AS CV_EXPOSURE ON PAV.Pt_No = CV_EXPOSURE.pt_id
+LEFT JOIN #covid_virus_tbl AS CV_VIRUS ON PAV.Pt_No = CV_VIRUS.pt_id
+LEFT JOIN #drp_tbl AS DRP_TBL ON PAV.Pt_No = DRP_TBL.pt_id
+LEFT JOIN #flu_pos_tbl AS FLU_POS ON PAV.Pt_No = FLU_POS.pt_id
