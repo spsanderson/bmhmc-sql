@@ -36,5 +36,5 @@ Email[["attachments"]]$Add("C:\\Users\\bha485\\Desktop\\Code.zip")
 # Send the email
 Email$Send()
 
-# Clost Outlook, clear the message
+# Close Outlook, clear the message
 rm(list = ls())
