@@ -19,7 +19,7 @@ pacman::p_load(
 con <- dbConnect(
     odbc(),
     Driver = "SQL Server",
-    Server = "BMH-HIDB",
+    Server = "LI-HIDB",
     Database = "SMSPHDSSS0X0",
     Trusted_Connection = "TRUE"
 )
@@ -179,6 +179,36 @@ for(i in 1:nrow(origAddress)) {
         origAddress$lat[i] <- as.numeric(result[2])
     }
 }
+
+# Clean known bad addresses ----
+origAddress <- origAddress %>%
+  as_tibble() %>%
+  mutate(PartialAddress = case_when(
+    str_detect(PartialAddress, "PORT JEFF STA")           ~ "PORT JEFFERSON STATION, NY, 11776"
+    , str_detect(PartialAddress, "PORT JFFERSON STATION") ~ "PORT JEFFERSON STATION, NY, 11776"
+    , str_detect(PartialAddress, "EPATCHOGUE")            ~ "EAST PATCHOGUE, NY, 11772"
+    , str_detect(PartialAddress, "E PATCHOGUE")           ~ "EAST PATCHOGUE, NY, 11772"
+    , str_detect(PartialAddress, "EAST PATCHOUGE")        ~ "EAST PATCHOGUE, NY, 11772"
+    , str_detect(PartialAddress, "PATCHOQUE")             ~ "PATCHOGUE, NY, 11772"
+    , str_detect(PartialAddress, "PATCHGOUE")             ~ "PATCHOGUE, NY, 11772"
+    , str_detect(PartialAddress, "HAUPPAGE")              ~ "HAUPPAUGE, NY, 11788"
+    , str_detect(PartialAddress, "HOLSTVILLE")            ~ "HOLTSVILLE, NY, 11742"
+    , str_detect(PartialAddress, "HOLTSVILE")             ~ "HOLTSVILLE, NY, 11742"
+    , str_detect(PartialAddress, "LAKE RONKONOMA")        ~ "LAKE RONKONKOMA, NY, 11779"
+    , str_detect(PartialAddress, "LAKE RONKOMONA")        ~ "LAKE RONKONKOMA, NY, 11779"
+    , str_detect(PartialAddress, "RONKONOKOMA")           ~ "RONKONKOMA, NY, 11779"
+    , str_detect(PartialAddress, "SHRILEY")               ~ "SHIRLEY, NY, 11967"
+    , str_detect(PartialAddress, "CTR MORICHS")           ~ "CENTER MORICHES, NY, 11934"
+    , str_detect(PartialAddress, "COPIAGE")               ~ "COPIAGUE, NY, 11726"
+    , str_detect(PartialAddress, "COPAIGUE")              ~ "COPIAGUE, NY, 11726"
+    , str_detect(PartialAddress, "BELPORT")               ~ "BELLPORT, NY, 11713"
+    , str_detect(PartialAddress, "FAR ROCKAWY")           ~ "FAR ROCKAWAY, NY, 11694"
+    , str_detect(PartialAddress, "MASTICE BEACH")         ~ "MASTIC BEACH, NY, 11951"
+    , str_detect(PartialAddress, "MASTCIC NEACHJ")        ~ "MASTIC BEACH, NY, 11951"
+    , str_detect(PartialAddress, "BELLLPORT")             ~ "BELLPORT, NY, 11713"
+    , str_detect(PartialAddress, "NESCONSETT")            ~ "NESCONSET, NY, 11767"
+    , TRUE ~ PartialAddress
+  ))
 
 # Get Non Found Records ----
 # Get all records that were not found and geocode on city/town, state, zip
