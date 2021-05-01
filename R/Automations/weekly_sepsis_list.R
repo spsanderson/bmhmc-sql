@@ -15,7 +15,7 @@ pacman::p_load(
 db_con <- dbConnect(
   odbc(),
   Driver = "SQL Server",
-  Server = "BMH-HIDB",
+  Server = "LI-HIDB",
   Database = "SMSPHDSSS0X0",
   Trusted_Connection = T
 )
@@ -142,9 +142,9 @@ current_sepsis_encounters <- dbGetQuery(
   conn = db_con,
   statement = paste0(
     "
-        SELECT PtNo_Num
-        FROM smsdss.c_archway_sepsis_tbl
-        "
+    SELECT PtNo_Num
+    FROM smsdss.c_archway_sepsis_tbl
+    "
   )
 ) %>%
   as_tibble() %>%
@@ -224,7 +224,7 @@ Outlook <- COMCreate("Outlook.Application")
 Email <- Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] <- ""
+Email[["to"]] <- 
 Email[["cc"]] <- ""
 Email[["bcc"]] <- ""
 Email[["subject"]] <- "Weekly Sepsis List"
@@ -241,7 +241,7 @@ Email$Send()
 db_con <- dbConnect(
   odbc(),
   Driver = "SQL Server",
-  Server = "BMH-HIDB",
+  Server = "LI-HIDB",
   Database = "SMSPHDSSS0X0",
   Trusted_Connection = T
 )
