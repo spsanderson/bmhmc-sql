@@ -189,7 +189,10 @@ kmeans_scree_plt <- function(.data){
     ) +
     ggplot2::geom_point() +
     ggplot2::geom_line() +
-    ggrepel::geom_label_repel(mapping = aes(label = centers)) +
+    ggrepel::geom_label_repel(
+      mapping = ggplot2::aes(
+        label = centers
+    )) +
     tidyquant::theme_tq() +
     ggplot2::labs(
       title      = "Scree Plot"
