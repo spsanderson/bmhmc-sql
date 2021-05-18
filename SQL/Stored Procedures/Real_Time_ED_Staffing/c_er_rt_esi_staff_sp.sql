@@ -43,11 +43,12 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-12-10	v1			Initial Creation
-2020-12-10	v1			Change 
+2020-12-10	v2			Change 
 						From: PVT.[Registered Nurse]
 						To:   PVT.[Registered Nurse] - 5 AS [Registered Nurse]
 						To take counts away from Walk In Triage, Express Care,
 						Charge Nurse, Ambulance Bay, and Treatment Room
+2021-05-03	v3			Change @ESI_Pvt_Tbl ESI_# from VARCHAR(2) to VARCHAR(20)
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_er_rt_esi_staff_sp] (@LookBackPeriods AS INT = N'96')
@@ -92,12 +93,12 @@ BEGIN
 	DECLARE @ESI_Pvt_Tbl TABLE (
 		[PK] INT IDENTITY(1, 1) PRIMARY KEY NOT NULL,
 		Census_DateTime SMALLDATETIME,
-		ESI_0 VARCHAR(2),
-		ESI_1 VARCHAR(2),
-		ESI_2 VARCHAR(2),
-		ESI_3 VARCHAR(2),
-		ESI_4 VARCHAR(2),
-		ESI_5 VARCHAR(2)
+		ESI_0 VARCHAR(20),
+		ESI_1 VARCHAR(20),
+		ESI_2 VARCHAR(20),
+		ESI_3 VARCHAR(20),
+		ESI_4 VARCHAR(20),
+		ESI_5 VARCHAR(20)
 		)
 
 	INSERT INTO @ESI_Pvt_Tbl
