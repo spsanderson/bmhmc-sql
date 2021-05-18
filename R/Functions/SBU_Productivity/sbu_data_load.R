@@ -19,7 +19,7 @@ provider_list_tbl <- read_excel("G:\\R Studio Projects\\SBU_Productivity\\provid
 db_con <- dbConnect(
     odbc(),
     Driver = "SQL Server",
-    Server = "BMH-HIDB",
+    Server = "LI-HIDB",
     Database = "SMSPHDSSS0X0",
     Trusted_Connection = T
 )
