@@ -470,7 +470,13 @@ CREATE TABLE #history_of_other_cvd_pvt_tbl (
 	vd VARCHAR(50)
 	)
 
-INSERT INTO #history_of_other_cvd_pvt_tbl
+INSERT INTO #history_of_other_cvd_pvt_tbl (
+	pt_id,
+	cvd,
+	chd,
+	pad,
+	vd
+	)
 SELECT PVT_HX_OTHER_CVD.pt_id,
 	PVT_HX_OTHER_CVD.[Cerebrovascular Disease] AS [cvd],
 	PVT_HX_OTHER_CVD.[Coronary Heart Disease] AS [chd],
@@ -841,6 +847,218 @@ FROM SMSMIR.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_flu_positive_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- Suspected Source of Infection
+DROP TABLE IF EXISTS #ssoi_tbl
+CREATE TABLE #ssoi_tbl (
+	pt_id VARCHAR(12),
+	subcategory VARCHAR(100)
+	)
+
+INSERT INTO #ssoi_tbl (
+	pt_id,
+	subcategory
+	)
+SELECT DISTINCT A.pt_id,
+	b.subcategory
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_suspected_source_of_infection_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
+
+DROP TABLE IF EXISTS #ssoi_pvt_temp_tbl 
+CREATE TABLE #ssoi_pvt_temp_tbl (
+	pt_id VARCHAR(12),
+	bacteremia VARCHAR(2),
+	central_nervous_system_infection VARCHAR(2),
+	fungal_infection VARCHAR(2),
+	gastrointestinal_infection VARCHAR(2),
+	genitourinary_infection VARCHAR(2),
+	heart_infection VARCHAR(2),
+	lung_infection VARCHAR(2),
+	other_infection_source VARCHAR(2),
+	peritoneal_infection VARCHAR(2),
+	septicemia VARCHAR(2),
+	soft_tissue_infection VARCHAR(2),
+	upper_respiratory_infection VARCHAR(2),
+	unknown VARCHAR(2)
+)
+
+INSERT INTO #ssoi_pvt_temp_tbl (
+	pt_id,
+	bacteremia,
+	central_nervous_system_infection,
+	fungal_infection,
+	gastrointestinal_infection,
+	genitourinary_infection,
+	heart_infection,
+	lung_infection,
+	other_infection_source,
+	peritoneal_infection,
+	septicemia,
+	soft_tissue_infection,
+	upper_respiratory_infection,
+	unknown
+)
+SELECT SSOI_PVT.pt_id,
+CASE WHEN SSOI_PVT.[Bacteremia] IS NOT NULL THEN '2' ELSE NULL END AS [bacteria],
+CASE WHEN SSOI_PVT.[Central nervous system infection] IS NOT NULL THEN '8' END AS [central_nervos_system_infection],
+CASE WHEN SSOI_PVT.[Fungal infection] IS NOT NULL THEN '3' END AS [fungal_infection],
+CASE WHEN SSOI_PVT.[Gastrointestinal infection] IS NOT NULL THEN '9' END AS [gastrointestinal_infection],
+CASE WHEN SSOI_PVT.[Genitourinary infectio] IS NOT NULL THEN '10' END AS [genitourinary_infection],
+CASE WHEN SSOI_PVT.[Heart infection] IS NOT NULL THEN '5' END AS [heart_infection],
+CASE WHEN SSOI_PVT.[Lung infection] IS NOT NULL THEN '7' END AS [lung_infection],
+CASE WHEN SSOI_PVT.[Other infection] IS NOT NULL THEN '12' END AS [other_infection],
+CASE WHEN SSOI_PVT.[Peritoneal infection] IS NOT NULL THEN '4' END AS [peritoneal_infection],
+CASE WHEN SSOI_PVT.[Septicemia] IS NOT NULL THEN '1' ELSE NULL END AS [septicemia],
+CASE WHEN SSOI_PVT.[Soft tissue infection] IS NOT NULL THEN '11' END AS [soft_tissue_infection],
+CASE WHEN SSOI_PVT.[Upper respiratory infection] IS NOT NULL THEN '6' END AS [upper_respiratory_infection],
+CASE
+	WHEN SSOI_PVT.[Bacteremia] IS NULL
+		AND SSOI_PVT.[Central nervous system infection] IS NULL
+		AND SSOI_PVT.[Fungal infection] IS NULL
+		AND SSOI_PVT.[Gastrointestinal infection] IS NULL
+		AND SSOI_PVT.[Genitourinary infectio] IS NULL
+		AND SSOI_PVT.[Heart infection] IS NULL
+		AND SSOI_PVT.[Lung infection] IS NULL
+		AND SSOI_PVT.[Other infection] IS NULL
+		AND SSOI_PVT.[Peritoneal infection] IS NULL
+		AND SSOI_PVT.[Septicemia] IS NULL 
+		AND SSOI_PVT.[Soft tissue infection] IS NULL 
+		AND SSOI_PVT.[Upper respiratory infection] IS NULL
+			THEN '13'
+	ELSE NULL
+	END AS [unknown]
+FROM (
+	SELECT pt_id,
+		subcategory
+	FROM #ssoi_tbl
+) AS A
+PIVOT(
+	MAX(SUBCATEGORY)
+	FOR SUBCATEGORY IN (
+		"Bacteremia","Central nervous system infection","Fungal infection","Gastrointestinal infection",
+		"Genitourinary infectio","Heart infection","Lung infection","Other infection","Peritoneal infection",
+		"Septicemia","Soft tissue infection","Upper respiratory infection"
+	)
+) AS SSOI_PVT
+
+DROP TABLE IF EXISTS #ssoi_pvt_tbl
+CREATE TABLE #ssoi_pvt_tbl (
+	pt_id VARCHAR(12),
+	suspected_source_of_infection VARCHAR(100)
+)
+
+INSERT INTO #ssoi_pvt_tbl (
+	pt_id,
+	suspected_source_of_infection
+	)
+SELECT pt_id,
+ssoi = STUFF(
+      COALESCE(', ' + RTRIM(bacteremia), '') 
+    + COALESCE(', ' + RTRIM(central_nervous_system_infection), '') 
+    + COALESCE(', ' + RTRIM(fungal_infection), '')
+	+ COALESCE(', ' + RTRIM(gastrointestinal_infection), '')
+	+ COALESCE(', ' + RTRIM(genitourinary_infection), '')
+	+ COALESCE(', ' + RTRIM(heart_infection), '')
+	+ COALESCE(', ' + RTRIM(lung_infection), '')
+	+ COALESCE(', ' + RTRIM(other_infection_source), '')
+	+ COALESCE(', ' + RTRIM(peritoneal_infection), '')
+	+ COALESCE(', ' + RTRIM(septicemia), '')
+	+ COALESCE(', ' + RTRIM(soft_tissue_infection), '')
+	+ COALESCE(', ' + RTRIM(upper_respiratory_infection), '')
+	+ COALESCE(', ' + RTRIM(unknown), '')
+    , 1, 2, '')
+FROM #ssoi_pvt_temp_tbl
+
+DROP TABLE IF EXISTS #ssoi_final_tbl
+CREATE TABLE #ssoi_final_tbl (
+	pt_id VARCHAR(12),
+	suspected_source_of_infection VARCHAR(500)
+	)
+
+INSERT INTO #ssoi_final_tbl (pt_id, suspected_source_of_infection)
+SELECT pt_id, 
+REPLACE(suspected_source_of_infection, ', ', ':') AS [ssoi]
+FROM #ssoi_pvt_tbl
+
+-- Dialysis Treatment
+DROP TABLE IF EXISTS #dialysis_treatment_tbl
+CREATE TABLE #dialysis_treatment_tbl (
+	pt_id VARCHAR(12),
+	dialysis_treatment VARCHAR(10)
+	)
+INSERT INTO #dialysis_treatment_tbl (pt_id, dialysis_treatment)
+SELECT A.pt_id,
+	[dialysis_treatment] = CASE
+		WHEN B.pcs_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.sproc AS a
+INNER JOIN smsdss.c_nysdoh_sepsis_dialysis_treatment_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- During Hospital Remdesivir
+DROP TABLE IF EXISTS #during_hospital_remdesivir_tbl
+CREATE TABLE #during_hospital_remdesivir_tbl (
+	pt_id VARCHAR(12),
+	during_hospital_remdesivir VARCHAR(10)
+	)
+INSERT INTO #during_hospital_remdesivir_tbl (pt_id, during_hospital_remdesivir)
+SELECT A.pt_id,
+	[during_hospital_remdesivir] = CASE
+		WHEN B.pcs_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.sproc AS a
+INNER JOIN smsdss.c_nysdoh_sepsis_during_hospital_remdesivir_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Ecmo
+DROP TABLE IF EXISTS #ecmo_tbl
+CREATE TABLE #ecmo_tbl (
+	pt_id VARCHAR(12),
+	ecmo VARCHAR(10)
+	)
+INSERT INTO #ecmo_tbl (pt_id, ecmo)
+SELECT A.pt_id,
+	[ecmo] = CASE
+		WHEN B.pcs_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.sproc AS a
+INNER JOIN smsdss.c_nysdoh_sepsis_ecmo_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Nasal Cannula
+DROP TABLE IF EXISTS #nasal_cannula_tbl
+CREATE TABLE #nasal_cannula_tbl (
+	episode_no VARCHAR(12)
+	)
+INSERT INTO #nasal_cannula_tbl (episode_no)
+SELECT DISTINCT A.episode_no
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE dsply_val = 'nasal cannula'
+
+-- Mechanical Vent Treatment
+DROP TABLE IF EXISTS #mech_vent_treat_tbl
+CREATE TABLE #mech_vent_treat_tbl (
+	pt_id VARCHAR(12),
+	mechanical_vent_treatment VARCHAR(10)
+	)
+INSERT INTO #mech_vent_treat_tbl (pt_id, mechanical_vent_treatment)
+SELECT A.pt_id,
+	[mechanical_vent_treatment] = CASE
+		WHEN B.pcs_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.sproc AS a
+INNER JOIN smsdss.c_nysdoh_sepsis_mechanical_vent_treatment_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
 
 -- Severity Variables -------------------------------------------------
 -- aPPT
@@ -872,8 +1090,6 @@ SELECT A.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = '00403154'
-
-
 
 DROP TABLE IF EXISTS #max_appt
 CREATE TABLE #max_appt (
@@ -2598,6 +2814,45 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN 0
 		ELSE 1
 		END,
+	SSOI.suspected_source_of_infection,
+	-- need to do
+	[dialysis_treatment] = CASE
+		WHEN DIA_TREAT.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[during_hospital_anticoagulation] = '',
+	[during_hospital_immune_mod_med] = '',
+	[during_hospital_remdesivir] = CASE
+		WHEN DH_REMDESIVIR.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[ecmo] = CASE
+		WHEN ECMO_TBL.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[high_flow_nasal_cannula] = CASE
+		WHEN NASAL_CANNULA.episode_no IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[mechanical_vent_treatment] = CASE
+		WHEN MVT_TBL.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[non_invasive_pos_pressure_vent] = '',
+	[vasopressor_administration] = '',
+	[dialysis_outcome] = '',
+	[mechanical_vent_outcome] = '',
+	[tracheostomy_at_discharge] = '',
+	[cardiovascular_outcomes] = '',
+	[icu_during_hospitalization] = '',
+	[pe_dvt] = '',
+	[tracheostomy_in_hospital] = '',
+	--
 	APPT_PVT.appt_1,
 	APPT_PVT.appt_2,
 	APPT_PVT.appt_3,
@@ -2866,3 +3121,9 @@ LEFT JOIN #covid_exposure_tbl AS CV_EXPOSURE ON PAV.Pt_No = CV_EXPOSURE.pt_id
 LEFT JOIN #covid_virus_tbl AS CV_VIRUS ON PAV.Pt_No = CV_VIRUS.pt_id
 LEFT JOIN #drp_tbl AS DRP_TBL ON PAV.Pt_No = DRP_TBL.pt_id
 LEFT JOIN #flu_pos_tbl AS FLU_POS ON PAV.Pt_No = FLU_POS.pt_id
+LEFT JOIN #ssoi_final_tbl AS SSOI ON PAV.PT_NO = SSOI.pt_id
+LEFT JOIN #dialysis_treatment_tbl AS DIA_TREAT ON PAV.Pt_No = DIA_TREAT.pt_id
+LEFT JOIN #during_hospital_remdesivir_tbl AS DH_REMDESIVIR ON PAV.Pt_No = DH_REMDESIVIR.pt_id
+LEFT JOIN #ecmo_tbl AS ECMO_TBL ON PAV.Pt_No = ECMO_TBL.pt_id
+LEFT JOIN #nasal_cannula_tbl AS NASAL_CANNULA ON PAV.PtNo_Num = NASAL_CANNULA.episode_no
+LEFT JOIN #mech_vent_treat_tbl AS MVT_TBL ON PAV.Pt_No = MVT_TBL.pt_id
