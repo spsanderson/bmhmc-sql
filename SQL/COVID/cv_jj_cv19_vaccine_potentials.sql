@@ -6,13 +6,15 @@ Input Parameters:
 	None
 
 Tables/Views:
-	[smsdss].[c_covid_extract_tbl]
-    [SC_server].[Soarian_Clin_Prd_1].dbo.HPatientVisit
-    [SC_server].[Soarian_Clin_Prd_1].dbo.HOrder
-    [SC_server].[Soarian_Clin_Prd_1].DBO.HOCCURRENCEORDER
+    [SC_server].[Soarian_Clin_Prd_1].[dbo].[HPatientVisit]
+    [SC_server].[Soarian_Clin_Prd_1].[dbo].[HOrder]
+    [SC_server].[Soarian_Clin_Prd_1].[dbo].[HOCCURRENCEORDER]
     [SC_server].[Soarian_Clin_Prd_1].[dbo].[HMedAdministration]
     [SC_server].[Soarian_Clin_Prd_1].[dbo].[HMedDispOrderComponent]
-	SMSMIR.MIR_PHM_DRUGMSTR
+	[SC_server].[Soarian_Clin_Prd_1].[dbo].[HAssessment]
+	[SC_server].[Soarian_Clin_Prd_1].[dbo].[HObservation]
+	[smsdss].[c_covid_extract_tbl]
+	[SMSMIR].[MIR_PHM_DRUGMSTR]
 
 Creates Table:
 	None
@@ -31,6 +33,10 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2021-04-12	v1			Initial Creation
+2021-05-13	v2			Add HA.FormUsage        = 'Admission'
+							AND OBS.FindingAbbr = 'A_BMH_CovMtsCrit'
+							AND OBS.[Value]     = 'YES'
+						Adjust Days on Antibiotics
 ***********************************************************************
 */
 
@@ -121,6 +127,7 @@ SELECT DISTINCT PatientAccountID
 INTO #ANTIBIOTICS
 FROM #TEMP
 WHERE (
+		(
 		PatientAccountID IN (
 			SELECT DISTINCT AAA.PatientAccountID
 			FROM #TEMP AS AAA
@@ -136,23 +143,71 @@ WHERE (
 			FROM #TEMP AS AAA
 			WHERE aaa.Days_Since_Antibiotic = 1
 			)
+		--AND PatientAccountID IN (
+		--	SELECT DISTINCT AAA.PatientAccountID
+		--	FROM #TEMP AS AAA
+		--	WHERE aaa.Days_Since_Antibiotic = 0
+		--	)
+		)
+		OR
+		(
+		--PatientAccountID IN (
+		--	SELECT DISTINCT AAA.PatientAccountID
+		--	FROM #TEMP AS AAA
+		--	WHERE aaa.Days_Since_Antibiotic = 3
+		--	)
+		PatientAccountID IN (
+			SELECT DISTINCT AAA.PatientAccountID
+			FROM #TEMP AS AAA
+			WHERE aaa.Days_Since_Antibiotic = 2
+			)
+		AND PatientAccountID IN (
+			SELECT DISTINCT AAA.PatientAccountID
+			FROM #TEMP AS AAA
+			WHERE aaa.Days_Since_Antibiotic = 1
+			)
 		AND PatientAccountID IN (
 			SELECT DISTINCT AAA.PatientAccountID
 			FROM #TEMP AS AAA
 			WHERE aaa.Days_Since_Antibiotic = 0
 			)
 		)
+	)
 	AND Days_Since_Antibiotic IS NOT NULL
 
-SELECT DISTINCT PatientAccountID,
-	PatientLocationName,
-	LatestBedName,
-	VisitStartDateTime,
-	OrderDescAsWritten,
-	Order_Creation_DTime
+
+DROP TABLE IF EXISTS #covmtscrit_tbl 
+CREATE TABLE #covmtscrit_tbl (
+	PatientVisit_OID INT,
+	AssessmentID INT,
+	FindingAbbr VARCHAR(255),
+	FindingValue VARCHAR(255)
+)
+
+INSERT INTO #covmtscrit_tbl (PatientVisit_OID, AssessmentID, FindingAbbr, FindingValue)
+SELECT ha.patientvisit_oid,
+	ha.assessmentid,
+	obs.findingabbr,
+	obs.[value]
+FROM [SC_server].[Soarian_Clin_Prd_1].dbo.HAssessment AS HA
+INNER JOIN [SC_server].[Soarian_Clin_Prd_1].dbo.HObservation AS OBS ON HA.assessmentID = OBS.assessmentid
+INNER JOIN #TEMP AS C ON HA.PatientVisit_OID = C.PatientVisit_OID 
+WHERE OBS.FindingAbbr = 'A_BMH_CovMtsCrit'
+	AND OBS.[value] = 'YES'
+	AND HA.FormUsage = 'Admission'
+
+SELECT DISTINCT A.PatientAccountID,
+	A.PatientLocationName,
+	A.LatestBedName,
+	A.VisitStartDateTime,
+	A.OrderDescAsWritten,
+	A.Order_Creation_DTime,
+	B.FindingValue
 FROM #TEMP A
+LEFT JOIN #covmtscrit_tbl AS B ON A.PatientVisit_OID = B.PatientVisit_OID
 WHERE NOT EXISTS (
 		SELECT 1
 		FROM #ANTIBIOTICS AS ZZZ
 		WHERE A.PatientAccountID = zzz.PatientAccountID
 		)
+ORDER BY A.PatientAccountID
