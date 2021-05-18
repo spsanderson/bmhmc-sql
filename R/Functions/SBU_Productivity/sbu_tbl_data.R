@@ -142,9 +142,10 @@ function ()
             implant_chgs = sum(implant_chgs, na.rm = TRUE), pip_pmts = sum(pymts_w_pip, 
                 na.rm = TRUE), tot_due = sum(tot_amt_due, na.rm = TRUE)) %>% 
         ungroup() %>% mutate(chgs_net_imp_cost = (tot_chgs - 
-        implant_chgs) * 0.18, implant_cost = (implant_chgs * 
-        0.18), total_cost = (chgs_net_imp_cost + implant_cost), 
-        net_rev = (((pip_pmts * -1) - total_cost) + (0.5 * tot_due)))
+        implant_chgs) * 0.17999999999999999, implant_cost = (implant_chgs * 
+        0.17999999999999999), total_cost = (chgs_net_imp_cost + 
+        implant_cost), net_rev = (((pip_pmts * -1) - total_cost) + 
+        (0.5 * tot_due)))
     final_tbl <- left_join(x = visits_tbl, y = dollars_tbl, by = c(pract_no = "pract_no")) %>% 
         select(provider_name, total_visits, tot_chgs, implant_chgs, 
             pip_pmts, tot_due, chgs_net_imp_cost, implant_cost, 
@@ -175,9 +176,10 @@ function ()
             implant_chgs = sum(implant_chgs, na.rm = TRUE), pip_pmts = sum(pymts_w_pip, 
                 na.rm = TRUE), tot_due = sum(tot_amt_due, na.rm = TRUE)) %>% 
         ungroup() %>% mutate(chgs_net_imp_cost = (tot_chgs - 
-        implant_chgs) * 0.18, implant_cost = (implant_chgs * 
-        0.18), total_cost = (chgs_net_imp_cost + implant_cost), 
-        net_rev = (((pip_pmts * -1) - total_cost) + (0.5 * tot_due)))
+        implant_chgs) * 0.17999999999999999, implant_cost = (implant_chgs * 
+        0.17999999999999999), total_cost = (chgs_net_imp_cost + 
+        implant_cost), net_rev = (((pip_pmts * -1) - total_cost) + 
+        (0.5 * tot_due)))
     final_tbl <- left_join(x = visits_tbl, y = dollars_tbl, by = c(division = "division")) %>% 
         adorn_totals() %>% mutate(visits = scales::number(visits, 
         accuracy = 1, big.mark = ","), tot_chgs = scales::dollar(tot_chgs, 
@@ -207,9 +209,10 @@ function ()
             implant_chgs = sum(implant_chgs, na.rm = TRUE), pip_pmts = sum(pymts_w_pip, 
                 na.rm = TRUE), tot_due = sum(tot_amt_due, na.rm = TRUE)) %>% 
         ungroup() %>% mutate(chgs_net_imp_cost = (tot_chgs - 
-        implant_chgs) * 0.18, implant_cost = (implant_chgs * 
-        0.18), total_cost = (chgs_net_imp_cost + implant_cost), 
-        net_rev = (((pip_pmts * -1) - total_cost) + (0.5 * tot_due)))
+        implant_chgs) * 0.17999999999999999, implant_cost = (implant_chgs * 
+        0.17999999999999999), total_cost = (chgs_net_imp_cost + 
+        implant_cost), net_rev = (((pip_pmts * -1) - total_cost) + 
+        (0.5 * tot_due)))
     final_tbl <- left_join(x = visits_tbl, y = dollars_tbl, by = c(fin_class = "pyr_group2")) %>% 
         select(fin_class, visits, tot_chgs, implant_chgs, pip_pmts, 
             tot_due, chgs_net_imp_cost, implant_cost, total_cost, 
@@ -238,15 +241,17 @@ function ()
         `(procedure_year)`) %>% set_names("Provider", "Year", 
         "Visits", "Charges", "Implant_Charges", "Pmts_w_Pip", 
         "Total_Due") %>% mutate(tot_cost = ((Charges - Implant_Charges) * 
-        0.18) + (Implant_Charges * 0.18), net_rev = ((-1 * Pmts_w_Pip) - 
-        tot_cost) + (0.5 * Total_Due)) %>% mutate(Year = as.character(Year)) %>% 
-        adorn_totals() %>% mutate(Visits = scales::number(Visits, 
-        big.mark = ","), Charges = scales::dollar(Charges, accuracy = 1), 
-        Implant_Charges = scales::dollar(Implant_Charges, accuracy = 1), 
-        Pmts_w_Pip = scales::dollar(Pmts_w_Pip, accuracy = 1), 
-        Total_Due = scales::dollar(Total_Due, accuracy = 1), 
-        tot_cost = scales::dollar(tot_cost, accuracy = 1), net_rev = scales::dollar(net_rev, 
-            accuracy = 1)) %>% set_names("Provider", "Year", 
+        0.17999999999999999) + (Implant_Charges * 0.17999999999999999), 
+        net_rev = ((-1 * Pmts_w_Pip) - tot_cost) + (0.5 * Total_Due)) %>% 
+        mutate(Year = as.character(Year)) %>% adorn_totals() %>% 
+        mutate(Visits = scales::number(Visits, big.mark = ","), 
+            Charges = scales::dollar(Charges, accuracy = 1), 
+            Implant_Charges = scales::dollar(Implant_Charges, 
+                accuracy = 1), Pmts_w_Pip = scales::dollar(Pmts_w_Pip, 
+                accuracy = 1), Total_Due = scales::dollar(Total_Due, 
+                accuracy = 1), tot_cost = scales::dollar(tot_cost, 
+                accuracy = 1), net_rev = scales::dollar(net_rev, 
+                accuracy = 1)) %>% set_names("Provider", "Year", 
         "Visits", "Charges", "Implant Charges", "Payments W PIP", 
         "Total Due", "Total Cost", "Net Revenue") %>% knitr::kable() %>% 
         kableExtra::kable_styling(bootstrap_options = c("striped", 
@@ -263,15 +268,17 @@ function ()
         `(procedure_year)`) %>% set_names("Division", "Year", 
         "Visits", "Charges", "Implant_Charges", "Pmts_w_Pip", 
         "Total_Due") %>% mutate(tot_cost = ((Charges - Implant_Charges) * 
-        0.18) + (Implant_Charges * 0.18), net_rev = ((-1 * Pmts_w_Pip) - 
-        tot_cost) + (0.5 * Total_Due)) %>% mutate(Year = as.character(Year)) %>% 
-        adorn_totals() %>% mutate(Visits = scales::number(Visits, 
-        big.mark = ","), Charges = scales::dollar(Charges, accuracy = 1), 
-        Implant_Charges = scales::dollar(Implant_Charges, accuracy = 1), 
-        Pmts_w_Pip = scales::dollar(Pmts_w_Pip, accuracy = 1), 
-        Total_Due = scales::dollar(Total_Due, accuracy = 1), 
-        tot_cost = scales::dollar(tot_cost, accuracy = 1), net_rev = scales::dollar(net_rev, 
-            accuracy = 1)) %>% set_names("Division", "Year", 
+        0.17999999999999999) + (Implant_Charges * 0.17999999999999999), 
+        net_rev = ((-1 * Pmts_w_Pip) - tot_cost) + (0.5 * Total_Due)) %>% 
+        mutate(Year = as.character(Year)) %>% adorn_totals() %>% 
+        mutate(Visits = scales::number(Visits, big.mark = ","), 
+            Charges = scales::dollar(Charges, accuracy = 1), 
+            Implant_Charges = scales::dollar(Implant_Charges, 
+                accuracy = 1), Pmts_w_Pip = scales::dollar(Pmts_w_Pip, 
+                accuracy = 1), Total_Due = scales::dollar(Total_Due, 
+                accuracy = 1), tot_cost = scales::dollar(tot_cost, 
+                accuracy = 1), net_rev = scales::dollar(net_rev, 
+                accuracy = 1)) %>% set_names("Division", "Year", 
         "Visits", "Charges", "Implant Charges", "Payments W PIP", 
         "Total Due", "Total Cost", "Net Revenue") %>% knitr::kable() %>% 
         kableExtra::kable_styling(bootstrap_options = c("striped", 
@@ -288,15 +295,17 @@ function ()
         `(procedure_year)`) %>% set_names("Payer Group", "Year", 
         "Visits", "Charges", "Implant_Charges", "Pmts_w_Pip", 
         "Total_Due") %>% mutate(tot_cost = ((Charges - Implant_Charges) * 
-        0.18) + (Implant_Charges * 0.18), net_rev = ((-1 * Pmts_w_Pip) - 
-        tot_cost) + (0.5 * Total_Due)) %>% mutate(Year = as.character(Year)) %>% 
-        adorn_totals() %>% mutate(Visits = scales::number(Visits, 
-        big.mark = ","), Charges = scales::dollar(Charges, accuracy = 1), 
-        Implant_Charges = scales::dollar(Implant_Charges, accuracy = 1), 
-        Pmts_w_Pip = scales::dollar(Pmts_w_Pip, accuracy = 1), 
-        Total_Due = scales::dollar(Total_Due, accuracy = 1), 
-        tot_cost = scales::dollar(tot_cost, accuracy = 1), net_rev = scales::dollar(net_rev, 
-            accuracy = 1)) %>% set_names("Payer Group", "Year", 
+        0.17999999999999999) + (Implant_Charges * 0.17999999999999999), 
+        net_rev = ((-1 * Pmts_w_Pip) - tot_cost) + (0.5 * Total_Due)) %>% 
+        mutate(Year = as.character(Year)) %>% adorn_totals() %>% 
+        mutate(Visits = scales::number(Visits, big.mark = ","), 
+            Charges = scales::dollar(Charges, accuracy = 1), 
+            Implant_Charges = scales::dollar(Implant_Charges, 
+                accuracy = 1), Pmts_w_Pip = scales::dollar(Pmts_w_Pip, 
+                accuracy = 1), Total_Due = scales::dollar(Total_Due, 
+                accuracy = 1), tot_cost = scales::dollar(tot_cost, 
+                accuracy = 1), net_rev = scales::dollar(net_rev, 
+                accuracy = 1)) %>% set_names("Payer Group", "Year", 
         "Visits", "Charges", "Implant Charges", "Payments W PIP", 
         "Total Due", "Total Cost", "Net Revenue") %>% knitr::kable() %>% 
         kableExtra::kable_styling(bootstrap_options = c("striped", 
@@ -312,17 +321,19 @@ function ()
         ~SUM(tot_amt_due))) %>% arrange(procedure_year) %>% set_names("Year", 
         "Visits", "Charges", "Implant_Charges", "Pmts_w_Pip", 
         "Total_Due") %>% mutate(tot_cost = ((Charges - Implant_Charges) * 
-        0.18) + (Implant_Charges * 0.18), net_rev = ((-1 * Pmts_w_Pip) - 
-        tot_cost) + (0.5 * Total_Due)) %>% mutate(Year = as.character(Year)) %>% 
-        adorn_totals() %>% mutate(Visits = scales::number(Visits, 
-        big.mark = ","), Charges = scales::dollar(Charges, accuracy = 1), 
-        Implant_Charges = scales::dollar(Implant_Charges, accuracy = 1), 
-        Pmts_w_Pip = scales::dollar(Pmts_w_Pip, accuracy = 1), 
-        Total_Due = scales::dollar(Total_Due, accuracy = 1), 
-        tot_cost = scales::dollar(tot_cost, accuracy = 1), net_rev = scales::dollar(net_rev, 
-            accuracy = 1)) %>% set_names("Year", "Visits", "Charges", 
-        "Implant Charges", "Payments W PIP", "Total Due", "Total Cost", 
-        "Net Revenue") %>% knitr::kable() %>% kableExtra::kable_styling(bootstrap_options = c("striped", 
+        0.17999999999999999) + (Implant_Charges * 0.17999999999999999), 
+        net_rev = ((-1 * Pmts_w_Pip) - tot_cost) + (0.5 * Total_Due)) %>% 
+        mutate(Year = as.character(Year)) %>% adorn_totals() %>% 
+        mutate(Visits = scales::number(Visits, big.mark = ","), 
+            Charges = scales::dollar(Charges, accuracy = 1), 
+            Implant_Charges = scales::dollar(Implant_Charges, 
+                accuracy = 1), Pmts_w_Pip = scales::dollar(Pmts_w_Pip, 
+                accuracy = 1), Total_Due = scales::dollar(Total_Due, 
+                accuracy = 1), tot_cost = scales::dollar(tot_cost, 
+                accuracy = 1), net_rev = scales::dollar(net_rev, 
+                accuracy = 1)) %>% set_names("Year", "Visits", 
+        "Charges", "Implant Charges", "Payments W PIP", "Total Due", 
+        "Total Cost", "Net Revenue") %>% knitr::kable() %>% kableExtra::kable_styling(bootstrap_options = c("striped", 
         "hover", "condensed", "responsive"), font_size = 12, 
         full_width = T)
     return(data)
