@@ -159,7 +159,11 @@ plot_anomaly_diagnostics(
 data_tbl <- query %>%
   select(date_col, excess_days)
 
-splits <- initial_time_split(data_tbl, prop = 0.9, cumulative = TRUE)
+splits <- initial_time_split(
+  data_tbl
+  , prop = 0.9
+  , cumulative = TRUE
+)
 
 # Features ----------------------------------------------------------------
 
@@ -167,14 +171,7 @@ recipe_base <- recipe(excess_days ~ ., data = training(splits)) %>%
   step_timeseries_signature(date_col)
 
 recipe_final <- recipe_base %>%
-  step_rm(
-    contains("iso")
-    , contains("second")
-    , contains("minute")
-    , contains("hour")
-    , contains("am.pm")
-    , contains("xts")
-  ) %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
   step_normalize(contains("index.num"), date_col_year) %>%
   step_dummy(contains("lbl"), one_hot = TRUE) %>%
   step_fourier(date_col, period = 365/12, K = 2) %>%
