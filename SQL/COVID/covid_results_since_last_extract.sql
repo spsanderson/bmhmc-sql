@@ -35,21 +35,21 @@ Date		Version		Description
 *************************************************************************
 */
 
-DECLARE @right_now AS DATETIME2;
-DECLARE @seven_pm_yday AS DATETIME2;
-DECLARE @seven_am_tday AS DATETIME2;
-DECLARE @nine_am_tday AS DATETIME2;
+DECLARE @right_now      AS DATETIME2;
+DECLARE @seven_pm_yday  AS DATETIME2;
+DECLARE @seven_am_tday  AS DATETIME2;
+DECLARE @nine_am_tday   AS DATETIME2;
 DECLARE @eleven_am_tday AS DATETIME2;
-DECLARE @three_pm_tday AS DATETIME2;
-DECLARE @seven_pm_tday AS DATETIME2;
+DECLARE @three_pm_tday  AS DATETIME2;
+DECLARE @seven_pm_tday  AS DATETIME2;
 
-SET @right_now = getdate();
-SET @seven_pm_yday = DATEADD(HOUR, 19, CONVERT(VARCHAR(10), GETDATE() - 1, 110));
-SET @seven_am_tday = DATEADD(HOUR, 7, CONVERT(VARCHAR(10), GETDATE(), 110));
-SET @nine_am_tday = DATEADD(HOUR, 9, CONVERT(VARCHAR(10), GETDATE(), 110));
+SET @right_now      = getdate();
+SET @seven_pm_yday  = DATEADD(HOUR, 19, CONVERT(VARCHAR(10), GETDATE() - 1, 110));
+SET @seven_am_tday  = DATEADD(HOUR, 7, CONVERT(VARCHAR(10), GETDATE(), 110));
+SET @nine_am_tday   = DATEADD(HOUR, 9, CONVERT(VARCHAR(10), GETDATE(), 110));
 SET @eleven_am_tday = DATEADD(HOUR, 11, CONVERT(VARCHAR(10), GETDATE(), 110));
-SET @three_pm_tday = DATEADD(HOUR, 15, CONVERT(VARCHAR(10), GETDATE(), 110));
-SET @seven_pm_tday = DATEADD(MINUTE, 1140, DATEDIFF(DAY, 0, GETDATE()));
+SET @three_pm_tday  = DATEADD(HOUR, 15, CONVERT(VARCHAR(10), GETDATE(), 110));
+SET @seven_pm_tday  = DATEADD(MINUTE, 1140, DATEDIFF(DAY, 0, GETDATE()));
 
 WITH cte
 AS (
