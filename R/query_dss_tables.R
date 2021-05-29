@@ -2518,6 +2518,11 @@ readmit_psy_to_psy_query <- function() {
   # * DB Disconnect ----
   LICHospitalR::db_disconnect(.connection = db_con_obj)
 
+  # If no data then return out of function
+  if(nrow(data_tbl) == 0){
+    return(print("No data - exiting function."))
+  }
+
   # * Return ----
   return(data_tbl)
 
