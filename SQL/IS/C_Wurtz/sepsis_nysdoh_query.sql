@@ -85,37 +85,47 @@ WHERE (
 
 -- Comorbidities ------------------------------------------------------
 -- acute cardiovascular conditions
-DROP TABLE IF EXISTS #acc_tbl;
-	WITH ACC
-	AS (
-		SELECT DISTINCT A.pt_id,
-			B.icd10_cm_code,
-			B.icd10_cm_code_description,
-			B.subcategory,
-			CASE 
-				WHEN B.subcategory = 'Stroke/TIA'
-					THEN '2'
-				WHEN B.subcategory = 'MI'
-					THEN '1'
-				ELSE '0'
-				END AS [acute_cardiovascular_conditions]
-		FROM smsmir.dx_grp AS A
-		INNER JOIN smsdss.c_nysdoh_sepsis_acute_cardiovascular_conditions_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
-		)
-	SELECT PVT.pt_id,
-		SUBSTRING(PVT.PT_ID, 5, 8) AS [PtNo_Num],
-		[acute_cardiovascular_conditions] = CASE 
-			WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 2
-				THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 1)
-			WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 4
-				THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 3)
-			WHEN LEN(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', '')) = 6
-				THEN LEFT(COALESCE(PVT.[0] + ':', '') + COALESCE(PVT.[1] + ':', '') + COALESCE(PVT.[2] + ':', ''), 5)
-			END
-	INTO #acc_tbl
-	FROM ACC
-	INNER JOIN #BasePopulation AS BP ON ACC.pt_id = BP.Pt_No
-	PIVOT(MAX(ACUTE_CARDIOVASCULAR_CONDITIONS) FOR ACUTE_CARDIOVASCULAR_CONDITIONS IN ("0", "1", "2")) AS PVT;
+DROP TABLE IF EXISTS #acc_temp_tbl
+CREATE TABLE #acc_temp_tbl (
+	pt_id VARCHAR(12),
+	PtNo_Num VARCHAR(8),
+	acute_cardiovascular_conditions VARCHAR(20)
+)
+
+INSERT INTO #acc_temp_tbl (pt_id, PtNo_Num, acute_cardiovascular_conditions)
+SELECT A.pt_id,
+	SUBSTRING(a.pt_id, 5, 8) AS [PtNo_Num],
+	CASE
+		WHEN B.subcategory = 'MYOCARDITIS COVID'
+			THEN '3'
+		WHEN B.subcategory = 'Stroke/TIA'
+			THEN '2'
+		WHEN B.subcategory = 'MI'
+			THEN '1'
+		ELSE '0'
+		END AS [acute_cardiovascular_conditions]
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_acute_cardiovascular_conditions_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+DROP TABLE IF EXISTS #acc_tbl
+CREATE TABLE #acc_tbl (
+	pt_id VARCHAR(12),
+	ptno_num VARCHAR(8),
+	acute_cardiovascular_conditions VARCHAR(20)
+)
+
+INSERT INTO #acc_tbl (pt_id, ptno_num, acute_cardiovascular_conditions)
+SELECT pvt.pt_id,
+	pvt.ptno_num, 
+	acute_cardiovascular_conditions = REPLACE(STUFF(
+		COALESCE(': ' + RTRIM(PVT.[0]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[1]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[2]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[3]), '')
+	, 1, 2, ''), ': ',':')
+FROM #acc_temp_tbl AS A
+PIVOT(MAX(acute_cardiovascular_conditions) FOR acute_cardiovascular_conditions IN ("0","1","2","3")) AS PVT
 
 -- AIDS / HIV
 DROP TABLE IF EXISTS #aids_hiv_tbl
@@ -432,103 +442,47 @@ WHERE A.first_positive_flag_dtime IS NOT NULL
 
 -- History of Other CVD 
 /*
-subcategory
-Cerebrovascular Disease      - 4
+Subcategory
 Coronary Heart Disease       - 1
 Peripheral arterial disease  - 2 
 Valve disorder               - 3
+Cerebrovascular Disease      - 4
+Cardiomyopathy               - 5
 
 1 = Coronary heart disease (e.g. angina pectoris, coronary atherosclerosis)
 2 = Peripheral artery disease
 3 = Valve disorder
 4 = Cerebrovascular disease
+5 = Cardiomyopathy
 0 = No history of coronary heart disease, peripheral artery disease, valve disorder or cerebrovascular disease
 */
 DROP TABLE IF EXISTS #history_of_other_cvd_tbl
 CREATE TABLE #history_of_other_cvd_tbl (
 	pt_id VARCHAR(12),
-	subcategory VARCHAR(100)
+	history_of_other_cvd VARCHAR(100)
 	)
 
 INSERT INTO #history_of_other_cvd_tbl (
 	pt_id,
-	subcategory
+	history_of_other_cvd
 	)
 SELECT DISTINCT A.pt_id,
-	b.subcategory
+	[history_of_other_cvd] = CASE 
+	    WHEN B.subcategory = 'Cerebrovascular Disease'
+			THEN '4'
+		WHEN B.subcategory = 'Coronary Heart Disease'
+			THEN '1'
+		WHEN B.subcategory = 'Peripheral arterial disease'
+			THEN '2'
+		WHEN B.subcategory = 'Valve disorder'
+			THEN '3'
+		WHEN B.subcategory = 'Cardiomyopathy'
+			THEN '5'
+		ELSE '0'
+		END
 FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_history_of_other_cvd_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
-
-
-DROP TABLE IF EXISTS #history_of_other_cvd_pvt_tbl
-CREATE TABLE #history_of_other_cvd_pvt_tbl (
-	pt_id VARCHAR(12),
-	cvd VARCHAR(50),
-	chd VARCHAR(50),
-	pad VARCHAR(50),
-	vd VARCHAR(50)
-	)
-
-INSERT INTO #history_of_other_cvd_pvt_tbl (
-	pt_id,
-	cvd,
-	chd,
-	pad,
-	vd
-	)
-SELECT PVT_HX_OTHER_CVD.pt_id,
-	PVT_HX_OTHER_CVD.[Cerebrovascular Disease] AS [cvd],
-	PVT_HX_OTHER_CVD.[Coronary Heart Disease] AS [chd],
-	PVT_HX_OTHER_CVD.[Peripheral arterial disease] AS [pad],
-	PVT_HX_OTHER_CVD.[Valve disorder] AS [vd]
-FROM (
-	SELECT pt_id,
-		subcategory
-	FROM #history_of_other_cvd_tbl
-	) AS A
-PIVOT(MAX(SUBCATEGORY) FOR SUBCATEGORY IN ("Cerebrovascular Disease", "Coronary Heart Disease", "Peripheral arterial disease", "Valve disorder")) AS PVT_HX_OTHER_CVD
-
-
-DROP TABLE IF EXISTS #history_of_other_cvd_pvt_final_tbl
-CREATE TABLE #history_of_other_cvd_pvt_final_tbl (
-	pt_id VARCHAR(12),
-	CHD VARCHAR(1),
-	PAD VARCHAR(1),
-	VD VARCHAR(1),
-	CVD VARCHAR(1)
-	)
-
-INSERT INTO #history_of_other_cvd_pvt_final_tbl (
-	pt_id,
-	CHD,
-	PAD,
-	VD,
-	CVD
-	)
-SELECT pt_id,
-	CASE 
-		WHEN chd IS NOT NULL
-			THEN 1
-		ELSE NULL
-		END AS CHD,
-	CASE 
-		WHEN PAD IS NOT NULL
-			THEN 2
-		ELSE NULL
-		END AS PAD,
-	CASE 
-		WHEN VD IS NOT NULL
-			THEN 3
-		ELSE NULL
-		END AS VD,
-	CASE 
-		WHEN CVD IS NOT NULL
-			THEN 4
-		ELSE NULL
-		END AS CVD
-FROM #history_of_other_cvd_pvt_tbl
-
 
 DROP TABLE IF EXISTS #hx_of_other_cvd_tbl
 CREATE TABLE #hx_of_other_cvd_tbl (
@@ -536,33 +490,20 @@ CREATE TABLE #hx_of_other_cvd_tbl (
 	history_of_other_cvd VARCHAR(20)
 )
 INSERT INTO #hx_of_other_cvd_tbl (pt_id, history_of_other_cvd)
-SELECT pt_id,
-	CASE
-		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 1
-			THEN CONCAT(chd,pad,vd,cvd)
-		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 2
-			THEN SUBSTRING(CONCAT(chd,pad,vd,cvd), 1, 1) 
-				+ ':' 
-				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 2, 1)
-		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 3
-			THEN SUBSTRING(CONCAT(chd,pad,vd,cvd), 1, 1) 
-				+ ':' 
-				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 2, 1) 
-				+ ':' 
-				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 3, 1)
-		WHEN LEN(CONCAT(chd,pad,vd,cvd)) = 4
-			THEN SUBSTRING(CONCAT(chd,pad,vd,cvd), 1, 1) 
-				+ ':' 
-				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 2, 1) 
-				+ ':' 
-				+ SUBSTRING(CONCAT(chd,pad,vd,cvd), 3, 1)
-				+ ':'
-				+ SUBSTRING(CONCAT(CHD,PAD,VD,CVD), 4, 1)
-		END
-FROM #history_of_other_cvd_pvt_final_tbl
+SELECT PVT.pt_id,
+	[history_of_other_cvd] = REPLACE(STUFF(
+		COALESCE(': ' + RTRIM(PVT.[0]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[1]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[2]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[3]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[4]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[5]), '')
+	, 1, 2, ''), ': ',':')
+FROM #history_of_other_cvd_tbl AS A
+PIVOT(MAX(history_of_other_cvd) FOR history_of_other_cvd IN ("0","1","2","3","4","5")) AS PVT
 
 -- HYPERTENSION
-DROP TABLE IF EXISTS #hyptertension
+DROP TABLE IF EXISTS #hypertension
 CREATE TABLE #hypertension (
 	pt_id VARCHAR(12),
 	hypertension VARCHAR(10)
@@ -572,7 +513,7 @@ INSERT INTO #hypertension (
 	pt_id,
 	hypertension
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[hypertension] = CASE 
 		WHEN B.icd10_cm_code IS NULL
 			THEN 0
@@ -592,7 +533,7 @@ INSERT INTO #immunocompromising (
 	pt_id,
 	immunocompromising
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[immunocompromising] = CASE
 		WHEN B.icd10_cm_code IS NULL
 			THEN 0
@@ -612,7 +553,7 @@ INSERT INTO #llml_tbl (
 	pt_id,
 	lymphoma_leukemia_multi_myeloma
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[lymphoma_leukemia_multi_myeloma] = CASE
 		WHEN B.icd10_cm_code IS NULL
 			THEN 0
@@ -632,7 +573,7 @@ INSERT INTO #vent_tbl (
 	pt_id,
 	mechanical_vent_comorbidity
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[mechanical_vent_comorbidity] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -656,7 +597,7 @@ INSERT INTO #metastatic_cx_tbl (
 	pt_id,
 	metastatic_cancer
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[metastatic_cancer] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -676,7 +617,7 @@ INSERT INTO #obesity_tbl (
 	pt_id,
 	obesity
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[obesity] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -696,7 +637,7 @@ INSERT INTO #preg_comorbid_tbl (
 	pt_id,
 	pregnancy_comorbidity
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[pregnancy_comorbidity] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -716,7 +657,7 @@ INSERT INTO #preg_status_tbl (
 	pt_id,
 	pregnancy_status
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[pregnancy_status] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -736,7 +677,7 @@ INSERT INTO #smoking_vaping_tbl (
 	pt_id,
 	smoking_vaping
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[smoking_vaping] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -756,7 +697,7 @@ INSERT INTO #trach_arrival_tbl (
 	pt_id,
 	tracheostomy_on_arrival
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[tracheostomy_on_arrival] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -777,7 +718,7 @@ INSERT INTO #covid_exposure_tbl (
 	pt_id,
 	covid_exposure
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[covid_exposure] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -797,7 +738,7 @@ INSERT INTO #covid_virus_tbl (
 	pt_id,
 	covid_virus
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[covid_virus] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -817,7 +758,7 @@ INSERT INTO #drp_tbl (
 	pt_id,
 	drug_resistant_pathogen
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[drug_resistant_pathogen] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -837,7 +778,7 @@ INSERT INTO #flu_pos_tbl (
 	pt_id,
 	flu_positive
 	)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[flu_positive] = CASE
 		WHEN b.icd10_cm_code IS NULL
 			THEN 0
@@ -1049,7 +990,7 @@ CREATE TABLE #mech_vent_treat_tbl (
 	mechanical_vent_treatment VARCHAR(10)
 	)
 INSERT INTO #mech_vent_treat_tbl (pt_id, mechanical_vent_treatment)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[mechanical_vent_treatment] = CASE
 		WHEN B.pcs_code IS NULL
 			THEN 0
@@ -1059,6 +1000,194 @@ FROM smsmir.sproc AS a
 INNER JOIN smsdss.c_nysdoh_sepsis_mechanical_vent_treatment_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- Non-invasive Positive Pressure Ventilation
+DROP TABLE IF EXISTS #nippv_tbl
+CREATE TABLE #nippv_tbl (
+	pt_id VARCHAR(12),
+	non_invasive_pos_pressure_vent VARCHAR(10)
+	)
+INSERT INTO #nippv_tbl (pt_id, non_invasive_pos_pressure_vent)
+SELECT DISTINCT A.pt_id,
+	[non_invasive_pos_pressure_vent] = CASE
+		WHEN B.pcs_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.sproc AS a
+INNER JOIN smsdss.c_nysdoh_sepsis_non_invasive_pos_pressure_vent_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- CV Outcomes at Discharge
+DROP TABLE IF EXISTS #cv_outcome_dsch_tbl 
+CREATE TABLE #cv_outcome_dsch_tbl (
+	pt_id VARCHAR(12),
+	cv_outcomes_at_discharge VARCHAR(10)
+)
+INSERT INTO #cv_outcome_dsch_tbl (pt_id, cv_outcomes_at_discharge)
+SELECT A.pt_id,
+	[cv_outcomes_at_discharge] = CASE
+		WHEN B.subcategory = 'ACS'
+			THEN '1'
+		WHEN B.subcategory = 'ISCHEMIC STROKE'
+			THEN '2'
+		WHEN B.subcategory = 'MYOCARDITIS COVID'
+			THEN '3'
+		WHEN B.subcategory = 'Cardiomyopathy'
+			THEN '4'
+		ELSE '0'
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_cv_outcomes_at_discharge_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+DROP TABLE IF EXISTS #cv_outcome_dsch_pvt_tbl
+CREATE TABLE #cv_outcome_dsch_pvt_tbl (
+	pt_id VARCHAR(12),
+	cv_outcomes_at_discharge VARCHAR(20)
+)
+
+INSERT INTO #cv_outcome_dsch_pvt_tbl (pt_id, cv_outcomes_at_discharge)
+SELECT PVT.pt_id,
+	[cv_outcomes_at_discharge] = REPLACE(STUFF(
+		COALESCE(': ' + RTRIM(PVT.[0]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[1]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[2]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[3]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[4]), '')
+	, 1, 2, ''), ': ', ':')
+FROM #cv_outcome_dsch_tbl AS A
+PIVOT(MAX(CV_OUTCOMES_AT_DISCHARGE) FOR CV_OUTCOMES_AT_DISCHARGE IN ("0","1","2","3","4")) AS PVT
+
+-- CV Outcomes in hospital
+DROP TABLE IF EXISTS #cv_outcome_hosp_tbl
+CREATE TABLE #cv_outcome_hosp_tbl (
+	pt_id VARCHAR(12),
+	cv_outcomes_in_hospital VARCHAR(20)
+)
+INSERT INTO #cv_outcome_hosp_tbl (pt_id, cv_outcomes_in_hospital)
+SELECT A.pt_id,
+	[cv_outcomes_in_hospital] = CASE
+		WHEN B.subcategory = 'ACS'
+			THEN '1'
+		WHEN B.subcategory = 'Cardiomyopathy'
+			THEN '4'
+		WHEN B.subcategory = 'ISCHEMIC STROKE'
+			THEN '2'
+		WHEN B.subcategory = 'MYOCARDITIS COVID'
+			THEN '3'
+		ELSE '0'
+		END
+FROM SMSMIR.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_cv_outcomes_in_hospital_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+DROP TABLE IF EXISTS #cv_outcome_hosp_pvt_tbl
+CREATE TABLE #cv_outcome_hosp_pvt_tbl (
+	pt_id VARCHAR(12),
+	cv_outcomes_in_hospital VARCHAR(20)
+)
+
+INSERT INTO #cv_outcome_hosp_pvt_tbl (pt_id, cv_outcomes_in_hospital)
+SELECT PVT.pt_id,
+	[cv_outcomes_in_hospital] = REPLACE(STUFF(
+		COALESCE(': ' + RTRIM(PVT.[0]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[1]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[2]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[3]), '')
+		+ COALESCE(': ' + RTRIM(PVT.[4]), '')
+	, 1, 2, ''), ': ', ':')
+FROM #cv_outcome_hosp_tbl AS A
+PIVOT(MAX(CV_OUTCOMES_IN_HOSPITAL) FOR CV_OUTCOMES_IN_HOSPITAL IN ("0","1","2","3","4")) AS PVT
+
+-- Dialysis Outcome
+DROP TABLE IF EXISTS #dialysis_outcome
+CREATE TABLE #dialysis_outcome (
+	pt_id VARCHAR(12),
+	dialysis_treatment VARCHAR(10)
+)
+
+INSERT INTO #dialysis_outcome (pt_id, dialysis_treatment)
+SELECT A.pt_id,
+	[dialysis_outcome] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_dialysis_outcome_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Mechanical Vent Outcome
+DROP TABLE IF EXISTS #mvo_tbl
+CREATE TABLE #mvo_tbl (
+	pt_id VARCHAR(12),
+	mechanical_vent_outcome VARCHAR(10)
+)
+
+INSERT INTO #mvo_tbl (pt_id, mechanical_vent_outcome)
+SELECT A.pt_id,
+	[mechanical_vent_outcome] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_mechanical_vent_outcome_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Trach at Discharge
+DROP TABLE IF EXISTS #trach_outcome_tbl
+CREATE TABLE #trach_outcome_tbl (
+	pt_id VARCHAR(12),
+	tracheostomy_at_discharge VARCHAR(10)
+)
+
+INSERT INTO #trach_outcome_tbl (pt_id, tracheostomy_at_discharge)
+SELECT A.pt_id,
+	[tracheostomy_at_discharge] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_tracheostomy_at_discharge_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- PE/DVT
+DROP TABLE IF EXISTS #pe_dvt_tbl
+CREATE TABLE #pe_dvt_tbl (
+	pt_id VARCHAR(12),
+	pe_dvt VARCHAR(12)
+)
+
+INSERT INTO #pe_dvt_tbl (pt_id, pe_dvt)
+SELECT DISTINCT A.pt_id,
+	[pe_dvt] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_pe_dvt_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Tracheostomy In Hospital
+DROP TABLE IF EXISTS #trach_in_hosp_tbl
+CREATE TABLE #trach_in_hosp_tbl (
+	pt_id VARCHAR(12),
+	tracheostomy_in_hospital VARCHAR(12)
+)
+
+INSERT INTO #trach_in_hosp_tbl (pt_id, tracheostomy_in_hospital)
+SELECT DISTINCT A.pt_id,
+	[pe_dvt] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.sproc AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_tracheostomy_in_hospital_code AS B ON REPLACE(A.proc_cd, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
 -- Severity Variables -------------------------------------------------
 -- aPPT
@@ -2662,7 +2791,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	[transfer_facility_id_sending] = '',
 	[transfer_facility_nm_receiving] = '',
 	[transfer_facility_nm_sending] = '',
-	PAV.PT_NAME,
+	--PAV.PT_NAME,
 	[unique_personal_identifier] = CAST(LEFT(pav.Pt_Name, 2) AS VARCHAR) + CAST(RIGHT(LTRIM(RTRIM(SUBSTRING(PAV.PT_NAME, 1, CHARINDEX(' ,', PAV.PT_NAME, 1)))), 2) AS VARCHAR) + LEFT(LTRIM(RTRIM(REVERSE(SUBSTRING(REVERSE(pav.pt_name), 1, CHARINDEX(',', REVERSE(PAV.PT_NAME), 1) - 1)))), 2) + CAST(LTRIM(RTRIM(RIGHT(PAV.Pt_SSA_No, 4))) AS VARCHAR),
 	[acute_cardiovascular_conditions] = ISNULL(ACC_TBL.acute_cardiovascular_conditions, 0),
 	[aids_hiv_disease] = CASE 
@@ -2723,8 +2852,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	[dialysis_comorbidity] = CASE 
 		WHEN DIALYSIS_COMORBID.pt_id IS NULL
 			THEN 0
-		ELSE 1
-		END,
+		ELSE 1		END,
 	[history_of_covid] = CASE 
 		WHEN COVID_HIST.pt_id IS NULL
 			THEN 0
@@ -2735,11 +2863,11 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN NULL
 		ELSE CONVERT(CHAR(10), COVID_HIST.history_of_covid, 126) + ' ' + CONVERT(CHAR(5), COVID_HIST.history_of_covid, 108)
 		END,
-	CASE 
+	[history_of_other_cvd] = CASE 
 		WHEN HX_OTH_CVD.history_of_other_cvd IS NULL
 			THEN '0'
 		ELSE HX_OTH_CVD.history_of_other_cvd
-		END AS history_of_other_cvd,
+		END,
 	[hypertension] = CASE 
 		WHEN HYPERTENSION.pt_id IS NULL
 			THEN 0
@@ -2843,15 +2971,59 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN 0
 		ELSE 1
 		END,
-	[non_invasive_pos_pressure_vent] = '',
+	[non_invasive_pos_pressure_vent] = CASE
+		WHEN NIPPV_TBL.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[vasopressor_administration] = '',
-	[dialysis_outcome] = '',
-	[mechanical_vent_outcome] = '',
-	[tracheostomy_at_discharge] = '',
-	[cardiovascular_outcomes] = '',
-	[icu_during_hospitalization] = '',
-	[pe_dvt] = '',
-	[tracheostomy_in_hospital] = '',
+	[cv_outcomes_at_discharge] = CASE
+		WHEN CV_OUT_DSCH.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[dialysis_outcome] = CASE
+		WHEN DO.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[mechanical_vent_outcome] = CASE
+		WHEN MVO_TBL.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[tracheostomy_at_discharge] = CASE
+		WHEN TRACH_OUT.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END ,
+	[cv_outcomes_in_hospital] = CASE
+		WHEN CV_IN_HOSP.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	--[cardiovascular_outcomes] = '', dropped in 2.1.1
+	[icu_during_hospitalization] = CASE
+		WHEN (
+			SELECT DISTINCT ICU_FLAG.episode_no
+			FROM smsmir.mir_cen_hist AS ICU_FLAG
+			WHERE ICU_FLAG.pt_type = 'I'
+			AND ICU_FLAG.episode_no = BP.PtNo_Num
+			AND ICU_FLAG.unit_seq_no = BP.unit_seq_no
+		) IS NULL 
+			THEN 0
+		ELSE 1
+		END,
+	[pe_dvt] = CASE
+		WHEN PEDVT_TBL.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[tracheostomy_in_hospital] = CASE
+		WHEN TRACH_IN.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	--
 	APPT_PVT.appt_1,
 	APPT_PVT.appt_2,
@@ -2861,6 +3033,14 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	CONVERT(CHAR(10), APPT_PVT.appt_dt_2, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_2, 108) AS appt_dt_2,
 	CONVERT(CHAR(10), APPT_PVT.appt_dt_3, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_3, 108) AS appt_dt_3,
 	CONVERT(CHAR(10), MAX_APPT.appt_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_APPT.appt_dt_max, 108) AS appt_dt_max,
+	ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival AS [bilirubin_arrival],
+	MAX_BILIRUBIN.organ_dysfunc_hepatic_max AS [bilirubin_max],
+	CONVERT(CHAR(10), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 108) AS bilirubin_arrival_dt,
+	CONVERT(CHAR(10), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 108) AS bilirubin_max_dt,
+	ARR_CREATININE.organ_dysfunc_renal_arrival AS [creatinine_arrival],
+	MAX_CREATININE.organ_dysfunc_renal_max AS [creatinine_max],
+	CONVERT(CHAR(10), ARR_CREATININE.organ_dysfunc_renal_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_CREATININE.organ_dysfunc_renal_arrival_dt, 108) AS creatinine_arrival_dt,
+	CONVERT(CHAR(10), MAX_CREATININE.organ_dysfunc_renal_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_CREATININE.organ_dysfunc_renal_max_dt, 108) AS creatinine_max_dt,
 	WS_BPD_PVT.diastolic_1,
 	WS_BPD_PVT.diastolic_2,
 	WS_BPD_PVT.diastolic_3,
@@ -2890,14 +3070,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN 0
 		ELSE 1
 		END,
-	ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival,
-	MAX_BILIRUBIN.organ_dysfunc_hepatic_max,
-	CONVERT(CHAR(10), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 108) AS organ_dysfunc_hepatic_arrival_dt,
-	CONVERT(CHAR(10), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 108) AS organ_dysfunc_hepatic_max_dt,
-	ARR_CREATININE.organ_dysfunc_renal_arrival,
-	MAX_CREATININE.organ_dysfunc_renal_max,
-	CONVERT(CHAR(10), ARR_CREATININE.organ_dysfunc_renal_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_CREATININE.organ_dysfunc_renal_arrival_dt, 108) AS organ_dysfunc_renal_arrival_dt,
-	CONVERT(CHAR(10), MAX_CREATININE.organ_dysfunc_renal_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_CREATININE.organ_dysfunc_renal_max_dt, 108) AS organ_dysfunc_renal_max_dt,
+
 	[organ_dysfunc_respiratory] = CASE 
 		WHEN OD_RESP.pt_id IS NULL
 			THEN 0
@@ -3127,3 +3300,11 @@ LEFT JOIN #during_hospital_remdesivir_tbl AS DH_REMDESIVIR ON PAV.Pt_No = DH_REM
 LEFT JOIN #ecmo_tbl AS ECMO_TBL ON PAV.Pt_No = ECMO_TBL.pt_id
 LEFT JOIN #nasal_cannula_tbl AS NASAL_CANNULA ON PAV.PtNo_Num = NASAL_CANNULA.episode_no
 LEFT JOIN #mech_vent_treat_tbl AS MVT_TBL ON PAV.Pt_No = MVT_TBL.pt_id
+LEFT JOIN #nippv_tbl AS NIPPV_TBL ON PAV.Pt_No = NIPPV_TBL.pt_id
+LEFT JOIN #dialysis_outcome AS DO ON PAV.PT_NO = DO.pt_id
+LEFT JOIN #mvo_tbl AS MVO_TBL ON PAV.Pt_No = MVO_TBL.pt_id
+LEFT JOIN #trach_outcome_tbl AS TRACH_OUT ON PAV.PT_NO = TRACH_OUT.pt_id
+LEFT JOIN #cv_outcome_dsch_pvt_tbl AS CV_OUT_DSCH ON PAV.Pt_No = CV_OUT_DSCH.pt_id
+LEFT JOIN #cv_outcome_hosp_pvt_tbl AS CV_IN_HOSP ON PAV.Pt_No = CV_IN_HOSP.pt_id
+LEFT JOIN #pe_dvt_tbl AS PEDVT_TBL ON PAV.Pt_No = PEDVT_TBL.pt_id
+LEFT JOIN #trach_in_hosp_tbl AS TRACH_IN ON PAV.Pt_No = TRACH_IN.pt_id
