@@ -112,6 +112,7 @@ geocode_discharges_automation <- function() {
       , stringr::str_detect(PartialAddress, "BELLLPORT")             ~ "BELLPORT, NY, 11713"
       , stringr::str_detect(PartialAddress, "NESCONSETT")            ~ "NESCONSET, NY, 11767"
       , stringr::str_detect(PartialAddress, "YAHPANK")               ~ "YAPHANK, NY, 11980"
+      , stringr::str_detect(PartialAddress, "ISLIP TERRANCE")        ~ "ISLIP TERRACE, 11752"
       , TRUE ~ PartialAddress
     ))
 
