@@ -37,6 +37,7 @@ Date		Version		Description
 							AND OBS.FindingAbbr = 'A_BMH_CovMtsCrit'
 							AND OBS.[Value]     = 'YES'
 						Adjust Days on Antibiotics
+2021-05-20	v3			Add Pt_Name, MRN and Filter only OBS.[Value] = 'YES'
 ***********************************************************************
 */
 
@@ -196,7 +197,9 @@ WHERE OBS.FindingAbbr = 'A_BMH_CovMtsCrit'
 	AND OBS.[value] = 'YES'
 	AND HA.FormUsage = 'Admission'
 
-SELECT DISTINCT A.PatientAccountID,
+SELECT DISTINCT c.Med_Rec_No,
+	c.Pt_Name,
+	A.PatientAccountID,
 	A.PatientLocationName,
 	A.LatestBedName,
 	A.VisitStartDateTime,
@@ -205,9 +208,11 @@ SELECT DISTINCT A.PatientAccountID,
 	B.FindingValue
 FROM #TEMP A
 LEFT JOIN #covmtscrit_tbl AS B ON A.PatientVisit_OID = B.PatientVisit_OID
+LEFT JOIN smsdss.BMH_PLM_PtAcct_V AS C ON A.PatientAccountID = C.PtNo_Num
 WHERE NOT EXISTS (
 		SELECT 1
 		FROM #ANTIBIOTICS AS ZZZ
 		WHERE A.PatientAccountID = zzz.PatientAccountID
 		)
+	AND B.FindingValue = 'YES'
 ORDER BY A.PatientAccountID
