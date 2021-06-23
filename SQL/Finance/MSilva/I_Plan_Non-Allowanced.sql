@@ -25,6 +25,9 @@ Date		Version	Description
 2018-09-26	v2		Add filters to ensure pt_bal_amt >= 0
 2018-10-30	v3		Add VST.prin_dx_cd IS NOT NULL
 2018-06-28    v4            Add I08 insurance plan for July 1st 2019 start date
+2021-06-02    v5            Add the following logic:
+                            AND DATEDIFF(DAY, VST.vst_end_date ,CAST(GETDATE() AS DATE)) >= 90
+2021-06-10    v6            Drop DATEDIFF logic and add E26 back in
 -------------------------------------------------------------------------------- 
 */
 
@@ -128,7 +131,8 @@ AND PYRPLAN.pt_id NOT IN (
 		'09701608',
 		'09730078',
 		'09735077',
-		'09731084'
+		'09731084',
+              '09770116'
 	)
 )
 AND SUBSTRING(PYRPLAN.PT_ID, 5, 1) != '1'
