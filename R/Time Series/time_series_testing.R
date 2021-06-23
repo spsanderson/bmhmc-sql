@@ -5,17 +5,17 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
-  "tidyverse",
+  "dplyr",
   "lubridate",
   "timetk",
   "odbc",
   "DBI",
   "janitor",
-  "timetk",
   "tidyquant",
   "modeltime.ensemble",
   "modeltime.resample",
-  "modeltime.h2o"
+  "modeltime.h2o",
+  "stringr"
 )
 
 interactive <- TRUE
@@ -176,8 +176,7 @@ recipe_final <- recipe_base %>%
   step_normalize(contains("index.num"), date_col_year) %>%
   step_dummy(contains("lbl"), one_hot = TRUE) %>%
   step_fourier(date_col, period = 365/12, K = 2) %>%
-  step_holiday_signature(date_col) %>%
-  step_YeoJohnson(excess_days)
+  step_YeoJohnson(excess_days, limits = c(0,1))
 
 # Models ------------------------------------------------------------------
 
@@ -215,21 +214,21 @@ wflw_fit_ets <- workflow() %>%
   add_model(model_spec_ets) %>%
   fit(training(splits))
 
-# model_spec_croston <- exp_smoothing() %>%
-#   set_engine(engine = "croston")
-# 
-# wflw_fit_croston <- workflow() %>%
-#   add_recipe(recipe = recipe_final) %>%
-#   add_model(model_spec_croston) %>%
-#   fit(training(splits))
+model_spec_croston <- exp_smoothing() %>%
+  set_engine(engine = "croston")
 
-# model_spec_theta <- exp_smoothing() %>%
-#   set_engine(engine = "theta")
-# 
-# wflw_fit_theta <- workflow() %>%
-#   add_recipe(recipe = recipe_final) %>%
-#   add_model(model_spec_theta) %>%
-#   fit(training(splits))
+wflw_fit_croston <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_croston) %>%
+  fit(training(splits))
+
+model_spec_theta <- exp_smoothing() %>%
+  set_engine(engine = "theta")
+
+wflw_fit_theta <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_theta) %>%
+  fit(training(splits))
 
 
 # STLM ETS ----------------------------------------------------------------
@@ -307,33 +306,74 @@ wflw_fit_mars <- workflow() %>%
   add_model(model_spec_mars) %>%
   fit(training(splits))
 
+# Garchmodels -------------------------------------------------------------
+
+model_spec_garch_multi_var <- garch_reg(
+    type = "ugarchspec"
+  ) %>%
+  set_engine(
+    "rugarch"
+    , specs = list(
+      spec1 = list(
+        mean.model = list(armaOrder = c(1, 0))
+      )
+      , spec2 = list(
+        mean.model = list(armaOrder = c(1, 0))
+      )
+      , spec3 = list(
+        mean.model = list(armaOrder = c(1, 0))
+      )
+    )
+  )
+
+wflw_fit_garch_multi_var <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_garch_multi_var) %>%
+  fit(training(splits))
+
+# Bayesmodels -------------------------------------------------------------
+library(bayesmodels)
+model_spec_bayes <- sarima_reg() %>%
+  set_engine(engine = "stan")
+
+wflw_fit_bayes <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_bayes) %>%
+  fit(training(splits))
+
 # H2O AutoML --------------------------------------------------------------
-# h2o.init(
-#   nthreads = -1
-#   , ip = 'localhost'
-#   , port = 54321
-# )
-# 
-# model_spec <- automl_reg(mode = 'regression') %>%
-#   set_engine(
-#     engine                     = 'h2o',
-#     max_runtime_secs           = 5, 
-#     max_runtime_secs_per_model = 3,
-#     max_models                 = 3,
-#     nfolds                     = 5,
-#     exclude_algos              = c("DeepLearning"),
-#     verbosity                  = NULL,
-#     seed                       = 786
-#   ) 
-# 
-# model_spec
-# 
-# model_fitted <- model_spec %>%
-#   fit(excess_days ~ ., data = training(splits))
-# 
-# model_fitted
-# 
-# predict(model_fitted, testing(splits))
+h2o.init(
+  nthreads = -1
+  , ip = 'localhost'
+  , port = 54321
+)
+
+model_spec <- automl_reg(mode = 'regression') %>%
+  set_engine(
+    engine                     = 'h2o',
+    max_runtime_secs           = 5,
+    max_runtime_secs_per_model = 3,
+    max_models                 = 3,
+    nfolds                     = 5,
+    #exclude_algos              = c("DeepLearning"),
+    verbosity                  = NULL,
+    seed                       = 786
+  )
+
+model_spec
+
+model_fitted <- model_spec %>%
+  fit(excess_days ~ ., data = training(splits))
+
+model_fitted
+
+model_final <- automl_leaderboard(model_fitted) %>% 
+  head(1) %>% 
+  pull(model_id)
+automl_update_model(model_fitted, model_final)
+predict(model_fitted, testing(splits))
+
+#h2o.shutdown()
 
 # Model Table -------------------------------------------------------------
 
@@ -341,13 +381,16 @@ models_tbl <- modeltime_table(
   #wflw_fit_arima_no_boost,
   wflw_fit_arima_boosted,
   wflw_fit_ets,
+  wflw_fit_theta,
   wflw_fit_stlm_ets,
   wflw_fit_stlm_tbats,
   wflw_fit_nnetar,
   wflw_fit_prophet,
   wflw_fit_prophet_boost,
   wflw_fit_lm, 
-  wflw_fit_mars
+  wflw_fit_mars,
+  wflw_fit_bayes,
+  model_fitted
 )
 
 # Model Ensemble Table ----------------------------------------------------
@@ -390,6 +433,7 @@ models_tbl <- modeltime_table(
   #wflw_fit_arima_no_boost,
   wflw_fit_arima_boosted,
   wflw_fit_ets,
+  wflw_fit_theta,
   wflw_fit_stlm_ets,
   wflw_fit_stlm_tbats,
   wflw_fit_nnetar,
@@ -397,6 +441,8 @@ models_tbl <- modeltime_table(
   wflw_fit_prophet_boost,
   wflw_fit_lm, 
   wflw_fit_mars,
+  model_fitted,
+  wflw_fit_bayes,
   fit_mean_ensemble,
   fit_median_ensemble
 )
@@ -407,6 +453,7 @@ models_tbl
 
 calibration_tbl <- models_tbl %>%
   modeltime_calibrate(new_data = testing(splits))
+
 calibration_tbl
 
 # Testing Accuracy --------------------------------------------------------
@@ -452,7 +499,7 @@ ensemble_models <- refit_tbl %>%
 model_choices <- rbind(top_two_models, ensemble_models)
 
 refit_tbl %>%
-  filter(.model_id %in% model_choices$.model_id) %>%
+  filter(.model_id %in% top_two_models$.model_id) %>%
   modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
