@@ -101,8 +101,9 @@ LEFT OUTER JOIN SMSDSS.VST_FCT_V AS VST ON PTPG.PT_TYPE = VST.pt_type_2
 	AND VST.pt_type_2 NOT IN ('C', 'E', 'K', 'R', 'V')
 	AND VST.vst_type_cd = 'O'
 	AND VST.tot_chg_amt > 0
-	AND VST.tot_bal_amt >= -50
+	AND VST.tot_bal_amt >= - 50
 	AND VST.tot_bal_amt <= 50
+	AND VST.tot_pay_amt != 0
 WHERE VST.prim_pyr_cd NOT IN ('B75','B76')
 GROUP BY PTPG.pt_type_cd_desc,
 	PTPG.pyr_group,
