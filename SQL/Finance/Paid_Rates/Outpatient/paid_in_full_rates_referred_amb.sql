@@ -115,6 +115,7 @@ LEFT OUTER JOIN SMSDSS.VST_FCT_V AS VST ON PTPG.PT_TYPE = VST.pt_type_2
 	AND VST.tot_chg_amt > 0
 	AND VST.tot_bal_amt >= - 50
 	AND VST.tot_bal_amt <= 50
+	AND VST.tot_pay_amt != 0
 	AND PTPG.PT_TYPE_CD_DESC = 'O - REFERRED AMBULATORY'
 WHERE VST.prim_pyr_cd NOT IN ('B75', 'B76')
 	AND PTPG.PT_TYPE = 'O'
