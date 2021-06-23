@@ -3,7 +3,7 @@ library(DBI)
 library(odbc)
 library(dbplyr)
 
-folder <- "Treatment"
+folder <- "Comorbidity"
 path   <- "G:/IS/C Wurtz/Sepsis/csv_files211/"
 full_path <- paste0(path,folder,"/")
 
@@ -12,18 +12,19 @@ file_list <- dir(full_path
                  , full.names = T)
 
 files <- file_list %>%
-  map(read.csv)
+  map(read.csv) %>%
+  map(as_tibble)
+  
 
 file_names <- file_list %>%
-  #str_remove("G:/IS/C Wurtz/Sepsis/csv_files21/Treatment/") %>%
   str_remove(full_path) %>%
   str_replace(pattern = "_VerD2.1.1.csv", replacement = "_v211.csv")
 
 names(files) <- file_names
 
 column_names <- c(
-  "pcs_code"
-  ,"pcs_code_description"
+  "icd10_cm_code"
+  ,"icd10_cm_code_description"
   ,"subcategory"
 )
 
@@ -33,6 +34,11 @@ for(i in 1:length(files)){
     colnames(files[[i]]) <- column_names
     }
   print(names(files[[i]]))
+}
+
+# Force all columns to type of character
+for(i in 1:length(files)){
+  files[[i]] <- files[[i]] %>% mutate_all(as.character)
 }
 
 con <- LICHospitalR::db_connect()
