@@ -5,15 +5,17 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
-  "tidyverse",
+  "dplyr",
   "lubridate",
   "timetk",
   "odbc",
   "DBI",
   "janitor",
-  "timetk",
   "tidyquant",
-  "anomalize"
+  "modeltime.ensemble",
+  "modeltime.resample",
+  "modeltime.h2o",
+  "stringr"
 )
 
 interactive <- TRUE
@@ -24,13 +26,7 @@ map(paste0(my_path, file_list), source)
 
 # DB Connection -----------------------------------------------------------
 
-db_con <- dbConnect(
-  odbc(),
-  Driver = "SQL Server",
-  Server = "LI-HIDB",
-  Database = "SMSPHDSSS0X0",
-  Trusted_Connection = T
-)
+db_con <- LICHospitalR::db_connect()
 
 # Query -------------------------------------------------------------------
 
@@ -113,7 +109,7 @@ dbDisconnect(db_con)
 
 # Manipulation ------------------------------------------------------------
 
-query <- query %>%
+data_tbl <- query %>%
   summarise_by_time(
     .date_var      = dsch_date
     , .by          = "month"
@@ -125,15 +121,17 @@ query <- query %>%
     , excess_days  = sum_days - sum_exp_days
     , avg_excess   = alos - elos
   ) %>%
-  rename(date_col = dsch_date)
+  rename(date_col = dsch_date) %>%
+  mutate(date_col = ymd(date_col)) %>%
+  arrange(date_col)
 
 # TS Plot -----------------------------------------------------------------
 
-start_date <- min(query$date_col)
-end_date   <- max(query$date_col)
+start_date <- min(data_tbl$date_col)
+end_date   <- max(data_tbl$date_col)
 
 plot_time_series(
-  .data = query
+  .data = data_tbl
   , .date_var = date_col
   , .value = excess_days
   , .title = paste0(
@@ -142,102 +140,311 @@ plot_time_series(
     , " to "
     , end_date
   )
-  , .plotly_slider = TRUE
   , .interactive = FALSE
 )
 
 plot_seasonal_diagnostics(
-  .data = query
+  .data = data_tbl
   , .date_var = date_col
   , .value = excess_days
 )
 
 plot_anomaly_diagnostics(
-  .data = query
+  .data = data_tbl
   , .date_var = date_col
   , .value = excess_days
 )
 
 
 # Data Split --------------------------------------------------------------
+data_final_tbl <- data_tbl %>%
+  select(date_col, excess_days)
 
-splits <- initial_time_split(query, prop = 0.9, cumulative = TRUE)
+splits <- initial_time_split(
+  data_final_tbl
+  , prop = 0.8
+  , cumulative = TRUE
+)
+
+# Features ----------------------------------------------------------------
+
+recipe_base <- recipe(excess_days ~ ., data = training(splits)) %>%
+  step_timeseries_signature(date_col)
+
+recipe_final <- recipe_base %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
+  step_normalize(contains("index.num"), date_col_year) %>%
+  step_dummy(contains("lbl"), one_hot = TRUE) %>%
+  step_fourier(date_col, period = 365/12, K = 2) %>%
+  step_YeoJohnson(excess_days, limits = c(0,1))
 
 # Models ----
 
 # Auto ARIMA --------------------------------------------------------------
 
-model_fit_arima_no_boost <- arima_reg() %>%
-  set_engine(engine = "auto_arima") %>%
-  fit(excess_days ~ date_col, data = training(splits))
+model_spec_arima_no_boost <- arima_reg() %>%
+  set_engine(engine = "auto_arima")
+
+wflw_fit_arima_no_boost <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_arima_no_boost) %>%
+  fit(training(splits))
 
 
 # Boosted Auto ARIMA ------------------------------------------------------
 
-model_fit_arima_boosted <- arima_boost(
+model_spec_arima_boosted <- arima_boost(
   min_n = 2
   , learn_rate = 0.015
 ) %>%
-  set_engine(engine = "auto_arima_xgboost") %>%
-  fit(
-    excess_days ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
-    , data = training(splits)
-  )
+  set_engine(engine = "auto_arima_xgboost")
+
+wflw_fit_arima_boosted <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_arima_boosted) %>%
+  fit(training(splits))
 
 # ETS ---------------------------------------------------------------------
 
-model_fit_ets <- exp_smoothing() %>%
-  set_engine(engine = "ets") %>%
-  fit(excess_days ~ date_col, data = training(splits))
+model_spec_ets <- exp_smoothing() %>%
+  set_engine(engine = "ets") 
+
+wflw_fit_ets <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_ets) %>%
+  fit(training(splits))
+
+model_spec_croston <- exp_smoothing() %>%
+  set_engine(engine = "croston")
+
+wflw_fit_croston <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_croston) %>%
+  fit(training(splits))
+
+model_spec_theta <- exp_smoothing() %>%
+  set_engine(engine = "theta")
+
+wflw_fit_theta <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_theta) %>%
+  fit(training(splits))
+
+
+# STLM ETS ----------------------------------------------------------------
+
+model_spec_stlm_ets <- seasonal_reg() %>%
+  set_engine("stlm_ets")
+
+wflw_fit_stlm_ets <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_stlm_ets) %>%
+  fit(training(splits))
+
+model_spec_stlm_tbats <- seasonal_reg() %>%
+  set_engine("tbats")
+
+wflw_fit_stlm_tbats <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_stlm_tbats) %>%
+  fit(training(splits))
+
+model_spec_stlm_arima <- seasonal_reg() %>%
+  set_engine("stlm_arima")
+
+wflw_fit_stlm_arima <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_stlm_arima) %>%
+  fit(training(splits))
+
+# NNETAR ------------------------------------------------------------------
+
+model_spec_nnetar <- nnetar_reg() %>%
+  set_engine("nnetar")
+
+wflw_fit_nnetar <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_nnetar) %>%
+  fit(training(splits))
 
 # Prophet -----------------------------------------------------------------
 
-model_fit_prophet <- prophet_reg() %>%
-  set_engine(engine = "prophet") %>%
-  fit(excess_days ~ date_col, data = training(splits))
+model_spec_prophet <- prophet_reg() %>%
+  set_engine(engine = "prophet")
 
-model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
-  set_engine("prophet_xgboost") %>%
-  fit(
-    excess_days ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
-    , data = training(splits)
-  )
+wflw_fit_prophet <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_prophet) %>%
+  fit(training(splits))
+
+model_spec_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
+  set_engine("prophet_xgboost") 
+
+wflw_fit_prophet_boost <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_prophet_boost) %>%
+  fit(training(splits))
 
 # TSLM --------------------------------------------------------------------
 
-model_fit_lm <- linear_reg() %>%
-  set_engine("lm") %>%
-  fit(
-    excess_days ~ as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
-    , data = training(splits)
-  )
+model_spec_lm <- linear_reg() %>%
+  set_engine("lm")
+
+wflw_fit_lm <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_lm) %>%
+  fit(training(splits))
+
 
 # MARS --------------------------------------------------------------------
 
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
-recipe_spec <- recipe(excess_days ~ date_col, data = training(splits)) %>%
-  step_date(date_col, features = "month", ordinal = FALSE) %>%
-  step_mutate(date_num = as.numeric(date_col)) %>%
-  step_normalize(date_num) %>%
-  step_rm(date_col)
-
 wflw_fit_mars <- workflow() %>%
-  add_recipe(recipe_spec) %>%
+  add_recipe(recipe = recipe_final) %>%
   add_model(model_spec_mars) %>%
   fit(training(splits))
+
+# Garchmodels -------------------------------------------------------------
+
+model_spec_garch_multi_var <- garch_reg(
+  type = "ugarchspec"
+) %>%
+  set_engine(
+    "rugarch"
+    , specs = list(
+      spec1 = list(
+        mean.model = list(armaOrder = c(1, 0))
+      )
+      , spec2 = list(
+        mean.model = list(armaOrder = c(1, 0))
+      )
+      , spec3 = list(
+        mean.model = list(armaOrder = c(1, 0))
+      )
+    )
+  )
+
+wflw_fit_garch_multi_var <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_garch_multi_var) %>%
+  fit(training(splits))
+
+# Bayesmodels -------------------------------------------------------------
+library(bayesmodels)
+model_spec_bayes <- sarima_reg() %>%
+  set_engine(engine = "stan")
+
+wflw_fit_bayes <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_bayes) %>%
+  fit(training(splits))
+
+# H2O AutoML --------------------------------------------------------------
+h2o.init(
+  nthreads = -1
+  , ip = 'localhost'
+  , port = 54321
+)
+
+model_spec <- automl_reg(mode = 'regression') %>%
+  set_engine(
+    engine                     = 'h2o',
+    max_runtime_secs           = 5,
+    max_runtime_secs_per_model = 3,
+    max_models                 = 3,
+    nfolds                     = 5,
+    #exclude_algos              = c("DeepLearning"),
+    verbosity                  = NULL,
+    seed                       = 786
+  )
+
+model_spec
+
+model_fitted <- model_spec %>%
+  fit(excess_days ~ ., data = training(splits))
+
+model_fitted
+
+model_final <- automl_leaderboard(model_fitted) %>% 
+  head(1) %>% 
+  pull(model_id)
+automl_update_model(model_fitted, model_final)
+predict(model_fitted, testing(splits))
+
+#h2o.shutdown()
 
 # Model Table -------------------------------------------------------------
 
 models_tbl <- modeltime_table(
-  model_fit_arima_no_boost,
-  model_fit_arima_boosted,
-  model_fit_ets,
-  model_fit_prophet,
-  model_fit_prophet_boost,
-  model_fit_lm, 
-  wflw_fit_mars
+  #wflw_fit_arima_no_boost,
+  wflw_fit_arima_boosted,
+  wflw_fit_ets,
+  wflw_fit_theta,
+  wflw_fit_stlm_ets,
+  wflw_fit_stlm_tbats,
+  wflw_fit_nnetar,
+  wflw_fit_prophet,
+  wflw_fit_prophet_boost,
+  wflw_fit_lm, 
+  wflw_fit_mars,
+  wflw_fit_bayes,
+  model_fitted
+)
+
+# Model Ensemble Table ----------------------------------------------------
+resample_tscv <- training(splits) %>%
+  time_series_cv(
+    date_var      = date_col
+    , assess      = "12 months"
+    , initial     = "24 months"
+    , skip        = "3 months"
+    , slice_limit = 1
+  )
+
+submodel_predictions <- models_tbl %>%
+  modeltime_fit_resamples(
+    resamples = resample_tscv
+    , control = control_resamples(verbose = TRUE)
+  )
+
+ensemble_fit <- submodel_predictions %>%
+  ensemble_model_spec(
+    model_spec = linear_reg(
+      penalty  = tune()
+      , mixture = tune()
+    ) %>%
+      set_engine("glmnet")
+    , kfold    = 5
+    , grid     = 6
+    , control  = control_grid(verbose = TRUE)
+  )
+
+fit_mean_ensemble <- models_tbl %>%
+  ensemble_average(type = "mean")
+
+fit_median_ensemble <- models_tbl %>%
+  ensemble_average(type = "median")
+
+# Model Table -------------------------------------------------------------
+
+models_tbl <- modeltime_table(
+  #wflw_fit_arima_no_boost,
+  wflw_fit_arima_boosted,
+  wflw_fit_ets,
+  wflw_fit_theta,
+  wflw_fit_stlm_ets,
+  wflw_fit_stlm_tbats,
+  wflw_fit_nnetar,
+  wflw_fit_prophet,
+  wflw_fit_prophet_boost,
+  wflw_fit_lm, 
+  wflw_fit_mars,
+  model_fitted,
+  wflw_fit_bayes,
+  fit_mean_ensemble,
+  fit_median_ensemble
 )
 
 models_tbl
@@ -246,95 +453,57 @@ models_tbl
 
 calibration_tbl <- models_tbl %>%
   modeltime_calibrate(new_data = testing(splits))
+
 calibration_tbl
 
 # Testing Accuracy --------------------------------------------------------
 
 calibration_tbl %>%
   modeltime_forecast(
-    new_data = testing(splits),
-    actual_data = query
+    new_data    = testing(splits),
+    actual_data = data_tbl
   ) %>%
   plot_modeltime_forecast(
-    .legend_max_width = 25,
-    .interactive = interactive
+    .legend_max_width   = 25,
+    .interactive        = interactive,
+    .conf_interval_show = FALSE
   )
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
   arrange(mae) %>%
-  table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
+  table_modeltime_accuracy(.interactive = FALSE)
 
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
-  modeltime_refit(data = query)
+  modeltime_refit(
+    data        = data_tbl
+    , resamples = resample_tscv
+    #, control   = control_resamples(verbose = TRUE)
+  )
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
   arrange(mae) %>% 
-  slice(1:2)
+  head(2)
+
+ensemble_models <- refit_tbl %>%
+  filter(
+    .model_desc %>% 
+      str_to_lower() %>%
+      str_detect("ensemble")
+  ) %>%
+  modeltime_accuracy()
+
+model_choices <- rbind(top_two_models, ensemble_models)
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "1 year", actual_data = query) %>%
+  modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
   plot_modeltime_forecast(
-    .legend_max_width = 25
-    , .interactive = FALSE
-    , .title = "IP Discharges Excess Days Forecast 1 Year Out"
-  )
-
-# Misc --------------------------------------------------------------------
-
-calibration_tbl %>% 
-  dplyr::ungroup() %>% 
-  dplyr::select(-.model) %>% 
-  tidyr::unnest(.calibration_data) %>% 
-  ggplot(
-    mapping = aes(
-      x = .residuals
-      , fill = .model_desc)
-  ) + 
-  geom_histogram(
-    binwidth = 25
-    , color = "black"
-  ) + 
-  facet_wrap(
-    ~ .model_desc
-    , scales = "free_x"
-  ) + 
-  scale_color_tq() + 
-  theme_tq()
-
-ts_sum_arrivals_plt(
-  .data = query
-  , .date_col = date_col
-  , .value_col = excess_days
-  , .x_axis = mn
-  , .ggplt_group_var = yr
-  , yr
-  , mn
-) + 
-  labs(
-    x = "Month of Discharge"
-    , y = "Total Excess Days"
-    , title = "Total Excess days for IP Discharges by Month"
-    , subtitle = "Redline is current year."
-  )
-
-ts_median_excess_plt(
-  .data = query
-  , .date_col = date_col
-  , .value_col = excess_days
-  , .x_axis = mn
-  , .ggplt_group_var = yr
-  , .secondary_grp_var = mn
-  , yr
-  , mn
-) +
-  labs(
-    x = "Month of Discharge"
-    , y = "Excess of Median (+/-)"
-    , title = "Median Excess Days for IP Discharges by Month"
-    , subtitle = "Redline is current year"
+    .legend_max_width     = 25
+    , .interactive        = FALSE
+    , .conf_interval_show = FALSE
+    , .title = "IP Discharges Excess Days Forecast 12 Months Out"
   )
