@@ -23,6 +23,7 @@ Date		Version		Description
 2018-09-24	v1			Initial Creation
 2019-06-21	v2			Minimize code
 2020-12-23	v3			E26 Dropped per KJ
+2021-06-10	v4			Add E26 back in
 -------------------------------------------------------------------------------- 
 */
 
@@ -102,8 +103,8 @@ LEFT JOIN SMSMIR.mir_pyr_plan_user AS INS_NAME ON PYRPLAN.PT_ID = INS_NAME.PT_ID
 WHERE VST.vst_end_date IS NOT NULL
 	AND PYRPLAN.PYR_CD IN (
 		'E01', 'E08', 'E10', 'E12', 'E13', 'E14', 'E18', 'E19', 
-		--'E26', 
-		'E27', 'E28', 'E39', --100% OF APC
+		'E26', 
+		'E27', 'E28', 'E39', 'E38' --100% OF APC
 		'E09', --103.5% OF APC
 		'E29', --125% OF APC
 		'E47'  --102% OF APC
