@@ -31,11 +31,13 @@ df_tbl <- unioned_files %>%
   janitor::clean_names() %>%
   mutate_if(is.character, str_squish) %>%
   mutate_if(is.character, str_to_lower) %>%
-  mutate(full_name = paste0(last_name, "_", first_name) %>%
+  mutate(
+    full_name = paste0(last_name, "_", first_name) %>%
            str_squish()
-  )
+  ) %>%
+  mutate(key = paste0(first_name, "_", last_name, "_", as.Date(birth_date)))
 
 df_tbl %>%
-  group_by(full_name) %>%
+  group_by(key) %>%
   filter(n() <= 1) %>%
   write.csv(file = "C:/Users/bha485/Desktop/vaccine_file.csv")
