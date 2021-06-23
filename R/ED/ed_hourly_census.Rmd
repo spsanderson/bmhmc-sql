@@ -87,7 +87,7 @@ dbGetQuery(
     
     SET @TODAY = GETDATE();
     SET @DateOfInterest = DATEADD(mm, DATEDIFF(mm, 0, @TODAY) - 2, 0);
-    --SET @DateOfInterest = '2020-06-01';
+    --SET @DateOfInterest = '2021-06-13';
     SET @StartDate = DATEADD(DAY, - 15, @DateOfInterest);
     SET @EndDate = @TODAY;
     --SET @EndDate = '2020-05-21';
