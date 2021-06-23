@@ -112,7 +112,9 @@ geocode_discharges_automation <- function() {
       , stringr::str_detect(PartialAddress, "BELLLPORT")             ~ "BELLPORT, NY, 11713"
       , stringr::str_detect(PartialAddress, "NESCONSETT")            ~ "NESCONSET, NY, 11767"
       , stringr::str_detect(PartialAddress, "YAHPANK")               ~ "YAPHANK, NY, 11980"
-      , stringr::str_detect(PartialAddress, "ISLIP TERRANCE")        ~ "ISLIP TERRACE, 11752"
+      , stringr::str_detect(PartialAddress, "ISLIP TERRANCE")        ~ "ISLIP TERRACE, NY, 11752"
+      , stringr::str_detect(PartialAddress, "PORT SAINT LUCIE, FL")  ~ "PORT SAINT LUCIE, FL, 34952"
+      , stringr::str_detect(PartialAddress, "PATCHOUGE, NY")         ~ "PATCHOGUE, NY, 11772"
       , TRUE ~ PartialAddress
     ))
 
