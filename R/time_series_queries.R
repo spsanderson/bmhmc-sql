@@ -488,7 +488,8 @@ ts_ip_census_los_daily_query <- function(){
     )
   ) %>%
     tibble::as_tibble() %>%
-    dplyr::mutate(dplyr::across(.cols = dplyr::everything(), .fns = as.Date))
+    dplyr::mutate(dplyr::across(.cols = dplyr::everything(), .fns = as.Date)) %>%
+    dplyr::arrange(adm_date)
 
   # * DB Disconnect ----
   LICHospitalR::db_disconnect(.connection = db_con_obj)
