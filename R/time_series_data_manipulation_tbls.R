@@ -543,7 +543,8 @@ ts_ip_census_los_daily_tbl <- function(.data, .keep_nulls_only = FALSE){
   # * Manipulate ----
   # Get start date and end date
   all_dates_tbl <- data_tbl %>%
-    dplyr::filter(!is.na(data_tbl[[1]]) & !is.na(data_tbl[[2]]))
+    dplyr::filter(!is.na(data_tbl[[1]])) %>%
+    dplyr::filter(!is.na(data_tbl[[2]]))
 
   start_date <- min(all_dates_tbl[[1]], all_dates_tbl[[2]])
   end_date   <- max(all_dates_tbl[[1]], all_dates_tbl[[2]])
@@ -555,7 +556,7 @@ ts_ip_census_los_daily_tbl <- function(.data, .keep_nulls_only = FALSE){
     , by       = "day"
   ) %>%
     tibble::as_tibble() %>%
-    dplyr::rename("date"="value")
+    dplyr::rename("date" = "value")
 
   res <- sqldf::sqldf(
     "
@@ -563,12 +564,15 @@ ts_ip_census_los_daily_tbl <- function(.data, .keep_nulls_only = FALSE){
     FROM ts_day_tbl AS A
     LEFT JOIN data_tbl AS B
     ON adm_date <= A.date
-        AND adm_date >= A.date
+      AND (
+        dsch_date >= A.date
+        or dsch_date is null
+      )
     "
   )
 
   res <- tibble::as_tibble(res) %>%
-    dplyr::arrange(dsch_date)
+    dplyr::arrange(date)
 
   los_tbl <- res %>%
     dplyr::mutate(
@@ -582,12 +586,13 @@ ts_ip_census_los_daily_tbl <- function(.data, .keep_nulls_only = FALSE){
       )
     ) %>%
     dplyr::mutate(census = 1) %>%
-    dplyr::mutate(
-      date = dplyr::case_when(
-        is.na(dsch_date) ~ Sys.Date()
-        , TRUE ~ dsch_date
-      )
-    )
+    # dplyr::mutate(
+    #   date = dplyr::case_when(
+    #     is.na(dsch_date) ~ Sys.Date()
+    #     , TRUE ~ dsch_date
+    #   )
+    # ) %>%
+    dplyr::arrange(date)
 
   # Keep NA columns?
   if(!keep_nulls_only_bool) {
