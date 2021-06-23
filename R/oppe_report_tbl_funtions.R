@@ -506,10 +506,11 @@ oppe_cpoe_umap <- function(.data
   # * Manipulation ----
   umap_obj <- data %>%
     dplyr::select(-req_pty_cd) %>%
-    uwot::umap()
+    uwot::umap() %>%
+    base::as.data.frame() %>%
+    tibble::as_tibble()
 
   umap_results_tbl <- umap_obj %>%
-    tibble::as_tibble() %>%
     purrr::set_names("x","y") %>%
     dplyr::bind_cols(
       data %>% dplyr::select(req_pty_cd)
@@ -636,7 +637,11 @@ oppe_cpoe_trend_tbl <- function(.data){
 #' kmm_tbl <- ui_tbl %>%
 #'   kmeans_mapped_tbl()
 #'
-#' umap_obj <- oppe_cpoe_umap(ui_tbl, kmm_tbl, 3)
+#' umap_obj <- oppe_cpoe_umap(
+#'   .data = ui_tbl
+#'   , .kmeans_map_tbl = kmm_tbl
+#'   , .k_cluster = 3
+#' )
 #'
 #' oppe_cpoe_cluster_trends_tbl(trend_tbl, umap_obj)
 #' oppe_cpoe_cluster_trends_tbl(trend_tbl, umap_obj, hospitalist_np_pa_flag)
