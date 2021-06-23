@@ -344,7 +344,7 @@ DROP TABLE IF EXISTS #od_resp
 		organ_dysfunc_respiratory VARCHAR(10)
 		)
 
-INSERT INTO #od_resp
+INSERT INTO #od_resp (pt_id, organ_dysfunc_respiratory)
 SELECT DISTINCT pt_id,
 	[organ_dysfunc_respiratory] = CASE 
 		WHEN B.icd10_cm_code IS NULL
@@ -355,6 +355,77 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_organ_dysfunc_respiratory_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- Organ Dysfunction Cardiovascular
+DROP TABLE IF EXISTS #od_cardiovascular;
+CREATE TABLE #od_cardiovascular (
+	pt_id VARCHAR(12),
+	organ_dysfunction_cardiovascular VARCHAR(10)
+)
+
+INSERT INTO #od_cardiovascular (pt_id, organ_dysfunction_cardiovascular)
+SELECT DISTINCT pt_id,
+	[organ_dysfunction_cardiovascular] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_organ_dysfunc_cardiovascular_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Organ Dysfunction Hematologic
+DROP TABLE IF EXISTS #od_hematologic
+CREATE TABLE #od_hematologic (
+	pt_id VARCHAR(12),
+	organ_dysfunc_hematologic VARCHAR(10)
+)
+
+INSERT INTO #od_hematologic (pt_id, organ_dysfunc_hematologic)
+SELECT DISTINCT pt_id,
+	[organ_dysfunc_hematologic] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_organ_dysfunc_hematologic_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
+
+-- Organ Dysfunction Hepatic
+DROP TABLE IF EXISTS #od_hepatic
+CREATE TABLE #od_hepatic (
+	pt_id VARCHAR(12),
+	organ_dysfun_hepatic VARCHAR(10)
+)
+
+INSERT INTO #od_hepatic (pt_id, organ_dysfun_hepatic)
+SELECT DISTINCT pt_id,
+	[organ_dysfunc_heptatic] = CASE
+		WHEN B.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_organ_dysfunc_hepatic_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
+
+-- Organ Dysfunction Renal
+DROP TABLE IF EXISTS #ogd_renal 
+CREATE TABLE #ogd_renal (
+	pt_id VARCHAR(12),
+	organ_dysfunc_renal VARCHAR(10)
+)
+
+INSERT INTO #ogd_renal (pt_id, organ_dysfunc_renal)
+SELECT DISTINCT pt_id,
+	[organ_dysfunc_renal] = CASE
+		WHEN b.icd10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
+FROM smsmir.dx_grp AS A
+INNER JOIN smsdss.c_nysdoh_sepsis_organ_dysfunc_renal_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
 -- Dementia
 DROP TABLE IF EXISTS #dementia_tbl
@@ -583,9 +654,165 @@ FROM SMSMIR.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_mechanical_vent_comorbidity_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
--- MEDICATION ANTICOAGULATION
+-- MEDICAITON ANTICOAGULATION HOME MED LIST
+DECLARE @HML_Medication_Anticoagulation TABLE (
+	NDC VARCHAR(12)
+)
+INSERT INTO @HML_Medication_Anticoagulation (NDC)
+SELECT CASE
+	WHEN LEN(NDC) = 10
+		THEN '0' + NDC
+	WHEN LEN(NDC) = 9
+		THEN '00' + NDC
+	WHEN LEN(NDC) = 8
+		THEN '000' + NDC
+	WHEN LEN(NDC) = 7
+		THEN '00000' + NDC
+	ELSE NDC
+	END
+FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
 
--- MEDICATION IMMUNE MODIFYING
+DROP TABLE IF EXISTS #hml_med_anticoag
+CREATE TABLE #hml_med_anticoag (
+	episode_no VARCHAR(12)
+)
+INSERT INTO #hml_med_anticoag
+SELECT DISTINCT c.PatientAccountID
+FROM smsmir.mir_sc_vw_MRC_Medlist AS a
+INNER JOIN smsmir.mir_sc_XMLDocStorage AS b
+ON a.XMLDocStorageOid = b.XMLDocStorageOid
+INNER JOIN smsmir.mir_sc_PatientVisit AS c
+ON b.Patient_OID = c.Patient_oid
+    AND b.PatientVisit_OID = c.StartingVisitOID
+INNER JOIN smsmir.mir_PHM_DrugMstr as d on upper(coalesce(a.GenericName, a.brandname)) = upper(coalesce(d.gnrcname, d.brandname))
+INNER JOIN @HML_Medication_Anticoagulation AS E ON REPLACE(D.NDC, '-','') = E.NDC
+INNER JOIN #BasePopulation AS BP ON C.PatientAccountID = BP.PtNo_Num
+WHERE a.DocumentType = 'hml'
+
+-- MEDICATION IMMUNE MODIFYING HOME MED LIST
+DECLARE @HML_Medication_Immune_Modifying TABLE (
+	NDC VARCHAR(12)
+)
+INSERT INTO @HML_Medication_Immune_Modifying (NDC)
+SELECT CASE
+	WHEN LEN(NDC) = 10
+		THEN '0' + NDC
+	WHEN LEN(NDC) = 9
+		THEN '00' + NDC
+	WHEN LEN(NDC) = 8
+		THEN '000' + NDC
+	WHEN LEN(NDC) = 7
+		THEN '00000' + NDC
+	ELSE NDC
+	END
+FROM smsdss.c_nysdoh_sepsis_medication_immune_modifying_ndc_code
+
+DROP TABLE IF EXISTS #hml_med_imm_mod
+CREATE TABLE #hml_med_imm_mod (
+	episode_no VARCHAR(12)
+)
+INSERT INTO #hml_med_imm_mod
+SELECT DISTINCT c.PatientAccountID
+FROM smsmir.mir_sc_vw_MRC_Medlist AS a
+INNER JOIN smsmir.mir_sc_XMLDocStorage AS b
+ON a.XMLDocStorageOid = b.XMLDocStorageOid
+INNER JOIN smsmir.mir_sc_PatientVisit AS c
+ON b.Patient_OID = c.Patient_oid
+    AND b.PatientVisit_OID = c.StartingVisitOID
+INNER JOIN smsmir.mir_PHM_DrugMstr as d on upper(coalesce(a.GenericName, a.brandname)) = upper(coalesce(d.gnrcname, d.brandname))
+INNER JOIN @HML_Medication_Immune_Modifying AS E ON REPLACE(D.NDC, '-','') = E.NDC
+INNER JOIN #BasePopulation AS BP ON C.PatientAccountID = BP.PtNo_Num
+WHERE a.DocumentType = 'hml'
+
+-- MEDICATION ANTICOAGULATION IN HOSPITAL
+DECLARE @Medication_Anticoagulation TABLE (
+	NDC VARCHAR(12)
+)
+INSERT INTO @Medication_Anticoagulation (NDC)
+SELECT CASE
+	WHEN LEN(NDC) = 10
+		THEN '0' + NDC
+	WHEN LEN(NDC) = 9
+		THEN '00' + NDC
+	WHEN LEN(NDC) = 8
+		THEN '000' + NDC
+	WHEN LEN(NDC) = 7
+		THEN '00000' + NDC
+	ELSE NDC
+	END
+FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
+
+DROP TABLE IF EXISTS #med_anticoag 
+CREATE TABLE #med_anticoag (
+	episode_no VARCHAR(12)
+)
+
+INSERT INTO #med_anticoag (episode_no)
+SELECT DISTINCT C.EpisodeNo
+FROM @Medication_Anticoagulation AS A
+INNER JOIN smsmir.mir_PHM_DrugMstr AS B ON A.NDC = REPLACE(B.NDC, '-', '')
+INNER JOIN SMSMIR.mir_PHM_Ord AS C ON B.NDC = C.NDC
+INNER JOIN #BasePopulation AS BP ON C.EpisodeNo = BP.PtNo_Num
+
+-- MEDICATION IMMUNE MODIFYING IN HOSPITAL
+DECLARE @Medication_Immune_Modifying TABLE (
+	NDC VARCHAR(12)
+)
+INSERT INTO @Medication_Immune_Modifying (NDC)
+SELECT CASE
+	WHEN LEN(NDC) = 10
+		THEN '0' + NDC
+	WHEN LEN(NDC) = 9
+		THEN '00' + NDC
+	WHEN LEN(NDC) = 8
+		THEN '000' + NDC
+	WHEN LEN(NDC) = 7
+		THEN '00000' + NDC
+	ELSE NDC
+	END
+FROM smsdss.c_nysdoh_sepsis_medication_immune_modifying_ndc_code
+
+DROP TABLE IF EXISTS #med_imm_mod 
+CREATE TABLE #med_imm_mod (
+	episode_no VARCHAR(12)
+)
+
+INSERT INTO #med_imm_mod (episode_no)
+SELECT DISTINCT C.EpisodeNo
+FROM @Medication_Immune_Modifying AS A
+INNER JOIN smsmir.mir_PHM_DrugMstr AS B ON A.NDC = REPLACE(B.NDC, '-', '')
+INNER JOIN SMSMIR.mir_PHM_Ord AS C ON B.NDC = C.NDC
+INNER JOIN #BasePopulation AS BP ON C.EpisodeNo = BP.PtNo_Num
+
+-- Vasopressor Administration during hospital
+DECLARE @Medication_Vasopressor TABLE (
+	NDC VARCHAR(12)
+)
+INSERT INTO @Medication_Vasopressor (NDC)
+SELECT CASE
+	WHEN LEN(NDC) = 10
+		THEN '0' + NDC
+	WHEN LEN(NDC) = 9
+		THEN '00' + NDC
+	WHEN LEN(NDC) = 8
+		THEN '000' + NDC
+	WHEN LEN(NDC) = 7
+		THEN '00000' + NDC
+	ELSE NDC
+	END
+FROM smsdss.c_nysdoh_sepsis_vasopressor_administration_ndc_code
+
+DROP TABLE IF EXISTS #med_vasopressor 
+CREATE TABLE #med_vasopressor (
+	episode_no VARCHAR(12)
+)
+
+INSERT INTO #med_vasopressor (episode_no)
+SELECT DISTINCT C.EpisodeNo
+FROM @Medication_Vasopressor AS A
+INNER JOIN smsmir.mir_PHM_DrugMstr AS B ON A.NDC = REPLACE(B.NDC, '-', '')
+INNER JOIN SMSMIR.mir_PHM_Ord AS C ON B.NDC = C.NDC
+INNER JOIN #BasePopulation AS BP ON C.EpisodeNo = BP.PtNo_Num
 
 -- METASTATIC CANCER
 DROP TABLE IF EXISTS #metastatic_cx_tbl
@@ -626,6 +853,73 @@ SELECT DISTINCT A.pt_id,
 FROM SMSMIR.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_obesity_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Patient Care Concerns
+DROP TABLE IF EXISTS #dnr_dni_tbl
+CREATE TABLE #dnr_dni_tbl (
+	episode_no VARCHAR(12),
+	obsv_cd VARCHAR(255),
+	dsply_val VARCHAR(255)
+	)
+
+INSERT INTO #dnr_dni_tbl (
+	episode_no,
+	obsv_cd,
+	dsply_val
+	)
+SELECT DISTINCT a.episode_no,
+	a.obsv_cd,
+	[dsply_val] = CASE 
+		WHEN RTRIM(LTRIM(UPPER(a.dsply_val))) = 'YES'
+			AND obsv_cd = 'A_BMH_DNR'
+			THEN 1
+		WHEN RTRIM(LTRIM(UPPER(A.DSPLY_VAL))) = 'YES'
+			AND obsv_cd = 'A_BMH_DNI'
+			THEN 2
+		ELSE NULL
+		END
+FROM SMSMIR.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd IN ('A_BMH_DNR', 'A_BMH_DNI')
+
+DROP TABLE IF EXISTS #dnr_dni_pvt_tbl
+CREATE TABLE #dnr_dni_pvt_tbl (
+	episode_no VARCHAR(12),
+	[patient_care_considerations] VARCHAR(255)
+)
+
+INSERT INTO #dnr_dni_pvt_tbl (episode_no, patient_care_considerations)
+SELECT PVT.episode_no,
+	[patient_care_concerns] = REPLACE(
+		STUFF(
+			COALESCE(': ' + RTRIM(PVT.[A_BMH_DNR]), '') 
+			+ COALESCE(': ' + RTRIM(PVT.[A_BMH_DNI]), '')
+			, 1, 2, ''
+			)
+		, ': ', ':'
+	)
+FROM (
+	SELECT episode_no,
+		obsv_cd,
+		dsply_val
+	FROM #dnr_dni_tbl
+	) AS A
+PIVOT(MAX(dsply_val) FOR obsv_cd IN ("A_BMH_DNR", "A_BMH_DNI")) AS PVT
+
+-- Patient Care Concerns Date
+DROP TABLE IF EXISTS #dnr_dni_date_tbl 
+CREATE TABLE #dnr_dni_date_tbl (
+	episode_no VARCHAR(12),
+	patient_care_considerations_date VARCHAR (255)
+)
+
+INSERT INTO #dnr_dni_date_tbl (episode_no, patient_care_considerations_date)
+SELECT A.episode_no,
+	CONVERT(CHAR(10), MIN(A.obsv_cre_dtime), 126)
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #dnr_dni_pvt_tbl AS B ON A.episode_no = B.episode_no
+WHERE A.obsv_cd IN ('A_BMH_DNR','A_BMH_DNI')
+GROUP BY A.episode_no
 
 -- pregnancy comorbidity
 DROP TABLE IF EXISTS #preg_comorbid_tbl
@@ -978,10 +1272,18 @@ CREATE TABLE #nasal_cannula_tbl (
 	episode_no VARCHAR(12)
 	)
 INSERT INTO #nasal_cannula_tbl (episode_no)
-SELECT DISTINCT A.episode_no
-FROM smsmir.mir_sr_obsv_new AS A
-INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE dsply_val = 'nasal cannula'
+--SELECT DISTINCT A.episode_no
+--FROM smsmir.mir_sr_obsv_new AS A
+--INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+--WHERE dsply_val = 'nasal cannula'
+SELECT DISTINCT C.PatientAccountID
+FROM smsmir.sc_Order as a
+INNER JOIN smsmir.sc_OrderSuppInfo AS B ON A.OrderSuppInfo_oid = B.ObjectID
+INNER JOIN smsmir.sc_PatientVisit AS C ON A.Patient_oid = C.Patient_oid
+	AND A.PatientVisit_oid = C.StartingVisitOID
+INNER JOIN #BasePopulation AS BP ON C.PatientAccountID = BP.PtNo_Num
+WHERE A.OrderAbbreviation = 'RT_O2Tx'
+AND B.Device = 'HIGH FLOW NASAL CANNULA'
 
 -- Mechanical Vent Treatment
 DROP TABLE IF EXISTS #mech_vent_treat_tbl
@@ -1235,17 +1537,16 @@ INSERT INTO #max_appt (
 	rn
 	)
 SELECT episode_no,
-	disp_val,
+	ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 	coll_dtime,
 	[RN] = ROW_NUMBER() OVER (
-		PARTITION BY EPISODE_NO ORDER BY DISP_VAL DESC
+		PARTITION BY EPISODE_NO ORDER BY ROUND(CAST(REPLACE(DISP_VAL, CHAR(13),'') AS FLOAT), 1) DESC
 		)
 FROM #appt
 
 DELETE
 FROM #max_appt
 WHERE RN != 1
-
 
 DROP TABLE IF EXISTS #appt_pvt 
 CREATE TABLE #appt_pvt (
@@ -1276,7 +1577,7 @@ SELECT episode_no,
 	MAX([03]) AS [appt_dt_3]
 FROM (
 	SELECT episode_no,
-		disp_val,
+		ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 		coll_dtime,
 		lab_number,
 		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
@@ -1309,7 +1610,8 @@ SELECT A.account,
 FROM smsdss.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE bp_diastolic IS NOT NULL
-	AND bp_diastolic NOT IN ('Patient refused', 'Refused', 'refused v/s', 'unknown')
+	AND bp_diastolic NOT IN ('Patient refused', 'Refused', 'refused v/s', 'unknown','','0')
+	AND bp_systolic != '0'
 
 
 -- Soarian
@@ -1362,9 +1664,8 @@ FROM (
 	
 	SELECT *
 	FROM #sr_diastolic
+	WHERE bp_diastolic != ''
 	) AS A
-
-
 
 DROP TABLE IF EXISTS #min_ws_diastolic
 CREATE TABLE #min_ws_diastolic (
@@ -1391,8 +1692,6 @@ FROM #bp_diastolic
 DELETE
 FROM #min_ws_diastolic
 WHERE rn != 1;
-
-
 
 DROP TABLE IF EXISTS #ws_bp_diastolic_pvt
 CREATE TABLE #ws_bp_diastolic_pvt (
@@ -1434,7 +1733,6 @@ PIVOT(MAX(bp_diastolic) FOR bp_reading_num IN ("1", "2", "3")) AS PVT_BP_DIASTOL
 PIVOT(MAX(obsv_dtime) FOR bp_reading_num2 IN ("01", "02", "03")) AS PVT_BP_COLL_DTIME
 GROUP BY episode_no
 
-
 -- INR
 DROP TABLE IF EXISTS #inr
 CREATE TABLE #inr (
@@ -1464,8 +1762,6 @@ FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '2012'
 
-
-
 DROP TABLE IF EXISTS #max_inr
 CREATE TABLE #max_inr (
 	episode_no VARCHAR(12),
@@ -1481,17 +1777,16 @@ INSERT INTO #max_inr (
 	rn
 	)
 SELECT episode_no,
-	disp_val,
+	ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 	coll_dtime,
 	[RN] = ROW_NUMBER() OVER (
-		PARTITION BY episode_no ORDER BY disp_val DESC
+		PARTITION BY episode_no ORDER BY ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) DESC
 		)
 FROM #inr
 
 DELETE
 FROM #max_inr
 WHERE rn != 1
-
 
 DROP TABLE IF EXISTS #inr_pvt
 CREATE TABLE #inr_pvt (
@@ -1522,7 +1817,7 @@ SELECT episode_no,
 	MAX([03]) AS [inr_dt_3]
 FROM (
 	SELECT episode_no,
-		disp_val,
+		ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 		coll_dtime,
 		lab_number,
 		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
@@ -1563,7 +1858,6 @@ FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '00402347'
 
-
 DROP TABLE IF EXISTS #max_lactate
 CREATE TABLE #max_lactate (
 	episode_no VARCHAR(12),
@@ -1579,17 +1873,16 @@ INSERT INTO #max_lactate (
 	rn
 	)
 SELECT episode_no,
-	disp_val,
+	ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 	coll_dtime,
 	[RN] = ROW_NUMBER() OVER (
-		PARTITION BY episode_no ORDER BY disp_val DESC
+		PARTITION BY episode_no ORDER BY ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) DESC
 		)
 FROM #lactate
 
 DELETE
 FROM #max_lactate
 WHERE RN != 1
-
 
 DROP TABLE IF EXISTS #lactate_pvt
 CREATE TABLE #lactate_pvt (
@@ -1620,7 +1913,7 @@ SELECT episode_no,
 	MAX([03]) AS [lactate_level_dt_3]
 FROM (
 	SELECT episode_no,
-		disp_val,
+		ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 		coll_dtime,
 		lab_number,
 		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
@@ -1662,7 +1955,6 @@ FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = '00400408'
 
-
 DROP TABLE IF EXISTS #arrival_bilirubin
 CREATE TABLE #arrival_bilirubin (
 	episode_no VARCHAR(12),
@@ -1676,11 +1968,10 @@ INSERT INTO #arrival_bilirubin (
 	organ_dysfunc_hepatic_arrival_dt
 	)
 SELECT episode_no,
-	disp_val,
+	ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 	coll_dtime
 FROM #od_bilirubin
 WHERE lab_number = 1
-
 
 DROP TABLE IF EXISTS #max_bilirubin
 CREATE TABLE #max_bilirubin (
@@ -1697,10 +1988,10 @@ INSERT INTO #max_bilirubin (
 	rn
 	)
 SELECT episode_no,
-	disp_val,
+	ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 	coll_dtime,
 	[RN] = ROW_NUMBER() OVER (
-		PARTITION BY episode_no ORDER BY disp_val DESC
+		PARTITION BY episode_no ORDER BY ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) DESC
 		)
 FROM #od_bilirubin
 
@@ -1837,6 +2128,7 @@ SELECT episode_no,
 		PARTITION BY episode_no ORDER BY disp_val
 		)
 FROM #platelets
+WHERE disp_val != '.'
 
 DELETE
 FROM #min_platelet
@@ -1904,7 +2196,7 @@ FROM SMSDSS.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE A.heart_rate NOT IN ('100-110', '101-114', '107-135', '110-130', '114-142', '115-130', '118-136', '120-145', '145-155', '158-173', '49-51', '82-100', '88-106', '98-130', 'CPR', 'rare', 'refused')
 	AND A.heart_rate IS NOT NULL
-
+	AND LEN(A.heart_rate) <= 3
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_hr 
@@ -1984,9 +2276,10 @@ SELECT episode_no,
 	sirs_heartrate,
 	obsv_dtime,
 	[rn] = ROW_NUMBER() OVER (
-		PARTITION BY episode_no ORDER BY CAST(sirs_heartrate AS INT) ASC
+		PARTITION BY episode_no ORDER BY CAST(sirs_heartrate AS INT) DESC
 		)
 FROM #sirs_hr
+WHERE LEN(sirs_heartrate) <= 3
 
 DELETE
 FROM #max_sirs_hr
@@ -2066,15 +2359,15 @@ WHERE disp_val = '. '
 DROP TABLE IF EXISTS #arr_wbc
 CREATE TABLE #arr_wbc (
 	episode_no VARCHAR(12),
-	sirs_leuckocyte_arrival VARCHAR(200),
-	sirs_leuckocyte_arrival_dt DATETIME,
+	sirs_leukocyte_arrival VARCHAR(200),
+	sirs_leukocyte_arrival_dt DATETIME,
 	rn INT
 	)
 
 INSERT INTO #arr_wbc (
 	episode_no,
-	sirs_leuckocyte_arrival,
-	sirs_leuckocyte_arrival_dt,
+	sirs_leukocyte_arrival,
+	sirs_leukocyte_arrival_dt,
 	rn
 	)
 SELECT episode_no,
@@ -2093,15 +2386,15 @@ WHERE RN != 1
 DROP TABLE IF EXISTS #min_wbc
 CREATE TABLE #min_wbc (
 	episode_no VARCHAR(12),
-	sirs_leuckocyte_min VARCHAR(200),
-	sirs_leuckocyte_min_dt DATETIME,
+	sirs_leukocyte_min VARCHAR(200),
+	sirs_leukocyte_min_dt DATETIME,
 	rn INT
 	)
 
 INSERT INTO #min_wbc (
 	episode_no,
-	sirs_leuckocyte_min,
-	sirs_leuckocyte_min_dt,
+	sirs_leukocyte_min,
+	sirs_leukocyte_min_dt,
 	rn
 	)
 SELECT episode_no,
@@ -2120,15 +2413,15 @@ WHERE RN != 1
 DROP TABLE IF EXISTS #max_wbc
 CREATE TABLE #max_wbc (
 	episode_no VARCHAR(12),
-	sirs_leuckocyte_max VARCHAR(20),
-	sirs_leuckocyte_max_dt DATETIME,
+	sirs_leukocyte_max VARCHAR(20),
+	sirs_leukocyte_max_dt DATETIME,
 	rn INT
 	)
 
 INSERT INTO #max_wbc (
 	episode_no,
-	sirs_leuckocyte_max,
-	sirs_leuckocyte_max_dt,
+	sirs_leukocyte_max,
+	sirs_leukocyte_max_dt,
 	rn
 	)
 SELECT episode_no,
@@ -2161,7 +2454,7 @@ FROM SMSDSS.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE A.respiratory_rate IS NOT NULL
 	AND A.respiratory_rate NOT IN ('4 0', 'AGONAL', 'assisted', 'rare')
-
+	AND LEN(A.respiratory_rate) <= 2
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_resp_rate
@@ -2240,6 +2533,7 @@ SELECT episode_no,
 		PARTITION BY episode_no ORDER BY CAST(sirs_respiratoryrate AS INT) DESC
 		)
 FROM #sirs_respiratoryrate
+WHERE LEN(sirs_respiratoryrate) <= 2
 
 DELETE
 FROM #max_sirs_respiratoryrate
@@ -2376,10 +2670,10 @@ INSERT INTO #max_sirs_temp (
 	rn
 	)
 SELECT episode_no,
-	sirs_temperature,
+	ROUND(CAST(REPLACE(sirs_temperature, CHAR(13),'') AS FLOAT), 1) AS [sirs_temperature],
 	obsv_dtime,
 	[RN] = ROW_NUMBER() OVER (
-		PARTITION BY episode_no ORDER BY CAST(sirs_temperature AS FLOAT) DESC
+		PARTITION BY episode_no ORDER BY ROUND(CAST(REPLACE(sirs_temperature, CHAR(13),'') AS FLOAT), 1) DESC
 		)
 FROM #sirs_temp
 
@@ -2417,7 +2711,7 @@ SELECT episode_no,
 	MAX([03])
 FROM (
 	SELECT episode_no,
-		sirs_temperature,
+		ROUND(CAST(REPLACE(sirs_temperature, CHAR(13), '') AS FLOAT), 1) AS [sirs_temperature],
 		obsv_dtime,
 		lab_number,
 		lab_number2 = '0' + CAST(lab_number AS VARCHAR)
@@ -2449,6 +2743,8 @@ SELECT A.account,
 FROM smsdss.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE ISNUMERIC(bp_systolic) = 1
+AND bp_diastolic != '0'
+AND bp_systolic != '0'
 
 
 -- Soarian
@@ -2575,7 +2871,6 @@ PIVOT(MAX(bp_systolic) FOR bp_reading_num IN ("1", "2", "3")) AS PVT_BP_SYSTOLIC
 PIVOT(MAX(obsv_dtime) FOR bp_reading_num2 IN ("01", "02", "03")) AS PVT_BP_COLL_DTIME
 GROUP BY episode_no
 
-
 -- Pull it all together
 SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CONVERT(CHAR(5), PV.VisitStartDateTime, 108),
 	[arrival_dt] = CONVERT(CHAR(10), PV.PresentingDateTime, 126) + ' ' + CONVERT(CHAR(5), PV.PresentingDateTime, 108),
@@ -2642,21 +2937,21 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 		WHEN TWOFACT.UserDataText = 'U'
 			THEN 'E9'
 		END,
-	[facility_identifier] = '000885',
+	[facility_identifier] = '0885',
 	[gender] = CASE 
 		WHEN PAV.Pt_Sex IN ('M', 'F')
 			THEN PAV.Pt_Sex
 		ELSE 'U'
 		END,
-	[icd_10_cm_code_01] = DX_CDS.[01],
-	[icd_10_cm_code_02] = DX_CDS.[02],
-	[icd_10_cm_code_03] = DX_CDS.[03],
-	[icd_10_cm_code_04] = DX_CDS.[04],
-	[icd_10_cm_code_05] = DX_CDS.[05],
-	[icd_10_cm_code_06] = DX_CDS.[06],
-	[icd_10_cm_code_07] = DX_CDS.[07],
-	[icd_10_cm_code_08] = DX_CDS.[08],
-	[icd_10_cm_code_09] = DX_CDS.[09],
+	[icd_10_cm_code_1] = DX_CDS.[01],
+	[icd_10_cm_code_2] = DX_CDS.[02],
+	[icd_10_cm_code_3] = DX_CDS.[03],
+	[icd_10_cm_code_4] = DX_CDS.[04],
+	[icd_10_cm_code_5] = DX_CDS.[05],
+	[icd_10_cm_code_6] = DX_CDS.[06],
+	[icd_10_cm_code_7] = DX_CDS.[07],
+	[icd_10_cm_code_8] = DX_CDS.[08],
+	[icd_10_cm_code_9] = DX_CDS.[09],
 	[icd_10_cm_code_10] = DX_CDS.[10],
 	[icd_10_cm_code_11] = DX_CDS.[11],
 	[icd_10_cm_code_12] = DX_CDS.[12],
@@ -2673,31 +2968,156 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	[icd_10_cm_code_23] = DX_CDS.[23],
 	[icd_10_cm_code_24] = DX_CDS.[24],
 	[icd_10_cm_code_25] = DX_CDS.[25],
-	[icd_10_cm_poa_indicator_01] = DX_POA.[01],
-	[icd_10_cm_poa_indicator_02] = DX_POA.[02],
-	[icd_10_cm_poa_indicator_03] = DX_POA.[03],
-	[icd_10_cm_poa_indicator_04] = DX_POA.[04],
-	[icd_10_cm_poa_indicator_05] = DX_POA.[05],
-	[icd_10_cm_poa_indicator_06] = DX_POA.[06],
-	[icd_10_cm_poa_indicator_07] = DX_POA.[07],
-	[icd_10_cm_poa_indicator_08] = DX_POA.[08],
-	[icd_10_cm_poa_indicator_09] = DX_POA.[09],
-	[icd_10_cm_poa_indicator_10] = DX_POA.[10],
-	[icd_10_cm_poa_indicator_11] = DX_POA.[11],
-	[icd_10_cm_poa_indicator_12] = DX_POA.[12],
-	[icd_10_cm_poa_indicator_13] = DX_POA.[13],
-	[icd_10_cm_poa_indicator_14] = DX_POA.[14],
-	[icd_10_cm_poa_indicator_15] = DX_POA.[15],
-	[icd_10_cm_poa_indicator_16] = DX_POA.[16],
-	[icd_10_cm_poa_indicator_17] = DX_POA.[17],
-	[icd_10_cm_poa_indicator_18] = DX_POA.[18],
-	[icd_10_cm_poa_indicator_19] = DX_POA.[19],
-	[icd_10_cm_poa_indicator_20] = DX_POA.[20],
-	[icd_10_cm_poa_indicator_21] = DX_POA.[21],
-	[icd_10_cm_poa_indicator_22] = DX_POA.[22],
-	[icd_10_cm_poa_indicator_23] = DX_POA.[23],
-	[icd_10_cm_poa_indicator_24] = DX_POA.[24],
-	[icd_10_cm_poa_indicator_25] = DX_POA.[25],
+	[icd_10_cm_poa_indicator_1] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[01] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[01]
+		END,
+	[icd_10_cm_poa_indicator_2] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[02] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[02]
+		END,
+	[icd_10_cm_poa_indicator_3] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[03] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[03]
+		END,
+	[icd_10_cm_poa_indicator_4] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[04] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[04]
+		END,
+	[icd_10_cm_poa_indicator_5] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[05] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[05]
+		END,
+	[icd_10_cm_poa_indicator_6] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[06] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[06]
+		END,
+	[icd_10_cm_poa_indicator_7] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[07] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[07]
+		END,
+	[icd_10_cm_poa_indicator_8] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[08] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[08]
+		END,
+	[icd_10_cm_poa_indicator_9] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[09] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[09]
+		END,
+	[icd_10_cm_poa_indicator_10] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[10] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[10]
+		END,
+	[icd_10_cm_poa_indicator_11] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[11] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[11]
+		END,
+	[icd_10_cm_poa_indicator_12] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[12] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[12]
+		END,
+	[icd_10_cm_poa_indicator_13] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[13] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[13]
+		END,
+	[icd_10_cm_poa_indicator_14] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[14] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[14]
+		END,
+	[icd_10_cm_poa_indicator_15] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[15] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[15]
+		END,
+	[icd_10_cm_poa_indicator_16] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[16] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[16]
+		END,
+	[icd_10_cm_poa_indicator_17] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[17] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[17]
+		END,
+	[icd_10_cm_poa_indicator_18] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[18] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[18]
+		END,
+	[icd_10_cm_poa_indicator_19] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[19] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[19]
+		END,
+	[icd_10_cm_poa_indicator_20] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[20] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[20]
+		END,
+	[icd_10_cm_poa_indicator_21] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[21] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[21]
+		END,
+	[icd_10_cm_poa_indicator_22] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[22] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[22]
+		END,
+	[icd_10_cm_poa_indicator_23] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[23] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[23]
+		END,
+	[icd_10_cm_poa_indicator_24] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[24] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[24]
+		END,
+	[icd_10_cm_poa_indicator_25] = CASE 
+		WHEN LEFT(pv.PatientAccountID, 1) = '8'
+			AND DX_POA.[25] IS NOT NULL
+			THEN 'U'
+		ELSE DX_POA.[25]
+		END,
 	[insurance_number] = CASE 
 		WHEN LEFT(PYRPLAN.PYR_CD, 1) IN ('A', 'Z')
 			THEN PYRPLAN.POL_NO
@@ -2706,7 +3126,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 		ELSE RTRIM(LTRIM(ISNULL(pol_no, ''))) + RTRIM(LTRIM(ISNULL(grp_no, '')))
 		END,
 	[medical_record_number] = pav.Med_Rec_No,
-	[other_payer] = CASE 
+	[other_payer] = CASE -- CHANGE TO IF E OR I IN PAYER
 		WHEN Payer.PYR2 != ''
 			AND Payer.PYR3 != ''
 			THEN CAST(Payer.PYR2 AS VARCHAR) + ':' + CAST(Payer.PYR3 AS VARCHAR)
@@ -2791,7 +3211,6 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	[transfer_facility_id_sending] = '',
 	[transfer_facility_nm_receiving] = '',
 	[transfer_facility_nm_sending] = '',
-	--PAV.PT_NAME,
 	[unique_personal_identifier] = CAST(LEFT(pav.Pt_Name, 2) AS VARCHAR) + CAST(RIGHT(LTRIM(RTRIM(SUBSTRING(PAV.PT_NAME, 1, CHARINDEX(' ,', PAV.PT_NAME, 1)))), 2) AS VARCHAR) + LEFT(LTRIM(RTRIM(REVERSE(SUBSTRING(REVERSE(pav.pt_name), 1, CHARINDEX(',', REVERSE(PAV.PT_NAME), 1) - 1)))), 2) + CAST(LTRIM(RTRIM(RIGHT(PAV.Pt_SSA_No, 4))) AS VARCHAR),
 	[acute_cardiovascular_conditions] = ISNULL(ACC_TBL.acute_cardiovascular_conditions, 0),
 	[aids_hiv_disease] = CASE 
@@ -2852,7 +3271,8 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	[dialysis_comorbidity] = CASE 
 		WHEN DIALYSIS_COMORBID.pt_id IS NULL
 			THEN 0
-		ELSE 1		END,
+		ELSE 1
+		END,
 	[history_of_covid] = CASE 
 		WHEN COVID_HIST.pt_id IS NULL
 			THEN 0
@@ -2873,168 +3293,223 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN 0
 		ELSE 1
 		END,
-	[immunocompromising] = CASE
+	[immunocompromising] = CASE 
 		WHEN IMMUNO.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[lymphoma_leukemia_multi_myeloma] = CASE
+	[lymphoma_leukemia_multi_myeloma] = CASE 
 		WHEN LLML.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[mechaical_vent_comorbidity] = CASE
+	[mechanical_vent_comorbidity] = CASE 
 		WHEN VENTS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[medication_anticoagulation] = '',
-	[medication_immune_modifying] = '',
-	[metastatic_cancer] = CASE
+	[medication_anticoagulation] = CASE 
+		WHEN HML_MED_ANTICOAG.episode_no IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[medication_immune_modifying] = CASE 
+		WHEN HML_IMM_MOD.episode_no IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[metastatic_cancer] = CASE 
 		WHEN METASTATIC_CX.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[obesity] = CASE
+	[obesity] = CASE 
 		WHEN OBESITY.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[patient_care_concerns] = '',
-	[patient_care_considerations_date] = '',
-	[pregnancy_comorbidity] = CASE
+	[patient_care_considerations] = CASE 
+		WHEN DNR_DNI.patient_care_considerations IS NULL
+			THEN '0'
+		ELSE DNR_DNI.patient_care_considerations
+		END,
+	[patient_care_considerations_date] = CASE 
+		WHEN DNR_DNI.patient_care_considerations IS NULL
+			THEN NULL
+		ELSE DNR_DNI_DATE.patient_care_considerations_date
+		END,
+	[pregnancy_comorbidity] = CASE 
 		WHEN PREG_COMORBID.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[pregnancy_status] = CASE
+	[pregnancy_status] = CASE 
 		WHEN PREG_STATUS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[smoking_vaping] = CASE
+	[smoking_vaping] = CASE 
 		WHEN SMOKING_VAPING.pt_id IS NULL
-			THEN 1
-		ELSE 0
+			THEN 0
+		ELSE 1
 		END,
-	[tracheostomy_on_arrival] = CASE
+	[tracheostomy_on_arrival] = CASE 
 		WHEN TRACH_ARR.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[covid_exposure] = CASE
+	[covid_exposure] = CASE 
 		WHEN CV_EXPOSURE.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[covid_virus] = CASE
+	[covid_virus] = CASE 
 		WHEN CV_VIRUS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[drug_resistant_pathogen] = CASE
+	[drug_resistant_pathogen] = CASE 
 		WHEN DRP_TBL.PT_ID IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[flu_positive] = CASE
+	[flu_positive] = CASE 
 		WHEN FLU_POS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	SSOI.suspected_source_of_infection,
+	[suspected_source_of_infection] = CASE 
+		WHEN SSOI.suspected_source_of_infection IS NULL
+			THEN '13'
+		ELSE SSOI.suspected_source_of_infection
+		END,
 	-- need to do
-	[dialysis_treatment] = CASE
+	[dialysis_treatment] = CASE 
 		WHEN DIA_TREAT.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[during_hospital_anticoagulation] = '',
-	[during_hospital_immune_mod_med] = '',
-	[during_hospital_remdesivir] = CASE
+	[during_hospital_anticoagulation] = CASE 
+		WHEN MED_ANTICOAG.episode_no IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[during_hospital_immune_mod_med] = CASE 
+		WHEN MED_IMM_MOD.episode_no IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[during_hospital_remdesivir] = CASE 
 		WHEN DH_REMDESIVIR.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[ecmo] = CASE
+	[ecmo] = CASE 
 		WHEN ECMO_TBL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[high_flow_nasal_cannula] = CASE
+	[high_flow_nasal_cannula] = CASE 
 		WHEN NASAL_CANNULA.episode_no IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[mechanical_vent_treatment] = CASE
+	[mechanical_vent_treatment] = CASE 
 		WHEN MVT_TBL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[non_invasive_pos_pressure_vent] = CASE
+	[non_invasive_pos_pressure_vent] = CASE 
 		WHEN NIPPV_TBL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[vasopressor_administration] = '',
-	[cv_outcomes_at_discharge] = CASE
+	[vasopressor_administration] = CASE 
+		WHEN MED_VASO.episode_no IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[cv_outcomes_at_discharge] = CASE 
 		WHEN CV_OUT_DSCH.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[dialysis_outcome] = CASE
+	[dialysis_outcome] = CASE 
 		WHEN DO.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[mechanical_vent_outcome] = CASE
+	[mechanical_vent_outcome] = CASE 
 		WHEN MVO_TBL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[tracheostomy_at_discharge] = CASE
+	[tracheostomy_at_discharge] = CASE 
 		WHEN TRACH_OUT.pt_id IS NULL
 			THEN 0
 		ELSE 1
-		END ,
-	[cv_outcomes_in_hospital] = CASE
+		END,
+	[cv_outcomes_in_hospital] = CASE 
 		WHEN CV_IN_HOSP.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
 	--[cardiovascular_outcomes] = '', dropped in 2.1.1
-	[icu_during_hospitalization] = CASE
+	[icu_during_hospitalization] = CASE 
 		WHEN (
-			SELECT DISTINCT ICU_FLAG.episode_no
-			FROM smsmir.mir_cen_hist AS ICU_FLAG
-			WHERE ICU_FLAG.pt_type = 'I'
-			AND ICU_FLAG.episode_no = BP.PtNo_Num
-			AND ICU_FLAG.unit_seq_no = BP.unit_seq_no
-		) IS NULL 
+				SELECT DISTINCT ICU_FLAG.episode_no
+				FROM smsmir.mir_cen_hist AS ICU_FLAG
+				WHERE ICU_FLAG.pt_type = 'I'
+					AND ICU_FLAG.episode_no = BP.PtNo_Num
+					AND ICU_FLAG.unit_seq_no = BP.unit_seq_no
+				) IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[pe_dvt] = CASE
+	[pe_dvt] = CASE 
 		WHEN PEDVT_TBL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[tracheostomy_in_hospital] = CASE
+	[tracheostomy_in_hospital] = CASE 
 		WHEN TRACH_IN.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	--
-	APPT_PVT.appt_1,
-	APPT_PVT.appt_2,
-	APPT_PVT.appt_3,
-	MAX_APPT.appt_max,
-	CONVERT(CHAR(10), APPT_PVT.appt_dt_1, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_1, 108) AS appt_dt_1,
-	CONVERT(CHAR(10), APPT_PVT.appt_dt_2, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_2, 108) AS appt_dt_2,
-	CONVERT(CHAR(10), APPT_PVT.appt_dt_3, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_3, 108) AS appt_dt_3,
-	CONVERT(CHAR(10), MAX_APPT.appt_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_APPT.appt_dt_max, 108) AS appt_dt_max,
-	ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival AS [bilirubin_arrival],
-	MAX_BILIRUBIN.organ_dysfunc_hepatic_max AS [bilirubin_max],
+	CASE 
+		WHEN SUBSTRING(RIGHT(APPT_PVT.appt_1, 2), 1, 1) = '.'
+			THEN APPT_PVT.appt_1
+		ELSE APPT_PVT.appt_1 + '.0'
+		END AS [aptt_1],
+	CASE 
+		WHEN SUBSTRING(RIGHT(APPT_PVT.appt_2, 2), 1, 1) = '.'
+			THEN APPT_PVT.appt_2
+		ELSE APPT_PVT.appt_2 + '.0'
+		END AS [aptt_2],
+	CASE 
+		WHEN SUBSTRING(RIGHT(APPT_PVT.appt_3, 2), 1, 1) = '.'
+			THEN APPT_PVT.appt_3
+		ELSE APPT_PVT.appt_3 + '.0'
+		END AS [aptt_3],
+	CASE 
+		WHEN SUBSTRING(RIGHT(MAX_APPT.appt_max, 2), 1, 1) = '.'
+			THEN MAX_APPT.appt_max
+		ELSE MAX_APPT.appt_max + '.0'
+		END AS [aptt_max],
+	CONVERT(CHAR(10), APPT_PVT.appt_dt_1, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_1, 108) AS aptt_dt_1,
+	CONVERT(CHAR(10), APPT_PVT.appt_dt_2, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_2, 108) AS aptt_dt_2,
+	CONVERT(CHAR(10), APPT_PVT.appt_dt_3, 126) + ' ' + CONVERT(CHAR(5), APPT_PVT.appt_dt_3, 108) AS aptt_dt_3,
+	CONVERT(CHAR(10), MAX_APPT.appt_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_APPT.appt_dt_max, 108) AS aptt_dt_max,
+	CASE 
+		WHEN SUBSTRING(RIGHT(ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival, 2), 1, 1) = '.'
+			THEN ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival
+		ELSE ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival + '.0'
+		END AS [bilirubin_arrival],
+	CASE 
+		WHEN SUBSTRING(RIGHT(MAX_BILIRUBIN.organ_dysfunc_hepatic_max, 2), 1, 1) = '.'
+			THEN MAX_BILIRUBIN.organ_dysfunc_hepatic_max
+		ELSE MAX_BILIRUBIN.organ_dysfunc_hepatic_max + '.0'
+		END AS [bilirubin_max],
 	CONVERT(CHAR(10), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_BILIRUBIN.organ_dysfunc_hepatic_arrival_dt, 108) AS bilirubin_arrival_dt,
 	CONVERT(CHAR(10), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_BILIRUBIN.organ_dysfunc_hepatic_max_dt, 108) AS bilirubin_max_dt,
 	ARR_CREATININE.organ_dysfunc_renal_arrival AS [creatinine_arrival],
@@ -3045,41 +3520,92 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	WS_BPD_PVT.diastolic_2,
 	WS_BPD_PVT.diastolic_3,
 	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_1, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_1, 108) AS diastolic_dt_1,
-	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_3, 108) AS diastolic_dt_2,
+	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_2, 108) AS diastolic_dt_2,
 	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_3, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_3, 108) AS diastolic_dt_3,
 	WS_MIN_BPD.diastolic_min,
 	CONVERT(CHAR(10), WS_MIN_BPD.diastolic_dt_min, 126) + ' ' + CONVERT(CHAR(5), WS_MIN_BPD.diastolic_dt_min, 108) AS diastolic_dt_min,
-	INR_PVT.inr_1,
-	INR_PVT.inr_2,
-	INR_PVT.inr_3,
-	MAX_INR.inr_max,
+	CASE 
+		WHEN SUBSTRING(RIGHT(INR_PVT.inr_1, 2), 1, 1) = '.'
+			THEN INR_PVT.inr_1
+		ELSE INR_PVT.inr_1 + '.0'
+		END AS [inr_1],
+	CASE 
+		WHEN SUBSTRING(RIGHT(INR_PVT.inr_2, 2), 1, 1) = '.'
+			THEN INR_PVT.inr_2
+		ELSE INR_PVT.inr_2 + '.0'
+		END AS [inr_2],
+	CASE 
+		WHEN SUBSTRING(RIGHT(INR_PVT.inr_3, 2), 1, 1) = '.'
+			THEN INR_PVT.inr_3
+		ELSE INR_PVT.inr_3 + '.0'
+		END AS [inr_3],
+	CASE 
+		WHEN SUBSTRING(RIGHT(MAX_INR.inr_max, 2), 1, 1) = '.'
+			THEN MAX_INR.inr_max
+		ELSE MAX_INR.inr_max + '.0'
+		END AS [inr_max],
 	CONVERT(CHAR(10), INR_PVT.inr_dt_1, 126) + ' ' + CONVERT(CHAR(5), INR_PVT.inr_dt_1, 108) AS inr_dt_1,
 	CONVERT(CHAR(10), INR_PVT.inr_dt_2, 126) + ' ' + CONVERT(CHAR(5), INR_PVT.inr_dt_2, 108) AS inr_dt_2,
 	CONVERT(CHAR(10), INR_PVT.inr_dt_3, 126) + ' ' + CONVERT(CHAR(5), INR_PVT.inr_dt_3, 108) AS inr_dt_3,
 	CONVERT(CHAR(10), MAX_INR.inr_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_INR.inr_dt_max, 108) AS inr_dt_max,
-	LACTATE_PVT.lactate_level_1,
-	LACTATE_PVT.lactate_level_2,
-	LACTATE_PVT.lactate_level_3,
-	MAX_LACTATE.lactate_level_max,
+	CASE 
+		WHEN SUBSTRING(RIGHT(LACTATE_PVT.lactate_level_1, 2), 1, 1) = '.'
+			THEN LACTATE_PVT.lactate_level_1
+		ELSE LACTATE_PVT.lactate_level_1 + '.0'
+		END AS [lactate_level_1],
+	CASE 
+		WHEN SUBSTRING(RIGHT(LACTATE_PVT.lactate_level_2, 2), 1, 1) = '.'
+			THEN LACTATE_PVT.lactate_level_2
+		ELSE LACTATE_PVT.lactate_level_2 + '.0'
+		END AS [lactate_level_2],
+	CASE 
+		WHEN SUBSTRING(RIGHT(LACTATE_PVT.lactate_level_3, 2), 1, 1) = '.'
+			THEN LACTATE_PVT.lactate_level_3
+		ELSE LACTATE_PVT.lactate_level_3 + '.0'
+		END AS [lactate_level_3],
+	CASE 
+		WHEN SUBSTRING(RIGHT(MAX_LACTATE.lactate_level_max, 2), 1, 1) = '.'
+			THEN MAX_LACTATE.lactate_level_max
+		ELSE MAX_LACTATE.lactate_level_max + '.0'
+		END AS [lactate_level_max],
 	CONVERT(CHAR(10), LACTATE_PVT.lactate_level_dt_1, 126) + ' ' + CONVERT(CHAR(5), LACTATE_PVT.lactate_level_dt_1, 108) AS lactate_level_dt_1,
 	CONVERT(CHAR(10), LACTATE_PVT.lactate_level_dt_2, 126) + ' ' + CONVERT(CHAR(5), LACTATE_PVT.lactate_level_dt_2, 108) AS lactate_level_dt_2,
 	CONVERT(CHAR(10), LACTATE_PVT.lactate_level_dt_3, 126) + ' ' + CONVERT(CHAR(5), LACTATE_PVT.lactate_level_dt_3, 108) AS lactate_level_dt_3,
 	CONVERT(CHAR(10), MAX_LACTATE.lactate_level_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_LACTATE.lactate_level_dt_max, 108) AS lactate_level_dt_max,
+	[organ_dysfunc_cardiovascular] = CASE 
+		WHEN OD_CARD.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[organ_dysfunc_cns] = CASE 
 		WHEN OD_CNS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-
+	[organ_dysfunc_hematologic] = CASE 
+		WHEN OD_HEMA.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[organ_dysfunc_hepatic] = CASE 
+		WHEN OD_HEPA.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[organ_dysfunc_renal] = CASE 
+		WHEN OGD_RENAL.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[organ_dysfunc_respiratory] = CASE 
 		WHEN OD_RESP.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	PLT_PVT.platelets_1,
-	PLT_PVT.platelets_2,
-	PLT_PVT.platelets_3,
-	MIN_PLT.platelets_min,
+	CAST(ROUND(CAST(REPLACE(PLT_PVT.platelets_1, CHAR(13), '') AS FLOAT), 0) AS VARCHAR) + '000' AS [platelets_1],
+	CAST(ROUND(CAST(REPLACE(PLT_PVT.platelets_2, CHAR(13), '') AS FLOAT), 0) AS VARCHAR) + '000' AS [platelets_2],
+	CAST(ROUND(CAST(REPLACE(PLT_PVT.platelets_3, CHAR(13), '') AS FLOAT), 0) AS VARCHAR) + '000' AS [platelets_3],
+	CAST(ROUND(CAST(REPLACE(MIN_PLT.platelets_min, CHAR(13), '') AS FLOAT), 0) AS VARCHAR) + '000' AS [platelets_min],
 	CONVERT(CHAR(10), PLT_PVT.platelets_dt_1, 126) + ' ' + CONVERT(CHAR(5), PLT_PVT.platelets_dt_1, 108) AS platelets_dt_1,
 	CONVERT(CHAR(10), PLT_PVT.platelets_dt_2, 126) + ' ' + CONVERT(CHAR(5), PLT_PVT.platelets_dt_2, 108) AS platelets_dt_2,
 	CONVERT(CHAR(10), PLT_PVT.platelets_dt_3, 126) + ' ' + CONVERT(CHAR(5), PLT_PVT.platelets_dt_3, 108) AS platelets_dt_3,
@@ -3092,12 +3618,12 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	CONVERT(CHAR(10), SIRS_HR_PVT.sirs_heartrate_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_HR_PVT.sirs_heartrate_dt_2, 108) AS sirs_heartrate_dt_2,
 	CONVERT(CHAR(10), SIRS_HR_PVT.sirs_heartrate_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_HR_PVT.sirs_heartrate_dt_3, 108) AS sirs_heartrate_dt_3,
 	CONVERT(CHAR(10), MAX_HR.sirs_heartrate_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_HR.sirs_heartrate_dt_max, 108) AS sirs_heartrate_dt_max,
-	ARR_WBC.sirs_leuckocyte_arrival,
-	MIN_WBC.sirs_leuckocyte_min,
-	MAX_WBC.sirs_leuckocyte_max,
-	CONVERT(CHAR(10), ARR_WBC.sirs_leuckocyte_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_WBC.sirs_leuckocyte_arrival_dt, 108) AS sirs_leuckocyte_arrival_dt,
-	CONVERT(CHAR(10), MIN_WBC.sirs_leuckocyte_min_dt, 126) + ' ' + CONVERT(CHAR(5), MIN_WBC.sirs_leuckocyte_min_dt, 108) AS sirs_keuckocyte_min_dt,
-	CONVERT(CHAR(10), MAX_WBC.sirs_leuckocyte_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_WBC.sirs_leuckocyte_max_dt, 108) AS sirs_leuckocyte_max_dt,
+	REPLACE(REPLACE(ARR_WBC.sirs_leukocyte_arrival, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_arrival],
+	REPLACE(REPLACE(MIN_WBC.sirs_leukocyte_min, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_min],
+	REPLACE(REPLACE(MAX_WBC.sirs_leukocyte_max, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_max],
+	CONVERT(CHAR(10), ARR_WBC.sirs_leukocyte_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_WBC.sirs_leukocyte_arrival_dt, 108) AS sirs_leukocyte_arrival_dt,
+	CONVERT(CHAR(10), MIN_WBC.sirs_leukocyte_min_dt, 126) + ' ' + CONVERT(CHAR(5), MIN_WBC.sirs_leukocyte_min_dt, 108) AS sirs_leukocyte_min_dt,
+	CONVERT(CHAR(10), MAX_WBC.sirs_leukocyte_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_WBC.sirs_leukocyte_max_dt, 108) AS sirs_leukocyte_max_dt,
 	SIRS_RESP_PVT.sirs_respiratoryrate_1,
 	SIRS_RESP_PVT.sirs_respiratoryrate_2,
 	SIRS_RESP_PVT.sirs_respiratoryrate_3,
@@ -3106,13 +3632,29 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 	CONVERT(CHAR(10), SIRS_RESP_PVT.sirs_respiratoryrate_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_RESP_PVT.sirs_respiratoryrate_dt_3, 108) AS sirs_respiratoryrate_dt_3,
 	MAX_SIRS_RESP_RATE.sirs_respiratoryrate_max,
 	CONVERT(CHAR(10), MAX_SIRS_RESP_RATE.sirs_respiratoryrate_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_SIRS_RESP_RATE.sirs_respiratoryrate_dt_max, 108) AS sirs_respiratoryrate_dt_max,
-	SIRS_TEMP_PVT.sirs_temperature_1,
-	SIRS_TEMP_PVT.sirs_temperature_2,
-	SIRS_TEMP_PVT.sirs_temperature_3,
+	CASE 
+		WHEN SUBSTRING(RIGHT(SIRS_TEMP_PVT.sirs_temperature_1, 2), 1, 1) = '.'
+			THEN SIRS_TEMP_PVT.sirs_temperature_1
+		ELSE SIRS_TEMP_PVT.sirs_temperature_1 + '.0'
+		END AS sirs_temperature_1,
+	CASE 
+		WHEN SUBSTRING(RIGHT(SIRS_TEMP_PVT.sirs_temperature_2, 2), 1, 1) = '.'
+			THEN SIRS_TEMP_PVT.sirs_temperature_2
+		ELSE SIRS_TEMP_PVT.sirs_temperature_2 + '.0'
+		END AS sirs_temperature_2,
+	CASE 
+		WHEN SUBSTRING(RIGHT(SIRS_TEMP_PVT.sirs_temperature_3, 2), 1, 1) = '.'
+			THEN SIRS_TEMP_PVT.sirs_temperature_3
+		ELSE SIRS_TEMP_PVT.SIRS_TEMPERATURE_3 + '.0'
+		END AS sirs_temperature_3,
 	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_1, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_1, 108) AS sirs_temperature_dt_1,
 	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_2, 108) AS sirs_temperature_dt_2,
 	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_3, 108) AS sirs_temperature_dt_3,
-	MAX_SIRS_TEMP.sirs_temperature_max,
+	CASE 
+		WHEN SUBSTRING(RIGHT(MAX_SIRS_TEMP.sirs_temperature_max, 2), 1, 1) = '.'
+			THEN MAX_SIRS_TEMP.sirs_temperature_max
+		ELSE MAX_SIRS_TEMP.sirs_temperature_max + '.0'
+		END AS sirs_temperature_max,
 	CONVERT(CHAR(10), MAX_SIRS_TEMP.sirs_temperature_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_SIRS_TEMP.sirs_temperature_dt_max, 108) AS sirs_temperature_dt_max,
 	BP_SYS_PVT.systolic_1,
 	BP_SYS_PVT.systolic_2,
@@ -3148,7 +3690,11 @@ LEFT OUTER JOIN (
 	FROM (
 		SELECT pt_id,
 			dx_cd_prio,
-			[poa] = right(dx_cd_type, 1)
+			[poa] = CASE 
+				WHEN right(dx_cd_type, 1) = ''
+					THEN 'E'
+				ELSE RIGHT(DX_CD_TYPE, 1)
+				END
 		FROM SMSMIR.dx_grp
 		WHERE LEFT(DX_CD_TYPE, 2) = 'DF'
 			AND dx_cd_prio < '26'
@@ -3169,13 +3715,13 @@ LEFT OUTER JOIN (
 				THEN 'A'
 			WHEN PDVA.pyr_group2 IN ('COMPENSATION')
 				THEN 'B'
-			WHEN PDVA.pyr_group2 IN ('MEDICARE A', 'MEDICARE B')
+			WHEN PDVA.pyr_group2 IN ('MEDICARE A', 'MEDICARE B', 'MEDICARE HMO')
 				THEN 'C'
-			WHEN PDVA.PYR_GROUP2 IN ('MEDICAID')
+			WHEN PDVA.PYR_GROUP2 IN ('MEDICAID', 'MEDICAID HMO')
 				THEN 'D'
-			WHEN PDVA.pyr_group2 IN ('EXCHANGE PLANS', 'MEDICARE HMO', 'MEDICAID HMO')
-				THEN 'E'
-			WHEN PDVA.pyr_group2 IN ('COMMERCIAL', 'CONTRACTED SERVICES', 'HMO')
+					--WHEN PDVA.pyr_group2 IN ('EXCHANGE PLANS')
+					--	THEN 'E'
+			WHEN PDVA.pyr_group2 IN ('COMMERCIAL', 'CONTRACTED SERVICES', 'HMO', 'EXCHANGE PLANS')
 				THEN 'F'
 			WHEN PDVA.PYR_GROUP2 IN ('BLUE CROSS')
 				THEN 'G'
@@ -3190,13 +3736,13 @@ LEFT OUTER JOIN (
 				THEN 'A'
 			WHEN PDVB.pyr_group2 IN ('COMPENSATION')
 				THEN 'B'
-			WHEN PDVB.pyr_group2 IN ('MEDICARE A', 'MEDICARE B')
+			WHEN PDVB.pyr_group2 IN ('MEDICARE A', 'MEDICARE B', 'MEDICARE HMO')
 				THEN 'C'
-			WHEN PDVB.PYR_GROUP2 IN ('MEDICAID')
+			WHEN PDVB.PYR_GROUP2 IN ('MEDICAID', 'MEDICAID HMO')
 				THEN 'D'
-			WHEN PDVB.pyr_group2 IN ('EXCHANGE PLANS', 'MEDICARE HMO', 'MEDICAID HMO')
-				THEN 'E'
-			WHEN PDVB.pyr_group2 IN ('COMMERCIAL', 'CONTRACTED SERVICES', 'HMO')
+					--WHEN PDVB.pyr_group2 IN ('EXCHANGE PLANS')
+					--	THEN 'E'
+			WHEN PDVB.pyr_group2 IN ('COMMERCIAL', 'CONTRACTED SERVICES', 'HMO', 'EXCHANGE PLANS')
 				THEN 'F'
 			WHEN PDVB.PYR_GROUP2 IN ('BLUE CROSS')
 				THEN 'G'
@@ -3211,13 +3757,13 @@ LEFT OUTER JOIN (
 				THEN 'A'
 			WHEN PDVC.pyr_group2 IN ('COMPENSATION')
 				THEN 'B'
-			WHEN PDVC.pyr_group2 IN ('MEDICARE A', 'MEDICARE B')
+			WHEN PDVC.pyr_group2 IN ('MEDICARE A', 'MEDICARE B', 'MEDICARE HMO')
 				THEN 'C'
-			WHEN PDVC.PYR_GROUP2 IN ('MEDICAID')
+			WHEN PDVC.PYR_GROUP2 IN ('MEDICAID', 'MEDICAID HMO')
 				THEN 'D'
-			WHEN PDVC.pyr_group2 IN ('EXCHANGE PLANS', 'MEDICARE HMO', 'MEDICAID HMO')
-				THEN 'E'
-			WHEN PDVC.pyr_group2 IN ('COMMERCIAL', 'CONTRACTED SERVICES', 'HMO')
+					--WHEN PDVC.pyr_group2 IN ('EXCHANGE PLANS')
+					--	THEN 'E'
+			WHEN PDVC.pyr_group2 IN ('COMMERCIAL', 'CONTRACTED SERVICES', 'HMO', 'EXCHANGE PLANS')
 				THEN 'F'
 			WHEN PDVC.PYR_GROUP2 IN ('BLUE CROSS')
 				THEN 'G'
@@ -3308,3 +3854,14 @@ LEFT JOIN #cv_outcome_dsch_pvt_tbl AS CV_OUT_DSCH ON PAV.Pt_No = CV_OUT_DSCH.pt_
 LEFT JOIN #cv_outcome_hosp_pvt_tbl AS CV_IN_HOSP ON PAV.Pt_No = CV_IN_HOSP.pt_id
 LEFT JOIN #pe_dvt_tbl AS PEDVT_TBL ON PAV.Pt_No = PEDVT_TBL.pt_id
 LEFT JOIN #trach_in_hosp_tbl AS TRACH_IN ON PAV.Pt_No = TRACH_IN.pt_id
+LEFT JOIN #dnr_dni_pvt_tbl AS DNR_DNI ON PAV.PtNo_Num = DNR_DNI.episode_no
+LEFT JOIN #dnr_dni_date_tbl AS DNR_DNI_DATE ON PAV.PtNo_Num = DNR_DNI_DATE.episode_no
+LEFT JOIN #od_cardiovascular AS OD_CARD ON PAV.Pt_No = OD_CARD.pt_id
+LEFT JOIN #od_hematologic AS OD_HEMA ON PAV.PT_NO = OD_HEMA.pt_id
+LEFT JOIN #od_hepatic AS OD_HEPA ON PAV.PT_NO = OD_HEPA.pt_id
+LEFT JOIN #ogd_renal AS OGD_RENAL ON PAV.Pt_No = OGD_RENAL.pt_id
+LEFT JOIN #med_anticoag AS MED_ANTICOAG ON PAV.PtNo_Num = MED_ANTICOAG.episode_no
+LEFT JOIN #med_imm_mod AS MED_IMM_MOD ON PAV.PtNo_Num = MED_IMM_MOD.episode_no
+LEFT JOIN #med_vasopressor AS MED_VASO ON PAV.PtNo_Num = MED_VASO.episode_no
+LEFT JOIN #hml_med_anticoag AS HML_MED_ANTICOAG ON PAV.PtNo_Num = HML_MED_ANTICOAG.episode_no
+LEFT JOIN #hml_med_imm_mod AS HML_IMM_MOD ON PAV.PtNo_Num = HML_IMM_MOD.episode_no
