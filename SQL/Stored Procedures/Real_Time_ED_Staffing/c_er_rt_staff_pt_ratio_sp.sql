@@ -51,6 +51,8 @@ Date		Version		Description
 						This is to exclude an RN from the following areas
 						Ambulance Bay, Treatment Room, Walkin Triage,
 						Express Care and the Charge Nurse
+2021-07-01	v3			ADD CAST AS FLOAT TO NUMBERS AT THE BOTTOM
+						USE CAST(RUN_DATETIME AS SMALLDATETIME)
 ***********************************************************************
 */
 
@@ -85,12 +87,12 @@ BEGIN
 		);
 
 	INSERT INTO smsdss.c_temp_ed_census_tbl
-	SELECT run_datetime,
+	SELECT CAST(run_datetime AS smalldatetime),
 		count(*) AS [pt_count]
 	FROM smsdss.c_real_time_er_census_tbl
 	WHERE Run_DateTime >= @StartDate
-	GROUP BY Run_DateTime
-	ORDER BY Run_DateTime;
+	GROUP BY CAST(Run_DateTime AS SMALLDATETIME)
+	ORDER BY CAST(Run_DateTime AS SMALLDATETIME);
 
 	IF OBJECT_ID('smsdss.c_temp_ed_staff_tbl', 'U') IS NOT NULL
 		TRUNCATE TABLE smsdss.c_temp_ed_staff_tbl
@@ -102,12 +104,12 @@ BEGIN
 		);
 
 	INSERT INTO smsdss.c_temp_ed_staff_tbl
-	SELECT run_datetime,
+	SELECT CAST(run_datetime AS smalldatetime),
 		(count(*) - 5) AS [staff_count]
 	FROM smsdss.c_real_time_er_staffing_tbl
 	WHERE Run_DateTime >= @StartDate
-	GROUP BY Run_DateTime
-	ORDER BY Run_DateTime;
+	GROUP BY CAST(Run_DateTime AS SMALLDATETIME)
+	ORDER BY CAST(Run_DateTime AS SMALLDATETIME);
 
 	IF OBJECT_ID('smsdss.c_temp_staff_pt_ratio_tbl', 'U') IS NOT NULL
 		TRUNCATE TABLE smsdss.c_temp_staff_pt_ratio_tbl
@@ -127,14 +129,14 @@ BEGIN
 		A.Census_Count,
 		B.Staff_DateTime,
 		B.Staff_Count,
-		[Pt_Nurse_Ratio] = ROUND(a.Census_Count / b.Staff_Count, 2),
+		[Pt_Nurse_Ratio] = ROUND(CAST(a.Census_Count + 0.0 AS FLOAT) / CAST(b.Staff_Count + 0.0 AS FLOAT), 2),
 		[id_num] = sum(1) over(order by a.census_datetime DESC)
 	FROM smsdss.c_temp_ed_census_tbl AS A
 	LEFT JOIN smsdss.c_temp_ed_staff_tbl AS B 
 	-- ensure that the census file from wellsoft has been put into
 	-- DSS before the staffing data and that the difference between
 	-- the two is 10 minutes or less
-	ON A.Census_DateTime < B.Staff_DateTime
+	ON A.Census_DateTime <= B.Staff_DateTime
 		AND DATEDIFF(MINUTE, A.CENSUS_DATETIME, B.STAFF_DATETIME) <= 10;
 
 	SELECT Census_DateTime,
