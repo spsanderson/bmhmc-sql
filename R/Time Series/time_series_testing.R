@@ -15,7 +15,8 @@ pacman::p_load(
   "modeltime.ensemble",
   "modeltime.resample",
   "modeltime.h2o",
-  "stringr"
+  "stringr",
+  "workflowsets"
 )
 
 interactive <- TRUE
@@ -166,17 +167,26 @@ splits <- initial_time_split(
   , cumulative = TRUE
 )
 
+splits %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(date_col, excess_days, .interactive = FALSE)
+
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(excess_days ~ ., data = training(splits)) %>%
-  step_timeseries_signature(date_col)
+recipe_base <- recipe(excess_days ~ ., data = training(splits))
 
-recipe_final <- recipe_base %>%
+recipe_date <- recipe_base %>%
+  step_timeseries_signature(date_col) %>%
   step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
-  step_normalize(contains("index.num"), date_col_year) %>%
-  step_dummy(contains("lbl"), one_hot = TRUE) %>%
-  step_fourier(date_col, period = 365/12, K = 2) %>%
+  step_normalize(contains("index.num"), contains("date_col_year"))
+
+recipe_fourier <- recipe_date %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_fourier(date_col, period = 365/12, K = 1) %>%
   step_YeoJohnson(excess_days, limits = c(0,1))
+
+recipe_fourier_final <- recipe_fourier %>%
+  step_nzv(all_predictors())
 
 # Models ------------------------------------------------------------------
 
@@ -185,10 +195,10 @@ recipe_final <- recipe_base %>%
 model_spec_arima_no_boost <- arima_reg() %>%
   set_engine(engine = "auto_arima")
 
-wflw_fit_arima_no_boost <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_arima_no_boost) %>%
-  fit(training(splits))
+# wflw_fit_arima_no_boost <- workflow() %>%
+#   add_recipe(recipe = recipe_base) %>%
+#   add_model(model_spec_arima_no_boost) %>%
+#   fit(training(splits))
 
 # Boosted Auto ARIMA ------------------------------------------------------
 
@@ -198,10 +208,10 @@ model_spec_arima_boosted <- arima_boost(
   ) %>%
   set_engine(engine = "auto_arima_xgboost")
 
-wflw_fit_arima_boosted <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_arima_boosted) %>%
-  fit(training(splits))
+# wflw_fit_arima_boosted <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_arima_boosted) %>%
+#   fit(training(splits))
 
 
 # ETS ---------------------------------------------------------------------
@@ -209,26 +219,26 @@ wflw_fit_arima_boosted <- workflow() %>%
 model_spec_ets <- exp_smoothing() %>%
   set_engine(engine = "ets") 
 
-wflw_fit_ets <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_ets) %>%
-  fit(training(splits))
+# wflw_fit_ets <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_ets) %>%
+#   fit(training(splits))
 
 model_spec_croston <- exp_smoothing() %>%
   set_engine(engine = "croston")
 
-wflw_fit_croston <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_croston) %>%
-  fit(training(splits))
+# wflw_fit_croston <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_croston) %>%
+#   fit(training(splits))
 
 model_spec_theta <- exp_smoothing() %>%
   set_engine(engine = "theta")
 
-wflw_fit_theta <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_theta) %>%
-  fit(training(splits))
+# wflw_fit_theta <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_theta) %>%
+#   fit(training(splits))
 
 
 # STLM ETS ----------------------------------------------------------------
@@ -236,64 +246,67 @@ wflw_fit_theta <- workflow() %>%
 model_spec_stlm_ets <- seasonal_reg() %>%
   set_engine("stlm_ets")
 
-wflw_fit_stlm_ets <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_stlm_ets) %>%
-  fit(training(splits))
+# wflw_fit_stlm_ets <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_stlm_ets) %>%
+#   fit(training(splits))
 
 model_spec_stlm_tbats <- seasonal_reg() %>%
   set_engine("tbats")
 
-wflw_fit_stlm_tbats <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_stlm_tbats) %>%
-  fit(training(splits))
+# wflw_fit_stlm_tbats <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_stlm_tbats) %>%
+#   fit(training(splits))
 
 model_spec_stlm_arima <- seasonal_reg() %>%
   set_engine("stlm_arima")
 
-wflw_fit_stlm_arima <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_stlm_arima) %>%
-  fit(training(splits))
+# wflw_fit_stlm_arima <- workflow() %>%
+#   add_recipe(recipe = recipe_base) %>%
+#   add_model(model_spec_stlm_arima) %>%
+#   fit(training(splits))
 
 # NNETAR ------------------------------------------------------------------
 
 model_spec_nnetar <- nnetar_reg() %>%
   set_engine("nnetar")
 
-wflw_fit_nnetar <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_nnetar) %>%
-  fit(training(splits))
+# wflw_fit_nnetar <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_nnetar) %>%
+#   fit(training(splits))
 
 # Prophet -----------------------------------------------------------------
 
 model_spec_prophet <- prophet_reg() %>%
   set_engine(engine = "prophet")
 
-wflw_fit_prophet <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_prophet) %>%
-  fit(training(splits))
+# wflw_fit_prophet <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_prophet) %>%
+#   fit(training(splits))
 
-model_spec_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
+model_spec_prophet_boost <- prophet_boost(
+    learn_rate = 0.1
+    , trees = 10
+  ) %>% 
   set_engine("prophet_xgboost") 
 
-wflw_fit_prophet_boost <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_prophet_boost) %>%
-  fit(training(splits))
+# wflw_fit_prophet_boost <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_prophet_boost) %>%
+#   fit(training(splits))
 
 # TSLM --------------------------------------------------------------------
 
 model_spec_lm <- linear_reg() %>%
   set_engine("lm")
 
-wflw_fit_lm <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_lm) %>%
-  fit(training(splits))
+# wflw_fit_lm <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_lm) %>%
+#   fit(training(splits))
 
 
 # MARS --------------------------------------------------------------------
@@ -301,45 +314,45 @@ wflw_fit_lm <- workflow() %>%
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
-wflw_fit_mars <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_mars) %>%
-  fit(training(splits))
+# wflw_fit_mars <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_mars) %>%
+#   fit(training(splits))
 
-# Garchmodels -------------------------------------------------------------
-
-model_spec_garch_multi_var <- garch_reg(
-    type = "ugarchspec"
-  ) %>%
-  set_engine(
-    "rugarch"
-    , specs = list(
-      spec1 = list(
-        mean.model = list(armaOrder = c(1, 0))
-      )
-      , spec2 = list(
-        mean.model = list(armaOrder = c(1, 0))
-      )
-      , spec3 = list(
-        mean.model = list(armaOrder = c(1, 0))
-      )
-    )
-  )
-
-wflw_fit_garch_multi_var <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_garch_multi_var) %>%
-  fit(training(splits))
+# Garchmodels 
+# 
+# model_spec_garch_multi_var <- garch_reg(
+#     type = "ugarchspec"
+#   ) %>%
+#   set_engine(
+#     "rugarch"
+#     , specs = list(
+#       spec1 = list(
+#         mean.model = list(armaOrder = c(1, 0))
+#       )
+#       , spec2 = list(
+#         mean.model = list(armaOrder = c(1, 0))
+#       )
+#       , spec3 = list(
+#         mean.model = list(armaOrder = c(1, 0))
+#       )
+#     )
+#   )
+# 
+# wflw_fit_garch_multi_var <- workflow() %>%
+#   add_recipe(recipe = recipe_final) %>%
+#   add_model(model_spec_garch_multi_var) %>%
+#   fit(training(splits))
 
 # Bayesmodels -------------------------------------------------------------
 library(bayesmodels)
 model_spec_bayes <- sarima_reg() %>%
   set_engine(engine = "stan")
 
-wflw_fit_bayes <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_bayes) %>%
-  fit(training(splits))
+# wflw_fit_bayes <- workflow() %>%
+#   add_recipe(recipe = recipe_fourier_final) %>%
+#   add_model(model_spec_bayes) %>%
+#   fit(training(splits))
 
 # H2O AutoML --------------------------------------------------------------
 h2o.init(
@@ -370,27 +383,57 @@ model_fitted
 model_final <- automl_leaderboard(model_fitted) %>% 
   head(1) %>% 
   pull(model_id)
+
 automl_update_model(model_fitted, model_final)
-predict(model_fitted, testing(splits))
+
+#predict(model_fitted, testing(splits))
 
 #h2o.shutdown()
 
+# Workflowsets ------------------------------------------------------------
+
+wfsets <- workflow_set(
+  preproc = list(
+    base          = recipe_base,
+    date          = recipe_date,
+    fourier       = recipe_fourier,
+    fourier_final = recipe_fourier_final
+  ),
+  models = list(
+    model_spec_arima_no_boost,
+    model_spec_arima_boosted,
+    model_spec_bayes,
+    model_spec_ets,
+    model_spec_lm,
+    model_spec_mars,
+    model_spec_nnetar,
+    model_spec_prophet,
+    model_spec_prophet_boost,
+    model_spec_stlm_arima,
+    model_spec_stlm_ets,
+    model_spec_stlm_tbats
+  ),
+  cross = TRUE
+)
+
+wf_fits <- wfsets %>% 
+  modeltime_fit_workflowset(
+    data = data_final_tbl
+    , control = control_fit_workflowset(
+      allow_par = TRUE
+      , cores   = 4
+    )
+  )
+
+wf_fits
+
 # Model Table -------------------------------------------------------------
 
-models_tbl <- modeltime_table(
-  #wflw_fit_arima_no_boost,
-  wflw_fit_arima_boosted,
-  wflw_fit_ets,
-  wflw_fit_theta,
-  wflw_fit_stlm_ets,
-  wflw_fit_stlm_tbats,
-  wflw_fit_nnetar,
-  wflw_fit_prophet,
-  wflw_fit_prophet_boost,
-  wflw_fit_lm, 
-  wflw_fit_mars,
-  wflw_fit_bayes,
-  model_fitted
+h2o_model_tbl <- modeltime_table(model_fitted)
+
+models_tbl <- combine_modeltime_tables(
+  wf_fits,
+  h2o_model_tbl
 )
 
 # Model Ensemble Table ----------------------------------------------------
@@ -403,23 +446,23 @@ resample_tscv <- training(splits) %>%
     , slice_limit = 1
   )
 
-submodel_predictions <- models_tbl %>%
-  modeltime_fit_resamples(
-    resamples = resample_tscv
-    , control = control_resamples(verbose = TRUE)
-  )
-
-ensemble_fit <- submodel_predictions %>%
-  ensemble_model_spec(
-    model_spec = linear_reg(
-      penalty  = tune()
-      , mixture = tune()
-    ) %>%
-      set_engine("glmnet")
-    , kfold    = 5
-    , grid     = 6
-    , control  = control_grid(verbose = TRUE)
-  )
+# submodel_predictions <- wf_fits %>%
+#   modeltime_fit_resamples(
+#     resamples = resample_tscv
+#     , control = control_resamples(verbose = TRUE)
+#   )
+# 
+# ensemble_fit <- submodel_predictions %>%
+#   ensemble_model_spec(
+#     model_spec = linear_reg(
+#       penalty  = tune()
+#       , mixture = tune()
+#     ) %>%
+#       set_engine("glmnet")
+#     , kfold    = 5
+#     , grid     = 6
+#     , control  = control_grid(verbose = TRUE)
+#   )
 
 fit_mean_ensemble <- models_tbl %>%
   ensemble_average(type = "mean")
@@ -429,29 +472,16 @@ fit_median_ensemble <- models_tbl %>%
 
 # Model Table -------------------------------------------------------------
 
-models_tbl <- modeltime_table(
-  #wflw_fit_arima_no_boost,
-  wflw_fit_arima_boosted,
-  wflw_fit_ets,
-  wflw_fit_theta,
-  wflw_fit_stlm_ets,
-  wflw_fit_stlm_tbats,
-  wflw_fit_nnetar,
-  wflw_fit_prophet,
-  wflw_fit_prophet_boost,
-  wflw_fit_lm, 
-  wflw_fit_mars,
-  model_fitted,
-  wflw_fit_bayes,
-  fit_mean_ensemble,
-  fit_median_ensemble
-)
+models_tbl <- models_tbl %>%
+  add_modeltime_model(fit_mean_ensemble) %>%
+  add_modeltime_model(fit_median_ensemble)
 
 models_tbl
 
 # Calibrate Model Testing -------------------------------------------------
 
 calibration_tbl <- models_tbl %>%
+  modeltime_refit(training(splits)) %>%
   modeltime_calibrate(new_data = testing(splits))
 
 calibration_tbl
@@ -472,7 +502,69 @@ calibration_tbl %>%
 calibration_tbl %>%
   modeltime_accuracy() %>%
   arrange(mae) %>%
+  table_modeltime_accuracy(.interactive = FALSE)
   table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
+
+# Residuals ---------------------------------------------------------------
+
+residuals_out_tbl <- calibration_tbl %>%
+  modeltime_residuals()
+
+residuals_in_tbl  <- calibration_tbl %>%
+  modeltime_residuals(
+    training(splits) %>% drop_na()
+  )
+
+# * Time Plot ----
+
+# Out-of-Sample 
+
+residuals_out_tbl %>% 
+  plot_modeltime_residuals(
+    .y_intercept = 0,
+    .y_intercept_color = "blue"
+  )
+
+# In-Sample
+
+residuals_in_tbl %>% 
+  plot_modeltime_residuals()
+
+
+# * ACF Plot ----
+
+# Out-of-Sample 
+
+residuals_out_tbl %>%
+  plot_modeltime_residuals(
+    .type = "acf"
+  )
+
+
+# In-Sample
+
+residuals_in_tbl %>%
+  plot_modeltime_residuals(
+    .type = "acf"
+  )
+
+
+# * Seasonality ----
+
+# Out-of-Sample 
+
+residuals_out_tbl %>%
+  plot_modeltime_residuals(
+    .type = "seasonality"
+  )
+
+calibration_tbl %>%
+  modeltime_forecast(
+    new_data = testing(splits),
+    actual_data = data_final_tbl
+  ) %>%
+  plot_modeltime_forecast()
+
 
 # Refit to all Data -------------------------------------------------------
 
@@ -480,7 +572,7 @@ refit_tbl <- calibration_tbl %>%
   modeltime_refit(
     data        = data_tbl
     , resamples = resample_tscv
-    , control   = control_resamples(verbose = TRUE)
+    #, control   = control_resamples(verbose = TRUE)
   )
 
 top_two_models <- refit_tbl %>% 
@@ -499,7 +591,7 @@ ensemble_models <- refit_tbl %>%
 model_choices <- rbind(top_two_models, ensemble_models)
 
 refit_tbl %>%
-  filter(.model_id %in% top_two_models$.model_id) %>%
+  filter(.model_id %in% model_choices$.model_id) %>%
   modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
@@ -507,6 +599,10 @@ refit_tbl %>%
     , .conf_interval_show = FALSE
     , .title = "IP Discharges Excess Days Forecast 12 Months Out"
   )
+
+# Shut Down H2O -----------------------------------------------------------
+
+h2o.shutdown()
 
 # Misc --------------------------------------------------------------------
 models_tbl %>%
