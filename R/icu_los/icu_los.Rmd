@@ -1,0 +1,165 @@
+---
+title: "ICU Length Of Stay"
+subtitle: "Visits for 2021"
+author: "Steven P. Sanderson II, MPH - Data Scientist/IT Manager"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: tango
+    theme: flatly
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  out.width = "100%",
+  out.height = "100%"
+  #dpi = 300
+  )
+```
+
+```{r lib_load, include=FALSE}
+if(!require(pacman)){install.packages("pacman")}
+pacman::p_load(
+  "timetk",
+  "odbc",
+  "DBI",
+  "dplyr",
+  "lubridate",
+  "janitor",
+  "knitr",
+  "tidyquant",
+  "ggrepel"
+)
+```
+
+```{r get_data, include=FALSE}
+db_con <- LICHospitalR::db_connect()
+
+query <- (
+  dbGetQuery(
+    conn = db_con
+    , statement = paste0(
+      "
+      -- VARIABLE DECLARATION
+      DECLARE @YEAR INT;
+      
+      -- VARIABLE INITIALIZATION
+      SET @YEAR = DATEPART(year, getdate());
+      
+      select nurs_sta
+      , pt_id
+      , cen_date
+      , tot_cen as [los]
+      from smsdss.dly_cen_occ_fct_v
+      where DATEPART(year, cen_date) = @YEAR
+      and nurs_sta in ('micu','ccu','sicu','sdu')
+      "
+    )
+  )
+) %>% 
+  as_tibble()
+ 
+tele_query <- dbGetQuery(
+  conn = db_con
+  , statement = paste0(
+    "
+    -- VARIABLE DECLARATION
+    DECLARE @YEAR INT;
+      
+    -- VARIABLE INITIALIZATION
+    SET @YEAR = DATEPART(year, getdate());
+    
+    SELECT SO.episode_no AS [Encounter],
+        '0000' + CAST(SO.episode_no AS varchar) as [pt_id],
+        SO.ord_no,
+        SO.ent_dtime,
+        SO.str_dtime,
+        OSH.PRCS_DTIME AS [Order_Status_Process_DTime],
+        OSH.SIGNON_ID AS [Order_Updated_By],
+        SO.svc_cd,
+        SO.svc_desc,
+        SO.desc_as_written,
+        SO.pty_cd AS [Order_Provider_ID],
+        SO.pty_name [Order_Provider_Name],
+        SO.sts_no,
+        OSM.ord_sts AS [sts_no_desc],
+        SO.ord_src_modf,
+        SO.ord_src_mne,
+        [RN] = ROW_NUMBER() OVER(
+            PARTITION BY SO.EPISODE_NO,
+            CAST(SO.ENT_DTIME AS DATE)
+            ORDER BY SO.ENT_DTIME
+        )
+    FROM smsmir.sr_ord AS SO
+        LEFT OUTER JOIN smsmir.ord_sts_modf_mstr AS OSM ON SO.ord_sts = OSM.ord_sts_modf_cd
+        LEFT OUTER JOIN smsmir.sr_ord_sts_hist AS OSH ON SO.ORD_NO = OSH.ORD_NO
+            AND SO.ORD_OBJ_ID = OSH.ORD_OBJ_ID
+            AND SO.ORD_STS = OSH.HIST_STS
+            AND SO.STS_NO = OSH.HIST_NO
+            AND SO.EPISODE_NO = OSH.EPISODE_NO
+    WHERE (
+        (SO.svc_cd = 'PCO_Telemntrg')
+        OR (
+          SO.svc_cd = 'ADT03'
+          AND SO.desc_as_written = 'Admit to Inpatient - Telemetry'
+        )
+    )
+      AND DATEPART(YEAR, SO.ent_dtime) = @YEAR
+    "
+  )
+) %>%
+  as_tibble()
+  
+LICHospitalR::db_disconnect(db_con)
+```
+
+```{r data_manip, include=FALSE}
+df_tbl <- (
+  query
+  %>% as_tibble()
+  %>% mutate(cen_date  = ymd(cen_date))
+  %>% mutate(week_num  = week(cen_date))
+)
+
+
+df_summary_tbl <- (
+  df_tbl
+  %>% group_by(nurs_sta, cen_date, pt_id)
+  %>% summarise_by_time(
+    .by = "week"
+    , los = sum(los, na.rm = TRUE)
+    , .type = "ceiling"
+  )
+  %>% ungroup()
+  %>% select(nurs_sta, cen_date,  los)
+  %>% group_by(nurs_sta, cen_date)
+  %>% mutate(alos = mean(los, na.rm = TRUE))
+  %>% ungroup()
+  %>% select(nurs_sta, cen_date, alos)
+  %>% distinct()
+)
+```
+
+```{r plots, include = TRUE}
+df_summary_tbl %>% 
+  group_by(nurs_sta) %>% 
+  mutate(rn = row_number()) %>%
+  filter(rn < max(rn)) %>%
+  plot_time_series(
+    .date_var      = cen_date
+    , .value       = alos
+    , .color_var   = nurs_sta
+    , .facet_ncol  = 2
+    #, .interactive = FALSE
+    , .smooth      = FALSE
+    , .title       = "ALOS by Week for select Units"
+  )
+
+```
