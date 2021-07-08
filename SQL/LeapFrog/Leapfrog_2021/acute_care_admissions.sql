@@ -28,7 +28,8 @@ Date		Version		Description
 ***********************************************************************
 */
 
-SELECT COUNT(*) AS [Admits_Adult]
+SELECT 'Admits_Adult' AS [Admit_Type],
+COUNT(*) AS [Admit_Count]
 
 FROM SMSDSS.BMH_PLM_PtAcct_V
 
@@ -38,12 +39,13 @@ AND LEFT(PTNO_NUM, 4) != '1999'
 AND Plm_Pt_Acct_Type = 'I'
 AND hosp_svc != 'PSY'
 AND Pt_Age >= 18
-AND Adm_Date >= '2018-01-01'
-AND Adm_Date < '2019-01-01'
+AND Adm_Date >= '2019-01-01'
+AND Adm_Date < '2020-01-01'
 
 UNION
 
-SELECT COUNT(*) AS [Admits_Peds]
+SELECT 'Admits_Peds',
+COUNT(*)
 
 FROM SMSDSS.BMH_PLM_PtAcct_V
 
@@ -53,5 +55,5 @@ AND LEFT(PTNO_NUM, 4) != '1999'
 AND Plm_Pt_Acct_Type = 'I'
 AND hosp_svc != 'PSY'
 AND Pt_Age < 18
-AND Adm_Date >= '2018-01-01'
-AND Adm_Date < '2019-01-01'
+AND Adm_Date >= '2019-01-01'
+AND Adm_Date < '2020-01-01'
