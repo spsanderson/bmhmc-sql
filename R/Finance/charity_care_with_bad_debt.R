@@ -49,8 +49,8 @@ query <- dbGetQuery(
     tot_pay_adj_amt,
     CAST(pay_dtime as date) as pay_dtime
     FROM SMSDSS.c_charity_care_v
-    WHERE pay_dtime >= '2019-01-01'
-    AND pay_dtime < '2020-01-01'
+    WHERE pay_dtime >= '2020-01-01'
+    AND pay_dtime < '2021-01-01'
     AND Pay_Cd != '09722240';
     "
   )
