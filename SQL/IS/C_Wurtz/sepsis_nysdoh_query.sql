@@ -667,7 +667,7 @@ SELECT CASE
 	WHEN LEN(NDC) = 8
 		THEN '000' + NDC
 	WHEN LEN(NDC) = 7
-		THEN '00000' + NDC
+		THEN '0000' + NDC
 	ELSE NDC
 	END
 FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
@@ -702,7 +702,7 @@ SELECT CASE
 	WHEN LEN(NDC) = 8
 		THEN '000' + NDC
 	WHEN LEN(NDC) = 7
-		THEN '00000' + NDC
+		THEN '0000' + NDC
 	ELSE NDC
 	END
 FROM smsdss.c_nysdoh_sepsis_medication_immune_modifying_ndc_code
@@ -737,7 +737,7 @@ SELECT CASE
 	WHEN LEN(NDC) = 8
 		THEN '000' + NDC
 	WHEN LEN(NDC) = 7
-		THEN '00000' + NDC
+		THEN '0000' + NDC
 	ELSE NDC
 	END
 FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
@@ -767,7 +767,7 @@ SELECT CASE
 	WHEN LEN(NDC) = 8
 		THEN '000' + NDC
 	WHEN LEN(NDC) = 7
-		THEN '00000' + NDC
+		THEN '0000' + NDC
 	ELSE NDC
 	END
 FROM smsdss.c_nysdoh_sepsis_medication_immune_modifying_ndc_code
@@ -797,7 +797,7 @@ SELECT CASE
 	WHEN LEN(NDC) = 8
 		THEN '000' + NDC
 	WHEN LEN(NDC) = 7
-		THEN '00000' + NDC
+		THEN '0000' + NDC
 	ELSE NDC
 	END
 FROM smsdss.c_nysdoh_sepsis_vasopressor_administration_ndc_code
@@ -3126,12 +3126,30 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 		ELSE RTRIM(LTRIM(ISNULL(pol_no, ''))) + RTRIM(LTRIM(ISNULL(grp_no, '')))
 		END,
 	[medical_record_number] = pav.Med_Rec_No,
-	[other_payer] = CASE -- CHANGE TO IF E OR I IN PAYER
-		WHEN Payer.PYR2 != ''
+	--[other_payer] = CASE -- CHANGE TO IF E OR I IN PAYER
+	--	WHEN Payer.PYR2 != ''
+	--		AND Payer.PYR3 != ''
+	--		THEN CAST(Payer.PYR2 AS VARCHAR) + ':' + CAST(Payer.PYR3 AS VARCHAR)
+	--	WHEN Payer.PYR2 != ''
+	--		THEN CAST(Payer.PYR2 AS VARCHAR)
+	--	END,
+	[other_payer] = CASE
+		WHEN (
+			PAYER.PYR1 IN ('E','I')
+			OR Payer.PYR2 IN ('E','I')
+			OR PAYER.PYR3 IN ('E','I')
+		)
+			AND Payer.PYR2 != ''
 			AND Payer.PYR3 != ''
 			THEN CAST(Payer.PYR2 AS VARCHAR) + ':' + CAST(Payer.PYR3 AS VARCHAR)
-		WHEN Payer.PYR2 != ''
+		WHEN (
+					PAYER.PYR1 IN ('E','I')
+					OR Payer.PYR2 IN ('E','I')
+					OR PAYER.PYR3 IN ('E','I')
+				)
+			AND Payer.PYR2 != ''
 			THEN CAST(Payer.PYR2 AS VARCHAR)
+		ELSE NULL
 		END,
 	[patient_control_number] = pv.PatientAccountID,
 	[patient_zip_code_of_residence] = CAST(PAV.Pt_Zip_Cd AS VARCHAR) + '-' + '0000',
