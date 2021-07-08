@@ -137,7 +137,7 @@ AND PYRPLAN.pt_id NOT IN (
 )
 AND SUBSTRING(PYRPLAN.PT_ID, 5, 1) != '1'
 AND PYRPLAN.last_bl_dtime IS NOT NULL
-AND PYRPLAN.pyr_seq_no = 1
+--AND PYRPLAN.pyr_seq_no = 1
 AND VST.pt_bal_amt >= 0
 AND VST.prin_dx_cd IS NOT NULL
 
