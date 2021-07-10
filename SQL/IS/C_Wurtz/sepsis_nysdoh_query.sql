@@ -79,7 +79,7 @@ WHERE (
 			)
 		)
 	AND Dsch_Date >= '2020-12-01'
-	AND Dsch_Date < '2021-01-01'
+	AND Dsch_Date < '2021-06-01'
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
@@ -854,6 +854,39 @@ FROM SMSMIR.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_obesity_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- BMI
+DROP TABLE IF EXISTS #bmi_tbl
+CREATE TABLE #bmi_tbl (
+	episode_no VARCHAR(12),
+	coll_dtime DATETIME,
+	lab_number INT,
+	disp_val VARCHAR(200),
+	obesity_flag INT
+	)
+
+INSERT INTO #bmi_tbl (
+	episode_no,
+	coll_dtime,
+	lab_number,
+	disp_val,
+	obesity_flag
+	)
+SELECT A.episode_no,
+	a.obsv_cre_dtime,
+	[lab_number] = ROW_NUMBER() OVER(
+		PARTITION BY A.episode_no
+		ORDER BY A.obsv_cre_dtime
+	),
+	replace(a.dsply_val, char(13), '') as disp_val,
+	[obesity_bmi_flag] = case when cast(replace(a.dsply_val, char(13), '') as numeric) > 30.0 then 1 else 0 end
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd = 'A_BMI'
+
+DELETE
+FROM #bmi_tbl
+WHERE lab_number != 1;
+
 -- Patient Care Concerns
 DROP TABLE IF EXISTS #dnr_dni_tbl
 CREATE TABLE #dnr_dni_tbl (
@@ -1082,6 +1115,29 @@ FROM SMSMIR.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_flu_positive_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- flu test
+DROP TABLE IF EXISTS #flu_tbl
+CREATE TABLE #flu_tbl (
+	episode_no VARCHAR(12),
+	flu_positive VARCHAR(200)
+	)
+
+INSERT INTO #flu_tbl (
+	episode_no,
+	flu_positive
+	)
+SELECT A.episode_no,
+	[flu_flag] = CASE WHEN A.dsply_val LIKE '%POSITIVE%' THEN 1 ELSE 0 END
+FROM smsmir.mir_sr_obsv_new AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.obsv_cd IN ('00424721', '00424739')
+GROUP BY A.episode_no, 
+CASE WHEN A.dsply_val LIKE '%POSITIVE%' THEN 1 ELSE 0 END
+
+DELETE
+FROM #flu_tbl
+WHERE flu_positive != 1;
+
 -- Suspected Source of Infection
 DROP TABLE IF EXISTS #ssoi_tbl
 CREATE TABLE #ssoi_tbl (
@@ -1232,6 +1288,22 @@ FROM smsmir.sproc AS a
 INNER JOIN smsdss.c_nysdoh_sepsis_dialysis_treatment_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
+-- Dialysis Order
+DROP TABLE IF EXISTS #dialysis_order_tbl
+CREATE TABLE #dialysis_order_tbl (
+	episode_no VARCHAR(12)
+	)
+
+INSERT INTO #dialysis_order_tbl (
+	episode_no
+	)
+SELECT A.episode_no
+FROM smsmir.mir_sr_ord AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE a.svc_cd IN ('05400023')-- may have other svc codes
+GROUP BY A.episode_no
+;
+
 -- During Hospital Remdesivir
 DROP TABLE IF EXISTS #during_hospital_remdesivir_tbl
 CREATE TABLE #during_hospital_remdesivir_tbl (
@@ -1248,6 +1320,19 @@ SELECT A.pt_id,
 FROM smsmir.sproc AS a
 INNER JOIN smsdss.c_nysdoh_sepsis_during_hospital_remdesivir_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+
+-- Remdesivir Order
+DROP TABLE IF EXISTS #remdesivir_ord_tbl
+CREATE TABLE #remdesivir_ord_tbl (
+	episode_no VARCHAR(12)
+)
+
+INSERT INTO #remdesivir_ord_tbl (episode_no)
+SELECT a.episode_no
+FROM smsmir.mir_sr_ord AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.ptno_num
+WHERE a.svc_cd IN ('P_3183','PRE_3183DayOne','PRE_3183Day2-10','R_179015')
+GROUP BY a.episode_no
 
 -- Ecmo
 DROP TABLE IF EXISTS #ecmo_tbl
@@ -1520,7 +1605,11 @@ SELECT A.episode_no,
 --[dsply_val] = LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1)))
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE obsv_cd = '00403154'
+WHERE obsv_cd = '00403154';
+
+DELETE
+FROM #appt
+WHERE disp_val IN ('.');
 
 DROP TABLE IF EXISTS #max_appt
 CREATE TABLE #max_appt (
@@ -1542,11 +1631,11 @@ SELECT episode_no,
 	[RN] = ROW_NUMBER() OVER (
 		PARTITION BY EPISODE_NO ORDER BY ROUND(CAST(REPLACE(DISP_VAL, CHAR(13),'') AS FLOAT), 1) DESC
 		)
-FROM #appt
+FROM #appt;
 
 DELETE
 FROM #max_appt
-WHERE RN != 1
+WHERE RN != 1;
 
 DROP TABLE IF EXISTS #appt_pvt 
 CREATE TABLE #appt_pvt (
@@ -1760,7 +1849,11 @@ SELECT A.episode_no,
 		END
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE A.obsv_cd = '2012'
+WHERE A.obsv_cd = '2012';
+
+DELETE
+FROM #inr
+WHERE disp_val = '.D';
 
 DROP TABLE IF EXISTS #max_inr
 CREATE TABLE #max_inr (
@@ -1782,11 +1875,11 @@ SELECT episode_no,
 	[RN] = ROW_NUMBER() OVER (
 		PARTITION BY episode_no ORDER BY ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) DESC
 		)
-FROM #inr
+FROM #inr;
 
 DELETE
 FROM #max_inr
-WHERE rn != 1
+WHERE rn != 1;
 
 DROP TABLE IF EXISTS #inr_pvt
 CREATE TABLE #inr_pvt (
@@ -1826,7 +1919,7 @@ FROM (
 	) AS A
 PIVOT(MAX(disp_val) FOR LAB_NUMBER IN ("1", "2", "3")) AS PVT_INR
 PIVOT(MAX(coll_dtime) FOR LAB_NUMBER2 IN ("01", "02", "03")) AS PVT_COLL_DTIME
-GROUP BY episode_no
+GROUP BY episode_no;
 
 
 -- lactate
@@ -1953,7 +2046,11 @@ SELECT A.episode_no,
 --[dsply_val] = LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1)))
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE obsv_cd = '00400408'
+WHERE obsv_cd = '00400408';
+
+DELETE
+FROM #od_bilirubin
+WHERE disp_val = 'R';
 
 DROP TABLE IF EXISTS #arrival_bilirubin
 CREATE TABLE #arrival_bilirubin (
@@ -1971,7 +2068,7 @@ SELECT episode_no,
 	ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) AS [disp_val],
 	coll_dtime
 FROM #od_bilirubin
-WHERE lab_number = 1
+WHERE lab_number = 1;
 
 DROP TABLE IF EXISTS #max_bilirubin
 CREATE TABLE #max_bilirubin (
@@ -1980,7 +2077,6 @@ CREATE TABLE #max_bilirubin (
 	organ_dysfunc_hepatic_max_dt DATETIME,
 	rn INT
 	)
-
 INSERT INTO #max_bilirubin (
 	episode_no,
 	organ_dysfunc_hepatic_max,
@@ -1993,11 +2089,11 @@ SELECT episode_no,
 	[RN] = ROW_NUMBER() OVER (
 		PARTITION BY episode_no ORDER BY ROUND(CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT), 1) DESC
 		)
-FROM #od_bilirubin
+FROM #od_bilirubin;
 
 DELETE
 FROM #max_bilirubin
-WHERE RN != 1
+WHERE RN != 1;
 
 
 -- Organ Dysfunction Renal (creatinine)
@@ -2238,7 +2334,7 @@ INSERT INTO #sirs_hr (
 	lab_number
 	)
 SELECT a.episode_no,
-	a.sirs_heartrate,
+	REPLACE(a.sirs_heartrate, '.',''),
 	a.coll_dtime,
 	[RN] = ROW_NUMBER() OVER (
 		PARTITION BY A.episode_no ORDER BY A.coll_dtime
@@ -2349,12 +2445,11 @@ SELECT A.episode_no,
 		END
 FROM SMSMIR.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE A.obsv_cd = '1000'
+WHERE A.obsv_cd = '1000';
 
 DELETE
 FROM #wbc
-WHERE disp_val = '. '
-
+WHERE disp_val IN ('. ', 'S','R','d','11P');
 
 DROP TABLE IF EXISTS #arr_wbc
 CREATE TABLE #arr_wbc (
@@ -2802,6 +2897,9 @@ FROM (
 	FROM #sr_systolic
 	) AS A
 
+DELETE
+FROM #bp_systolic
+WHERE LEN(bp_systolic) > 3;
 
 DROP TABLE IF EXISTS #min_systolic
 CREATE TABLE #min_systolic (
@@ -2828,7 +2926,6 @@ FROM #bp_systolic
 DELETE
 FROM #min_systolic
 WHERE rn != 1;
-
 
 
 DROP TABLE IF EXISTS #bp_systolic_pvt
@@ -3343,6 +3440,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 		END,
 	[obesity] = CASE 
 		WHEN OBESITY.pt_id IS NULL
+			AND BMI_TBL.episode_no IS NULL
 			THEN 0
 		ELSE 1
 		END,
@@ -3393,6 +3491,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 		END,
 	[flu_positive] = CASE 
 		WHEN FLU_POS.pt_id IS NULL
+			AND FLU_TBL.episode_no IS NULL
 			THEN 0
 		ELSE 1
 		END,
@@ -3401,9 +3500,9 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 			THEN '13'
 		ELSE SSOI.suspected_source_of_infection
 		END,
-	-- need to do
 	[dialysis_treatment] = CASE 
 		WHEN DIA_TREAT.pt_id IS NULL
+			AND DIA_ORD.EPISODE_NO IS NULL
 			THEN 0
 		ELSE 1
 		END,
@@ -3419,6 +3518,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 		END,
 	[during_hospital_remdesivir] = CASE 
 		WHEN DH_REMDESIVIR.pt_id IS NULL
+			AND REMDESIVIR_ORD.EPISODE_NO IS NULL
 			THEN 0
 		ELSE 1
 		END,
@@ -3850,6 +3950,7 @@ LEFT JOIN #llml_tbl AS LLML ON PAV.Pt_NO = LLML.pt_id
 LEFT JOIN #vent_tbl AS VENTS ON PAV.Pt_No = VENTS.pt_id
 LEFT JOIN #metastatic_cx_tbl AS METASTATIC_CX ON PAV.Pt_No = METASTATIC_CX.pt_id
 LEFT JOIN #obesity_tbl AS OBESITY ON PAV.PT_NO = OBESITY.pt_id
+LEFT JOIN #bmi_tbl AS BMI_TBL ON PAV.PtNo_Num = BMI_TBL.episode_no
 LEFT JOIN #preg_comorbid_tbl AS PREG_COMORBID ON PAV.PT_NO = PREG_COMORBID.pt_id
 LEFT JOIN #preg_status_tbl AS PREG_STATUS ON PAV.Pt_No = PREG_STATUS.pt_id
 LEFT JOIN #smoking_vaping_tbl AS SMOKING_VAPING ON PAV.Pt_No = SMOKING_VAPING.pt_id
@@ -3858,9 +3959,12 @@ LEFT JOIN #covid_exposure_tbl AS CV_EXPOSURE ON PAV.Pt_No = CV_EXPOSURE.pt_id
 LEFT JOIN #covid_virus_tbl AS CV_VIRUS ON PAV.Pt_No = CV_VIRUS.pt_id
 LEFT JOIN #drp_tbl AS DRP_TBL ON PAV.Pt_No = DRP_TBL.pt_id
 LEFT JOIN #flu_pos_tbl AS FLU_POS ON PAV.Pt_No = FLU_POS.pt_id
+LEFT JOIN #FLU_TBL AS FLU_TBL ON PAV.PtNo_Num = FLU_TBL.episode_no
 LEFT JOIN #ssoi_final_tbl AS SSOI ON PAV.PT_NO = SSOI.pt_id
 LEFT JOIN #dialysis_treatment_tbl AS DIA_TREAT ON PAV.Pt_No = DIA_TREAT.pt_id
+LEFT JOIN #dialysis_order_tbl AS DIA_ORD ON PAV.PTNO_NUM = DIA_ORD.EPISODE_NO
 LEFT JOIN #during_hospital_remdesivir_tbl AS DH_REMDESIVIR ON PAV.Pt_No = DH_REMDESIVIR.pt_id
+LEFT JOIN #remdesivir_ord_tbl AS REMDESIVIR_ORD ON PAV.PTNO_NUM = REMDESIVIR_ORD.EPISODE_NO
 LEFT JOIN #ecmo_tbl AS ECMO_TBL ON PAV.Pt_No = ECMO_TBL.pt_id
 LEFT JOIN #nasal_cannula_tbl AS NASAL_CANNULA ON PAV.PtNo_Num = NASAL_CANNULA.episode_no
 LEFT JOIN #mech_vent_treat_tbl AS MVT_TBL ON PAV.Pt_No = MVT_TBL.pt_id
