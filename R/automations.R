@@ -115,6 +115,7 @@ geocode_discharges_automation <- function() {
       , stringr::str_detect(PartialAddress, "ISLIP TERRANCE")        ~ "ISLIP TERRACE, NY, 11752"
       , stringr::str_detect(PartialAddress, "PORT SAINT LUCIE, FL")  ~ "PORT SAINT LUCIE, FL, 34952"
       , stringr::str_detect(PartialAddress, "PATCHOUGE, NY")         ~ "PATCHOGUE, NY, 11772"
+      , stringr::str_detect(PartialAddress, "SHILREY, NY")           ~ "SHIRLEY, NY, 11967"
       , TRUE ~ PartialAddress
     ))
 
