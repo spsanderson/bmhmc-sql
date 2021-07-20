@@ -5,15 +5,17 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
-  "tidyverse",
+  "dplyr",
   "lubridate",
   "timetk",
   "odbc",
   "DBI",
   "janitor",
-  "timetk",
   "tidyquant",
-  "anomalize"
+  "modeltime.ensemble",
+  "modeltime.resample",
+  "stringr",
+  "workflowsets"
 )
 
 interactive <- TRUE
@@ -27,7 +29,7 @@ map(paste0(my_path, file_list), source)
 db_con <- dbConnect(
   odbc(),
   Driver = "SQL Server",
-  Server = "BMH-HIDB",
+  Server = "LI-HIDB",
   Database = "SMSPHDSSS0X0",
   Trusted_Connection = T
 )
@@ -67,7 +69,7 @@ dbDisconnect(db_con)
 
 # Manipulate --------------------------------------------------------------
 
-query <- query %>%
+data_tbl <- query %>%
     summarise_by_time(
       .date_var = date_col
       , .by = "month"
@@ -76,11 +78,11 @@ query <- query %>%
 
 # TS Plot -----------------------------------------------------------------
 
-start_date <- min(query$date_col)
-end_date   <- max(query$date_col)
+start_date <- min(data_tbl$date_col)
+end_date   <- max(data_tbl$date_col)
 
 plot_time_series(
-  .data = query
+  .data = data_tbl
   , .date_var = date_col
   , .value = value
   , .title = paste0(
@@ -93,19 +95,19 @@ plot_time_series(
 )
 
 plot_seasonal_diagnostics(
-  .data = query
+  .data = data_tbl
   , .date_var = date_col
   , .value = value
 )
 
 plot_stl_diagnostics(
-  .data = query
+  .data = data_tbl
   , .date_var = date_col
   , .value = value
 )
 
 plot_anomaly_diagnostics(
-  .data = query
+  .data = data_tbl
   , .date_var = date_col
   , .value = value
 )
@@ -113,132 +115,314 @@ plot_anomaly_diagnostics(
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(query, prop = 0.9)
+splits <- initial_time_split(
+  data_tbl
+  , prop = 0.8
+  , cumulative = TRUE
+)
 
-# Models ----
+splits %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(date_col, value, .interactive = FALSE)
+
+# Features ----------------------------------------------------------------
+
+recipe_base <- recipe(value ~ ., data = training(splits))
+
+recipe_date <- recipe_base %>%
+  step_timeseries_signature(date_col) %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
+  step_normalize(contains("index.num"), contains("date_col_year"))
+
+recipe_fourier <- recipe_date %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_fourier(date_col, period = 365/12, K = 1) %>%
+  step_YeoJohnson(value, limits = c(0,1))
+
+recipe_fourier_final <- recipe_fourier %>%
+  step_nzv(all_predictors())
+
+# Models ------------------------------------------------------------------
 
 # Auto ARIMA --------------------------------------------------------------
 
-model_fit_arima_no_boost <- arima_reg() %>%
-  set_engine(engine = "auto_arima") %>%
-  fit(value ~ date_col, data = training(splits))
-
+model_spec_arima_no_boost <- arima_reg() %>%
+  set_engine(engine = "auto_arima")
 
 # Boosted Auto ARIMA ------------------------------------------------------
 
-model_fit_arima_boosted <- arima_boost(
+model_spec_arima_boosted <- arima_boost(
   min_n = 2
   , learn_rate = 0.015
 ) %>%
-  set_engine(engine = "auto_arima_xgboost") %>%
-  fit(
-    value ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
-    , data = training(splits)
-  )
+  set_engine(engine = "auto_arima_xgboost")
 
 # ETS ---------------------------------------------------------------------
 
-model_fit_ets <- exp_smoothing() %>%
-  set_engine(engine = "ets") %>%
-  fit(value ~ date_col, data = training(splits))
+model_spec_ets <- exp_smoothing() %>%
+  set_engine(engine = "ets") 
+
+model_spec_croston <- exp_smoothing() %>%
+  set_engine(engine = "croston")
+
+model_spec_theta <- exp_smoothing() %>%
+  set_engine(engine = "theta")
+
+# STLM ETS ----------------------------------------------------------------
+
+model_spec_stlm_ets <- seasonal_reg() %>%
+  set_engine("stlm_ets")
+
+
+model_spec_stlm_tbats <- seasonal_reg(
+  seasonal_period_1 = 30
+) %>%
+  set_engine("tbats")
+
+model_spec_stlm_arima <- seasonal_reg() %>%
+  set_engine("stlm_arima")
+
+# NNETAR ------------------------------------------------------------------
+
+model_spec_nnetar <- nnetar_reg() %>%
+  set_engine("nnetar")
 
 # Prophet -----------------------------------------------------------------
 
-model_fit_prophet <- prophet_reg() %>%
-  set_engine(engine = "prophet") %>%
-  fit(value ~ date_col, data = training(splits))
+model_spec_prophet <- prophet_reg(
+  changepoint_range = 0.95,
+  seasonality_yearly = TRUE,
+  seasonality_weekly = TRUE
+) %>%
+  set_engine(engine = "prophet")
 
-model_fit_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
-  set_engine("prophet_xgboost") %>%
-  fit(
-    value ~ date_col + as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
-    , data = training(splits)
-  )
+model_spec_prophet_boost <- prophet_boost(
+  learn_rate = 0.1
+  , trees = 10
+) %>% 
+  set_engine("prophet_xgboost") 
+
 # TSLM --------------------------------------------------------------------
 
-model_fit_lm <- linear_reg() %>%
-  set_engine("lm") %>%
-  fit(
-    value ~ as.numeric(date_col) + factor(month(date_col, label = TRUE), ordered = FALSE)
-    , data = training(splits)
-  )
+model_spec_lm <- linear_reg() %>%
+  set_engine("lm")
 
 # MARS --------------------------------------------------------------------
 
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
-recipe_spec <- recipe(value ~ date_col, data = training(splits)) %>%
-  step_date(date_col, features = "month", ordinal = FALSE) %>%
-  step_mutate(date_num = as.numeric(date_col)) %>%
-  step_normalize(date_num) %>%
-  step_rm(date_col)
+# Workflowsets ------------------------------------------------------------
 
-wflw_fit_mars <- workflow() %>%
-  add_recipe(recipe_spec) %>%
-  add_model(model_spec_mars) %>%
-  fit(training(splits))
+wfsets <- workflow_set(
+  preproc = list(
+    base          = recipe_base,
+    date          = recipe_date,
+    fourier       = recipe_fourier,
+    fourier_final = recipe_fourier_final
+  ),
+  models = list(
+    model_spec_arima_no_boost,
+    model_spec_arima_boosted,
+    model_spec_ets,
+    model_spec_lm,
+    model_spec_mars,
+    model_spec_nnetar,
+    model_spec_prophet,
+    model_spec_prophet_boost,
+    model_spec_stlm_arima,
+    model_spec_stlm_ets,
+    model_spec_stlm_tbats
+  ),
+  cross = TRUE
+)
+
+wf_fits <- wfsets %>% 
+  modeltime_fit_workflowset(
+    data = data_tbl
+    , control = control_fit_workflowset(
+      allow_par = TRUE
+      , cores   = 5
+    )
+  )
+
+wf_fits <- wf_fits %>%
+  filter(.model_desc != "NULL")
 
 # Model Table -------------------------------------------------------------
 
-models_tbl <- modeltime_table(
-  model_fit_arima_no_boost,
-  model_fit_arima_boosted,
-  model_fit_ets,
-  model_fit_prophet,
-  model_fit_prophet_boost,
-  model_fit_lm, 
-  wflw_fit_mars
-)
+models_tbl <- combine_modeltime_tables(wf_fits)
+
+# Model Ensemble Table ----------------------------------------------------
+resample_tscv <- training(splits) %>%
+  time_series_cv(
+    date_var      = date_col
+    , assess      = "6 months"
+    , initial     = "12 months"
+    , skip        = "1 months"
+    , slice_limit = 6
+  )
+
+# submodel_predictions <- wf_fits %>%
+#   modeltime_fit_resamples(
+#     resamples = resample_tscv
+#     , control = control_resamples(verbose = TRUE)
+#   )
+# 
+# ensemble_fit <- submodel_predictions %>%
+#   ensemble_model_spec(
+#     model_spec = linear_reg(
+#       penalty  = tune()
+#       , mixture = tune()
+#     ) %>%
+#       set_engine("glmnet")
+#     , kfold    = 5
+#     , grid     = 6
+#     , control  = control_grid(verbose = TRUE)
+#   )
+
+fit_mean_ensemble <- models_tbl %>%
+  ensemble_average(type = "mean")
+
+fit_median_ensemble <- models_tbl %>%
+  ensemble_average(type = "median")
+
+# Model Table -------------------------------------------------------------
+
+models_tbl <- models_tbl %>%
+  add_modeltime_model(fit_mean_ensemble) %>%
+  add_modeltime_model(fit_median_ensemble)
 
 models_tbl
 
 # Calibrate Model Testing -------------------------------------------------
 
+parallel_start(5)
 calibration_tbl <- models_tbl %>%
+  #modeltime_refit(training(splits)) %>%
   modeltime_calibrate(new_data = testing(splits))
+parallel_stop()
+
 calibration_tbl
 
 # Testing Accuracy --------------------------------------------------------
 
 calibration_tbl %>%
   modeltime_forecast(
-    new_data = testing(splits),
-    actual_data = query
+    new_data    = testing(splits),
+    actual_data = data_tbl
   ) %>%
   plot_modeltime_forecast(
-    .legend_max_width = 25,
-    .interactive = interactive
+    .legend_max_width   = 25,
+    .interactive        = interactive,
+    .conf_interval_show = FALSE
   )
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
   arrange(mae) %>%
-  table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
+  table_modeltime_accuracy(.interactive = FALSE)
+#table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
+
+# Residuals ---------------------------------------------------------------
+
+# residuals_out_tbl <- calibration_tbl %>%
+#   modeltime_residuals()
+# 
+# residuals_in_tbl  <- calibration_tbl %>%
+#   modeltime_residuals(
+#     training(splits) %>% drop_na()
+#   )
+# 
+# # * Time Plot ----
+# 
+# # Out-of-Sample 
+# 
+# residuals_out_tbl %>% 
+#   plot_modeltime_residuals(
+#     .y_intercept = 0,
+#     .y_intercept_color = "blue"
+#   )
+# 
+# # In-Sample
+# 
+# residuals_in_tbl %>% 
+#   plot_modeltime_residuals()
+# 
+# 
+# # * ACF Plot ----
+# 
+# # Out-of-Sample 
+# 
+# residuals_out_tbl %>%
+#   plot_modeltime_residuals(
+#     .type = "acf"
+#   )
+# 
+# 
+# # In-Sample
+# 
+# residuals_in_tbl %>%
+#   plot_modeltime_residuals(
+#     .type = "acf"
+#   )
+# 
+# 
+# # * Seasonality ----
+# 
+# # Out-of-Sample 
+# 
+# residuals_out_tbl %>%
+#   plot_modeltime_residuals(
+#     .type = "seasonality"
+#   )
+# 
+# calibration_tbl %>%
+#   modeltime_forecast(
+#     new_data = testing(splits),
+#     actual_data = ra_excess_summary_tbl
+#   ) %>%
+#   plot_modeltime_forecast()
+
 
 # Refit to all Data -------------------------------------------------------
 
+parallel_start(5)
 refit_tbl <- calibration_tbl %>%
-  modeltime_refit(data = query)
+  modeltime_refit(
+    data        = data_tbl
+    , resamples = resample_tscv
+    #, control   = control_resamples(verbose = TRUE)
+  )
+parallel_stop()
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
   arrange(mae) %>% 
-  slice(1:2)
+  head(2)
 
+ensemble_models <- refit_tbl %>%
+  filter(
+    .model_desc %>% 
+      str_to_lower() %>%
+      str_detect("ensemble")
+  ) %>%
+  modeltime_accuracy()
+
+model_choices <- rbind(top_two_models, ensemble_models)
+
+# Forecast Plot ----
+parallel_start(5)
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "1 year", actual_data = query) %>%
-  filter_by_time(
-    .date_var = .index
-    , .start_date = FLOOR_YEAR(end_date - dyears(2)) %>% 
-      as.Date()
-  ) %>%
+  modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
   plot_modeltime_forecast(
-    .legend_max_width = 25
-    , .interactive = interactive
-    , .title = "Monthly IP Discharges Forecast 1 Year Out"
+    .legend_max_width     = 25
+    , .interactive        = FALSE
+    , .conf_interval_show = FALSE
+    , .title = "IP Discharges Forecast 12 Months Out"
   )
+parallel_stop()
 
 # Misc --------------------------------------------------------------------
 
