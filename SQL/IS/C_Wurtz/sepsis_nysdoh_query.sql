@@ -885,17 +885,18 @@ WHERE A.obsv_cd = 'A_BMI'
 
 DELETE
 FROM #bmi_tbl
-WHERE lab_number != 1;
+WHERE lab_number != 1
+OR obesity_flag = 0;
 
 -- Patient Care Concerns
-DROP TABLE IF EXISTS #dnr_dni_tbl
-CREATE TABLE #dnr_dni_tbl (
+DROP TABLE IF EXISTS #dnr_dni_asmt_tbl
+CREATE TABLE #dnr_dni_asmt_tbl (
 	episode_no VARCHAR(12),
 	obsv_cd VARCHAR(255),
 	dsply_val VARCHAR(255)
 	)
 
-INSERT INTO #dnr_dni_tbl (
+INSERT INTO #dnr_dni_asmt_tbl (
 	episode_no,
 	obsv_cd,
 	dsply_val
@@ -915,13 +916,13 @@ FROM SMSMIR.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd IN ('A_BMH_DNR', 'A_BMH_DNI')
 
-DROP TABLE IF EXISTS #dnr_dni_pvt_tbl
-CREATE TABLE #dnr_dni_pvt_tbl (
+DROP TABLE IF EXISTS #dnr_dni_asmt_pvt_tbl
+CREATE TABLE #dnr_dni_asmt_pvt_tbl (
 	episode_no VARCHAR(12),
 	[patient_care_considerations] VARCHAR(255)
 )
 
-INSERT INTO #dnr_dni_pvt_tbl (episode_no, patient_care_considerations)
+INSERT INTO #dnr_dni_asmt_pvt_tbl (episode_no, patient_care_considerations)
 SELECT PVT.episode_no,
 	[patient_care_concerns] = REPLACE(
 		STUFF(
@@ -935,24 +936,149 @@ FROM (
 	SELECT episode_no,
 		obsv_cd,
 		dsply_val
-	FROM #dnr_dni_tbl
+	FROM #dnr_dni_asmt_tbl
 	) AS A
 PIVOT(MAX(dsply_val) FOR obsv_cd IN ("A_BMH_DNR", "A_BMH_DNI")) AS PVT
 
+-- DNR/DNI ORDER
+DROP TABLE IF EXISTS #dnr_dni_ord_tbl
+CREATE TABLE #dnr_dni_ord_tbl (
+	episode_no VARCHAR(12),
+	obsv_cd VARCHAR(255),
+	dsply_val VARCHAR(1)
+)
+
+INSERT INTO #dnr_dni_ord_tbl (episode_no, obsv_cd, dsply_val)
+SELECT A.episode_no,
+svc_cd, 
+dsply_val = CASE
+	WHEN A.svc_cd = 'PCO_DNR'
+		THEN 1
+	ELSE 2
+	END
+FROM smsmir.mir_sr_ord AS A
+INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
+WHERE A.svc_cd IN ('PCO_DNR','PCO_DNI')
+GROUP BY A.episode_no, 
+A.svc_cd
+
+DROP TABLE IF EXISTS #dnr_dni_ord_pvt_tbl
+CREATE TABLE #dnr_dni_ord_pvt_tbl (
+	episode_no VARCHAR(12),
+	[patient_care_considerations] VARCHAR(255)
+)
+
+INSERT INTO #dnr_dni_ord_pvt_tbl (episode_no, patient_care_considerations)
+SELECT PVT.episode_no,
+	[patient_care_concerns] = REPLACE(
+		STUFF(
+			COALESCE(': ' + RTRIM(PVT.[PCO_DNR]), '') 
+			+ COALESCE(': ' + RTRIM(PVT.[PCO_DNI]), '')
+			, 1, 2, ''
+			)
+		, ': ', ':'
+	)
+FROM (
+	SELECT episode_no,
+		obsv_cd,
+		dsply_val
+	FROM #dnr_dni_ord_tbl
+	) AS A
+PIVOT(MAX(dsply_val) FOR obsv_cd IN ("PCO_DNR", "PCO_DNI")) AS PVT
+
+-- DNR DNI PVT TABLE FINAL
+DROP TABLE IF EXISTS #dnr_dni_final_tbl
+CREATE TABLE #dnr_dni_final_tbl (
+	episode_no VARCHAR(12),
+	patient_care_considerations VARCHAR(255),
+	rn INT
+)
+
+INSERT INTO #dnr_dni_final_tbl (episode_no, patient_care_considerations, rn)
+SELECT A.episode_no,
+	A.patient_care_considerations,
+	[rn] = ROW_NUMBER() OVER(
+		PARTITION BY A.episode_no
+		ORDER BY LEN(A.patient_care_considerations) DESC
+	)
+FROM (
+	SELECT episode_no,
+		patient_care_considerations
+	FROM #dnr_dni_asmt_pvt_tbl
+	--WHERE episode_no = '14909667'
+	UNION 
+	SELECT episode_no,
+		patient_care_considerations
+	FROM #dnr_dni_ord_pvt_tbl
+	--WHERE episode_no = '14909667'
+) AS A
+
+DELETE
+FROM #dnr_dni_final_tbl
+WHERE RN != 1
+
+
 -- Patient Care Concerns Date
-DROP TABLE IF EXISTS #dnr_dni_date_tbl 
-CREATE TABLE #dnr_dni_date_tbl (
+-- Assessments
+DROP TABLE IF EXISTS #dnr_dni_asmt_date_tbl 
+CREATE TABLE #dnr_dni_asmt_date_tbl (
 	episode_no VARCHAR(12),
 	patient_care_considerations_date VARCHAR (255)
 )
 
-INSERT INTO #dnr_dni_date_tbl (episode_no, patient_care_considerations_date)
+INSERT INTO #dnr_dni_asmt_date_tbl (episode_no, patient_care_considerations_date)
 SELECT A.episode_no,
 	CONVERT(CHAR(10), MIN(A.obsv_cre_dtime), 126)
 FROM smsmir.mir_sr_obsv_new AS A
-INNER JOIN #dnr_dni_pvt_tbl AS B ON A.episode_no = B.episode_no
+INNER JOIN #dnr_dni_asmt_pvt_tbl AS B ON A.episode_no = B.episode_no
 WHERE A.obsv_cd IN ('A_BMH_DNR','A_BMH_DNI')
 GROUP BY A.episode_no
+
+-- Orders
+DROP TABLE IF EXISTS #dnr_dni_ord_date_tbl
+CREATE TABLE #dnr_dni_ord_date_tbl (
+	episode_no VARCHAR(12),
+	patient_care_considerations_date VARCHAR(255)
+)
+
+INSERT INTO #dnr_dni_ord_date_tbl
+SELECT A.episode_no,
+	CONVERT(CHAR(10), MIN(A.ent_dtime), 126)
+FROM smsmir.mir_sr_ord AS A
+INNER JOIN #dnr_dni_ord_pvt_tbl AS B ON A.episode_no = B.episode_no
+WHERE A.SVC_CD IN ('PCO_DNR','PCO_DNI')
+GROUP BY A.episode_no
+
+-- Final Table
+DROP TABLE IF EXISTS #dnr_dni_date_tbl 
+CREATE TABLE #dnr_dni_date_tbl (
+	episode_no VARCHAR(12),
+	patient_care_considerations_date VARCHAR(255),
+	RN INT
+)
+
+INSERT INTO #dnr_dni_date_tbl (episode_no, patient_care_considerations_date, RN)
+SELECT A.episode_no,
+	a.patient_care_considerations_date,
+	[rn] = ROW_NUMBER() OVER(
+		PARTITION BY A.EPISODE_NO
+		ORDER BY A.PATIENT_CARE_CONSIDERATIONS_DATE ASC
+	)
+FROM (
+	SELECT episode_no,
+		patient_care_considerations_date
+	FROM #dnr_dni_asmt_date_tbl
+
+	UNION
+
+	SELECT episode_no,
+		patient_care_considerations_date
+	FROM #dnr_dni_ord_date_tbl
+) AS A
+
+DELETE
+FROM #dnr_dni_date_tbl
+WHERE RN != 1
 
 -- pregnancy comorbidity
 DROP TABLE IF EXISTS #preg_comorbid_tbl
@@ -2202,6 +2328,9 @@ FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '00402958'
 
+DELETE
+FROM #platelets
+WHERE disp_val IN ('.','. ')
 
 DROP TABLE IF EXISTS #min_platelet
 CREATE TABLE #min_platelet (
@@ -2224,7 +2353,7 @@ SELECT episode_no,
 		PARTITION BY episode_no ORDER BY disp_val
 		)
 FROM #platelets
-WHERE disp_val != '.'
+--WHERE disp_val NOT IN ('.','. ')
 
 DELETE
 FROM #min_platelet
@@ -3539,8 +3668,7 @@ SELECT [admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CO
 		END,
 	[non_invasive_pos_pressure_vent] = CASE 
 		WHEN NIPPV_TBL.pt_id IS NULL
-			THEN 0
-		ELSE 1
+			THEN 0		ELSE 1
 		END,
 	[vasopressor_administration] = CASE 
 		WHEN MED_VASO.episode_no IS NULL
@@ -3976,7 +4104,7 @@ LEFT JOIN #cv_outcome_dsch_pvt_tbl AS CV_OUT_DSCH ON PAV.Pt_No = CV_OUT_DSCH.pt_
 LEFT JOIN #cv_outcome_hosp_pvt_tbl AS CV_IN_HOSP ON PAV.Pt_No = CV_IN_HOSP.pt_id
 LEFT JOIN #pe_dvt_tbl AS PEDVT_TBL ON PAV.Pt_No = PEDVT_TBL.pt_id
 LEFT JOIN #trach_in_hosp_tbl AS TRACH_IN ON PAV.Pt_No = TRACH_IN.pt_id
-LEFT JOIN #dnr_dni_pvt_tbl AS DNR_DNI ON PAV.PtNo_Num = DNR_DNI.episode_no
+LEFT JOIN #dnr_dni_final_tbl AS DNR_DNI ON PAV.PtNo_Num = DNR_DNI.episode_no
 LEFT JOIN #dnr_dni_date_tbl AS DNR_DNI_DATE ON PAV.PtNo_Num = DNR_DNI_DATE.episode_no
 LEFT JOIN #od_cardiovascular AS OD_CARD ON PAV.Pt_No = OD_CARD.pt_id
 LEFT JOIN #od_hematologic AS OD_HEMA ON PAV.PT_NO = OD_HEMA.pt_id
