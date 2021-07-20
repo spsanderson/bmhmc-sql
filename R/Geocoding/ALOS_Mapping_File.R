@@ -666,7 +666,7 @@ mtsoi <- mtsoi %>%
 # print map
 mtsoi
 
-# clusters ----
+# LICH Cluster Map ----
 # Test map with clusters
 LIHNCluster.df <- split(origAddress, origAddress$LIHN_Line)
 
