@@ -246,7 +246,11 @@ orsos_to_sproc_tbl <- function(.data) {
       , values_fill   = "NOT FOUND"
     ) %>%
     dplyr::filter(SPROC == "NOT FOUND") %>%
-    dplyr::left_join(provider_tbl, by = c("resp_pty_cd" = "pract_no"))
+    dplyr::left_join(provider_tbl, by = c("resp_pty_cd" = "pract_no")) %>%
+    dplyr::arrange(encounter, resp_pty_cd) %>%
+    dplyr::group_by(encounter) %>%
+    dplyr::mutate(provider_number = row_number()) %>%
+    dplyr::ungroup()
 
   # * Return ----
   return(data_tbl)
