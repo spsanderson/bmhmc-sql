@@ -40,7 +40,8 @@ query <- dbGetQuery(
     SET @TODAY = CAST(GETDATE() AS date);
     SET @END   = DATEADD(MM, DATEDIFF(MM, 0, @TODAY), 0);
     
-    SELECT b.Pt_No
+    SELECT a.LIHN_Svc_Line
+    , b.Pt_No
     , b.Dsch_Date
     , CASE
     	WHEN b.Days_Stay = '0'
@@ -140,7 +141,7 @@ plot_time_series(
     , " to "
     , end_date
   )
-  , .interactive = FALSE
+  , .interactive = TRUE
 )
 
 plot_seasonal_diagnostics(
@@ -181,11 +182,21 @@ recipe_date <- recipe_base %>%
 
 recipe_fourier <- recipe_date %>%
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
-  step_fourier(date_col, period = 365/12, K = 1) %>%
+  step_fourier(date_col, period = 365/52, K = 1) %>%
   step_YeoJohnson(excess_days, limits = c(0,1))
 
 recipe_fourier_final <- recipe_fourier %>%
   step_nzv(all_predictors())
+
+recipe_pca <- recipe_base %>%
+  step_timeseries_signature(date_col) %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_normalize(excess_days) %>%
+  step_fourier(date_col, period = 365/52, K = 1) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_nzv(all_predictors()) %>%
+  step_pca(all_numeric_predictors(), threshold = .95)
 
 # Models ------------------------------------------------------------------
 
@@ -216,15 +227,27 @@ model_spec_theta <- exp_smoothing() %>%
 
 # STLM ETS ----------------------------------------------------------------
 
-model_spec_stlm_ets <- seasonal_reg() %>%
+model_spec_stlm_ets <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("stlm_ets")
 
 
-model_spec_stlm_tbats <- seasonal_reg() %>%
+model_spec_stlm_tbats <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("tbats")
 
 
-model_spec_stlm_arima <- seasonal_reg() %>%
+model_spec_stlm_arima <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("stlm_arima")
 
 
@@ -236,12 +259,17 @@ model_spec_nnetar <- nnetar_reg() %>%
 
 # Prophet -----------------------------------------------------------------
 
-model_spec_prophet <- prophet_reg() %>%
+model_spec_prophet <- prophet_reg(
+  seasonality_weekly = TRUE,
+  seasonality_yearly = TRUE
+) %>%
   set_engine(engine = "prophet")
 
 model_spec_prophet_boost <- prophet_boost(
     learn_rate = 0.1
     , trees = 10
+    , seasonality_weekly = TRUE
+    , seasonality_yearly = TRUE
   ) %>% 
   set_engine("prophet_xgboost") 
 
@@ -262,7 +290,8 @@ wfsets <- workflow_set(
     base          = recipe_base,
     date          = recipe_date,
     fourier       = recipe_fourier,
-    fourier_final = recipe_fourier_final
+    fourier_final = recipe_fourier_final,
+    pca           = recipe_pca
   ),
   models = list(
     model_spec_arima_no_boost,
@@ -285,7 +314,7 @@ wf_fits <- wfsets %>%
     data = data_final_tbl
     , control = control_fit_workflowset(
       allow_par = TRUE
-      , cores   = 4
+      , cores   = 5
     )
   )
 
@@ -294,7 +323,7 @@ wf_fits <- wf_fits %>%
 
 # Model Table -------------------------------------------------------------
 
-models_tbl <- combine_modeltime_tables(wf_fits)
+models_tbl <- wf_fits
 
 # Model Ensemble Table ----------------------------------------------------
 resample_tscv <- training(splits) %>%
@@ -431,13 +460,14 @@ calibration_tbl %>%
 
 # Refit to all Data -------------------------------------------------------
 
+parallel_start(5)
 refit_tbl <- calibration_tbl %>%
   modeltime_refit(
-    data        = data_tbl
+    data        = data_final_tbl
     , resamples = resample_tscv
     #, control   = control_resamples(verbose = TRUE)
-    , control   = control_refit()
   )
+parallel_stop()
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
@@ -463,10 +493,6 @@ refit_tbl %>%
     , .conf_interval_show = FALSE
     , .title = "IP Discharges Excess Days Forecast 1 Year Out"
   )
-
-# Shut Down H2O -----------------------------------------------------------
-
-#h2o.shutdown()
 
 # Misc --------------------------------------------------------------------
 models_tbl %>%
@@ -495,7 +521,7 @@ calibration_tbl %>%
   theme_tq()
 
 ts_sum_arrivals_plt(
-  .data = query
+  .data = data_final_tbl
   , .date_col = date_col
   , .value_col = excess_days
   , .x_axis = wk
@@ -511,7 +537,7 @@ ts_sum_arrivals_plt(
   )
 
 ts_median_excess_plt(
-  .data = query
+  .data = data_final_tbl
   , .date_col = date_col
   , .value_col = excess_days
   , .x_axis = wk
