@@ -30,8 +30,8 @@ BEGIN
 	-- interfering with SELECT statements.
 	SET NOCOUNT ON;
 
-	IF OBJECT_ID('smsdss.c_Wellsoft_Rpt_tbl_tmp', 'U') IS NOT NULL
-		DROP TABLE smsdss.c_Wellsoft_Rpt_tbl_tmp;
+	IF OBJECT_ID('c_Wellsoft_Rpt_tbl_tmp', 'U') IS NOT NULL
+		DROP TABLE c_Wellsoft_Rpt_tbl_tmp;
 
 	SELECT Patient
 	, Account
@@ -80,6 +80,7 @@ BEGIN
 	, InjuryCode
 	, AccessRmAssigned
 	, COVIDTestWI30Days
+	, [Status]
 	
 	INTO c_Wellsoft_Rpt_tbl_tmp
 	
