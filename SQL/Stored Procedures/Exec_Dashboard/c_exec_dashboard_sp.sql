@@ -38,6 +38,12 @@ Date		Version		Description
 2021-07-07	v1			Initial Creation
 2021-07-08	v2			Change metrics that look at the table to
 						ROUND(AVG(metric_value), 2)
+2021-07-22	v3			Change ED_LWBS to look at both Disposition and
+						Status fields
+							AND (
+								DISPOSITION = 'LWBS'
+								OR [Status] LIKE 'LWBS%'
+							)
 ***********************************************************************
 */
 
@@ -185,7 +191,10 @@ BEGIN
 		COUNT(*)
 	FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS A
 	WHERE CAST(ARRIVAL AS DATE) = CAST(GETDATE() - 1 AS DATE)
-		AND DISPOSITION = 'LWBS'
+		AND (
+			DISPOSITION = 'LWBS'
+			OR [Status] LIKE 'LWBS%'
+		)
 	
 	UNION ALL
 	
@@ -579,7 +588,10 @@ ELSE BEGIN
 		COUNT(*)
 	FROM [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS A
 	WHERE CAST(ARRIVAL AS DATE) = CAST(GETDATE() - 1 AS DATE)
-		AND DISPOSITION = 'LWBS'
+		AND (
+			DISPOSITION = 'LWBS'
+			OR [Status] LIKE 'LWBS%'
+		)
 
 	UNION ALL
 
