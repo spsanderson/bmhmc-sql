@@ -31,8 +31,8 @@ BEGIN
 	-- interfering with SELECT statements.
 	SET NOCOUNT ON;
 	
-	IF OBJECT_ID('smsdss.c_Wellsoft_Rpt_tbl', 'U') IS NOT NULL
-		DROP TABLE smsdss.c_Wellsoft_Rpt_tbl;
+	IF OBJECT_ID('c_Wellsoft_Rpt_tbl', 'U') IS NOT NULL
+		DROP TABLE c_Wellsoft_Rpt_tbl;
 
 	SELECT ROW_NUMBER() OVER(ORDER BY ARRIVAL) ID
 	, Patient
@@ -169,12 +169,13 @@ BEGIN
 	  SUBSTRING(DBO.c_udf_AlphaNumericChars(AccessRmAssigned), 11, 2) + ':00',
 	  120)																  AS [Access_Rm_Assigned]
 	 , COVIDTestWI30Days                                                  AS [COVID_test_within_30_days]
+	 , [Status]
 	  
 	INTO c_Wellsoft_Rpt_tbl
 
 	FROM c_Wellsoft_Rpt_tbl_tmp
 
-	WHERE LEN(Arrival) = 12
-	AND LEN(Account) = 8
+	--WHERE LEN(Arrival) = 12
+	WHERE LEN(Account) = 8
 
 END
