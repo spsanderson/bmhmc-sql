@@ -228,7 +228,7 @@ orsos_to_sproc_tbl <- function(.data) {
   data_tbl <- tibble::as_tibble(.data)
 
   # * Get provider table ----
-  provider_tbl <- LICHospitalR::pract_dim_v_query()
+  # provider_tbl <- LICHospitalR::pract_dim_v_query()
 
   # proc_date_tbl <- data_tbl %>%
   #   dplyr::select(encounter, proc_eff_date) %>%
@@ -237,20 +237,21 @@ orsos_to_sproc_tbl <- function(.data) {
 
   # * Manipulate ----
   data_tbl <- data_tbl %>%
-    dplyr::select(-proc_cd_prio, -pract_rpt_name) %>%
+    #dplyr::select(-proc_cd_prio, -pract_rpt_name) %>%
+    dplyr::select(encounter, grouping) %>%
     dplyr::distinct(.keep_all = TRUE) %>%
     tidyr::pivot_wider(
-      id_cols         = encounter:resp_pty_cd
+      id_cols         = encounter #:resp_pty_cd
       , names_from    = grouping
       , values_from   = grouping
       , values_fill   = "NOT FOUND"
     ) %>%
-    dplyr::filter(SPROC == "NOT FOUND") %>%
-    dplyr::left_join(provider_tbl, by = c("resp_pty_cd" = "pract_no")) %>%
-    dplyr::arrange(encounter, resp_pty_cd) %>%
-    dplyr::group_by(encounter) %>%
-    dplyr::mutate(provider_number = row_number()) %>%
-    dplyr::ungroup()
+    dplyr::filter(SPROC == "NOT FOUND")
+    # dplyr::left_join(provider_tbl, by = c("resp_pty_cd" = "pract_no")) %>%
+    # dplyr::arrange(encounter, resp_pty_cd) %>%
+    # dplyr::group_by(encounter) %>%
+    # dplyr::mutate(provider_number = dplyr::row_number()) %>%
+    # dplyr::ungroup()
 
   # * Return ----
   return(data_tbl)
