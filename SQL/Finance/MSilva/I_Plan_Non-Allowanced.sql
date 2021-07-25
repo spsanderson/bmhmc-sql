@@ -28,6 +28,7 @@ Date		Version	Description
 2021-06-02    v5            Add the following logic:
                             AND DATEDIFF(DAY, VST.vst_end_date ,CAST(GETDATE() AS DATE)) >= 90
 2021-06-10    v6            Drop DATEDIFF logic and add E26 back in
+2021-07-19    v7            Add DATEDIFF logic back in >= 30
 -------------------------------------------------------------------------------- 
 */
 
@@ -121,6 +122,7 @@ AND LEFT(PYRPLAN.pt_id, 5) != '00007'
 AND PYRPLAN.pyr_seq_no = 1
 AND VST.tot_bal_amt > 0
 AND PYRPLAN.tot_amt_due > 0
+AND DATEDIFF(DAY, VST.vst_end_date, CAST(GETDATE() AS DATE)) >= 30
 AND VST.ins_pay_amt = 0
 AND PYRPLAN.pt_id NOT IN (
 	SELECT DISTINCT(pt_id)
