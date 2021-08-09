@@ -16,7 +16,7 @@ source("S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R\\Functi
 db_con <- dbConnect(
     odbc(),
     Driver = "SQL Server",
-    Server = "BMH-HIDB",
+    Server = "LI-HIDB",
     Database = "SMSPHDSSS0X0",
     Trusted_Connection = T
 )
@@ -93,7 +93,7 @@ Outlook <- COMCreate("Outlook.Application")
 Email = Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] = 
+Email[["to"]] = ""
 Email[["cc"]] = ""
 Email[["bcc"]] = ""
 Email[["subject"]] = "ORSOS J Accounts"
