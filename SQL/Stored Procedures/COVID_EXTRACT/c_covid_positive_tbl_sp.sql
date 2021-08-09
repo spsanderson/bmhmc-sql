@@ -39,6 +39,7 @@ Date		Version		Description
 2020-05-08	v2			Add MRN column
 2021-04-06	v4			swap out smsdss.bmh_plm_ptacct_v for smsmir.hl7_pt
 						to obtain the pt mrn
+2021-07-27	v5			Add FindingAbbreviation 00414086
 ***********************************************************************
 */
 
@@ -62,7 +63,7 @@ BEGIN
 	INTO #COVIDORDER
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
 	INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER AS horder ON a.objectid = horder.patientvisit_oid
-	WHERE horder.ORDERABBREVIATION = '00425421';
+	WHERE horder.ORDERABBREVIATION IN ('00425421','00414086');
 
 	-- COVID RESULTS
 	SELECT DISTINCT A.PATIENT_OID,
@@ -72,7 +73,7 @@ BEGIN
 	INTO #COVIDRSLT
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
 	INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult AS B ON A.OBJECTID = B.PATIENTVISIT_OID
-		AND B.FINDINGABBREVIATION = '9782';
+		AND B.FINDINGABBREVIATION IN ('9782','00414086');
 
 	-- MIS REF COVID-19 RESULT
 	SELECT DISTINCT A.PATIENT_OID,
