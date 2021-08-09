@@ -89,6 +89,10 @@ Date		Version		Description
 						3. pt_last_test_positive
 						4. last_positive_result_dtime
 2020-12-28	v12			Fix issues stemming from 12-24-2020 update
+2021-08-05	v13			Add PT_Phone_Number
+						DROP ORDER BY clause at the end of the initial query
+						that inserts into #TEMPA for performance
+						enhancement
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_covid_extract_insert_sp]
@@ -202,6 +206,7 @@ BEGIN
 				THEN 1
 			ELSE 0
 			END,
+		PVD.PT_Phone_Number,
 		PVD.PT_Street_Address,
 		PVD.PT_City,
 		PVD.PT_State,
@@ -239,7 +244,10 @@ BEGIN
 					)
 				THEN 1
 			ELSE 0
-			END AS [Positive_Flu_Flag]
+			END AS [Positive_Flu_Flag],
+		SC_VAX_STS.PatientVaccinationStatusAnswer AS [SC_Vax_Sts],
+		SC_VAX_STS.AdditionalComments AS [SC_Vax_Comments],
+		WS_VAX_STS.PatientVaccinationStatusAnswer AS [WS_Vax_Sts]
 	INTO #TEMPA
 	FROM smsdss.c_covid_patient_visit_data_tbl AS PVD
 	LEFT OUTER JOIN smsdss.c_covid_rt_census_tbl AS RT ON PVD.PatientVisitOID = RT.PatientVisitOID
@@ -268,6 +276,11 @@ BEGIN
 	LEFT OUTER JOIN smsdss.c_covid_dx_cd_ind_tbl AS CV19DX ON PVD.PatientAccountID = CV19DX.PatientAccountID
 	-- PDOC
 	LEFT OUTER JOIN smsdss.c_covid_pdoc_tbl AS PDOC ON PVD.PatientVisitOID = PDOC.PATIENTVISIT_OID
+	-- VAX Status
+	LEFT OUTER JOIN smsdss.c_covid_vax_sts_tbl AS SC_VAX_STS ON PVD.PatientAccountID = SC_VAX_STS.PatientAccountID
+		AND SC_VAX_STS.Source_System = 'Soarian'
+	LEFT OUTER JOIN smsdss.c_covid_vax_sts_tbl AS WS_VAX_STS ON PVD.PatientAccountID = WS_VAX_STS.PatientAccountID
+		AND WS_VAX_STS.Source_System = 'WellSoft'
 	-- ATN DOCTOR
 	LEFT OUTER JOIN (
 		SELECT b.Name AS PRACT_RPT_NAME,
@@ -278,9 +291,9 @@ BEGIN
 			AND a.IsVersioned = 0
 		) AS ATN_DR ON ATN_DR.PatientVisit_OID = PVD.PatientVisitOID
 	WHERE PVD.MRN IS NOT NULL
-	ORDER BY PVD.Pt_Name,
-		CVRES.ResultDateTime DESC,
-		CVORD.CreationTime DESC;
+	--ORDER BY PVD.Pt_Name,
+	--	CVRES.ResultDateTime DESC,
+	--	CVORD.CreationTime DESC;
 
 	/*
 
@@ -329,6 +342,7 @@ BEGIN
 		[Subseqent_Visit_Flag] INT NULL,
 		[Order_Flag] INT NULL,
 		[Result_Flag] INT NULL,
+		[PT_Phone_Number] VARCHAR(100) NULL,
 		[PT_Street_Address] VARCHAR(8000) NULL,
 		[PT_City] VARCHAR(5000) NULL,
 		[PT_State] VARCHAR(100) NULL,
@@ -370,6 +384,9 @@ BEGIN
 		[Positive_Flu_Flag] INT NULL,
 		[Arrival_Mode] VARCHAR(500) NULL,
 		[Arrival_Mode_Description] VARCHAR(500) NULL,
+		[SC_Vax_Sts] VARCHAR(255) NULL,
+		[SC_Vax_Comments] VARCHAR(5000) NULL,
+		[WS_Vax_Sts] VARCHAR(255) NULL,
 		[RunDateTime] DATETIME2
 		);
 
@@ -490,6 +507,7 @@ BEGIN
 		A.Subseqent_Visit_Flag,
 		A.Order_Flag,
 		A.Result_Flag,
+		A.PT_Phone_Number,
 		A.PT_Street_Address,
 		A.PT_City,
 		A.PT_State,
@@ -602,6 +620,9 @@ BEGIN
 		-- Comment back in when Cathy Returns
 		ArrivalMode.Arrival_Mode,
 		ArrivalMode.Arrival_Mode_Description,
+		A.SC_Vax_Sts,
+		A.SC_Vax_Comments,
+		A.WS_Vax_Sts,
 		GETDATE() AS [RunDateTime]
 	FROM #TEMPA AS A
 	-- occupation
