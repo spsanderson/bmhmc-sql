@@ -44,6 +44,7 @@ Date		Version		Description
 						Add Isolation_Indicator_Abbr
 2021-02-23	v3			Complete re-write
 2021-03-03	v4			Use LastCngDtime
+2021-08-05	v5			Add PT_Phone_Number
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_covid_patient_visit_data_sp]
@@ -87,6 +88,7 @@ BEGIN
 		Mortality_Flag CHAR(1),
 		PatientVisitOID INT,
 		Hosp_Svc VARCHAR(10),
+		PT_Phone_Number VARCHAR(255),
 		PT_Street_Address VARCHAR(100),
 		PT_City VARCHAR(100),
 		PT_State VARCHAR(50),
@@ -115,6 +117,13 @@ BEGIN
 			END,
 		A.ObjectID,
 		SUBSTRING(LTRIM(RTRIM(HCUNIT.Abbreviation)), 1, 3),
+		[pt_phone] = '(' 
+			+ CAST(B.pt_phone_area_city_cd AS varchar) 
+			+ ')' 
+			+ ' ' 
+			+ CAST(LEFT(B.PT_PHONE_NO, 3) AS varchar) 
+			+ '-' 
+			+ CAST(RIGHT(B.PT_PHONE_NO, 4) AS VARCHAR),
 		B.pt_street_addr,
 		B.pt_city,
 		B.pt_state,
@@ -152,6 +161,7 @@ BEGIN
 		Mortality_Flag CHAR(1),
 		PatientVisitOID INT,
 		Hosp_Svc VARCHAR(10),
+		PT_Phone_Number VARCHAR(255),
 		PT_Street_Address VARCHAR(100),
 		PT_City VARCHAR(100),
 		PT_State VARCHAR(50),
@@ -180,6 +190,13 @@ BEGIN
 			END,
 		A.ObjectID,
 		SUBSTRING(LTRIM(RTRIM(HCUNIT.Abbreviation)), 1, 3),
+		[pt_phone] = '(' 
+			+ CAST(B.pt_phone_area_city_cd AS varchar) 
+			+ ')' 
+			+ ' ' 
+			+ CAST(LEFT(B.PT_PHONE_NO, 3) AS varchar) 
+			+ '-' 
+			+ CAST(RIGHT(B.PT_PHONE_NO, 4) AS VARCHAR),
 		B.pt_street_addr,
 		B.pt_city,
 		B.pt_state,
@@ -231,6 +248,7 @@ BEGIN
 		A.Mortality_Flag,
 		A.PatientVisitOID,
 		A.Hosp_Svc,
+		A.PT_Phone_Number,
 		A.PT_Street_Address,
 		A.PT_City,
 		A.PT_State,
@@ -254,6 +272,7 @@ BEGIN
 			Mortality_Flag,
 			PatientVisitOID,
 			Hosp_Svc,
+			PT_Phone_Number,
 			PT_Street_Address,
 			PT_City,
 			PT_State,
@@ -279,6 +298,7 @@ BEGIN
 			Mortality_Flag,
 			PatientVisitOID,
 			Hosp_Svc,
+			PT_Phone_Number,
 			PT_Street_Address,
 			PT_City,
 			PT_State,
