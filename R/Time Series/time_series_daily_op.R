@@ -300,7 +300,7 @@ wfsets <- workflow_set(
 parallel_start(n_cores)
 wf_fits <- wfsets %>% 
   modeltime_fit_workflowset(
-    data = data_tbl
+    data = training(splits)
     , control = control_fit_workflowset(
       allow_par = TRUE
       , verbose = TRUE
