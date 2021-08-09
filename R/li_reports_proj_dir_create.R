@@ -25,13 +25,7 @@ file_create("04_TS_Modeling/ts_functions.R")
 
 # DSS Connection 
 db_connect <- function() {
-  db_con <- DBI::dbConnect(
-    odbc::odbc(),
-    Driver             = "SQL Server",
-    Server             = "LI-HIDB",
-    Database           = "SMSPHDSSS0X0",
-    Trusted_Connection = TRUE
-  )
+  db_con <- LICHospitalR::db_connect()
   
   return(db_con)
   
@@ -58,6 +52,8 @@ library_load <- function(){
     , "dplyr"
     , "tibble"
     , "tidyr"
+    , "LICHospitalR"
+    , "modeltime"
   )
   
 }
