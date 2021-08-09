@@ -15,8 +15,12 @@ pacman::p_load(
   "modeltime.ensemble",
   "modeltime.resample",
   "stringr",
-  "workflowsets"
+  "workflowsets",
+  "parallel",
+  "sknifedatar"
 )
+
+n_cores = detectCores() - 1
 
 interactive <- TRUE
 
@@ -26,13 +30,7 @@ map(paste0(my_path, file_list), source)
 
 # DB Connection -----------------------------------------------------------
 
-db_con <- dbConnect(
-  odbc(),
-  Driver = "SQL Server",
-  Server = "LI-HIDB",
-  Database = "SMSPHDSSS0X0",
-  Trusted_Connection = T
-)
+db_con <- LICHospitalR::db_connect()
 
 # Query -------------------------------------------------------------------
 
@@ -121,10 +119,6 @@ splits <- initial_time_split(
   , cumulative = TRUE
 )
 
-splits %>%
-  tk_time_series_cv_plan() %>%
-  plot_time_series_cv_plan(date_col, value, .interactive = FALSE)
-
 # Features ----------------------------------------------------------------
 
 recipe_base <- recipe(value ~ ., data = training(splits))
@@ -141,6 +135,16 @@ recipe_fourier <- recipe_date %>%
 
 recipe_fourier_final <- recipe_fourier %>%
   step_nzv(all_predictors())
+
+recipe_pca <- recipe_base %>%
+  step_timeseries_signature(date_col) %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_normalize(value) %>%
+  step_fourier(date_col, period = 365/52, K = 1) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_nzv(all_predictors()) %>%
+  step_pca(all_numeric_predictors(), threshold = .95)
 
 # Models ------------------------------------------------------------------
 
@@ -159,46 +163,82 @@ model_spec_arima_boosted <- arima_boost(
 
 # ETS ---------------------------------------------------------------------
 
-model_spec_ets <- exp_smoothing() %>%
+model_spec_ets <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
   set_engine(engine = "ets") 
 
-model_spec_croston <- exp_smoothing() %>%
+model_spec_croston <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
   set_engine(engine = "croston")
 
-model_spec_theta <- exp_smoothing() %>%
+model_spec_theta <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
   set_engine(engine = "theta")
+
 
 # STLM ETS ----------------------------------------------------------------
 
-model_spec_stlm_ets <- seasonal_reg() %>%
+model_spec_stlm_ets <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("stlm_ets")
 
-
 model_spec_stlm_tbats <- seasonal_reg(
-  seasonal_period_1 = 30
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
 ) %>%
   set_engine("tbats")
 
-model_spec_stlm_arima <- seasonal_reg() %>%
+model_spec_stlm_arima <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("stlm_arima")
 
 # NNETAR ------------------------------------------------------------------
 
-model_spec_nnetar <- nnetar_reg() %>%
+model_spec_nnetar <- nnetar_reg(
+  seasonal_period = "auto"
+  , penalty = 0.5
+  , epochs = 12
+) %>%
   set_engine("nnetar")
+
 
 # Prophet -----------------------------------------------------------------
 
 model_spec_prophet <- prophet_reg(
-  changepoint_range = 0.95,
-  seasonality_yearly = TRUE,
-  seasonality_weekly = TRUE
+  seasonality_yearly = "auto",
+  seasonality_weekly = "auto",
+  seasonality_daily = "auto"
 ) %>%
   set_engine(engine = "prophet")
 
 model_spec_prophet_boost <- prophet_boost(
   learn_rate = 0.1
   , trees = 10
+  , seasonality_yearly = "auto"
+  , seasonality_weekly = "auto"
+  , seasonality_daily = "auto"
 ) %>% 
   set_engine("prophet_xgboost") 
 
@@ -206,6 +246,27 @@ model_spec_prophet_boost <- prophet_boost(
 
 model_spec_lm <- linear_reg() %>%
   set_engine("lm")
+
+model_spec_glm <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>%
+  set_engine("glmnet")
+
+model_spec_stan <- linear_reg() %>%
+  set_engine("stan")
+
+model_spec_spark <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>% 
+  set_engine("spark")
+
+model_spec_keras <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>%
+  set_engine("keras")
 
 # MARS --------------------------------------------------------------------
 
@@ -219,13 +280,18 @@ wfsets <- workflow_set(
     base          = recipe_base,
     date          = recipe_date,
     fourier       = recipe_fourier,
-    fourier_final = recipe_fourier_final
+    fourier_final = recipe_fourier_final,
+    pca           = recipe_pca
   ),
   models = list(
     model_spec_arima_no_boost,
     model_spec_arima_boosted,
     model_spec_ets,
     model_spec_lm,
+    model_spec_glm,
+    # model_spec_stan,
+    # model_spec_spark,
+    # model_spec_keras,
     model_spec_mars,
     model_spec_nnetar,
     model_spec_prophet,
@@ -237,49 +303,25 @@ wfsets <- workflow_set(
   cross = TRUE
 )
 
+parallel_start(n_cores)
 wf_fits <- wfsets %>% 
   modeltime_fit_workflowset(
-    data = data_tbl
+    data = training(splits)
     , control = control_fit_workflowset(
       allow_par = TRUE
-      , cores   = 5
+      , verbose = TRUE
     )
   )
+parallel_stop()
 
 wf_fits <- wf_fits %>%
   filter(.model_desc != "NULL")
 
 # Model Table -------------------------------------------------------------
 
-models_tbl <- combine_modeltime_tables(wf_fits)
+models_tbl <- wf_fits
 
 # Model Ensemble Table ----------------------------------------------------
-resample_tscv <- training(splits) %>%
-  time_series_cv(
-    date_var      = date_col
-    , assess      = "6 months"
-    , initial     = "12 months"
-    , skip        = "1 months"
-    , slice_limit = 6
-  )
-
-# submodel_predictions <- wf_fits %>%
-#   modeltime_fit_resamples(
-#     resamples = resample_tscv
-#     , control = control_resamples(verbose = TRUE)
-#   )
-# 
-# ensemble_fit <- submodel_predictions %>%
-#   ensemble_model_spec(
-#     model_spec = linear_reg(
-#       penalty  = tune()
-#       , mixture = tune()
-#     ) %>%
-#       set_engine("glmnet")
-#     , kfold    = 5
-#     , grid     = 6
-#     , control  = control_grid(verbose = TRUE)
-#   )
 
 fit_mean_ensemble <- models_tbl %>%
   ensemble_average(type = "mean")
@@ -297,113 +339,60 @@ models_tbl
 
 # Calibrate Model Testing -------------------------------------------------
 
-parallel_start(5)
+parallel_start(n_cores)
+
 calibration_tbl <- models_tbl %>%
   #modeltime_refit(training(splits)) %>%
   modeltime_calibrate(new_data = testing(splits))
+
 parallel_stop()
 
 calibration_tbl
 
 # Testing Accuracy --------------------------------------------------------
 
+parallel_start(n_cores)
+
 calibration_tbl %>%
   modeltime_forecast(
-    new_data    = testing(splits),
+    new_data = testing(splits),
     actual_data = data_tbl
   ) %>%
   plot_modeltime_forecast(
-    .legend_max_width   = 25,
-    .interactive        = interactive,
-    .conf_interval_show = FALSE
+    .legend_max_width = 25,
+    .interactive = interactive
   )
+parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  arrange(mae) %>%
+  filter(rsq >= .2) %>%
+  filter(mae >= 10) %>%
+  arrange(mape) %>%
   table_modeltime_accuracy(.interactive = FALSE)
-#table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
-
-# Residuals ---------------------------------------------------------------
-
-# residuals_out_tbl <- calibration_tbl %>%
-#   modeltime_residuals()
-# 
-# residuals_in_tbl  <- calibration_tbl %>%
-#   modeltime_residuals(
-#     training(splits) %>% drop_na()
-#   )
-# 
-# # * Time Plot ----
-# 
-# # Out-of-Sample 
-# 
-# residuals_out_tbl %>% 
-#   plot_modeltime_residuals(
-#     .y_intercept = 0,
-#     .y_intercept_color = "blue"
-#   )
-# 
-# # In-Sample
-# 
-# residuals_in_tbl %>% 
-#   plot_modeltime_residuals()
-# 
-# 
-# # * ACF Plot ----
-# 
-# # Out-of-Sample 
-# 
-# residuals_out_tbl %>%
-#   plot_modeltime_residuals(
-#     .type = "acf"
-#   )
-# 
-# 
-# # In-Sample
-# 
-# residuals_in_tbl %>%
-#   plot_modeltime_residuals(
-#     .type = "acf"
-#   )
-# 
-# 
-# # * Seasonality ----
-# 
-# # Out-of-Sample 
-# 
-# residuals_out_tbl %>%
-#   plot_modeltime_residuals(
-#     .type = "seasonality"
-#   )
-# 
-# calibration_tbl %>%
-#   modeltime_forecast(
-#     new_data = testing(splits),
-#     actual_data = ra_excess_summary_tbl
-#   ) %>%
-#   plot_modeltime_forecast()
-
 
 # Refit to all Data -------------------------------------------------------
 
-parallel_start(5)
+parallel_start(n_cores)
 refit_tbl <- calibration_tbl %>%
   modeltime_refit(
-    data        = data_tbl
-    , resamples = resample_tscv
-    #, control   = control_resamples(verbose = TRUE)
+    data = data_tbl
+    , control = control_refit(
+      verbose   = TRUE
+    )
   )
 parallel_stop()
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
-  arrange(mae) %>% 
-  head(2)
+  filter(rsq >= .2) %>%
+  filter(mae >= 10) %>%
+  arrange(mape) %>%
+  slice(1:2)
 
 ensemble_models <- refit_tbl %>%
   filter(
-    .model_desc %>% 
+    .model_desc %>%
       str_to_lower() %>%
       str_detect("ensemble")
   ) %>%
