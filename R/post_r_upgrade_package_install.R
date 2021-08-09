@@ -3,7 +3,7 @@ tmp <- installed.packages()
 installedpkgs <- as.vector(tmp[is.na(tmp[,"Priority"]), 1])
 save(installedpkgs, file="installed_old.rds")
 
-# * Run After Upgradae ----
+# * Run After Upgrade ----
 tmp <- installed.packages()
 installedpkgs.new <- as.vector(tmp[is.na(tmp[,"Priority"]), 1])
 load(file = "installed_old.rds")
