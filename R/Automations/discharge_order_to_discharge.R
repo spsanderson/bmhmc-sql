@@ -12,7 +12,7 @@ pacman::p_load(
 db_con <- dbConnect(
     odbc(),
     Driver = "SQL Server",
-    Server = "BMH-HIDB",
+    Server = "LI-HIDB",
     Database = "SMSPHDSSS0X0",
     Trusted_Connection = T
 )
@@ -123,7 +123,7 @@ Outlook <- COMCreate("Outlook.Application")
 Email = Outlook$CreateItem(0)
 
 # Set the recipeitn, subject, and body
-Email[["to"]] = 
+Email[["to"]] = ""
 Email[["cc"]] = ""
 Email[["bcc"]] = ""
 Email[["subject"]] = "Discharge Order to Discharge Time"
