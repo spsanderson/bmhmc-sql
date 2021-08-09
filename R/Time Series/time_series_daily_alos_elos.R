@@ -14,8 +14,13 @@ pacman::p_load(
   "tidyquant",
   "modeltime.ensemble",
   "modeltime.resample",
-  "stringr"
+  "stringr",
+  "workflowsets",
+  "parallel",
+  "sknifedatar"
 )
+
+n_cores = detectCores() - 1
 
 interactive <- TRUE
 
@@ -157,7 +162,8 @@ plot_anomaly_diagnostics(
 
 # Data Split --------------------------------------------------------------
 data_final_tbl <- data_tbl %>%
-  select(date_col, excess_days)
+  select(date_col, excess_days) %>%
+  set_names("date_col","value")
 
 splits <- initial_time_split(
   data_final_tbl
@@ -165,13 +171,9 @@ splits <- initial_time_split(
   , cumulative = TRUE
 )
 
-splits %>%
-  tk_time_series_cv_plan() %>%
-  plot_time_series_cv_plan(date_col, excess_days, .interactive = FALSE)
-
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(excess_days ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits))
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -181,10 +183,24 @@ recipe_date <- recipe_base %>%
 recipe_fourier <- recipe_date %>%
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
   step_fourier(date_col, period = 365/12, K = 1) %>%
-  step_YeoJohnson(excess_days, limits = c(0,1))
+  step_YeoJohnson(value, limits = c(0,1))
 
 recipe_fourier_final <- recipe_fourier %>%
   step_nzv(all_predictors())
+
+recipe_pca <- recipe_base %>%
+  step_timeseries_signature(date_col) %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_normalize(value) %>%
+  step_fourier(date_col, period = 365/52, K = 1) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_nzv(all_predictors()) %>%
+  step_pca(all_numeric_predictors(), threshold = .95)
+
+recipe_num_only <- recipe_pca %>%
+  step_rm(-value, -all_numeric_predictors())
+
 
 # Models ------------------------------------------------------------------
 
@@ -203,44 +219,82 @@ model_spec_arima_boosted <- arima_boost(
 
 # ETS ---------------------------------------------------------------------
 
-model_spec_ets <- exp_smoothing() %>%
+model_spec_ets <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
   set_engine(engine = "ets") 
 
-model_spec_croston <- exp_smoothing() %>%
+model_spec_croston <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
   set_engine(engine = "croston")
 
-model_spec_theta <- exp_smoothing() %>%
+model_spec_theta <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
   set_engine(engine = "theta")
 
 
 # STLM ETS ----------------------------------------------------------------
 
-model_spec_stlm_ets <- seasonal_reg() %>%
+model_spec_stlm_ets <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("stlm_ets")
 
-
-model_spec_stlm_tbats <- seasonal_reg() %>%
+model_spec_stlm_tbats <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("tbats")
 
-
-model_spec_stlm_arima <- seasonal_reg() %>%
+model_spec_stlm_arima <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
   set_engine("stlm_arima")
-
 
 # NNETAR ------------------------------------------------------------------
 
-model_spec_nnetar <- nnetar_reg() %>%
+model_spec_nnetar <- nnetar_reg(
+  seasonal_period = "auto"
+  , penalty = 0.5
+  , epochs = 12
+) %>%
   set_engine("nnetar")
 
 
 # Prophet -----------------------------------------------------------------
 
-model_spec_prophet <- prophet_reg() %>%
+model_spec_prophet <- prophet_reg(
+  seasonality_yearly = "auto",
+  seasonality_weekly = "auto",
+  seasonality_daily = "auto"
+) %>%
   set_engine(engine = "prophet")
 
 model_spec_prophet_boost <- prophet_boost(
   learn_rate = 0.1
   , trees = 10
+  , seasonality_yearly = "auto"
+  , seasonality_weekly = "auto"
+  , seasonality_daily = "auto"
 ) %>% 
   set_engine("prophet_xgboost") 
 
@@ -249,10 +303,44 @@ model_spec_prophet_boost <- prophet_boost(
 model_spec_lm <- linear_reg() %>%
   set_engine("lm")
 
+model_spec_glm <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>%
+  set_engine("glmnet")
+
+model_spec_stan <- linear_reg() %>%
+  set_engine("stan")
+
+model_spec_spark <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>% 
+  set_engine("spark")
+
+model_spec_keras <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>%
+  set_engine("keras")
+
 # MARS --------------------------------------------------------------------
 
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
+
+# XGBoost -----------------------------------------------------------------
+
+model_spec_xgboost <- boost_tree(
+  mode  = "regression",
+  mtry  = round(sqrt(ncol(training(splits)) - 1), 0),
+  trees = round(sqrt(nrow(training(splits)) - 1), 0),
+  min_n = round(sqrt(ncol(training(splits)) - 1), 0),
+  tree_depth = round(sqrt(ncol(training(splits)) - 1), 0),
+  learn_rate = 0.3,
+  loss_reduction = 0.01
+) %>%
+  set_engine("xgboost")
 
 # Workflowsets ------------------------------------------------------------
 
@@ -261,67 +349,50 @@ wfsets <- workflow_set(
     base          = recipe_base,
     date          = recipe_date,
     fourier       = recipe_fourier,
-    fourier_final = recipe_fourier_final
+    fourier_final = recipe_fourier_final,
+    pca           = recipe_pca,
+    num_only_pca  = recipe_num_only
   ),
   models = list(
     model_spec_arima_no_boost,
     model_spec_arima_boosted,
     model_spec_ets,
     model_spec_lm,
+    model_spec_glm,
+    # model_spec_stan,
+    # model_spec_spark,
+    # model_spec_keras,
     model_spec_mars,
     model_spec_nnetar,
     model_spec_prophet,
     model_spec_prophet_boost,
     model_spec_stlm_arima,
     model_spec_stlm_ets,
-    model_spec_stlm_tbats
+    model_spec_stlm_tbats,
+    model_spec_xgboost
   ),
   cross = TRUE
 )
 
+#parallel_start(n_cores)
 wf_fits <- wfsets %>% 
   modeltime_fit_workflowset(
-    data = data_final_tbl
+    data = training(splits)
     , control = control_fit_workflowset(
-      allow_par = TRUE
-      , cores   = 5
+      allow_par = FALSE
+      , verbose = TRUE
     )
   )
+#parallel_stop()
 
 wf_fits <- wf_fits %>%
   filter(.model_desc != "NULL")
 
 # Model Table -------------------------------------------------------------
 
-models_tbl <- combine_modeltime_tables(wf_fits)
+models_tbl <- wf_fits
 
 # Model Ensemble Table ----------------------------------------------------
-resample_tscv <- training(splits) %>%
-  time_series_cv(
-    date_var      = date_col
-    , assess      = "6 months"
-    , initial     = "12 months"
-    , skip        = "1 months"
-    , slice_limit = 6
-  )
-
-# submodel_predictions <- wf_fits %>%
-#   modeltime_fit_resamples(
-#     resamples = resample_tscv
-#     , control = control_resamples(verbose = TRUE)
-#   )
-# 
-# ensemble_fit <- submodel_predictions %>%
-#   ensemble_model_spec(
-#     model_spec = linear_reg(
-#       penalty  = tune()
-#       , mixture = tune()
-#     ) %>%
-#       set_engine("glmnet")
-#     , kfold    = 5
-#     , grid     = 6
-#     , control  = control_grid(verbose = TRUE)
-#   )
 
 fit_mean_ensemble <- models_tbl %>%
   ensemble_average(type = "mean")
@@ -335,13 +406,13 @@ models_tbl <- models_tbl %>%
   add_modeltime_model(fit_mean_ensemble) %>%
   add_modeltime_model(fit_median_ensemble)
 
-models_tbl 
+models_tbl
 
 # Calibrate Model Testing -------------------------------------------------
-parallel_start(5)
+
+parallel_start(n_cores)
 
 calibration_tbl <- models_tbl %>%
-  #modeltime_refit(training(splits)) %>%
   modeltime_calibrate(new_data = testing(splits))
 
 parallel_stop()
@@ -350,43 +421,47 @@ calibration_tbl
 
 # Testing Accuracy --------------------------------------------------------
 
+parallel_start(n_cores)
+
 calibration_tbl %>%
   modeltime_forecast(
-    new_data    = testing(splits),
-    actual_data = data_tbl
+    new_data = testing(splits),
+    actual_data = data_final_tbl
   ) %>%
   plot_modeltime_forecast(
-    .legend_max_width   = 25,
-    .interactive        = interactive,
-    .conf_interval_show = FALSE
-  )
-
-calibration_tbl %>%
-  modeltime_accuracy() %>%
-  arrange(mae) %>%
-  table_modeltime_accuracy(.interactive = FALSE)
-
-# Refit to all Data -------------------------------------------------------
-
-parallel_start(5)
-
-refit_tbl <- calibration_tbl %>%
-  modeltime_refit(
-    data        = data_tbl
-    , resamples = resample_tscv
-    #, control   = control_resamples(verbose = TRUE)
+    .legend_max_width = 25,
+    .interactive = interactive
   )
 
 parallel_stop()
 
+calibration_tbl %>%
+  modeltime_accuracy() %>%
+  arrange(desc(rsq)) %>%
+  group_by(.model_desc) %>%
+  table_modeltime_accuracy(.interactive = FALSE)
+
+# Refit to all Data -------------------------------------------------------
+
+parallel_start(n_cores)
+refit_tbl <- calibration_tbl %>%
+  modeltime_refit(
+    data = data_final_tbl
+    , control = control_refit(
+      verbose   = TRUE
+      , allow_par = FALSE
+    )
+  )
+parallel_stop()
+
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
-  arrange(mae) %>% 
-  head(2)
+  arrange(desc(rsq)) %>% 
+  slice(1:2)
 
 ensemble_models <- refit_tbl %>%
   filter(
-    .model_desc %>% 
+    .model_desc %>%
       str_to_lower() %>%
       str_detect("ensemble")
   ) %>%
@@ -394,13 +469,9 @@ ensemble_models <- refit_tbl %>%
 
 model_choices <- rbind(top_two_models, ensemble_models)
 
-# Forecast Plot ----
-
-parallel_start(5)
-
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
+  modeltime_forecast(h = "1 year", actual_data = data_final_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
     , .interactive        = FALSE
@@ -408,4 +479,3 @@ refit_tbl %>%
     , .title = "IP Discharges Excess Days Forecast 12 Months Out"
   )
 
-parallel_stop()
