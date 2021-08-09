@@ -327,7 +327,7 @@ wfsets <- workflow_set(
 parallel_start(n_cores)
 wf_fits <- wfsets %>% 
   modeltime_fit_workflowset(
-    data = data_tbl
+    data = training(splits)
     , control = control_fit_workflowset(
       allow_par = TRUE
       , verbose = TRUE
@@ -417,12 +417,13 @@ model_choices <- rbind(top_two_models, ensemble_models)
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
+  modeltime_forecast(h = "2 Days", actual_data = data_tbl) %>%
   plot_modeltime_forecast(
     .interactive = FALSE
     , .conf_interval_show = FALSE
-    , .title = "Monthly OP Regsitrations Forecast 1 Year Out"
+    , .title = "ER Arrivals Forecast 2 Days Out"
   )
+
 # Misc --------------------------------------------------------------------
 
 ts_sum_arrivals_plt(
