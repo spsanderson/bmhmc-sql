@@ -1067,6 +1067,7 @@ discharge_order_to_discharge_query <- function() {
       	WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = '1A' THEN 'Postoperative Death, Autopsy'
       	WHEN LEFT(PAV.dsch_disp, 1) IN ('C', 'D') THEN 'Mortality'
       END AS [Dispo]
+      , DATEPART(HOUR, PAV.vst_end_dtime) AS [discharge_hour]
 
       FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
       -- Get last dsch ord
