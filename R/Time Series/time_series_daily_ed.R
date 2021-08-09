@@ -96,6 +96,7 @@ plot_seasonal_diagnostics(
   .data = data_tbl
   , .date_var = date_col
   , .value = value
+  , .feature_set = c("year","quarter","wday.lbl","month.lbl")
 )
 
 plot_stl_diagnostics(
@@ -297,7 +298,7 @@ wfsets <- workflow_set(
 parallel_start(n_cores)
 wf_fits <- wfsets %>% 
   modeltime_fit_workflowset(
-    data = data_tbl
+    data = training(splits)
     , control = control_fit_workflowset(
       allow_par = TRUE
       , verbose = TRUE
@@ -372,8 +373,7 @@ parallel_stop()
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
-  filter(.model_desc != "STAN") %>%
-  arrange(desc(rsq)) %>% 
+  arrange(desc(rsq)) %>%
   slice(1:2)
 
 ensemble_models <- refit_tbl %>%
