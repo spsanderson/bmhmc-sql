@@ -90,8 +90,23 @@ AS (
 		AND In_House = '1'
 		AND order_status = 'Result Signed'
 	)
-SELECT *
-FROM cte
+SELECT A.*,
+[pt_phone] = '(' 
+	+ CAST(b.pt_phone_area_city_cd AS varchar) 
+	+ ')' 
+	+ ' ' 
+	+ CAST(LEFT(b.pt_phone_no, 3) AS varchar) 
+	+ '-' 
+	+ CAST(RIGHT(b.pt_phone_no, 4) AS VARCHAR),
+SC_VAX_STS.PatientVaccinationStatusAnswer AS [SC_Vax_Sts],
+SC_VAX_STS.AdditionalComments AS [SC_Vax_Comments],
+WS_VAX_STS.PatientVaccinationStatusAnswer AS [WS_Vax_Sts]
+FROM cte AS A
+LEFT JOIN smsmir.hl7_pt AS B ON A.PTNO_NUM = B.pt_id
+LEFT JOIN smsdss.c_covid_vax_sts_tbl AS SC_VAX_STS ON A.PTNO_NUM = SC_VAX_STS.PatientAccountID
+	AND SC_VAX_STS.Source_System = 'Soarian'
+LEFT JOIN smsdss.c_covid_vax_sts_tbl AS WS_VAX_STS ON A.PTNO_NUM = WS_VAX_STS.PatientAccountID
+	AND WS_VAX_STS.Source_System = 'WellSoft'
 WHERE group_number = (
 		SELECT max(group_number)
 		FROM cte
