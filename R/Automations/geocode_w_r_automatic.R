@@ -207,6 +207,11 @@ origAddress <- origAddress %>%
     , str_detect(PartialAddress, "MASTCIC NEACHJ")        ~ "MASTIC BEACH, NY, 11951"
     , str_detect(PartialAddress, "BELLLPORT")             ~ "BELLPORT, NY, 11713"
     , str_detect(PartialAddress, "NESCONSETT")            ~ "NESCONSET, NY, 11767"
+    , str_detect(PartialAddress, "YAHPANK")               ~ "YAPHANK, NY, 11980"
+    , str_detect(PartialAddress, "ISLIP TERRANCE")        ~ "ISLIP TERRACE, 11752"
+    , str_detect(PartialAddress, "PORT SAT LUCY, FL")     ~ "PORT SAINT LUCIE, FL, 34952"
+	, str_detect(PartialAddress, "PATCHOUGE")             ~ "PATCHOGUE, NY, 11772"
+    , str_detect(PartialAddress, "SHILREY, NY")           ~ "SHIRLEY, NY, 11967"
     , TRUE ~ PartialAddress
   ))
 
