@@ -30,6 +30,7 @@ globalVariables(
     "where",".","drg_cost_weight","mean_cmi","mean_soi","mean_z_score","name",
     "cpoe","df","hospitalist_np_pa_flag","order_type","order_type_count","prop_of_tltal",
     "telephone","total_orders","verbal_order","written",".cluster","centers","glance"<
-      "k_means","prop_of_total","tot.withinss","x","y","aes","k_means","glance"
+    "k_means","prop_of_total","tot.withinss","x","y","aes","k_means","glance",
+    "plotly_plt","wd","yr","week_of_month","week_day","diff_a","diff_b","ma12","plotly"
   )
 )
