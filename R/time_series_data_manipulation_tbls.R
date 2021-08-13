@@ -318,7 +318,7 @@ ts_ip_discharges_tbl <- function(
 #'
 #' @param .data The data passed in from [ts_ed_arrivals_query()]
 #' @param .date_col The column containing the date variable of interest
-#' @param .by_time The choices are "year", "month", "week", "day", "min" defaults to "month"
+#' @param .by_time The choices are "year", "month", "week", "day", "hour", "min" defaults to "month"
 #'
 #' @examples
 #' \dontrun{
@@ -368,8 +368,8 @@ ts_ed_arrivals_tbl <- function(
     stop(call. = FALSE, "(.date_col) was not provided. Please supply.")
   }
 
-  if(!by_time_var_expr %in% c("year","month","week","day","min")) {
-    stop(call. = FALSE,"(.by_time) must be either year, month, week, day, or minute")
+  if(!by_time_var_expr %in% c("year","month","week","day","hour","min")) {
+    stop(call. = FALSE,"(.by_time) must be either year, month, week, day, hour, or minute")
   }
 
   # * Data ----
