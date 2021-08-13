@@ -5,8 +5,12 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
-  "dplyr",
-  "lubridate",
+  "rules",
+  "tictoc",
+  "future",
+  "doFuture",
+  "plotly",
+  "tidyverse",
   "timetk",
   "odbc",
   "DBI",
@@ -165,11 +169,16 @@ data_final_tbl <- data_tbl %>%
   select(date_col, excess_days) %>%
   set_names("date_col","value")
 
-splits <- initial_time_split(
+splits <- time_series_split(
   data_final_tbl
-  , prop = 0.8
+  , date_var = date_col
+  , assess = "12 months"
   , cumulative = TRUE
 )
+
+splits %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(date_col, value)
 
 # Features ----------------------------------------------------------------
 
@@ -273,9 +282,8 @@ model_spec_stlm_arima <- seasonal_reg(
 # NNETAR ------------------------------------------------------------------
 
 model_spec_nnetar <- nnetar_reg(
-  seasonal_period = "auto"
-  , penalty = 0.5
-  , epochs = 12
+  mode              = "regression"
+  , seasonal_period = "auto"
 ) %>%
   set_engine("nnetar")
 
@@ -333,10 +341,10 @@ model_spec_mars <- mars(mode = "regression") %>%
 
 model_spec_xgboost <- boost_tree(
   mode  = "regression",
-  mtry  = round(sqrt(ncol(training(splits)) - 1), 0),
-  trees = round(sqrt(nrow(training(splits)) - 1), 0),
-  min_n = round(sqrt(ncol(training(splits)) - 1), 0),
-  tree_depth = round(sqrt(ncol(training(splits)) - 1), 0),
+  mtry  = 10,
+  trees = 100,
+  min_n = 5,
+  tree_depth = 3,
   learn_rate = 0.3,
   loss_reduction = 0.01
 ) %>%
@@ -374,7 +382,7 @@ wfsets <- workflow_set(
   cross = TRUE
 )
 
-#parallel_start(n_cores)
+parallel_start(n_cores)
 wf_fits <- wfsets %>% 
   modeltime_fit_workflowset(
     data = training(splits)
@@ -383,7 +391,7 @@ wf_fits <- wfsets %>%
       , verbose = TRUE
     )
   )
-#parallel_stop()
+parallel_stop()
 
 wf_fits <- wf_fits %>%
   filter(.model_desc != "NULL")
@@ -430,7 +438,8 @@ calibration_tbl %>%
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
-    .interactive = interactive
+    .interactive = interactive,
+    .conf_interval_show = FALSE
   )
 
 parallel_stop()
@@ -441,10 +450,190 @@ calibration_tbl %>%
   group_by(.model_desc) %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
+
+# Hyperparameter Tuning ---------------------------------------------------
+
+# Test NNAR
+wflw_fit_nnetar <- calibration_tbl %>%
+  pluck_modeltime_model(6)
+
+wflw_fit_earth  <- calibration_tbl %>%
+  pluck_modeltime_model(24)
+
+wflw_fit_nnetar
+wflw_fit_earth
+
+# * Cross Validation Plan (TSCV) ----
+# - Time Series Cross Validation
+
+tscv <- time_series_cv(
+  data = training(splits) %>% drop_na(),
+  date_var = date_col,
+  cumulative = TRUE,
+  assess = "12 months",
+  skip = "6 months",
+  slice_limit = 6
+)
+
+tscv %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(date_col, value, .facet_ncol = 2)
+
+# * NNETAR ----
+wflw_fit_nnetar %>% extract_spec_parsnip()
+wflw_fit_earth %>% extract_spec_parsnip()
+
+model_spec_nnetar <- nnetar_reg(
+  seasonal_period = 12
+  , non_seasonal_ar = tune(id = "non_seasonal_ar")
+  , seasonal_ar = tune()
+  , hidden_units = tune()
+  , num_networks = tune()
+  , penalty = tune()
+  , epochs = tune()
+) %>%
+  set_engine("nnetar")
+
+model_spec_earth <- mars(
+    mode = "regression"
+    , num_terms = tune()
+    , prod_degree = tune()
+  ) %>%
+  set_engine("earth")
+
+parameters(model_spec_nnetar)
+parameters(model_spec_earth)
+
+# ** Round 1 ----
+set.seed(123)
+grid_spec_nnetar_1 <- grid_latin_hypercube(
+  parameters(model_spec_nnetar)
+  , size = 30
+)
+
+grid_spec_earth_1 <- grid_latin_hypercube(
+  parameters(model_spec_earth)
+  , size = 30
+)
+
+# ** Round 2 ----
+set.seed(123)
+grid_spec_nnetar_2 <- grid_latin_hypercube(
+  non_seasonal_ar(range = c(1, 2))
+  , seasonal_ar(range = c(0, 1))
+  , hidden_units(range = c(6, 9))
+  , num_networks(range = c(20, 30))
+  , penalty(range = c(-1, 0))
+  , epochs(range = c(300, 350))
+  , size = 30
+)
+
+# * Tune ----
+# Workflow - Tuning
+wflw_tune_nnetar <- wflw_fit_nnetar %>%
+  update_model(model_spec_nnetar)
+
+wflw_tune_earth <- wflw_fit_earth %>%
+  update_model(model_spec_earth)
+
+# Run Tune Grid (Expensive Operation)
+# ** Setup Parallel Processing ----
+parallel_start(n_cores)
+
+# ** TSCV Cross Validation ----
+
+set.seed(123)
+tic()
+tune_results_nnetar_1 <- wflw_tune_nnetar %>%
+  tune_grid(
+    resamples = tscv,
+    grid      = grid_spec_nnetar_1,
+    metrics   = default_forecast_accuracy_metric_set(),
+    control   = control_grid(
+      verbose   = TRUE,
+      save_pred = TRUE
+    )
+  )
+toc()
+
+set.seed(123)
+tic()
+tune_results_earth_1 <- wflw_tune_earth %>%
+  tune_grid(
+    resamples = tscv,
+    grid = grid_spec_earth_1,
+    metrics = default_forecast_accuracy_metric_set(),
+    control = control_grid(
+      verbose = TRUE,
+      save_pred = TRUE
+    )
+  )
+toc()
+
+tune_results_nnetar_1
+tune_results_earth_1
+
+set.seed(123)
+tic()
+tune_results_nnetar_2 <- wflw_tune_nnetar %>%
+  tune_grid(
+    resamples = tscv,
+    grid      = grid_spec_nnetar_2,
+    metrics   = default_forecast_accuracy_metric_set(),
+    control   = control_grid(
+      verbose   = TRUE,
+      save_pred = TRUE
+    )
+  )
+toc()
+
+tune_results_nnetar_2
+
+# ** Reset Sequential Plan ----
+
+# Show Results
+tune_results_nnetar_1 %>%
+  show_best(metric = "rmse", n = Inf)
+
+tune_results_nnetar_2 %>%
+  show_best(metric = "rmse", n = Inf)
+
+tune_results_earth_1 %>%
+  show_best(metric = "rmse", n = Inf)
+
+# Visualize Results
+tune_results_nnetar_1 %>%
+  tune::autoplot() +
+  geom_smooth(se = FALSE)
+
+tune_results_nnetar_2 %>%
+  tune::autoplot() +
+  geom_smooth(se = FALSE)
+
+tune_results_earth_1 %>%
+  tune::autoplot() +
+  geom_smooth(se = FALSE)
+
+# * Retrain and Assess ----
+set.seed(123)
+wflw_tune_nnetar_tscv <- wflw_tune_nnetar %>%
+  update_model(model_spec_nnetar) %>%
+  finalize_workflow(
+    tune_results_nnetar_2 %>%
+      show_best(metric = "rmse", n = 1)
+  ) %>%
+  fit(training(splits))
+
+calibration_tuned_tbl <- modeltime_table(
+  wflw_tune_nnetar_tscv
+) %>%
+  modeltime_calibrate(testing(splits))
+
+
 # Refit to all Data -------------------------------------------------------
 
 parallel_start(n_cores)
-refit_tbl <- calibration_tbl %>%
+refit_tbl <- calibration_tuned_tbl %>%
   modeltime_refit(
     data = data_final_tbl
     , control = control_refit(
@@ -470,7 +659,7 @@ ensemble_models <- refit_tbl %>%
 model_choices <- rbind(top_two_models, ensemble_models)
 
 refit_tbl %>%
-  filter(.model_id %in% top_two_models$.model_id) %>%
+  #filter(.model_id %in% top_two_models$.model_id) %>%
   modeltime_forecast(h = "1 year", actual_data = data_final_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
