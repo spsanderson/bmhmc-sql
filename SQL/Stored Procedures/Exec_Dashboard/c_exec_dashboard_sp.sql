@@ -44,6 +44,9 @@ Date		Version		Description
 								DISPOSITION = 'LWBS'
 								OR [Status] LIKE 'LWBS%'
 							)
+2021-08-12	v4			Add 6 metrics IP and OP OR Yesterday 7day Avg and
+						30day_Avg
+2021-08-13  v5			Added 7 and 30 Day Avg for OR Today
 ***********************************************************************
 */
 
@@ -397,6 +400,118 @@ BEGIN
 			)
 	
 	UNION ALL
+
+	SELECT 'IP_OR_Yesterday',
+		COUNT(*)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) = CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) = '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'IP_OR_7day_Avg',
+		ROUND(COUNT(*) / 7.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 7 AS DATE)
+			AND CAST(GETDATE() -1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) = '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'IP_OR_30day_Avg',
+		ROUND(COUNT(*) / 30.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 30 AS DATE)
+		AND CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) = '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'OP_OR_Yesterday',
+		COUNT(*)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) = CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND B.PATIENT_TYPE NOT IN ('4','5','8')
+
+		UNION ALL
+
+	SELECT 'OP_OR_7day_Avg',
+		ROUND(COUNT(*) / 7.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 7 AS DATE)
+			AND CAST(GETDATE() -1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND B.PATIENT_TYPE NOT IN ('4','5','8')
+
+		UNION ALL
+
+	SELECT 'OP_OR_30day_Avg',
+		ROUND(COUNT(*) / 30.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 30 AS DATE)
+		AND CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND B.PATIENT_TYPE NOT IN ('4','5','8')
+
+		UNION ALL
 	
 	-- OR 7 Day Avg
 	SELECT 'OR_7day_Avg',
@@ -958,6 +1073,136 @@ ELSE BEGIN
 			)
 	
 	UNION ALL
+
+	SELECT 'IP_OR_Yesterday',
+		COUNT(*)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) = CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) = '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'IP_OR_7day_Avg',
+		ROUND(COUNT(*) / 7.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 7 AS DATE)
+			AND CAST(GETDATE() -1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) = '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'IP_OR_30day_Avg',
+		ROUND(COUNT(*) / 30.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 30 AS DATE)
+		AND CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) = '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'OP_OR_Yesterday',
+		COUNT(*)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) = CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE NOT IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) != '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'OP_OR_7day_Avg',
+		ROUND(COUNT(*) / 7.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 7 AS DATE)
+			AND CAST(GETDATE() -1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE NOT IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) != '1'
+			)
+		)
+
+		UNION ALL
+
+	SELECT 'OP_OR_30day_Avg',
+		ROUND(COUNT(*) / 30.0, 2)
+	FROM [BMH-ORSOS].[ORSPROD].[ORSPROD].[Pre_CASE] AS A
+	INNER JOIN [BMH-ORSOS].[ORSPROD].[ORSPROD].[CLINICAL] AS B ON A.ACCOUNT_NO = B.ACCOUNT_NO
+	WHERE CAST(A.[start_date] AS DATE) BETWEEN CAST(GETDATE() - 30 AS DATE)
+		AND CAST(GETDATE() - 1 AS DATE)
+		AND A.account_no IS NOT NULL
+		AND (
+			A.DELETE_FLAG IS NULL
+			OR A.DELETE_FLAG = ''
+			OR A.DELETE_FLAG = 'Z'
+			)
+		AND (
+			B.PATIENT_TYPE NOT IN ('4','5','8')
+			OR (
+				B.Patient_Type IS NULL
+				AND LEFT(B.FACILITY_ACCOUNT_NO, 1) != '1'
+			)
+		)
+
+		UNION ALL
 	
 	-- OR 7 Day Avg
 	SELECT 'OR_7day_Avg',
@@ -1070,6 +1315,19 @@ ELSE BEGIN
 	FROM SMSDSS.c_exec_dashboard_tbl
 	WHERE metric = 'LOS_gte_20'
 	AND  rundate >= CAST(GETDATE() - 30 AS DATE)
+
+	-- OR Today 7 and 30 Day Averages
+	SELECT 'OR_Today_7day_Avg',
+		ROUND(AVG(metric_value), 2)
+	FROM SMSDSS.c_exec_dashboard_tbl
+	WHERE metric = 'OR_Today'
+	AND rundate >= CAST(GETDATE() - 7 AS DATE)
+
+	SELECT 'OR_Today_30day_Avg',
+		ROUND(AVG(metric_value), 2)
+	FROM smsdss.c_exec_dashboard_tbl
+	WHERE metric = 'OR_Today'
+	AND rundate >= CAST(GETDATE() - 30 AS DATE)
 
 	INSERT INTO SMSDSS.c_exec_dashboard_tbl (
 		metric,
