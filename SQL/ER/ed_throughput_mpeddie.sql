@@ -55,6 +55,7 @@ Date        Version     Description
 2021-07-27	v3			Add desc_as_written
 2021-07-28	v4			Add hour_of_last_dschord column
 						Add obv_admit_flag column
+2021-08-17	v5			Add admit hour column
 ***********************************************************************
 */
 DECLARE @START DATETIME;
@@ -368,6 +369,11 @@ SELECT A.account,
         END,
     [DschOrd_to_DschDTime] = ROUND(CAST(DATEDIFF(MINUTE, C.ent_dtime, HPV.VISITENDDATETIME) / 60.0 AS float), 2),
     [DschOrd_to_DschDataEntryDTime] = ROUND(CAST(DATEDIFF(MINUTE, C.ent_dtime, Dsch_Entry_Dtime.last_data_cngdtime) / 60.0 AS FLOAT), 2),
+	[hour_of_admit_order] = CASE
+		WHEN OBS_ADMIT.ent_dtime IS NOT NULL
+			THEN DATEPART(HOUR, OBS_ADMIT.ent_dtime)
+		ELSE DATEPART(HOUR, B.ent_dtime)
+		END,
 	[hour_of_discharge] = DATEPART(HOUR, HPV.VisitEndDateTime),
 	[hour_of_Last_DschOrd] = DATEPART(HOUR, C.ENT_DTIME),
 	[hour_of_DschDTime_Data_Entry] = DATEPART(HOUR, Dsch_Entry_Dtime.last_data_cngdtime),
@@ -465,8 +471,8 @@ FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
 LEFT JOIN [SQL-WS\REPORTING].[WellSoft_Reporting].[dbo].[c_Wellsoft_Rpt_tbl] AS Wellsoft ON PAV.PtNo_Num = Wellsoft.Account
 LEFT OUTER JOIN smsdss.pract_dim_v AS PDM ON PAV.Adm_Dr_No = PDM.src_pract_no
     AND PAV.Regn_Hosp = PDM.orgz_cd
-WHERE PAV.Adm_Date >= '2021-07-01'--@START
-    AND PAV.Adm_Date < '2021-08-01' --@END
+WHERE PAV.Adm_Date >= @START
+    AND PAV.Adm_Date < @END
     AND PAV.tot_chg_amt > 0
     AND LEFT(PAV.PTNO_NUM, 1) != '2'
     AND LEFT(PAV.PTNO_NUM, 4) != '1999'
@@ -712,6 +718,11 @@ SELECT A.account,
         END,
     [DschOrd_to_DschDTime] = ROUND(CAST(DATEDIFF(MINUTE, C.ent_dtime, HPV.VISITENDDATETIME) / 60.0 AS float), 2),
     [DschOrd_to_DschDataEntryDTime] = ROUND(CAST(DATEDIFF(MINUTE, C.ent_dtime, Dsch_Entry_Dtime.last_data_cngdtime) / 60.0 AS FLOAT), 2),
+	[hour_of_admit_order] = CASE
+		WHEN OBS_ADMIT.ent_dtime IS NOT NULL
+			THEN DATEPART(HOUR, OBS_ADMIT.ent_dtime)
+		ELSE DATEPART(HOUR, B.ent_dtime)
+		END,
 	[hour_of_discharge] = DATEPART(HOUR, HPV.VisitEndDateTime),
 	[hour_of_Last_DschOrd] = DATEPART(HOUR, C.ENT_DTIME),
 	[hour_of_DschDTime_Data_Entry] = DATEPART(HOUR, Dsch_Entry_Dtime.last_data_cngdtime),
