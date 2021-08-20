@@ -462,7 +462,7 @@ refit_tbl %>%
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25
-    , .interactive = interactive
+    , .interactive = FALSE
     , .title = "Monthly IP Readmit Excess Rate Forecast 1 Year Out"
   )
 
