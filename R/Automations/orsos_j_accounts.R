@@ -16,7 +16,7 @@ source("S:\\Global Finance\\1 REVENUE CYCLE\\Steve Sanderson II\\Code\\R\\Functi
 db_con <- dbConnect(
     odbc(),
     Driver = "SQL Server",
-    Server = "LI-HIDB",
+    Server = "BMH-HIDB",
     Database = "SMSPHDSSS0X0",
     Trusted_Connection = T
 )
