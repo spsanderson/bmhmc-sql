@@ -454,14 +454,14 @@ calibration_tbl %>%
 # Hyperparameter Tuning ---------------------------------------------------
 
 # Test NNAR
-wflw_fit_nnetar <- calibration_tbl %>%
-  pluck_modeltime_model(6)
-
-wflw_fit_earth  <- calibration_tbl %>%
+wflw_fit_earth <- calibration_tbl %>%
   pluck_modeltime_model(24)
 
-wflw_fit_nnetar
+wflw_fit_glmnet  <- calibration_tbl %>%
+  pluck_modeltime_model(51)
+
 wflw_fit_earth
+wflw_fit_glmnet
 
 # * Cross Validation Plan (TSCV) ----
 # - Time Series Cross Validation
@@ -480,19 +480,8 @@ tscv %>%
   plot_time_series_cv_plan(date_col, value, .facet_ncol = 2)
 
 # * NNETAR ----
-wflw_fit_nnetar %>% extract_spec_parsnip()
 wflw_fit_earth %>% extract_spec_parsnip()
-
-model_spec_nnetar <- nnetar_reg(
-  seasonal_period = 12
-  , non_seasonal_ar = tune(id = "non_seasonal_ar")
-  , seasonal_ar = tune()
-  , hidden_units = tune()
-  , num_networks = tune()
-  , penalty = tune()
-  , epochs = tune()
-) %>%
-  set_engine("nnetar")
+wflw_fit_glmnet %>% extract_spec_parsnip()
 
 model_spec_earth <- mars(
     mode = "regression"
@@ -501,13 +490,20 @@ model_spec_earth <- mars(
   ) %>%
   set_engine("earth")
 
-parameters(model_spec_nnetar)
+model_spec_glm <- linear_reg(
+  mode = "regression"
+  , penalty = tune()
+  , mixture = tune()
+) %>%
+  set_engine("glmnet")
+
 parameters(model_spec_earth)
+parameters(model_spec_glm)
 
 # ** Round 1 ----
 set.seed(123)
-grid_spec_nnetar_1 <- grid_latin_hypercube(
-  parameters(model_spec_nnetar)
+grid_spec_glm_1 <- grid_latin_hypercube(
+  parameters(model_spec_glm)
   , size = 30
 )
 
@@ -518,20 +514,15 @@ grid_spec_earth_1 <- grid_latin_hypercube(
 
 # ** Round 2 ----
 set.seed(123)
-grid_spec_nnetar_2 <- grid_latin_hypercube(
-  non_seasonal_ar(range = c(1, 2))
-  , seasonal_ar(range = c(0, 1))
-  , hidden_units(range = c(6, 9))
-  , num_networks(range = c(20, 30))
-  , penalty(range = c(-1, 0))
-  , epochs(range = c(300, 350))
+grid_spec_glm_1 <- grid_latin_hypercube(
+  parameters(model_spec_glm)
   , size = 30
 )
 
 # * Tune ----
 # Workflow - Tuning
-wflw_tune_nnetar <- wflw_fit_nnetar %>%
-  update_model(model_spec_nnetar)
+wflw_tune_glm <- wflw_fit_glmnet %>%
+  update_model(model_spec_glm)
 
 wflw_tune_earth <- wflw_fit_earth %>%
   update_model(model_spec_earth)
@@ -544,10 +535,10 @@ parallel_start(n_cores)
 
 set.seed(123)
 tic()
-tune_results_nnetar_1 <- wflw_tune_nnetar %>%
+tune_results_earth_1 <- wflw_tune_earth %>%
   tune_grid(
     resamples = tscv,
-    grid      = grid_spec_nnetar_1,
+    grid      = grid_spec_earth_1,
     metrics   = default_forecast_accuracy_metric_set(),
     control   = control_grid(
       verbose   = TRUE,
@@ -558,10 +549,10 @@ toc()
 
 set.seed(123)
 tic()
-tune_results_earth_1 <- wflw_tune_earth %>%
+tune_results_glm_1 <- wflw_tune_glm %>%
   tune_grid(
     resamples = tscv,
-    grid = grid_spec_earth_1,
+    grid = grid_spec_glm_1,
     metrics = default_forecast_accuracy_metric_set(),
     control = control_grid(
       verbose = TRUE,
@@ -570,7 +561,7 @@ tune_results_earth_1 <- wflw_tune_earth %>%
   )
 toc()
 
-tune_results_nnetar_1
+tune_results_glm_1
 tune_results_earth_1
 
 set.seed(123)
@@ -592,7 +583,7 @@ tune_results_nnetar_2
 # ** Reset Sequential Plan ----
 
 # Show Results
-tune_results_nnetar_1 %>%
+tune_results_glm_1 %>%
   show_best(metric = "rmse", n = Inf)
 
 tune_results_nnetar_2 %>%
@@ -602,7 +593,7 @@ tune_results_earth_1 %>%
   show_best(metric = "rmse", n = Inf)
 
 # Visualize Results
-tune_results_nnetar_1 %>%
+tune_results_glm_1 %>%
   tune::autoplot() +
   geom_smooth(se = FALSE)
 
@@ -616,16 +607,25 @@ tune_results_earth_1 %>%
 
 # * Retrain and Assess ----
 set.seed(123)
-wflw_tune_nnetar_tscv <- wflw_tune_nnetar %>%
-  update_model(model_spec_nnetar) %>%
+wflw_tune_earth_tscv <- wflw_tune_earth %>%
+  update_model(model_spec_earth) %>%
   finalize_workflow(
-    tune_results_nnetar_2 %>%
+    tune_results_earth_1 %>%
+      show_best(metric = "rmse", n = 1)
+  ) %>%
+  fit(training(splits))
+
+wflw_tune_glm_tscv <- wflw_tune_glm %>%
+  update_model(model_spec_glm) %>%
+  finalize_workflow(
+    tune_results_glm_1 %>%
       show_best(metric = "rmse", n = 1)
   ) %>%
   fit(training(splits))
 
 calibration_tuned_tbl <- modeltime_table(
-  wflw_tune_nnetar_tscv
+  wflw_tune_earth_tscv,
+  wflw_tune_glm_tscv
 ) %>%
   modeltime_calibrate(testing(splits))
 
