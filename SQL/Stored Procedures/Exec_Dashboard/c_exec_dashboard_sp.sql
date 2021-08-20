@@ -1,5 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
+/****** Object:  StoredProcedure [dbo].[c_exec_dashboard_sp]    Script Date: 8/14/2021 7:14:37 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -46,7 +47,7 @@ Date		Version		Description
 							)
 2021-08-12	v4			Add 6 metrics IP and OP OR Yesterday 7day Avg and
 						30day_Avg
-2021-08-13  v5			Added 7 and 30 Day Avg for OR Today
+2021-08-13 v5			Added 7 and 30 Day Avg for OR Today
 ***********************************************************************
 */
 
@@ -1316,12 +1317,16 @@ ELSE BEGIN
 	WHERE metric = 'LOS_gte_20'
 	AND  rundate >= CAST(GETDATE() - 30 AS DATE)
 
+	UNION ALL
+
 	-- OR Today 7 and 30 Day Averages
 	SELECT 'OR_Today_7day_Avg',
 		ROUND(AVG(metric_value), 2)
 	FROM SMSDSS.c_exec_dashboard_tbl
 	WHERE metric = 'OR_Today'
 	AND rundate >= CAST(GETDATE() - 7 AS DATE)
+
+	UNION ALL
 
 	SELECT 'OR_Today_30day_Avg',
 		ROUND(AVG(metric_value), 2)
