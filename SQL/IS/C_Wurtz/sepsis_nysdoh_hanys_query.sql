@@ -37,6 +37,10 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2021-03-15	v1			Initial Creation
+2021-08-26	v2			Add logic to some obsrvations
+							AND A.def_type_ind != 'TX'
+							AND A.val_sts_cd != 'C'
+2021-08-30	v3			Add REPLACE to insurance_number to drop hyphens
 ***********************************************************************
 */
 
@@ -79,8 +83,8 @@ WHERE (
 			AND ORGF_Ind = 1
 			)
 		)
-	AND Dsch_Date >= '2020-12-01'
-	AND Dsch_Date < '2021-06-01'
+	AND Dsch_Date >= '2021-06-01'
+	AND Dsch_Date < '2021-08-01'
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
@@ -2077,6 +2081,8 @@ SELECT a.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '00402347'
+	AND A.val_sts_cd != 'C'
+	AND A.def_type_ind != 'TX'
 
 DROP TABLE IF EXISTS #max_lactate
 CREATE TABLE #max_lactate (
@@ -2173,7 +2179,9 @@ SELECT A.episode_no,
 --[dsply_val] = LEFT(SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1), PatIndex('%[^0-9.-]%', SubString(a.dsply_val, PatIndex('%[0-9.-]%', a.dsply_val), len(a.dsply_val) - PatIndex('%[0-9.-]%', a.dsply_val) + 1)))
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE obsv_cd = '00400408';
+WHERE obsv_cd = '00400408'
+	AND A.def_type_ind != 'TX'
+	AND A.val_sts_cd != 'C';
 
 DELETE
 FROM #od_bilirubin
@@ -2327,7 +2335,9 @@ SELECT A.episode_no,
 		END
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE A.obsv_cd = '00402958'
+WHERE A.obsv_cd = '00402958'	
+	AND A.def_type_ind != 'TX'
+	AND A.val_sts_cd != 'C'
 
 DELETE
 FROM #platelets
@@ -2575,7 +2585,9 @@ SELECT A.episode_no,
 		END
 FROM SMSMIR.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
-WHERE A.obsv_cd = '1000';
+WHERE A.obsv_cd = '1000'
+	AND A.def_type_ind != 'TX'
+	AND A.val_sts_cd != 'C';
 
 DELETE
 FROM #wbc
@@ -2821,7 +2833,7 @@ SELECT A.account,
 FROM SMSDSS.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE A.TEMP IS NOT NULL
-	AND A.TEMP NOT IN ('*** DELETE ***', '.', '<90.0', '100 . 0', '33.1ºC', '33.3ºC', '33.7ºC', '34.6 C', '34.6ºC', '35.0ºC', '35.6C', '36.8 C', 'patient refused', 'Pt left', 'pt refused temp', 'ref vs', 'refudes', 'refused', 'refused oral temp', 'refused temp', 'Unable to assess')
+	AND A.TEMP NOT IN ('*** DELETE ***', '.', '<90.0', '100 . 0', '33.1ºC', '33.3ºC', '33.7ºC', '34.6 C', '34.6ºC', '35.0ºC', '35.6C', '36.8 C', 'patient refused', 'Pt left', 'pt refused temp', 'ref vs', 'refudes', 'refused', 'refused oral temp', 'refused temp', 'Unable to assess','31.0 C')
 
 
 -- Soarian
@@ -2843,6 +2855,8 @@ SELECT a.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = 'A_Temperature'
+	AND A.def_type_ind != 'TX'
+	AND A.val_sts_cd != 'C'
 
 
 DROP TABLE IF EXISTS #sirs_temp
@@ -3015,14 +3029,14 @@ SELECT A.episode_no,
 		)
 FROM (
 	SELECT episode_no,
-		bp_systolic,
+		REPLACE(bp_systolic, '.','') AS [bp_systolic],
 		collected_datetime
 	FROM #ws_systolic
 	
 	UNION
 	
 	SELECT episode_no,
-		bp_systolic,
+		REPLACE(bp_systolic, '.','') AS [bp_systolic],
 		obsv_cre_dtime
 	FROM #sr_systolic
 	) AS A
@@ -3349,10 +3363,10 @@ SELECT 	[facility_identifier] = '0885',
 		END,
 	[insurance_number] = CASE 
 		WHEN LEFT(PYRPLAN.PYR_CD, 1) IN ('A', 'Z')
-			THEN PYRPLAN.POL_NO
+			THEN REPLACE(PYRPLAN.POL_NO, '-','')
 		WHEN LEFT(PYRPLAN.pyr_cd, 1) IN ('B', 'E', 'I', 'J', 'K', 'X')
-			THEN PYRPLAN.subscr_ins_grp_id
-		ELSE RTRIM(LTRIM(ISNULL(pol_no, ''))) + RTRIM(LTRIM(ISNULL(grp_no, '')))
+			THEN REPLACE(PYRPLAN.subscr_ins_grp_id, '-','')
+		ELSE REPLACE(RTRIM(LTRIM(ISNULL(pol_no, ''))),'-','') + REPLACE(RTRIM(LTRIM(ISNULL(grp_no, ''))), '-', '')
 		END,
 	[medical_record_number] = pav.Med_Rec_No,
 	[payer] = Payer.PYR1,
