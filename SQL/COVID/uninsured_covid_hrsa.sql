@@ -54,10 +54,18 @@ SELECT PAV.PTNO_NUM
 , CONVERT(VARCHAR(10), PAV.Dsch_Date, 101) AS [Dsch_Date]
 , PAV.Med_Rec_No
 , PAV.Tot_Amt_Due
+, SUBSTRING(RACECD.RACE_CD_DESC, 1, CHARINDEX(' ', RACECD.RACE_CD_DESC, 1)) AS RACE_CD_DESC
+, [ETHNICITY] = CASE 
+		WHEN PAV.Pt_Race IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', 'H')
+			THEN 'HISPANIC'
+		ELSE 'NON-HISPANIC'
+		END
 FROM SMSDSS.BMH_PLM_PTACCT_V AS PAV
 LEFT OUTER JOIN SMSDSS.c_patient_demos_v AS PT 
 ON PAV.PT_NO = PT.pt_id
 AND PAV.from_file_ind = PT.from_file_ind
+LEFT OUTER JOIN SMSDSS.race_cd_dim_v AS RACECD ON PAV.race_cd = RACECD.src_race_cd
+	AND RACECD.src_sys_id = '#PMSNTX0'
 --WHERE PAV.User_Pyr1_Cat = 'MIS'
 WHERE pav.Pyr1_Co_Plan_Cd in ('*')--,'E37')
 AND PAV.TOT_AMT_DUE > 0
@@ -87,6 +95,16 @@ AND (
 				)
 			)
 		)
+	OR PAV.PT_NO IN (
+			SELECT DISTINCT ZZZ.PT_ID
+			FROM SMSMIR.DX_GRP AS ZZZ
+			WHERE SUBSTRING(ZZZ.PT_ID, 5, 1) = '1'
+			AND LEFT(ZZZ.dx_cd_type, 2) = 'DF'
+			AND ZZZ.dx_cd_prio != '01'
+			AND ZZZ.DX_CD IN (
+				'U07.1'
+			)
+		)
 	OR (
 		PAV.Plm_Pt_Acct_Type != 'I'
 		AND PAV.PT_NO IN (
@@ -102,7 +120,7 @@ AND (
 				select DISTINCT pt_id
 				from smsmir.actv
 				where actv_cd in (
-					'00425421','00414037','00414078'
+					'00425421','00414037','00414078','00337931','00425439'
 				)
 				AND LEFT(PT_ID, 5) != '00001'
 				GROUP BY PT_ID
