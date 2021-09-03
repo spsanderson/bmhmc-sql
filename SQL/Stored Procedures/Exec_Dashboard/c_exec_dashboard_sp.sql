@@ -48,6 +48,9 @@ Date		Version		Description
 2021-08-12	v4			Add 6 metrics IP and OP OR Yesterday 7day Avg and
 						30day_Avg
 2021-08-13 v5			Added 7 and 30 Day Avg for OR Today
+2021-08-26 v6			Fix Observations_Over_Two_Midnights, add the 
+						following criteria:
+							AND A.VisitEndDateTime IS NULL
 ***********************************************************************
 */
 
@@ -300,6 +303,7 @@ BEGIN
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
 	INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HHealthCareUnit AS B ON A.UnitContacted_oid = B.ObjectID
 	WHERE A.PatientLocationName <> ''
+		AND A.VisitEndDateTime IS NULL
 		AND A.IsDeleted = 0
 		AND SUBSTRING(LTRIM(RTRIM(B.Abbreviation)), 1, 3) = 'OBV'
 		AND GETDATE() >= CAST(DATEADD(HOUR, 24 + (24 - DATEPART(HOUR, A.VisitStartDateTime)), A.VisitStartDateTime) AS DATE)
@@ -931,6 +935,7 @@ ELSE BEGIN
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS A
 	INNER JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HHealthCareUnit AS B ON A.UnitContacted_oid = B.ObjectID
 	WHERE A.PatientLocationName <> ''
+		AND A.VisitEndDateTime IS NULL
 		AND A.IsDeleted = 0
 		AND SUBSTRING(LTRIM(RTRIM(B.Abbreviation)), 1, 3) = 'OBV'
 		AND GETDATE() >= CAST(DATEADD(HOUR, 24 + (24 - DATEPART(HOUR, A.VisitStartDateTime)), A.VisitStartDateTime) AS DATE)
