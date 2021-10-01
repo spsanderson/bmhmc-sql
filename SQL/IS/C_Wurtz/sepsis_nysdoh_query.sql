@@ -1983,7 +1983,7 @@ WHERE A.obsv_cd = '2012';
 
 DELETE
 FROM #inr
-WHERE disp_val = '.D';
+WHERE disp_val IN ('.D', '.');
 
 DROP TABLE IF EXISTS #max_inr
 CREATE TABLE #max_inr (
