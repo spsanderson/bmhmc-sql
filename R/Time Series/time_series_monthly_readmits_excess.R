@@ -292,9 +292,9 @@ model_spec_prophet <- prophet_reg(
 model_spec_prophet_boost <- prophet_boost(
   learn_rate = 0.1
   , trees = 10
-  , seasonality_yearly = "auto"
-  , seasonality_weekly = "auto"
-  , seasonality_daily = "auto"
+  , seasonality_yearly = FALSE
+  , seasonality_weekly = FALSE
+  , seasonality_daily  = FALSE
 ) %>% 
   set_engine("prophet_xgboost") 
 
@@ -408,7 +408,6 @@ calibration_tbl
 # Testing Accuracy --------------------------------------------------------
 
 parallel_start(n_cores)
-
 calibration_tbl %>%
   modeltime_forecast(
     new_data = testing(splits),
@@ -422,7 +421,7 @@ parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  arrange(desc(rsq)) %>%
+  arrange(rmse) %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
 # Refit to all Data -------------------------------------------------------
@@ -433,6 +432,7 @@ refit_tbl <- calibration_tbl %>%
     data = data_tbl
     , control = control_refit(
       verbose   = TRUE
+      , allow_par = TRUE
     )
   )
 parallel_stop()
