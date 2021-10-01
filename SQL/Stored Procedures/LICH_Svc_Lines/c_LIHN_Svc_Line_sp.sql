@@ -1,6 +1,6 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [smsdss].[c_LIHN_Svc_Line_sp]    Script Date: 10/1/2020 2:33:04 PM ******/
+/****** Object:  StoredProcedure [smsdss].[c_LIHN_Svc_Line_sp]    Script Date: 10/1/2021 8:36:04 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -24,7 +24,8 @@ v2	- 2018-06-25	- Fix Dx_Cd no match, used REPLACE(C.dx_cd, '.', '') & REPLACE(D
 					  Initial Load of ICD9 done
 v3	- 2018-10-17	- Added DRG_SCHM MC18
 v4	- 2019-10-01	- Added DRG_SCHM MC19
-v5	- 2020-010-01	- Added DRG_SCHM MC20
+v5	- 2020-10-01	- Added DRG_SCHM MC20
+v6	- 2021-10-01	- Added DRG_SCHM MC21
 */
 
 IF NOT EXISTS (
@@ -206,7 +207,8 @@ BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17','MC18','MC19'
+		'MCT4','MC16','MC17','MC18','MC19',
+		'MC20','MC21'
 	)
 	
 	INSERT INTO smsdss.c_LIHN_Svc_Line_Tbl
@@ -376,7 +378,8 @@ BEGIN
 	WHERE a.drg_type = '1' 
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
-		'MCT4','MC16','MC17','MC18','MC19'
+		'MCT4','MC16','MC17','MC18','MC19',
+		'MC20','MC21'
 	)
 	
 END
@@ -551,7 +554,7 @@ ELSE BEGIN
 	AND a.drg_schm IN (
 		'MC11','MC12','MC13','MC14','MC15',
 		'MCT4','MC16','MC17','MC18','MC19',
-		'MC20'
+		'MC20','MC21'
 	)
 	AND A.PT_ID NOT IN (
 		SELECT DISTINCT(ZZZ.Encounter)
