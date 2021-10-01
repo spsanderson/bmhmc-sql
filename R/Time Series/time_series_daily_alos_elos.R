@@ -300,9 +300,9 @@ model_spec_prophet <- prophet_reg(
 model_spec_prophet_boost <- prophet_boost(
   learn_rate = 0.1
   , trees = 10
-  , seasonality_yearly = "auto"
-  , seasonality_weekly = "auto"
-  , seasonality_daily = "auto"
+  , seasonality_yearly = FALSE
+  , seasonality_weekly = FALSE
+  , seasonality_daily  = FALSE
 ) %>% 
   set_engine("prophet_xgboost") 
 
@@ -458,7 +458,7 @@ wflw_fit_earth <- calibration_tbl %>%
   pluck_modeltime_model(24)
 
 wflw_fit_glmnet  <- calibration_tbl %>%
-  pluck_modeltime_model(51)
+  pluck_modeltime_model(21)
 
 wflw_fit_earth
 wflw_fit_glmnet
@@ -624,8 +624,8 @@ wflw_tune_glm_tscv <- wflw_tune_glm %>%
   fit(training(splits))
 
 calibration_tuned_tbl <- modeltime_table(
-  wflw_tune_earth_tscv,
-  wflw_tune_glm_tscv
+  wflw_tune_earth_tscv
+  #wflw_tune_glm_tscv
 ) %>%
   modeltime_calibrate(testing(splits))
 
