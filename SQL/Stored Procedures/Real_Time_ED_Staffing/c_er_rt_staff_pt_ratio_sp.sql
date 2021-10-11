@@ -53,6 +53,8 @@ Date		Version		Description
 						Express Care and the Charge Nurse
 2021-07-01	v3			ADD CAST AS FLOAT TO NUMBERS AT THE BOTTOM
 						USE CAST(RUN_DATETIME AS SMALLDATETIME)
+2021-10-08	v4			Drop any possible duplcate values from
+						smsdss.c_real_time_er_census_tbl first
 ***********************************************************************
 */
 
@@ -68,6 +70,36 @@ AS
 BEGIN
 
 	SET NOCOUNT ON;
+
+	-- Drop any possible duplicate values in the table
+	-- smsdss.c_real_time_er_census_tbl first
+	DELETE X
+	FROM (
+		SELECT mrn,
+			account,
+			arrival,
+			esi,
+			[Chief Complaint],
+			Area_Of_Care,
+			cast(Run_DateTime AS SMALLDATETIME) AS Run_DateTime,
+			rn = ROW_NUMBER() OVER (
+				PARTITION BY mrn,
+				account,
+				arrival,
+				esi,
+				[Chief Complaint],
+				Area_Of_Care,
+				cast(Run_DateTime AS SMALLDATETIME) ORDER BY mrn,
+					account,
+					arrival,
+					esi,
+					[Chief Complaint],
+					Area_Of_Care,
+					cast(Run_DateTime AS SMALLDATETIME)
+				)
+		FROM smsdss.c_real_time_er_census_tbl
+		) X
+	WHERE X.rn > 1
 
 	DECLARE @Current_DTime AS DATETIME2;
 	DECLARE @StartDate AS SMALLDATETIME;
