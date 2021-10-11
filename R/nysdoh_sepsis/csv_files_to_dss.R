@@ -3,7 +3,7 @@ library(DBI)
 library(odbc)
 library(dbplyr)
 
-folder <- "Comorbidity"
+folder <- "Treatment"
 path   <- "G:/IS/C Wurtz/Sepsis/csv_files211/"
 full_path <- paste0(path,folder,"/")
 
@@ -23,8 +23,8 @@ file_names <- file_list %>%
 names(files) <- file_names
 
 column_names <- c(
-  "icd10_cm_code"
-  ,"icd10_cm_code_description"
+  "pcs_code"
+  ,"pcs_code_description"
   ,"subcategory"
 )
 
