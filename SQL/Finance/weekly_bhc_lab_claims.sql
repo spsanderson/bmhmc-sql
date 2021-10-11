@@ -68,6 +68,7 @@ SELECT A.*
 INTO #TBL_2
 
 FROM #TBL_1 AS A
+WHERE A.actv_cd != '00419994' -- edit sps 10-04-2021
 -----------------------------------------------------------------------
 /*
 get tot charges per patient encounter
