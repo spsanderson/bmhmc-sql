@@ -41,6 +41,12 @@ Date		Version		Description
 							AND A.def_type_ind != 'TX'
 							AND A.val_sts_cd != 'C'
 2021-08-30	v3			Add REPLACE to insurance_number to drop hyphens
+2021-10-05	v4			Added
+							AND A.def_type_ind != 'TX'
+							AND A.val_sts_cd != 'C'
+						To creatinine section
+						Added AND a.collected_datetime IS NOT NULL
+						to wellsoft vitals sections
 ***********************************************************************
 */
 
@@ -83,8 +89,8 @@ WHERE (
 			AND ORGF_Ind = 1
 			)
 		)
-	AND Dsch_Date >= '2021-06-01'
-	AND Dsch_Date < '2021-08-01'
+	AND Dsch_Date >= '2021-07-01'
+	AND Dsch_Date < '2021-09-01'
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
@@ -1858,7 +1864,7 @@ INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE bp_diastolic IS NOT NULL
 	AND bp_diastolic NOT IN ('Patient refused', 'Refused', 'refused v/s', 'unknown','','0')
 	AND bp_systolic != '0'
-
+	AND A.collected_datetime IS NOT NULL
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_diastolic
@@ -2286,7 +2292,8 @@ SELECT A.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = '00400945'
-
+	AND A.def_type_ind != 'TX'
+	AND A.val_sts_cd != 'C'
 
 DROP TABLE IF EXISTS #arrival_creatinine
 CREATE TABLE #arrival_creatinine (
@@ -2305,7 +2312,6 @@ SELECT episode_no,
 	coll_dtime
 FROM #od_renal
 WHERE lab_number = 1
-
 
 DROP TABLE IF EXISTS #max_creatinine
 CREATE TABLE #max_creatinine (
@@ -2718,6 +2724,7 @@ INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE A.respiratory_rate IS NOT NULL
 	AND A.respiratory_rate NOT IN ('4 0', 'AGONAL', 'assisted', 'rare')
 	AND LEN(A.respiratory_rate) <= 2
+	AND A.collected_datetime IS NOT NULL
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_resp_rate
@@ -2881,8 +2888,8 @@ SELECT a.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = 'A_Temperature'
-	AND A.def_type_ind != 'TX'
-	AND A.val_sts_cd != 'C'
+	--AND A.def_type_ind != 'TX'
+	--AND A.val_sts_cd != 'C'
 
 
 DROP TABLE IF EXISTS #sirs_temp
@@ -3008,9 +3015,9 @@ SELECT A.account,
 FROM smsdss.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE ISNUMERIC(bp_systolic) = 1
-AND bp_diastolic != '0'
-AND bp_systolic != '0'
-
+	AND bp_diastolic != '0'
+	AND bp_systolic != '0'
+	AND A.collected_datetime IS NOT NULL
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_systolic
@@ -4132,3 +4139,4 @@ LEFT JOIN #hml_med_anticoag AS HML_MED_ANTICOAG ON PAV.PtNo_Num = HML_MED_ANTICO
 LEFT JOIN #hml_med_imm_mod AS HML_IMM_MOD ON PAV.PtNo_Num = HML_IMM_MOD.episode_no
 -- death test
 LEFT JOIN #death_info_tbl AS DEATH ON DEATH.PatientAccountID = BP.PtNo_Num
+	AND DEATH.Has_Time_Flag = 'HAS_TIME'
