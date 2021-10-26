@@ -394,7 +394,7 @@ wf_fits <- wfsets %>%
 parallel_stop()
 
 wf_fits <- wf_fits %>%
-  filter(.model_desc != "NULL")
+  filter(.model != "NULL")
 
 # Model Table -------------------------------------------------------------
 
@@ -447,21 +447,20 @@ parallel_stop()
 calibration_tbl %>%
   modeltime_accuracy() %>%
   arrange(desc(rsq)) %>%
-  group_by(.model_desc) %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
 
 # Hyperparameter Tuning ---------------------------------------------------
 
 # Test NNAR
-wflw_fit_earth <- calibration_tbl %>%
-  pluck_modeltime_model(24)
+wflw_fit_nnet <- calibration_tbl %>%
+  pluck_modeltime_model(6)
 
-wflw_fit_glmnet  <- calibration_tbl %>%
-  pluck_modeltime_model(21)
+wflw_fit_earth  <- calibration_tbl %>%
+  pluck_modeltime_model(15)
 
 wflw_fit_earth
-wflw_fit_glmnet
+wflw_fit_nnet
 
 # * Cross Validation Plan (TSCV) ----
 # - Time Series Cross Validation
@@ -481,7 +480,7 @@ tscv %>%
 
 # * NNETAR ----
 wflw_fit_earth %>% extract_spec_parsnip()
-wflw_fit_glmnet %>% extract_spec_parsnip()
+wflw_fit_nnet %>% extract_spec_parsnip()
 
 model_spec_earth <- mars(
     mode = "regression"
@@ -490,20 +489,25 @@ model_spec_earth <- mars(
   ) %>%
   set_engine("earth")
 
-model_spec_glm <- linear_reg(
-  mode = "regression"
-  , penalty = tune()
-  , mixture = tune()
+model_spec_nnet <- nnetar_reg(
+  mode              = "regression"
+  , seasonal_period = "auto"
+  , non_seasonal_ar = tune()
+  , seasonal_ar     = tune()
+  , hidden_units    = tune()
+  , num_networks    = tune()
+  , penalty         = tune()
+  , epochs          = tune()
 ) %>%
-  set_engine("glmnet")
+  set_engine("nnetar")
 
 parameters(model_spec_earth)
-parameters(model_spec_glm)
+parameters(model_spec_nnet)
 
 # ** Round 1 ----
 set.seed(123)
-grid_spec_glm_1 <- grid_latin_hypercube(
-  parameters(model_spec_glm)
+grid_spec_nnet_1 <- grid_latin_hypercube(
+  parameters(model_spec_nnet)
   , size = 30
 )
 
@@ -514,15 +518,15 @@ grid_spec_earth_1 <- grid_latin_hypercube(
 
 # ** Round 2 ----
 set.seed(123)
-grid_spec_glm_1 <- grid_latin_hypercube(
-  parameters(model_spec_glm)
+grid_spec_nnet_1 <- grid_latin_hypercube(
+  parameters(model_spec_nnet)
   , size = 30
 )
 
 # * Tune ----
 # Workflow - Tuning
-wflw_tune_glm <- wflw_fit_glmnet %>%
-  update_model(model_spec_glm)
+wflw_tune_nnet <- wflw_fit_nnet %>%
+  update_model(model_spec_nnet)
 
 wflw_tune_earth <- wflw_fit_earth %>%
   update_model(model_spec_earth)
@@ -549,10 +553,10 @@ toc()
 
 set.seed(123)
 tic()
-tune_results_glm_1 <- wflw_tune_glm %>%
+tune_results_nnet_1 <- wflw_tune_nnet %>%
   tune_grid(
     resamples = tscv,
-    grid = grid_spec_glm_1,
+    grid = grid_spec_nnet_1,
     metrics = default_forecast_accuracy_metric_set(),
     control = control_grid(
       verbose = TRUE,
@@ -561,7 +565,7 @@ tune_results_glm_1 <- wflw_tune_glm %>%
   )
 toc()
 
-tune_results_glm_1
+tune_results_nnet_1
 tune_results_earth_1
 
 set.seed(123)
@@ -583,7 +587,7 @@ tune_results_nnetar_2
 # ** Reset Sequential Plan ----
 
 # Show Results
-tune_results_glm_1 %>%
+tune_results_nnet_1 %>%
   show_best(metric = "rmse", n = Inf)
 
 tune_results_nnetar_2 %>%
@@ -593,7 +597,7 @@ tune_results_earth_1 %>%
   show_best(metric = "rmse", n = Inf)
 
 # Visualize Results
-tune_results_glm_1 %>%
+tune_results_nnet_1 %>%
   tune::autoplot() +
   geom_smooth(se = FALSE)
 
@@ -615,17 +619,17 @@ wflw_tune_earth_tscv <- wflw_tune_earth %>%
   ) %>%
   fit(training(splits))
 
-wflw_tune_glm_tscv <- wflw_tune_glm %>%
-  update_model(model_spec_glm) %>%
+wflw_tune_nnet_tscv <- wflw_tune_nnet %>%
+  update_model(model_spec_nnet) %>%
   finalize_workflow(
-    tune_results_glm_1 %>%
+    tune_results_nnet_1 %>%
       show_best(metric = "rmse", n = 1)
   ) %>%
   fit(training(splits))
 
 calibration_tuned_tbl <- modeltime_table(
-  wflw_tune_earth_tscv
-  #wflw_tune_glm_tscv
+  wflw_tune_earth_tscv,
+  wflw_tune_nnet_tscv
 ) %>%
   modeltime_calibrate(testing(splits))
 
@@ -659,7 +663,7 @@ ensemble_models <- refit_tbl %>%
 model_choices <- rbind(top_two_models, ensemble_models)
 
 refit_tbl %>%
-  #filter(.model_id %in% top_two_models$.model_id) %>%
+  filter(.model_id %in% top_two_models$.model_id) %>%
   modeltime_forecast(h = "1 year", actual_data = data_final_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
