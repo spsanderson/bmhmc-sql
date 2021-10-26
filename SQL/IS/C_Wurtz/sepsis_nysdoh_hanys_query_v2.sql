@@ -47,6 +47,16 @@ Date		Version		Description
 						To creatinine section
 						Added AND a.collected_datetime IS NOT NULL
 						to wellsoft vitals sections
+2021-10-13	v5			Use perf_dtime or sort_dtime instead of 
+						obsv_cre_dtime from smsmir.mir_sr_obsv_new
+2021-10-18	v6			Change WBC values to CAST(REPLACE(a.disp_val), CHAR(13), '') as float)
+2021-10-20	v7			Change:
+						DROP: 
+							AND A.def_type_ind != 'TX'
+							AND A.val_sts_cd != 'C'
+						Add:
+							AND CONCAT(RTRIM(LTRIM(A.def_type_ind)), RTRIM(LTRIM(A.val_sts_cd))) != 'TXC';
+2021-10-21	v8			Change Platelets where clause to A.def_type_ind != 'TX'
 ***********************************************************************
 */
 
@@ -89,8 +99,8 @@ WHERE (
 			AND ORGF_Ind = 1
 			)
 		)
-	AND Dsch_Date >= '2021-07-01'
-	AND Dsch_Date < '2021-09-01'
+	AND Dsch_Date >= '2021-06-01'
+	AND Dsch_Date < '2021-07-01'
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
@@ -909,10 +919,11 @@ INSERT INTO #bmi_tbl (
 	obesity_flag
 	)
 SELECT A.episode_no,
-	a.obsv_cre_dtime,
+	coalesce(a.perf_dtime, a.sort_dtime),
+	--a.obsv_cre_dtime,
 	[lab_number] = ROW_NUMBER() OVER(
 		PARTITION BY A.episode_no
-		ORDER BY A.obsv_cre_dtime
+		ORDER BY coalesce(a.perf_dtime, a.sort_dtime)
 	),
 	replace(a.dsply_val, char(13), '') as disp_val,
 	[obesity_bmi_flag] = case when cast(replace(a.dsply_val, char(13), '') as numeric) > 30.0 then 1 else 0 end
@@ -1065,7 +1076,7 @@ CREATE TABLE #dnr_dni_asmt_date_tbl (
 
 INSERT INTO #dnr_dni_asmt_date_tbl (episode_no, patient_care_considerations_date)
 SELECT A.episode_no,
-	CONVERT(CHAR(10), MIN(A.obsv_cre_dtime), 126)
+	CONVERT(CHAR(10), MIN(coalesce(a.perf_dtime, a.sort_dtime)), 126)
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #dnr_dni_asmt_pvt_tbl AS B ON A.episode_no = B.episode_no
 WHERE A.obsv_cd IN ('A_BMH_DNR','A_BMH_DNI')
@@ -1881,7 +1892,7 @@ INSERT INTO #sr_diastolic (
 	)
 SELECT episode_no,
 	bp_diastolic = RIGHT(DSPLY_VAL, CHARINDEX('/', REVERSE(DSPLY_VAL), 1) - 1),
-	obsv_cre_dtime
+	coalesce(a.perf_dtime, a.sort_dtime)
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = 'A_BP'
@@ -2113,8 +2124,7 @@ SELECT a.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '00402347'
-	AND A.val_sts_cd != 'C'
-	AND A.def_type_ind != 'TX'
+	AND CONCAT(RTRIM(LTRIM(A.def_type_ind)), RTRIM(LTRIM(A.val_sts_cd))) != 'TXC';
 
 DROP TABLE IF EXISTS #max_lactate
 CREATE TABLE #max_lactate (
@@ -2212,8 +2222,7 @@ SELECT A.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = '00400408'
-	AND A.def_type_ind != 'TX'
-	AND A.val_sts_cd != 'C';
+	AND CONCAT(RTRIM(LTRIM(A.def_type_ind)), RTRIM(LTRIM(A.val_sts_cd))) != 'TXC';
 
 DELETE
 FROM #od_bilirubin
@@ -2292,8 +2301,7 @@ SELECT A.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = '00400945'
-	AND A.def_type_ind != 'TX'
-	AND A.val_sts_cd != 'C'
+	AND CONCAT(RTRIM(LTRIM(A.def_type_ind)), RTRIM(LTRIM(A.val_sts_cd))) != 'TXC';
 
 DROP TABLE IF EXISTS #arrival_creatinine
 CREATE TABLE #arrival_creatinine (
@@ -2368,8 +2376,8 @@ SELECT A.episode_no,
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '00402958'	
-	AND A.def_type_ind != 'TX'
-	AND A.val_sts_cd != 'C'
+	--AND CONCAT(RTRIM(LTRIM(A.def_type_ind)), RTRIM(LTRIM(A.val_sts_cd))) != 'TXC'
+	AND A.def_type_ind != 'TX';
 
 DELETE
 FROM #platelets
@@ -2465,6 +2473,7 @@ INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE A.heart_rate NOT IN ('100-110', '101-114', '107-135', '110-130', '114-142', '115-130', '118-136', '120-145', '145-155', '158-173', '49-51', '82-100', '88-106', '98-130', 'CPR', 'rare', 'refused')
 	AND A.heart_rate IS NOT NULL
 	AND LEN(A.heart_rate) <= 3
+	AND A.collected_datetime IS NOT NULL
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_hr 
@@ -2485,7 +2494,7 @@ SELECT episode_no,
 			THEN CAST(A.dsply_val AS VARCHAR)
 		ELSE CAST(A.VAL_NO AS VARCHAR)
 		END,
-	A.obsv_cre_dtime
+	coalesce(a.perf_dtime, a.sort_dtime)
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = 'A_Pulse'
@@ -2618,8 +2627,7 @@ SELECT A.episode_no,
 FROM SMSMIR.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = '1000'
-	AND A.def_type_ind != 'TX'
-	AND A.val_sts_cd != 'C';
+	AND CONCAT(RTRIM(LTRIM(A.def_type_ind)), RTRIM(LTRIM(A.val_sts_cd))) != 'TXC';
 
 DELETE
 FROM #wbc
@@ -2640,7 +2648,7 @@ INSERT INTO #arr_wbc (
 	rn
 	)
 SELECT episode_no,
-	disp_val,
+	CAST(REPLACE(disp_val, CHAR(13), '') AS float) * 1000,
 	coll_dtime,
 	[rn] = ROW_NUMBER() OVER (
 		PARTITION BY episode_no ORDER BY coll_dtime
@@ -2667,7 +2675,7 @@ INSERT INTO #min_wbc (
 	rn
 	)
 SELECT episode_no,
-	disp_val,
+	CAST(REPLACE(disp_val, CHAR(13), '') AS float) * 1000,
 	coll_dtime,
 	[rn] = ROW_NUMBER() OVER (
 		PARTITION BY episode_no ORDER BY CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT)
@@ -2694,7 +2702,7 @@ INSERT INTO #max_wbc (
 	rn
 	)
 SELECT episode_no,
-	disp_val,
+	CAST(REPLACE(disp_val, CHAR(13), '') AS float) * 1000,
 	coll_dtime,
 	[rn] = ROW_NUMBER() OVER (
 		PARTITION BY episode_NO ORDER BY CAST(REPLACE(disp_val, CHAR(13), '') AS FLOAT) DESC
@@ -2704,7 +2712,6 @@ FROM #wbc
 DELETE
 FROM #max_wbc
 WHERE RN != 1
-
 
 -- SIRS RESPIRATORY RATE
 -- WellSoft
@@ -2741,7 +2748,7 @@ SELECT a.episode_no,
 			THEN CAST(a.dsply_val AS VARCHAR)
 		ELSE CAST(A.VAL_NO AS VARCHAR)
 		END,
-	a.obsv_cre_dtime
+	coalesce(a.perf_dtime, a.sort_dtime)
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = 'A_Respirations'
@@ -2855,19 +2862,19 @@ GROUP BY episode_no
 DROP TABLE IF EXISTS #ws_temp
 CREATE TABLE #ws_temp (
 	episode_no VARCHAR(12),
-	sirs_temperature VARCHAR(10),
+	sirs_temperature VARCHAR(100),
 	coll_dtime DATETIME
 	)
 
 INSERT INTO #ws_temp
 SELECT A.account,
-	a.TEMP,
+	REPLACE(REPLACE(a.TEMP, ' oral', ''), ' rectal', '') AS [TEMP],
 	a.collected_datetime
 FROM SMSDSS.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE A.TEMP IS NOT NULL
+	AND A.collected_datetime IS NOT NULL
 	AND A.TEMP NOT IN ('*** DELETE ***', '.', '<90.0', '100 . 0', '33.1ºC', '33.3ºC', '33.7ºC', '34.6 C', '34.6ºC', '35.0ºC', '35.6C', '36.8 C', 'patient refused', 'Pt left', 'pt refused temp', 'ref vs', 'refudes', 'refused', 'refused oral temp', 'refused temp', 'Unable to assess','31.0 C')
-
 
 -- Soarian
 DROP TABLE IF EXISTS #sr_temp
@@ -2884,7 +2891,7 @@ SELECT a.episode_no,
 			THEN CAST(a.dsply_val AS VARCHAR)
 		ELSE CAST(A.VAL_NO AS VARCHAR)
 		END,
-	a.obsv_cre_dtime
+	coalesce(a.perf_dtime, a.sort_dtime)
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE A.obsv_cd = 'A_Temperature'
@@ -3034,7 +3041,7 @@ INSERT INTO #sr_systolic (
 	)
 SELECT episode_no,
 	bp_systolic = LEFT(DSPLY_VAL, CHARINDEX('/', (DSPLY_VAL), 1) - 1),
-	obsv_cre_dtime
+	coalesce(a.perf_dtime, a.sort_dtime)
 FROM smsmir.mir_sr_obsv_new AS A
 INNER JOIN #BasePopulation AS BP ON A.episode_no = BP.PtNo_Num
 WHERE obsv_cd = 'A_BP'
@@ -3147,7 +3154,10 @@ GROUP BY episode_no
 
 -- Pull it all together
 SELECT 	[facility_identifier] = '0885',
-	[unique_personal_identifier] = CAST(LEFT(pav.Pt_Name, 2) AS VARCHAR) + CAST(RIGHT(LTRIM(RTRIM(SUBSTRING(PAV.PT_NAME, 1, CHARINDEX(' ,', PAV.PT_NAME, 1)))), 2) AS VARCHAR) + LEFT(LTRIM(RTRIM(REVERSE(SUBSTRING(REVERSE(pav.pt_name), 1, CHARINDEX(',', REVERSE(PAV.PT_NAME), 1) - 1)))), 2) + CAST(LTRIM(RTRIM(RIGHT(PAV.Pt_SSA_No, 4))) AS VARCHAR),
+	[unique_personal_identifier] = CAST(LEFT(pav.Pt_Name, 2) AS VARCHAR) 
+		+ CAST(RIGHT(LTRIM(RTRIM(SUBSTRING(PAV.PT_NAME, 1, CHARINDEX(' ,', PAV.PT_NAME, 1)))), 2) AS VARCHAR) 
+		+ LEFT(LTRIM(RTRIM(REVERSE(SUBSTRING(REVERSE(pav.pt_name), 1, CHARINDEX(',', REVERSE(PAV.PT_NAME), 1) - 1)))), 2) 
+		+ REPLACE(CAST(LTRIM(RTRIM(RIGHT(PAV.Pt_SSA_No, 4))) AS VARCHAR), '9???','0000'),
 	[admission_dt] = CONVERT(CHAR(10), PV.VisitStartDateTime, 126) + ' ' + CONVERT(CHAR(5), PV.VisitStartDateTime, 108),
 	[arrival_dt] = CONVERT(CHAR(10), PV.PresentingDateTime, 126) + ' ' + CONVERT(CHAR(5), PV.PresentingDateTime, 108),
 	[date_of_birth] = CONVERT(CHAR(10), PAV.Pt_Birthdate, 126),
@@ -3883,9 +3893,12 @@ SELECT 	[facility_identifier] = '0885',
 	CONVERT(CHAR(10), SIRS_HR_PVT.sirs_heartrate_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_HR_PVT.sirs_heartrate_dt_2, 108) AS sirs_heartrate_dt_2,
 	CONVERT(CHAR(10), SIRS_HR_PVT.sirs_heartrate_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_HR_PVT.sirs_heartrate_dt_3, 108) AS sirs_heartrate_dt_3,
 	CONVERT(CHAR(10), MAX_HR.sirs_heartrate_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_HR.sirs_heartrate_dt_max, 108) AS sirs_heartrate_dt_max,
-	REPLACE(REPLACE(ARR_WBC.sirs_leukocyte_arrival, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_arrival],
-	REPLACE(REPLACE(MIN_WBC.sirs_leukocyte_min, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_min],
-	REPLACE(REPLACE(MAX_WBC.sirs_leukocyte_max, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_max],
+	--REPLACE(REPLACE(ARR_WBC.sirs_leukocyte_arrival, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_arrival],
+	--REPLACE(REPLACE(MIN_WBC.sirs_leukocyte_min, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_min],
+	--REPLACE(REPLACE(MAX_WBC.sirs_leukocyte_max, '.', ''), CHAR(13), '') + '0' AS [sirs_leukocyte_max],
+	ARR_WBC.sirs_leukocyte_arrival,
+	MIN_WBC.sirs_leukocyte_min,
+	MAX_WBC.sirs_leukocyte_max,
 	CONVERT(CHAR(10), ARR_WBC.sirs_leukocyte_arrival_dt, 126) + ' ' + CONVERT(CHAR(5), ARR_WBC.sirs_leukocyte_arrival_dt, 108) AS sirs_leukocyte_arrival_dt,
 	CONVERT(CHAR(10), MIN_WBC.sirs_leukocyte_min_dt, 126) + ' ' + CONVERT(CHAR(5), MIN_WBC.sirs_leukocyte_min_dt, 108) AS sirs_leukocyte_min_dt,
 	CONVERT(CHAR(10), MAX_WBC.sirs_leukocyte_max_dt, 126) + ' ' + CONVERT(CHAR(5), MAX_WBC.sirs_leukocyte_max_dt, 108) AS sirs_leukocyte_max_dt,
