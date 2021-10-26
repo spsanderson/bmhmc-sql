@@ -371,7 +371,7 @@ wf_fits <- wfsets %>%
 parallel_stop()
 
 wf_fits <- wf_fits %>%
-  filter(.model_desc != "NULL")
+  filter(.model != "NULL")
 
 # Model Table -------------------------------------------------------------
 
@@ -415,13 +415,15 @@ calibration_tbl %>%
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
-    .interactive = interactive
+    .interactive = interactive,
+    .conf_interval_show = FALSE
   )
 parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  arrange(rmse) %>%
+  filter(!is.na(rsq)) %>%
+  filter(.model_id %in% c(15,16,25,34,43)) %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
 # Refit to all Data -------------------------------------------------------
@@ -438,6 +440,7 @@ refit_tbl <- calibration_tbl %>%
 parallel_stop()
 
 top_two_models <- refit_tbl %>% 
+  filter(.model_id %in% c(16, 34))
   modeltime_accuracy() %>% 
   arrange(desc(rsq)) %>% 
   slice(1:2)
@@ -447,8 +450,7 @@ ensemble_models <- refit_tbl %>%
     .model_desc %>%
       str_to_lower() %>%
       str_detect("ensemble")
-  ) %>%
-  modeltime_accuracy()
+  )
 
 model_choices <- rbind(top_two_models, ensemble_models)
 
