@@ -46,7 +46,7 @@ db_disconnect(.connection = db_con)
 
 data_tbl <- query %>%
   as_tidytable() %>%
-  mutate_across.(where(is.character), str_squish) %>%
+  mutate.(across.(where(is.character), str_squish)) %>%
   mutate.(ptno_num = as.character(ptno_num)) %>%
   mutate.(adm_date = ymd(adm_date)) %>%
   mutate.(ip_op_flag = ifelse(ip_op_flag == "O", "Outpatient","Inpatient")) %>%
@@ -64,6 +64,7 @@ data_tbl %>%
     .date_var     = adm_date
     , .start_date = "2019"
   ) %>%
+  slice(1:n() - 1) %>%
   plot_time_series(
     .date_var      = adm_date
     , .value       = value
