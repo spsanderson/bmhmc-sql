@@ -14,8 +14,10 @@ pacman::p_load(
   "tidyquant",
   "modeltime.ensemble",
   "modeltime.resample",
+  "healthyR.ts",
   "stringr",
-  "workflowsets"
+  "workflowsets",
+  "healthyR.ai"
 )
 
 interactive <- TRUE
@@ -159,21 +161,23 @@ plot_anomaly_diagnostics(
 
 # Data Split --------------------------------------------------------------
 data_final_tbl <- data_tbl %>%
-  select(date_col, excess_days)
+  select(date_col, excess_days) %>%
+  set_names("date_col","value")
 
-splits <- initial_time_split(
-  data_final_tbl
-  , prop = 0.8
-  , cumulative = TRUE
-)
+splits <- data_final_tbl %>%
+  time_series_split(
+    date_var    = date_col
+    , assess     = "1 year"
+    , cumulative = TRUE
+  )
 
 splits %>%
   tk_time_series_cv_plan() %>%
-  plot_time_series_cv_plan(date_col, excess_days, .interactive = FALSE)
+  plot_time_series_cv_plan(date_col, value, .interactive = FALSE)
 
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(excess_days ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits))
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -182,8 +186,8 @@ recipe_date <- recipe_base %>%
 
 recipe_fourier <- recipe_date %>%
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
-  step_fourier(date_col, period = 365/52, K = 1) %>%
-  step_YeoJohnson(excess_days, limits = c(0,1))
+  step_fourier(date_col, period = 365/12, K = 1) %>%
+  step_YeoJohnson(value, limits = c(0,1))
 
 recipe_fourier_final <- recipe_fourier %>%
   step_nzv(all_predictors())
@@ -192,8 +196,8 @@ recipe_pca <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
   step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
-  step_normalize(excess_days) %>%
-  step_fourier(date_col, period = 365/52, K = 1) %>%
+  step_normalize(value) %>%
+  step_fourier(date_col, period = 365/12, K = 1) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_nzv(all_predictors()) %>%
   step_pca(all_numeric_predictors(), threshold = .95)
