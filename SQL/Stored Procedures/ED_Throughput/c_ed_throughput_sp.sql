@@ -1633,7 +1633,7 @@ ELSE BEGIN
 	LEFT JOIN #AdmitOrdDT_D AS B ON A.account = B.episode_no
 	LEFT JOIN #DschOrdDT_D AS C ON A.account = C.episode_no
 	LEFT JOIN #CenHist_D AS CenHist ON A.account = CenHist.episode_no
-	LEFT JOIN #AdmitOrdDT_D AS ip_bed ON A.account = ip_bed.episode_no
+	LEFT JOIN #ip_bed_D AS ip_bed ON A.account = ip_bed.episode_no
 	LEFT JOIN #OBSAdmitOrdDT_D AS OBS_Admit ON A.account = OBS_Admit.episode_no
 	LEFT JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS HPV ON A.account = HPV.PatientAccountID
 	LEFT JOIN smsmir.cen_hist AS Dsch_Entry_Dtime ON A.account = Dsch_Entry_Dtime.episode_no
