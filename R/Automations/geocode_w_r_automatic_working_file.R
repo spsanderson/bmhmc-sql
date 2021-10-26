@@ -218,6 +218,9 @@ origAddress <- origAddress %>%
     , str_detect(PartialAddress, "LAKE RONKONKONA, NY")   ~ "LAKE RONKONKOMA, NY, 11779"
     , str_detect(PartialAddress, "MIDDLE ISLNAD, NY")     ~ "MIDDLE ISLAND, NY, 11953"
     , str_detect(PartialAddress, "ROCKVILLE CENTR, NY")  ~ "ROCKVILLE CENTER, NY, 11570"
+    , str_detect(PartialAddress, "FARMIINGVILLE, NY")     ~ "FARMINGVILLE, NY, 11738"
+    , str_detect(PartialAddress, "MI SIANI, NY")          ~ "MOUNT SINAI, NY, 11766"
+    , str_detect(PartialAddress, "PATHOGUE, NY")          ~ "PATCHOGUE, NY, 11772"
     , TRUE ~ PartialAddress
   ))
 
