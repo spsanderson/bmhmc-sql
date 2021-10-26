@@ -19,8 +19,8 @@ query <- dbGetQuery(
     
     FROM smsdss.dly_cen_occ_fct_v
     
-    WHERE cen_date >= '2021-10-03'
-    AND cen_date < '2021-10-16'
+    WHERE cen_date >= '2021-01-01'
+    AND cen_date < '2021-10-01'
     AND nurs_sta IN ('4SOU','2NOR','3NOR','2SOU','3SOU','2PED','2CAD','4NOR',
     'MICU','SICU','CCU')
     "
@@ -39,18 +39,20 @@ data_tbl <- query %>%
   mutate(pt_id = pt_id %>% str_squish()) %>%
   mutate(cen_date = anytime::anydate(cen_date))
 
+time_grouping = "quarter"
+
 data_tbl %>%
   group_by(nurs_sta, pt_id) %>%
   summarise_by_time(
     .date_var = cen_date
-    , .by     = "week"
+    , .by     = time_grouping
     , alos    = sum(tot_cen, na.rm = TRUE)
   ) %>%
   ungroup() %>%
   group_by(nurs_sta) %>%
   summarise_by_time(
     .date_var = cen_date
-    , .by     = "week"
+    , .by     = time_grouping
     , value   = mean(alos, na.rm = TRUE)
   ) %>% 
   ungroup() %>%
