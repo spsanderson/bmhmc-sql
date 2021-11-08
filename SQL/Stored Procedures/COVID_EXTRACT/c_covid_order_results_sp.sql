@@ -34,7 +34,8 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
-2021-07-27	v2			Add FindingAbbreviation 00414086
+2021-07-27	v2			Add FindingAbbreviation '00414086'
+2021-10-29	v3			Add FindingAbbreviation '9787'
 ***********************************************************************
 */
 
@@ -74,7 +75,7 @@ BEGIN
 		REPLACE(REPLACE(ResultValue, CHAR(13), ' '), CHAR(10), ' ') AS [ResultValue],
 		PatientVisit_OID
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HInvestigationResult
-	WHERE FindingAbbreviation IN ('9782','00414086')
+	WHERE FindingAbbreviation IN ('9782','00414086','9787')
 	ORDER BY PatientVisit_OID,
 		ResultDateTime DESC;
 
