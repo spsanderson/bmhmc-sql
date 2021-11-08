@@ -221,6 +221,8 @@ origAddress <- origAddress %>%
     , str_detect(PartialAddress, "FARMIINGVILLE, NY")     ~ "FARMINGVILLE, NY, 11738"
     , str_detect(PartialAddress, "MI SIANI, NY")          ~ "MOUNT SINAI, NY, 11766"
     , str_detect(PartialAddress, "PATHOGUE, NY")          ~ "PATCHOGUE, NY, 11772"
+    , str_detect(PartialAddress, "YHAPANK, NY")           ~ "YAPHANK, NY, 11980"
+    , str_detect(PartialAddress, "SHIRELY, NY")           ~ "SHIRLEY, NY, 11967"
     , TRUE ~ PartialAddress
   ))
 
