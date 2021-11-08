@@ -6,9 +6,6 @@ pacman::p_load(
   "tidymodels",
   "modeltime",
   "rules",
-  "tictoc",
-  "future",
-  "doFuture",
   "plotly",
   "tidyverse",
   "timetk",
@@ -20,8 +17,7 @@ pacman::p_load(
   "modeltime.resample",
   "stringr",
   "workflowsets",
-  "parallel",
-  "sknifedatar"
+  "parallel"
 )
 
 n_cores = detectCores() - 1
@@ -456,11 +452,15 @@ calibration_tbl %>%
 wflw_fit_nnet <- calibration_tbl %>%
   pluck_modeltime_model(6)
 
+wflw_fit_prophet <- calibration_tbl %>%
+  pluck_modeltime_model(7)
+
 wflw_fit_earth  <- calibration_tbl %>%
   pluck_modeltime_model(15)
 
-wflw_fit_earth
 wflw_fit_nnet
+wflw_fit_prophet
+wflw_fit_earth
 
 # * Cross Validation Plan (TSCV) ----
 # - Time Series Cross Validation
@@ -479,15 +479,24 @@ tscv %>%
   plot_time_series_cv_plan(date_col, value, .facet_ncol = 2)
 
 # * NNETAR ----
-wflw_fit_earth %>% extract_spec_parsnip()
-wflw_fit_nnet %>% extract_spec_parsnip()
 
 model_spec_earth <- mars(
     mode = "regression"
-    , num_terms = tune()
+    , num_terms   = tune()
     , prod_degree = tune()
   ) %>%
   set_engine("earth")
+
+model_spec_prophet <- prophet_reg(
+  mode = "regression"
+  , changepoint_num = tune()
+  , changepoint_range = tune()
+  , seasonality_yearly = "auto"
+  , prior_scale_changepoints = tune()
+  , prior_scale_seasonality = tune()
+  , prior_scale_holidays = tune()
+) %>%
+  set_engine("prophet")
 
 model_spec_nnet <- nnetar_reg(
   mode              = "regression"
@@ -503,6 +512,7 @@ model_spec_nnet <- nnetar_reg(
 
 parameters(model_spec_earth)
 parameters(model_spec_nnet)
+parameters(model_spec_prophet)
 
 # ** Round 1 ----
 set.seed(123)
@@ -514,6 +524,10 @@ grid_spec_nnet_1 <- grid_latin_hypercube(
 grid_spec_earth_1 <- grid_latin_hypercube(
   parameters(model_spec_earth)
   , size = 30
+)
+
+grid_spec_prophet_1 <- grid_latin_hypercube(
+  parameters(model_spec_prophet)
 )
 
 # ** Round 2 ----
@@ -531,6 +545,9 @@ wflw_tune_nnet <- wflw_fit_nnet %>%
 wflw_tune_earth <- wflw_fit_earth %>%
   update_model(model_spec_earth)
 
+wflw_tune_prophet <- wflw_fit_prophet %>%
+  update_model(model_spec_prophet)
+
 # Run Tune Grid (Expensive Operation)
 # ** Setup Parallel Processing ----
 parallel_start(n_cores)
@@ -538,7 +555,6 @@ parallel_start(n_cores)
 # ** TSCV Cross Validation ----
 
 set.seed(123)
-tic()
 tune_results_earth_1 <- wflw_tune_earth %>%
   tune_grid(
     resamples = tscv,
@@ -549,10 +565,9 @@ tune_results_earth_1 <- wflw_tune_earth %>%
       save_pred = TRUE
     )
   )
-toc()
+
 
 set.seed(123)
-tic()
 tune_results_nnet_1 <- wflw_tune_nnet %>%
   tune_grid(
     resamples = tscv,
@@ -563,10 +578,22 @@ tune_results_nnet_1 <- wflw_tune_nnet %>%
       save_pred = TRUE
     )
   )
-toc()
+
+set.seed(123)
+tune_results_prophet_1 <- wflw_tune_prophet %>%
+  tune_grid(
+    resamples = tscv,
+    grid = grid_spec_prophet_1,
+    metrics = default_forecast_accuracy_metric_set(),
+    control = control_grid(
+      verbose = TRUE,
+      save_pred = TRUE
+    )
+  )
 
 tune_results_nnet_1
 tune_results_earth_1
+tune_results_prophet_1
 
 set.seed(123)
 tic()
@@ -590,7 +617,7 @@ tune_results_nnetar_2
 tune_results_nnet_1 %>%
   show_best(metric = "rmse", n = Inf)
 
-tune_results_nnetar_2 %>%
+tune_results_prophet_1 %>%
   show_best(metric = "rmse", n = Inf)
 
 tune_results_earth_1 %>%
@@ -601,7 +628,7 @@ tune_results_nnet_1 %>%
   tune::autoplot() +
   geom_smooth(se = FALSE)
 
-tune_results_nnetar_2 %>%
+tune_results_prophet_1 %>%
   tune::autoplot() +
   geom_smooth(se = FALSE)
 
@@ -627,9 +654,18 @@ wflw_tune_nnet_tscv <- wflw_tune_nnet %>%
   ) %>%
   fit(training(splits))
 
+wflw_tune_prophet_tscv <- wflw_tune_prophet %>%
+  update_model(model_spec_prophet) %>%
+  finalize_workflow(
+    tune_results_prophet_1 %>%
+      show_best(metric = "rmse", n = 1)
+  ) %>%
+  fit(training(splits))
+
 calibration_tuned_tbl <- modeltime_table(
   wflw_tune_earth_tscv,
-  wflw_tune_nnet_tscv
+  wflw_tune_nnet_tscv,
+  wflw_tune_prophet_tscv
 ) %>%
   modeltime_calibrate(testing(splits))
 
