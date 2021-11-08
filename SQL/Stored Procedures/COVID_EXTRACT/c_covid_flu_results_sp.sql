@@ -44,6 +44,7 @@ Date		Version		Description
 2020-10-30 	v2			Update query to use update logic
 2020-11-03	v3			Overhaul only pull in data from investigation results
 						drop lastcngdtime
+2021-10-29	v4			Add '9785' (FLU_A) and '9786' (FLU_B)
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_covid_flu_results_sp]
@@ -104,7 +105,7 @@ BEGIN
 			ELSE 0
 			END
 	FROM [SC_server].[Soarian_Clin_Prd_1].[DBO].[HInvestigationResult] AS A
-	WHERE A.FindingAbbreviation IN ('00424721', '00424739')
+	WHERE A.FindingAbbreviation IN ('00424721', '00424739','9785','9786')
 		AND A.ResultValue IS NOT NULL
 		AND A.CreationTime >= @START_DATE
 	ORDER BY PatientVisit_oid,
@@ -121,8 +122,8 @@ BEGIN
 		--PVT.LastCngDtime,
 		PVT.UpdateOrder_Flag,
 		PVT.NewRecord_Flag,
-		PVT.[00424721] AS [Flu_A],
-		PVT.[00424739] AS [Flu_B],
+		COALESCE(PVT.[00424721], PVT.[9785]) AS [Flu_A],
+		COALESCE(PVT.[00424739], PVT.[9786]) AS [Flu_B],
 		RN = ROW_NUMBER() OVER (
 			PARTITION BY PVT.PatientVisitOID ORDER BY PVT.ResultDateTime
 			)
@@ -141,7 +142,7 @@ BEGIN
 				OR UpdateOrder_Flag = 1
 				)
 		) AS A
-	PIVOT(MAX(ResultValue) FOR FindingAbbreviation IN ("00424721", "00424739")) AS PVT
+	PIVOT(MAX(ResultValue) FOR FindingAbbreviation IN ("00424721", "00424739","9785","9786")) AS PVT
 	ORDER BY PVT.PatientVisitOID,
 		PVT.ResultDateTime DESC;
 		--PVT.LastCngDtime DESC;
