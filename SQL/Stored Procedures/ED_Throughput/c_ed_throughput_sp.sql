@@ -159,7 +159,7 @@ BEGIN
     	WELLSOFT.Admit_Confirm,
     	WELLSOFT.AdmitOrdersDT,
     	WELLSOFT.AddedToADMissionsTrack,
-    	WELLSOFT.TimeLeftED,
+    	CASE WHEN WELLSOFT.TimeLeftED = '-- ::00' THEN NULL ELSE WELLSOFT.TimeLeftED END AS TimeLeftED,
     	PAV.vst_end_dtime,
     	PAV.hosp_svc,
     	PAV.dsch_disp
@@ -545,7 +545,7 @@ BEGIN
     	WELLSOFT.Admit_Confirm,
     	WELLSOFT.AdmitOrdersDT,
     	WELLSOFT.AddedToADMissionsTrack,
-    	WELLSOFT.TimeLeftED,
+    	CASE WHEN WELLSOFT.TimeLeftED = '-- ::00' THEN NULL ELSE WELLSOFT.TimeLeftED END AS TimeLeftED,
     	PAV.vst_end_dtime,
     	PAV.hosp_svc,
     	PAV.dsch_disp
@@ -936,7 +936,7 @@ ELSE BEGIN
     	WELLSOFT.Admit_Confirm,
     	WELLSOFT.AdmitOrdersDT,
     	WELLSOFT.AddedToADMissionsTrack,
-    	WELLSOFT.TimeLeftED,
+    	CASE WHEN WELLSOFT.TimeLeftED = '-- ::00' THEN NULL ELSE WELLSOFT.TimeLeftED END AS TimeLeftED,
     	PAV.vst_end_dtime,
     	PAV.hosp_svc,
     	PAV.dsch_disp
@@ -1322,7 +1322,7 @@ ELSE BEGIN
     	WELLSOFT.Admit_Confirm,
     	WELLSOFT.AdmitOrdersDT,
     	WELLSOFT.AddedToADMissionsTrack,
-    	WELLSOFT.TimeLeftED,
+    	CASE WHEN WELLSOFT.TimeLeftED = '-- ::00' THEN NULL ELSE WELLSOFT.TimeLeftED END AS TimeLeftED,
     	PAV.vst_end_dtime,
     	PAV.hosp_svc,
     	PAV.dsch_disp
