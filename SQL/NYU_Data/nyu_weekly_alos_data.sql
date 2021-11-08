@@ -1,0 +1,138 @@
+/*
+***********************************************************************
+File: nyu_weekly_alos_data.sql
+
+Input Parameters:
+	None
+
+Tables/Views:
+	smsdss.bmh_plm_ptacct_v
+    smsdss.pract_dim_v
+    smsdss.hosp_svc_dim_v
+
+Creates Table:
+	None
+
+Functions:
+	None
+
+Author: Steven P Sanderson II, MPH
+
+Department: Finance, Revenue Cycle
+
+Purpose/Description
+	Grab previous weeks discharges to get los data by provider and 
+    hospital service line
+
+Revision History:
+Date		Version		Description
+----		----		----
+2021-10-27	v1			Initial Creation
+2021-10-28	v2			Changes:
+						1.	Running a weekly report rolling 12 months up to the date of the report (or day before)
+							We will generally exclude the most recent two weeks on the front end but may be helpful 
+							to have the data for some things
+						2.	Adding a few fields: 
+								Physician department, 
+								service line, 
+								DRG, 
+								DRG Description,
+								DRG Category
+								ICD10 Primary diagnosis,
+								pyr_group2,
+								ward_cd,
+								vst_end_dtime,
+								vst_start_dtime
+***********************************************************************
+*/
+
+DECLARE @THISDATE DATE;
+DECLARE @START    DATE;
+DECLARE @END      DATE;
+
+SET @THISDATE = GETDATE();
+SET @START    = DATEADD(WEEK, - 53, DATEADD(WEEK, DATEDIFF(WEEK, 0, @THISDATE), - 1));
+SET @END      = DATEADD(WEEK, DATEDIFF(WEEK, 0, @THISDATE), - 1);
+
+SELECT PAV.Med_Rec_No AS [mrn],
+	PAV.PtNo_Num,
+	CAST(PAV.ADM_DATE AS DATE) AS [adm_date],
+	CAST(PAV.DSCH_DATE AS DATE) AS [dsch_date],
+	CAST(PAV.VST_START_DTIME AS smalldatetime) AS [vst_start_dtime],
+	CAST(PAV.VST_END_DTIME AS smalldatetime) AS [vst_end_dtime],
+	CAST(PAV.DAYS_STAY AS INT) AS [LOS],
+	PAV.dsch_disp,
+	[DISPOSITION] = CASE 
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'HB'
+			THEN 'Drug/Alcohol Rehab Non-Hospital Facility'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'HI'
+			THEN 'Hospice at Hospice Facility, SNF or Inpatient Facility'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'HR'
+			THEN 'Home, Home with Public Health Nurse, Adult Home, Assisted Living'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'MA'
+			THEN 'Left Against Medical Advice, Elopement'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TB'
+			THEN 'Correctional Institution'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TE'
+			THEN 'SNF -Sub Acute'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TF'
+			THEN 'Specialty Hospital ( i.e Sloan, Schneiders)'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TH'
+			THEN 'Hospital - Med/Surg (i.e Stony Brook)'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TL'
+			THEN 'SNF - Long Term'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TN'
+			THEN 'Hospital - VA'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TP'
+			THEN 'Hospital - Psych or Drug/Alcohol (i.e BMH 1EAST, South Oaks)'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TT'
+			THEN 'Hospice at Home, Adult Home, Assisted Living'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TW'
+			THEN 'Home, Adult Home, Assisted Living with Homecare'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = 'TX'
+			THEN 'Hospital - Acute Rehab ( I.e. St. Charles, Southside)'
+		WHEN RIGHT(RTRIM(LTRIM(PAV.dsch_disp)), 2) = '1A'
+			THEN 'Postoperative Death, Autopsy'
+		WHEN LEFT(PAV.dsch_disp, 1) IN ('C', 'D')
+			THEN 'Mortality'
+		END,
+	UPPER(PDV.pract_rpt_name) AS [Attending_Provider],
+	UPPER(PDV.med_staff_dept) AS [Attending_Med_Staff_Dept],
+	UPPER(pdv.spclty_desc) AS [Attending_Specialty],
+	[hospitalist_private_flag] = CASE 
+		WHEN PDV.src_spclty_cd = 'HOSIM'
+			THEN 'Hospitalist'
+		ELSE 'Private'
+		END,
+	PAV.hosp_svc,
+	HS.hosp_svc_name,
+	SVC_LINE.LIHN_Svc_Line AS [Service_Line],
+	PAV.drg_no,
+	DRG.drg_name,
+	DRG.MDCVal,
+	DRG.MDCDescText,
+	PAV.prin_dx_cd,
+	PYR.pyr_group2 AS [payor_grouping],
+	VST.ward_cd AS [discharge_unit]
+FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
+LEFT OUTER JOIN SMSDSS.pract_dim_v AS PDV ON PAV.Atn_Dr_No = PDV.src_pract_no
+	AND PAV.Regn_Hosp = PDV.orgz_cd
+LEFT OUTER JOIN SMSDSS.hosp_svc_dim_v AS HS ON PAV.hosp_svc = HS.hosp_svc
+	AND PAV.Regn_Hosp = HS.orgz_cd
+LEFT OUTER JOIN SMSDSS.c_LIHN_Svc_Line_Tbl AS SVC_LINE ON PAV.PtNo_Num = SVC_LINE.Encounter
+LEFT OUTER JOIN SMSDSS.drg_dim_v AS DRG ON PAV.drg_no = DRG.drg_no
+	AND DRG.drg_vers = 'MS-V25'
+LEFT OUTER JOIN smsdss.pyr_dim_v AS PYR ON PAV.Pyr1_Co_Plan_Cd = PYR.src_pyr_cd
+	AND PAV.Regn_Hosp = PYR.orgz_cd
+LEFT OUTER JOIN smsmir.vst_rpt AS VST ON PAV.Pt_No = VST.pt_id
+WHERE PAV.DSCH_DATE >= @START
+	AND PAV.Dsch_Date < @END
+	AND LEFT(PAV.PTNO_NUM, 1) != '2'
+	AND LEFT(PAV.PTNO_NUM, 4) != '1999'
+	AND PAV.tot_chg_amt > 0
+	AND (
+		PAV.Plm_Pt_Acct_Type = 'I'
+		OR
+		PAV.hosp_svc = 'OBV'
+	)
+ORDER BY PAV.Dsch_Date
