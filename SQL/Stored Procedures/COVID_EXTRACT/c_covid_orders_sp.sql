@@ -40,6 +40,7 @@ Date		Version		Description
 2020-07-07	v1			Initial Creation
 2021-02-09	v2			Rewrite using date parameters instead
 2021-07-27	v3			Add IN ('00425421','00414086')
+2021-10-29	v4			Add '00425579'
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_covid_orders_sp]
@@ -85,7 +86,7 @@ BEGIN
 		CreationTime,
 		ObjectID
 	FROM [SC_server].[Soarian_Clin_Prd_1].DBO.HORDER
-	WHERE OrderAbbreviation IN ('00425421','00414086')
+	WHERE OrderAbbreviation IN ('00425421','00414086','00425579')
 		AND OrderStatusModifier NOT IN ('Cancelled', 'Discontinue', 'Invalid-DC Order')
 		AND CreationTime >= @START
 
@@ -106,7 +107,7 @@ BEGIN
 		CreationTime,
 		ObjectID
 	FROM smsmir.mir_sc_Order
-	WHERE OrderAbbreviation IN ('00425421','00414086')
+	WHERE OrderAbbreviation IN ('00425421','00414086','00425579')
 		AND OrderStatusModifier NOT IN ('Cancelled', 'Discontinue', 'Invalid-DC Order')
 		AND CreationTime < @START
 
