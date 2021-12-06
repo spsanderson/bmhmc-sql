@@ -43,6 +43,9 @@ Date		Version		Description
 								ward_cd,
 								vst_end_dtime,
 								vst_start_dtime
+2021-11-30	v3			3. Add preadm_pt_id from smsmir.mir_pms_case
+2021-12-02	v4			4. Fix discharge date time column for straight 
+							OBV patients
 ***********************************************************************
 */
 
@@ -56,10 +59,17 @@ SET @END      = DATEADD(WEEK, DATEDIFF(WEEK, 0, @THISDATE), - 1);
 
 SELECT PAV.Med_Rec_No AS [mrn],
 	PAV.PtNo_Num,
+	PMS.preadm_pt_id,
 	CAST(PAV.ADM_DATE AS DATE) AS [adm_date],
 	CAST(PAV.DSCH_DATE AS DATE) AS [dsch_date],
 	CAST(PAV.VST_START_DTIME AS smalldatetime) AS [vst_start_dtime],
-	CAST(PAV.VST_END_DTIME AS smalldatetime) AS [vst_end_dtime],
+	[vst_end_dtime] = CASE
+		WHEN PAV.hosp_svc = 'OBV'
+			THEN CAST(COALESCE(OBV.DSCH_STRT_DTIME, PAV.VST_START_DTIME) AS smalldatetime)
+		ELSE CAST(PAV.VST_END_DTIME AS smalldatetime)
+		END,
+	--PAV.Adm_Source,
+	--CAST(PAV.VST_END_DTIME AS smalldatetime) AS [vst_end_dtime],
 	CAST(PAV.DAYS_STAY AS INT) AS [LOS],
 	PAV.dsch_disp,
 	[DISPOSITION] = CASE 
@@ -125,6 +135,8 @@ LEFT OUTER JOIN SMSDSS.drg_dim_v AS DRG ON PAV.drg_no = DRG.drg_no
 LEFT OUTER JOIN smsdss.pyr_dim_v AS PYR ON PAV.Pyr1_Co_Plan_Cd = PYR.src_pyr_cd
 	AND PAV.Regn_Hosp = PYR.orgz_cd
 LEFT OUTER JOIN smsmir.vst_rpt AS VST ON PAV.Pt_No = VST.pt_id
+LEFT OUTER JOIN smsmir.mir_pms_case AS PMS ON CAST(PAV.PtNo_Num AS INT) = CAST(PMS.episode_no AS INT)
+LEFT OUTER JOIN smsdss.c_obv_Comb_1 AS OBV ON PAV.PtNo_Num = OBV.pt_id
 WHERE PAV.DSCH_DATE >= @START
 	AND PAV.Dsch_Date < @END
 	AND LEFT(PAV.PTNO_NUM, 1) != '2'
