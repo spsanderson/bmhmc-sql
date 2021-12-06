@@ -387,7 +387,7 @@ oppe_cpoe_query <- function(.start_date = ""){
       	[Specimen Collect] AS [specimen_collect],
       	Written AS [written],
       	[Verbal Order] AS [verbal_order],
-      	Communication AS [communication],
+      	--Communication AS [communication],
       	[Specimen Redraw] AS [specimen_redraw],
       	CPOE AS [cpoe],
       	[Nursing Order] AS [nursing_order],
