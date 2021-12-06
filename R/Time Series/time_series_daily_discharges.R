@@ -5,8 +5,9 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
-  "dplyr",
-  "lubridate",
+  "rules",
+  "plotly",
+  "tidyverse",
   "timetk",
   "odbc",
   "DBI",
@@ -17,7 +18,7 @@ pacman::p_load(
   "stringr",
   "workflowsets",
   "parallel",
-  "sknifedatar"
+  "healthyverse"
 )
 
 n_cores = detectCores() - 1
@@ -113,15 +114,26 @@ plot_anomaly_diagnostics(
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(
+splits <- time_series_split(
   data_tbl
-  , prop = 0.8
+  , date_var = date_col
+  , assess = "12 months"
   , cumulative = TRUE
 )
 
+splits %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(date_col, value)
+
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(value ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_mutate(yr = lubridate::year(date_col)) %>%
+  step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
+  step_rm(yr) %>%
+  step_hai_fourier(value, scale_type = "sincos", period = 365/12, order = 1) %>%
+  step_lag(value, lag = 1) %>%
+  step_impute_knn(contains("lag_"))
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -141,10 +153,13 @@ recipe_pca <- recipe_base %>%
   step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
   step_normalize(value) %>%
-  step_fourier(date_col, period = 365/52, K = 1) %>%
+  step_fourier(date_col, period = 365/12, K = 1) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_nzv(all_predictors()) %>%
   step_pca(all_numeric_predictors(), threshold = .95)
+
+recipe_num_only <- recipe_pca %>%
+  step_rm(-value, -all_numeric_predictors())
 
 # Models ------------------------------------------------------------------
 
@@ -315,7 +330,7 @@ wf_fits <- wfsets %>%
 parallel_stop()
 
 wf_fits <- wf_fits %>%
-  filter(.model_desc != "NULL")
+  filter(.model != "NULL")
 
 # Model Table -------------------------------------------------------------
 
@@ -347,7 +362,8 @@ calibration_tbl <- models_tbl %>%
 
 parallel_stop()
 
-calibration_tbl
+calibration_tbl <- calibration_tbl %>%
+  filter(!is.na(.type))
 
 # Testing Accuracy --------------------------------------------------------
 
@@ -360,16 +376,67 @@ calibration_tbl %>%
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
-    .interactive = interactive
+    .interactive = interactive,
+    .conf_interval_show = FALSE
   )
+
 parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  filter(rsq >= .2) %>%
-  filter(mae >= 10) %>%
-  arrange(mape) %>%
+  # filter(rsq >= .1) %>%
+  # filter(mae >= 10) %>%
+  arrange(rmse) %>%
   table_modeltime_accuracy(.interactive = FALSE)
+
+# Hyperparameter Tuning ---------------------------------------------------
+
+tuned_model <- ts_model_auto_tune(
+  .modeltime_model_id = 40,
+  .calibration_tbl = calibration_tbl,
+  .splits_obj = splits,
+  .date_col = date_col,
+  .value_col = value,
+  .tscv_assess = "12 months",
+  .tscv_skip = "3 months",
+  .num_cores = n_cores,
+  .grid_size = 30
+)
+
+original_model <- tuned_model$model_info$plucked_model
+new_model      <- tuned_model$model_info$tuned_tscv_wflw_spec
+
+ts_model_compare(
+  .model_1 = new_model,
+  .model_2 = original_model,
+  .type = "testing",
+  .splits_obj = splits,
+  .data = data_tbl,
+  .print_info = TRUE,
+  .metric = "rsq"
+)
+
+calibration_tuned_tbl <- modeltime_table(
+  new_model
+) %>%
+  update_model_description(1, "TUNED - ARIMA(0,1,1)(0,0,2)[12] W/ XGBOOST ERRORS") %>%
+  #update_model_description(2, "ORIGINAL - EARTH") %>%
+  modeltime_calibrate(testing(splits))
+
+parallel_start(n_cores)
+calibration_tbl <- combine_modeltime_tables(
+  calibration_tbl,
+  calibration_tuned_tbl
+) %>%
+  modeltime_refit(
+    data = data_tbl,
+    control = control_refit(
+      verbose = TRUE,
+      allow_par = TRUE
+    )
+  ) %>%
+  modeltime_calibrate(testing(splits))
+parallel_stop()
 
 # Refit to all Data -------------------------------------------------------
 
@@ -378,7 +445,8 @@ refit_tbl <- calibration_tbl %>%
   modeltime_refit(
     data = data_tbl
     , control = control_refit(
-      verbose   = TRUE
+      verbose   = TRUE,
+      allow_par = TRUE
     )
   )
 parallel_stop()
@@ -387,7 +455,7 @@ top_two_models <- refit_tbl %>%
   modeltime_accuracy() %>% 
   filter(rsq >= .2) %>%
   filter(mae >= 10) %>%
-  arrange(mape) %>%
+  arrange(rmse) %>%
   slice(1:2)
 
 ensemble_models <- refit_tbl %>%
@@ -398,12 +466,14 @@ ensemble_models <- refit_tbl %>%
   ) %>%
   modeltime_accuracy()
 
-model_choices <- rbind(top_two_models, ensemble_models)
+model_choices <- rbind(top_two_models, ensemble_models) %>%
+  arrange(rmse) %>%
+  slice(1:2)
 
 # Forecast Plot ----
-parallel_start(5)
+parallel_start(n_cores)
 refit_tbl %>%
-  filter(.model_id %in% top_two_models$.model_id) %>%
+  filter(.model_id %in% model_choices$.model_id) %>%
   modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
