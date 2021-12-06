@@ -15,7 +15,7 @@ oppe_cpoe_tbl <- function() {
                 unknown +
                 telephone +
                 per_rt_protocol +
-                communication +
+                #communication +
                 specimen_collect +
                 specimen_redraw +
                 cpoe +
