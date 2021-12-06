@@ -17,7 +17,8 @@ pacman::p_load(
   "modeltime.resample",
   "stringr",
   "workflowsets",
-  "parallel"
+  "parallel",
+  "healthyverse"
 )
 
 n_cores = detectCores() - 1
@@ -117,7 +118,7 @@ dbDisconnect(db_con)
 data_tbl <- query %>%
   summarise_by_time(
     .date_var      = dsch_date
-    , .by          = "week"
+    , .by          = "month"
     , visit_count  = n()
     , sum_days     = sum(los, na.rm = TRUE)
     , sum_exp_days = sum(performance, na.rm = TRUE)
@@ -160,26 +161,31 @@ plot_anomaly_diagnostics(
   , .value = avg_excess
 )
 
-
 # Data Split --------------------------------------------------------------
 data_final_tbl <- data_tbl %>%
   select(date_col, avg_excess) %>%
   set_names("date_col","value")
 
-splits <- data_final_tbl %>%
-  time_series_split(
-    date_var    = date_col
-    , assess     = "1 year"
-    , cumulative = TRUE
-  )
+splits <- time_series_split(
+  data_final_tbl
+  , date_var = date_col
+  , assess = "12 months"
+  , cumulative = TRUE
+)
 
 splits %>%
   tk_time_series_cv_plan() %>%
-  plot_time_series_cv_plan(date_col, value, .interactive = FALSE)
+  plot_time_series_cv_plan(date_col, value)
 
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(value ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_mutate(yr = lubridate::year(date_col)) %>%
+  step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
+  step_rm(yr) %>%
+  step_hai_fourier(value, scale_type = "sincos", period = 365/12, order = 1) %>%
+  step_lag(value, lag = 1) %>%
+  step_impute_knn(contains("lag_"))
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -384,7 +390,7 @@ wf_fits <- wfsets %>%
   modeltime_fit_workflowset(
     data = training(splits)
     , control = control_fit_workflowset(
-      allow_par = FALSE
+      allow_par = TRUE
       , verbose = TRUE
     )
   )
@@ -422,7 +428,8 @@ calibration_tbl <- models_tbl %>%
 
 parallel_stop()
 
-calibration_tbl
+calibration_tbl <- calibration_tbl %>%
+  filter(!is.na(.type))
 
 # Testing Accuracy --------------------------------------------------------
 
@@ -450,243 +457,98 @@ calibration_tbl %>%
 
 # Hyperparameter Tuning ---------------------------------------------------
 
-tuned_prophet_model <- ts_model_tune(
-  .modeltime_model_id = 22,
+tuned_model <- ts_model_auto_tune(
+  .modeltime_model_id = 6,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .date_col = date_col,
   .value_col = value,
-  .tscv_assess = "52 weeks",
-  .tscv_skip = "7 weeks",
-  .num_cores = n_cores
+  .tscv_assess = "12 months",
+  .tscv_skip = "3 months",
+  .num_cores = n_cores,
+  .grid_size = 30
 )
 
-# wflw_fit_f_prophet <- calibration_tbl %>%
-#   pluck_modeltime_model(28)
-# 
-# wflw_fit_ff_prophet <- calibration_tbl %>%
-#   pluck_modeltime_model(37)
-# 
-# wflw_fit_glm  <- calibration_tbl %>%
-#   pluck_modeltime_model(24)
-# 
-# # * Cross Validation Plan (TSCV) ----
-# # - Time Series Cross Validation
-# 
-# tscv <- time_series_cv(
-#   data = training(splits) %>% drop_na(),
-#   date_var = date_col,
-#   cumulative = TRUE,
-#   assess = "26 weeks",
-#   skip = "13 weeks",
-#   slice_limit = 6
-# )
-# 
-# tscv %>%
-#   tk_time_series_cv_plan() %>%
-#   plot_time_series_cv_plan(date_col, value, .facet_ncol = 2)
-# 
-# # * Tune Model Spec ----
-# 
-# model_spec_glm <- linear_reg(
-#   mode = "regression"
-#   , penalty = tune()
-#   , mixture = tune()
-# ) %>%
-#   set_engine("glmnet")
-# 
-# model_spec_f_prophet <- prophet_boost(
-#   mode = "regression"
-#   , changepoint_num = tune()
-#   , changepoint_range = tune()
-#   , seasonality_yearly = "auto"
-#   , prior_scale_changepoints = tune()
-#   , prior_scale_seasonality = tune()
-#   , prior_scale_holidays = tune()
-# ) %>%
-#   set_engine("prophet_xgboost")
-# 
-# model_spec_ff_prophet <- prophet_boost(
-#   mode = "regression"
-#   , changepoint_num = tune()
-#   , changepoint_range = tune()
-#   , seasonality_yearly = "auto"
-#   , prior_scale_changepoints = tune()
-#   , prior_scale_seasonality = tune()
-#   , prior_scale_holidays = tune()
-# ) %>%
-#   set_engine("prophet_xgboost")
-# 
-# parameters(model_spec_glm)
-# parameters(model_spec_f_prophet)
-# parameters(model_spec_ff_prophet)
-# 
-# # ** Round 1 ----
-# set.seed(123)
-# grid_spec_glm_1 <- grid_latin_hypercube(
-#   parameters(model_spec_glm)
-#   , size = 30
-# )
-# 
-# grid_spec_f_prophet_1 <- grid_latin_hypercube(
-#   parameters(model_spec_f_prophet)
-#   , size = 30
-# )
-# 
-# grid_spec_ff_prophet_1 <- grid_latin_hypercube(
-#   parameters(model_spec_ff_prophet)
-# )
-# 
-# # * Tune ----
-# # Workflow - Tuning
-# wflw_tune_glm <- wflw_fit_glm %>%
-#   update_model(model_spec_glm)
-# 
-# wflw_tune_f_prophet <- wflw_fit_f_prophet %>%
-#   update_model(model_spec_f_prophet)
-# 
-# wflw_tune_ff_prophet <- wflw_fit_ff_prophet %>%
-#   update_model(model_spec_ff_prophet)
-# 
-# # Run Tune Grid (Expensive Operation)
-# # ** Setup Parallel Processing ----
-# parallel_start(n_cores)
-# 
-# 
-# # ** TSCV Cross Validation ----
-# 
-# set.seed(123)
-# tune_results_glm_1 <- wflw_tune_glm %>%
-#   tune_grid(
-#     resamples = tscv,
-#     grid      = grid_spec_glm_1,
-#     metrics   = default_forecast_accuracy_metric_set(),
-#     control   = control_grid(
-#       verbose   = TRUE,
-#       save_pred = TRUE
-#     )
-#   )
-# 
-# 
-# set.seed(123)
-# tune_results_f_prophet_1 <- wflw_tune_f_prophet %>%
-#   tune_grid(
-#     resamples = tscv,
-#     grid = grid_spec_f_prophet_1,
-#     metrics = default_forecast_accuracy_metric_set(),
-#     control = control_grid(
-#       verbose = TRUE,
-#       save_pred = TRUE
-#     )
-#   )
-# 
-# set.seed(123)
-# tune_results_ff_prophet_1 <- wflw_tune_ff_prophet %>%
-#   tune_grid(
-#     resamples = tscv,
-#     grid = grid_spec_prophet_1,
-#     metrics = default_forecast_accuracy_metric_set(),
-#     control = control_grid(
-#       verbose = TRUE,
-#       save_pred = TRUE
-#     )
-#   )
-# 
-# parallel_stop()
-# 
-# # Show Results
-# tune_results_glm_1 %>%
-#   show_best(metric = "rmse", n = 1)
-# 
-# tune_results_f_prophet_1 %>%
-#   show_best(metric = "rmse", n = 1)
-# 
-# tune_results_ff_prophet_1 %>%
-#   show_best(metric = "rmse", n = 1)
-# 
-# # Visualize Results
-# tune_results_glm_1 %>%
-#   tune::autoplot() +
-#   geom_smooth(se = FALSE)
-# 
-# tune_results_f_prophet_1 %>%
-#   tune::autoplot() +
-#   geom_smooth(se = FALSE)
-# 
-# tune_results_ff_prophet_1 %>%
-#   tune::autoplot() +
-#   geom_smooth(se = FALSE)
-# 
-# # * Retrain and Assess ----
-# set.seed(123)
-# wflw_tune_glm_tscv <- wflw_tune_glm %>%
-#   update_model(model_spec_glm) %>%
-#   finalize_workflow(
-#     tune_results_glm_1 %>%
-#       show_best(metric = "rmse", n = 1)
-#   ) %>%
-#   fit(training(splits))
-# 
-# wflw_tune_f_prophet_tscv <- wflw_tune_f_prophet %>%
-#   update_model(model_spec_f_prophet) %>%
-#   finalize_workflow(
-#     tune_results_f_prophet_1 %>%
-#       show_best(metric = "rmse", n = 1)
-#   ) %>%
-#   fit(training(splits))
-# 
-# wflw_tune_ff_prophet_tscv <- wflw_tune_ff_prophet %>%
-#   update_model(model_spec_ff_prophet) %>%
-#   finalize_workflow(
-#     tune_results_ff_prophet_1 %>%
-#       show_best(metric = "rmse", n = 1)
-#   ) %>%
-#   fit(training(splits))
+original_model <- tuned_model$model_info$plucked_model
+new_model      <- tuned_model$model_info$tuned_tscv_wflw_spec
+
+ts_model_compare(
+  .model_1 = new_model,
+  .model_2 = original_model,
+  .type = "testing",
+  .splits_obj = splits,
+  .data = data_final_tbl,
+  .print_info = TRUE,
+  .metric = "rsq"
+)
 
 calibration_tuned_tbl <- modeltime_table(
-  tuned_prophet_model$model_info$tuned_tscv_wflw_spec
+  new_model
 ) %>%
+  update_model_description(1, "TUNED - EARTH") %>%
   modeltime_calibrate(testing(splits))
+
+parallel_start(n_cores)
+calibration_tbl <- combine_modeltime_tables(
+  calibration_tbl,
+  calibration_tuned_tbl
+) %>%
+  modeltime_refit(
+    data = data_tbl,
+    control = control_refit(
+      verbose = TRUE,
+      allow_par = TRUE
+    )
+  ) %>%
+  modeltime_calibrate(testing(splits))
+parallel_stop()
 
 
 # Refit to all Data -------------------------------------------------------
 
 parallel_start(n_cores)
-refit_tbl <- calibration_tuned_tbl %>%
+refit_tbl <- calibration_tbl %>%
   modeltime_refit(
     data = data_final_tbl
     , control = control_refit(
-      verbose   = TRUE
-      , allow_par = FALSE
+      verbose     = TRUE
+      , allow_par = TRUE
     )
   )
 parallel_stop()
 
-# top_two_models <- refit_tbl %>% 
-#   modeltime_accuracy() %>% 
-#   arrange(desc(rsq)) %>% 
-#   slice(1:2)
-# 
-# ensemble_models <- refit_tbl %>%
-#   filter(
-#     .model_desc %>%
-#       str_to_lower() %>%
-#       str_detect("ensemble")
-#   ) %>%
-#   modeltime_accuracy()
-# 
-# model_choices <- rbind(top_two_models, ensemble_models)
+top_two_models <- refit_tbl %>% 
+  modeltime_accuracy() %>% 
+  filter(rsq >= .1) %>%
+  arrange(rmse) %>%
+  slice(1:2)
 
+ensemble_models <- refit_tbl %>%
+  filter(
+    .model_desc %>%
+      str_to_lower() %>%
+      str_detect("ensemble")
+  ) %>%
+  modeltime_accuracy()
+
+model_choices <- rbind(top_two_models, ensemble_models) %>%
+  arrange(rmse) %>%
+  slice(1:2)
+
+# Forecast Plot ----
+parallel_start(n_cores)
 refit_tbl %>%
-  #filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "12 weeks", actual_data = data_final_tbl) %>%
+  filter(.model_id %in% model_choices$.model_id) %>%
+  modeltime_forecast(h = "1 year", actual_data = data_final_tbl) %>%
   filter_by_time(.date_var = .index, .start_date = "2020") %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
     , .interactive        = FALSE
     , .conf_interval_show = FALSE
-    , .title = "IP Discharges Avg Excess Days Forecast 12 Weeks Out"
+    , .title = "IP Discharges Avg Excess Days Forecast 12 Months Out"
   )
+parallel_stop()
+
 
 # Misc --------------------------------------------------------------------
 models_tbl %>%
@@ -717,7 +579,7 @@ calibration_tbl %>%
 ts_sum_arrivals_plt(
   .data = data_final_tbl
   , .date_col = date_col
-  , .value_col = excess_days
+  , .value_col = value
   , .x_axis = wk
   , .ggplt_group_var = yr
   , yr
@@ -733,7 +595,7 @@ ts_sum_arrivals_plt(
 ts_median_excess_plt(
   .data = data_final_tbl
   , .date_col = date_col
-  , .value_col = excess_days
+  , .value_col = value
   , .x_axis = wk
   , .ggplt_group_var = yr
   , .secondary_grp_var = wk
