@@ -5,8 +5,9 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
-  "dplyr",
-  "lubridate",
+  "rules",
+  "plotly",
+  "tidyverse",
   "timetk",
   "odbc",
   "DBI",
@@ -17,7 +18,7 @@ pacman::p_load(
   "stringr",
   "workflowsets",
   "parallel",
-  "sknifedatar"
+  "healthyverse"
 )
 
 n_cores = detectCores() - 1
@@ -114,11 +115,26 @@ plot_anomaly_diagnostics(
 
 # Data Split --------------------------------------------------------------
 
-splits <- initial_time_split(data_tbl, prop = 0.8)
+splits <- time_series_split(
+  data_tbl
+  , date_var = date_col
+  , assess = "30 days"
+  , cumulative = TRUE
+)
+
+splits %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(date_col, value)
 
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(value ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_mutate(yr = lubridate::year(date_col)) %>%
+  step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
+  step_rm(yr) %>%
+  step_hai_fourier(value, scale_type = "sincos", period = 365/12, order = 1) %>%
+  step_lag(value, lag = 1) %>%
+  step_impute_knn(contains("lag_"))
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -142,6 +158,9 @@ recipe_pca <- recipe_base %>%
   step_normalize(all_numeric_predictors()) %>%
   step_nzv(all_predictors()) %>%
   step_pca(all_numeric_predictors(), threshold = .95)
+
+recipe_num_only <- recipe_pca %>%
+  step_rm(-value, -all_numeric_predictors())
 
 # Models ------------------------------------------------------------------
 
@@ -213,7 +232,10 @@ model_spec_stlm_arima <- seasonal_reg(
 
 # NNETAR ------------------------------------------------------------------
 
-model_spec_nnetar <- nnetar_reg() %>%
+model_spec_nnetar <- nnetar_reg(
+  mode              = "regression"
+  , seasonal_period = "auto"
+) %>%
   set_engine("nnetar")
 
 
@@ -229,9 +251,9 @@ model_spec_prophet <- prophet_reg(
 model_spec_prophet_boost <- prophet_boost(
   learn_rate = 0.1
   , trees = 10
-  , seasonality_yearly = "auto"
-  , seasonality_weekly = "auto"
-  , seasonality_daily = "auto"
+  , seasonality_yearly = FALSE
+  , seasonality_weekly = FALSE
+  , seasonality_daily  = FALSE
 ) %>% 
   set_engine("prophet_xgboost") 
 
@@ -266,6 +288,20 @@ model_spec_keras <- linear_reg(
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
+# XGBoost -----------------------------------------------------------------
+
+model_spec_xgboost <- boost_tree(
+  mode  = "regression",
+  mtry  = 10,
+  trees = 100,
+  min_n = 5,
+  tree_depth = 3,
+  learn_rate = 0.3,
+  loss_reduction = 0.01
+) %>%
+  set_engine("xgboost")
+
+
 # Workflowsets ------------------------------------------------------------
 
 wfsets <- workflow_set(
@@ -273,7 +309,9 @@ wfsets <- workflow_set(
     base          = recipe_base,
     date          = recipe_date,
     fourier       = recipe_fourier,
-    fourier_final = recipe_fourier_final
+    fourier_final = recipe_fourier_final,
+    pca           = recipe_pca,
+    num_only_pca  = recipe_num_only
   ),
   models = list(
     model_spec_arima_no_boost,
@@ -281,7 +319,7 @@ wfsets <- workflow_set(
     model_spec_ets,
     model_spec_lm,
     model_spec_glm,
-    # model_spec_stan, to slow for now
+    # model_spec_stan,
     # model_spec_spark,
     # model_spec_keras,
     model_spec_mars,
@@ -290,7 +328,8 @@ wfsets <- workflow_set(
     model_spec_prophet_boost,
     model_spec_stlm_arima,
     model_spec_stlm_ets,
-    model_spec_stlm_tbats
+    model_spec_stlm_tbats,
+    model_spec_xgboost
   ),
   cross = TRUE
 )
@@ -307,7 +346,7 @@ wf_fits <- wfsets %>%
 parallel_stop()
 
 wf_fits <- wf_fits %>%
-  filter(.model_desc != "NULL")
+  filter(.model != "NULL")
 
 # Model Table -------------------------------------------------------------
 
@@ -330,15 +369,16 @@ models_tbl <- models_tbl %>%
 models_tbl
 
 # Calibrate Model Testing -------------------------------------------------
+
 parallel_start(n_cores)
 
 calibration_tbl <- models_tbl %>%
-  #modeltime_refit(training(splits)) %>%
   modeltime_calibrate(new_data = testing(splits))
 
 parallel_stop()
 
-calibration_tbl
+calibration_tbl <- calibration_tbl %>%
+  filter(!is.na(.type))
 
 # Testing Accuracy --------------------------------------------------------
 
@@ -351,14 +391,57 @@ calibration_tbl %>%
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
-    .interactive = interactive
+    .interactive = interactive,
+    .conf_interval_show = FALSE
   )
+
 parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  arrange(desc(rsq)) %>%
+  arrange(rmse) %>%
   table_modeltime_accuracy(.interactive = FALSE)
+
+# Hyperparameter Tuning ---------------------------------------------------
+
+tuned_model <- ts_model_auto_tune(
+  .modeltime_model_id = 27,
+  .calibration_tbl = calibration_tbl,
+  .splits_obj = splits,
+  .date_col = date_col,
+  .value_col = value,
+  .tscv_assess = "12 months",
+  .tscv_skip = "3 months",
+  .num_cores = n_cores,
+  .grid_size = 5
+)
+
+original_model <- tuned_model$model_info$plucked_model
+new_model      <- tuned_model$model_info$tuned_tscv_wflw_spec
+
+ts_model_compare(
+  .model_1 = new_model,
+  .model_2 = original_model,
+  .type = "testing",
+  .splits_obj = splits,
+  .data = data_tbl,
+  .print_info = TRUE,
+  .metric = "rsq"
+)
+
+calibration_tuned_tbl <- modeltime_table(
+  new_model
+) %>%
+  update_model_description(1, "TUNED - PROPHET W/ XGBOOST ERRORS") %>%
+  modeltime_calibrate(testing(splits))
+
+parallel_start(n_cores)
+calibration_tbl <- combine_modeltime_tables(
+  calibration_tbl,
+  calibration_tuned_tbl
+) %>%
+  modeltime_calibrate(training(splits))
+parallel_stop()
 
 # Refit to all Data -------------------------------------------------------
 parallel_start(n_cores)
@@ -366,7 +449,8 @@ refit_tbl <- calibration_tbl %>%
   modeltime_refit(
     data = data_tbl
     , control = control_refit(
-      verbose   = TRUE
+      verbose   = TRUE,
+      allow_par = TRUE
     )
   )
 parallel_stop()
@@ -384,7 +468,9 @@ ensemble_models <- refit_tbl %>%
   ) %>%
   modeltime_accuracy()
 
-model_choices <- rbind(top_two_models, ensemble_models)
+model_choices <- rbind(top_two_models, ensemble_models) %>%
+  arrange(rmse) %>%
+  slice(1:2)
 
 refit_tbl %>%
   filter(.model_id %in% model_choices$.model_id) %>%
