@@ -4,7 +4,7 @@ oppe_cpoe_detail_tbl <- function(provider_id) {
     db_con <- dbConnect(
         odbc(),
         Driver = "SQL Server",
-        Server = "BMH-HIDB",
+        Server = "LI-HIDB",
         Database = "SMSPHDSSS0X0",
         Trusted_Connection = T
     )
@@ -24,7 +24,7 @@ oppe_cpoe_detail_tbl <- function(provider_id) {
             , Unknown
             , Telephone
             , `Per RT Protocol`
-            , Communication
+            #, Communication
             , `Specimen Collect`
             , `Specimen Redraw`
             , CPOE
