@@ -5,8 +5,9 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
   "modeltime",
-  "dplyr",
-  "lubridate",
+  "rules",
+  "plotly",
+  "tidyverse",
   "timetk",
   "odbc",
   "DBI",
@@ -17,7 +18,7 @@ pacman::p_load(
   "stringr",
   "workflowsets",
   "parallel",
-  "sknifedatar"
+  "healthyverse"
 )
 
 n_cores = detectCores() - 1
@@ -172,12 +173,25 @@ data_tbl %>%
   )
 
 # Data Split --------------------------------------------------------------
+splits <- time_series_split(
+  data_tbl
+  , date_var = date_col
+  , assess = "12 months"
+  , cumulative = TRUE
+)
 
-splits <- initial_time_split(data_tbl, prop = 0.8)
+splits %>%
+  tk_time_series_cv_plan() %>%
+  plot_time_series_cv_plan(date_col, value)
+
 
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(value ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_mutate(yr = lubridate::year(date_col)) %>%
+  step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
+  step_fourier(date_col, period = 365/12, K = 1) %>%
+  step_rm(yr)
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -201,6 +215,9 @@ recipe_pca <- recipe_base %>%
   step_normalize(all_numeric_predictors()) %>%
   step_nzv(all_predictors()) %>%
   step_pca(all_numeric_predictors(), threshold = .95)
+
+recipe_num_only <- recipe_pca %>%
+  step_rm(-value, -all_numeric_predictors())
 
 # Models ------------------------------------------------------------------
 
@@ -273,9 +290,8 @@ model_spec_stlm_arima <- seasonal_reg(
 # NNETAR ------------------------------------------------------------------
 
 model_spec_nnetar <- nnetar_reg(
-  seasonal_period = "auto"
-  , penalty = 0.5
-  , epochs = 12
+  mode              = "regression"
+  , seasonal_period = "auto"
 ) %>%
   set_engine("nnetar")
 
@@ -329,6 +345,19 @@ model_spec_keras <- linear_reg(
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
+# XGBoost -----------------------------------------------------------------
+
+model_spec_xgboost <- boost_tree(
+  mode  = "regression",
+  mtry  = 10,
+  trees = 100,
+  min_n = 5,
+  tree_depth = 3,
+  learn_rate = 0.3,
+  loss_reduction = 0.01
+) %>%
+  set_engine("xgboost")
+
 # Workflowsets ------------------------------------------------------------
 
 wfsets <- workflow_set(
@@ -337,7 +366,8 @@ wfsets <- workflow_set(
     date          = recipe_date,
     fourier       = recipe_fourier,
     fourier_final = recipe_fourier_final,
-    pca           = recipe_pca
+    pca           = recipe_pca,
+    num_only_pca  = recipe_num_only
   ),
   models = list(
     model_spec_arima_no_boost,
@@ -354,7 +384,8 @@ wfsets <- workflow_set(
     model_spec_prophet_boost,
     model_spec_stlm_arima,
     model_spec_stlm_ets,
-    model_spec_stlm_tbats
+    model_spec_stlm_tbats,
+    model_spec_xgboost
   ),
   cross = TRUE
 )
@@ -422,9 +453,59 @@ parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  filter(!is.na(rsq)) %>%
-  filter(.model_id %in% c(15,16,25,34,43)) %>%
+  filter(rsq >= 0.01) %>%
+  arrange(rmse) %>%
   table_modeltime_accuracy(.interactive = FALSE)
+
+# Hyperparameter Tuning ---------------------------------------------------
+
+tuned_model <- ts_model_auto_tune(
+  .modeltime_model_id = 25,
+  .calibration_tbl    = calibration_tbl,
+  .splits_obj         = splits,
+  .date_col           = date_col,
+  .value_col          = value,
+  .tscv_assess        = "12 months",
+  .tscv_skip          = "3 months",
+  .num_cores          = n_cores,
+  .grid_size          = 30
+)
+
+original_model <- tuned_model$model_info$plucked_model
+new_model      <- tuned_model$model_info$tuned_tscv_wflw_spec
+
+calibrate_and_plot(
+  new_model
+  , original_model
+  , .type = "testing"
+  , .splits_obj = splits
+  , .data = data_tbl
+)$plot +
+  labs(
+    title = "Forecast Plot"
+    , subtitle = "Redline indicates the Tuned Model"
+  )
+
+calibration_tuned_tbl <- modeltime_table(
+  new_model
+) %>%
+  update_model_description(1, "TUNED - EARTH") %>%
+  modeltime_calibrate(testing(splits))
+
+parallel_start(n_cores)
+calibration_tbl <- combine_modeltime_tables(
+  calibration_tbl,
+  calibration_tuned_tbl
+) %>%
+  modeltime_refit(
+    data = data_tbl,
+    control = control_refit(
+      verbose = TRUE,
+      allow_par = TRUE
+    )
+  ) %>%
+  modeltime_calibrate(testing(splits))
+parallel_stop()
 
 # Refit to all Data -------------------------------------------------------
 
@@ -433,16 +514,17 @@ refit_tbl <- calibration_tbl %>%
   modeltime_refit(
     data = data_tbl
     , control = control_refit(
-      verbose   = TRUE
+      verbose     = TRUE
       , allow_par = TRUE
     )
   )
 parallel_stop()
 
 top_two_models <- refit_tbl %>% 
-  filter(.model_id %in% c(16, 34))
   modeltime_accuracy() %>% 
-  arrange(desc(rsq)) %>% 
+  filter(rsq >= .1) %>%
+  filter(rsq < 0.95) %>%
+  arrange(rmse) %>%
   slice(1:2)
 
 ensemble_models <- refit_tbl %>%
@@ -450,10 +532,15 @@ ensemble_models <- refit_tbl %>%
     .model_desc %>%
       str_to_lower() %>%
       str_detect("ensemble")
-  )
+  ) %>%
+  modeltime_accuracy()
 
-model_choices <- rbind(top_two_models, ensemble_models)
+model_choices <- rbind(top_two_models, ensemble_models) %>%
+  arrange(rmse) %>%
+  slice(1:2)
 
+# Forecast Plot ----
+parallel_start(n_cores)
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
   modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
@@ -463,10 +550,12 @@ refit_tbl %>%
       as.Date()
   ) %>%
   plot_modeltime_forecast(
-    .legend_max_width = 25
-    , .interactive = FALSE
+    .legend_max_width     = 25
+    , .interactive        = FALSE
+    , .conf_interval_show = FALSE
     , .title = "Monthly IP Readmit Excess Rate Forecast 1 Year Out"
   )
+parallel_stop()
 
 # Misc --------------------------------------------------------------------
 models_tbl %>%
@@ -474,7 +563,7 @@ models_tbl %>%
   modeltime_residuals() %>%
   plot_modeltime_residuals()
 
-calibration_tbl %>% 
+calibration_tuned_tbl %>% 
   dplyr::ungroup() %>% 
   dplyr::select(-.model) %>% 
   tidyr::unnest(.calibration_data) %>% 
