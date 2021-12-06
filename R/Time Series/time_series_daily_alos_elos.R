@@ -17,7 +17,8 @@ pacman::p_load(
   "modeltime.resample",
   "stringr",
   "workflowsets",
-  "parallel"
+  "parallel",
+  "healthyverse"
 )
 
 n_cores = detectCores() - 1
@@ -178,7 +179,13 @@ splits %>%
 
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(value ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_mutate(yr = lubridate::year(date_col)) %>%
+  step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
+  step_rm(yr) %>%
+  step_hai_fourier(value, scale_type = "sincos", period = 365/12, order = 1) %>%
+  step_lag(value, lag = 1) %>%
+  step_impute_knn(contains("lag_"))
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -383,7 +390,7 @@ wf_fits <- wfsets %>%
   modeltime_fit_workflowset(
     data = training(splits)
     , control = control_fit_workflowset(
-      allow_par = FALSE
+      allow_par = TRUE
       , verbose = TRUE
     )
   )
@@ -421,7 +428,7 @@ calibration_tbl <- models_tbl %>%
 
 parallel_stop()
 
-calibration_tbl
+calibration_tbl <- calibration_tbl %>% filter(!is.na(.type))
 
 # Testing Accuracy --------------------------------------------------------
 
@@ -442,250 +449,77 @@ parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
-  arrange(desc(rsq)) %>%
+  filter(rsq >= 0.01) %>%
+  arrange(rmse) %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
 
 # Hyperparameter Tuning ---------------------------------------------------
 
-# Test NNAR
-wflw_fit_nnet <- calibration_tbl %>%
-  pluck_modeltime_model(6)
-
-wflw_fit_prophet <- calibration_tbl %>%
-  pluck_modeltime_model(7)
-
-wflw_fit_earth  <- calibration_tbl %>%
-  pluck_modeltime_model(15)
-
-wflw_fit_nnet
-wflw_fit_prophet
-wflw_fit_earth
-
-# * Cross Validation Plan (TSCV) ----
-# - Time Series Cross Validation
-
-tscv <- time_series_cv(
-  data = training(splits) %>% drop_na(),
-  date_var = date_col,
-  cumulative = TRUE,
-  assess = "12 months",
-  skip = "6 months",
-  slice_limit = 6
+tuned_model <- ts_model_auto_tune(
+  .modeltime_model_id = 15,
+  .calibration_tbl = calibration_tbl,
+  .splits_obj = splits,
+  .date_col = date_col,
+  .value_col = value,
+  .tscv_assess = "12 months",
+  .tscv_skip = "3 months",
+  .num_cores = n_cores
 )
 
-tscv %>%
-  tk_time_series_cv_plan() %>%
-  plot_time_series_cv_plan(date_col, value, .facet_ncol = 2)
+original_model <- tuned_model$model_info$plucked_model
+new_model      <- tuned_model$model_info$tuned_tscv_wflw_spec
 
-# * NNETAR ----
-
-model_spec_earth <- mars(
-    mode = "regression"
-    , num_terms   = tune()
-    , prod_degree = tune()
-  ) %>%
-  set_engine("earth")
-
-model_spec_prophet <- prophet_reg(
-  mode = "regression"
-  , changepoint_num = tune()
-  , changepoint_range = tune()
-  , seasonality_yearly = "auto"
-  , prior_scale_changepoints = tune()
-  , prior_scale_seasonality = tune()
-  , prior_scale_holidays = tune()
-) %>%
-  set_engine("prophet")
-
-model_spec_nnet <- nnetar_reg(
-  mode              = "regression"
-  , seasonal_period = "auto"
-  , non_seasonal_ar = tune()
-  , seasonal_ar     = tune()
-  , hidden_units    = tune()
-  , num_networks    = tune()
-  , penalty         = tune()
-  , epochs          = tune()
-) %>%
-  set_engine("nnetar")
-
-parameters(model_spec_earth)
-parameters(model_spec_nnet)
-parameters(model_spec_prophet)
-
-# ** Round 1 ----
-set.seed(123)
-grid_spec_nnet_1 <- grid_latin_hypercube(
-  parameters(model_spec_nnet)
-  , size = 30
-)
-
-grid_spec_earth_1 <- grid_latin_hypercube(
-  parameters(model_spec_earth)
-  , size = 30
-)
-
-grid_spec_prophet_1 <- grid_latin_hypercube(
-  parameters(model_spec_prophet)
-)
-
-# ** Round 2 ----
-set.seed(123)
-grid_spec_nnet_1 <- grid_latin_hypercube(
-  parameters(model_spec_nnet)
-  , size = 30
-)
-
-# * Tune ----
-# Workflow - Tuning
-wflw_tune_nnet <- wflw_fit_nnet %>%
-  update_model(model_spec_nnet)
-
-wflw_tune_earth <- wflw_fit_earth %>%
-  update_model(model_spec_earth)
-
-wflw_tune_prophet <- wflw_fit_prophet %>%
-  update_model(model_spec_prophet)
-
-# Run Tune Grid (Expensive Operation)
-# ** Setup Parallel Processing ----
-parallel_start(n_cores)
-
-# ** TSCV Cross Validation ----
-
-set.seed(123)
-tune_results_earth_1 <- wflw_tune_earth %>%
-  tune_grid(
-    resamples = tscv,
-    grid      = grid_spec_earth_1,
-    metrics   = default_forecast_accuracy_metric_set(),
-    control   = control_grid(
-      verbose   = TRUE,
-      save_pred = TRUE
-    )
+calibrate_and_plot(
+  new_model
+  , original_model
+  , .type = "testing"
+  , .splits_obj = splits
+  , .data = data_final_tbl
+)$plot +
+  labs(
+    title = "Forecast Plot"
+    , subtitle = "Redline indicates the Tuned Model"
   )
-
-
-set.seed(123)
-tune_results_nnet_1 <- wflw_tune_nnet %>%
-  tune_grid(
-    resamples = tscv,
-    grid = grid_spec_nnet_1,
-    metrics = default_forecast_accuracy_metric_set(),
-    control = control_grid(
-      verbose = TRUE,
-      save_pred = TRUE
-    )
-  )
-
-set.seed(123)
-tune_results_prophet_1 <- wflw_tune_prophet %>%
-  tune_grid(
-    resamples = tscv,
-    grid = grid_spec_prophet_1,
-    metrics = default_forecast_accuracy_metric_set(),
-    control = control_grid(
-      verbose = TRUE,
-      save_pred = TRUE
-    )
-  )
-
-tune_results_nnet_1
-tune_results_earth_1
-tune_results_prophet_1
-
-set.seed(123)
-tic()
-tune_results_nnetar_2 <- wflw_tune_nnetar %>%
-  tune_grid(
-    resamples = tscv,
-    grid      = grid_spec_nnetar_2,
-    metrics   = default_forecast_accuracy_metric_set(),
-    control   = control_grid(
-      verbose   = TRUE,
-      save_pred = TRUE
-    )
-  )
-toc()
-
-tune_results_nnetar_2
-
-# ** Reset Sequential Plan ----
-
-# Show Results
-tune_results_nnet_1 %>%
-  show_best(metric = "rmse", n = Inf)
-
-tune_results_prophet_1 %>%
-  show_best(metric = "rmse", n = Inf)
-
-tune_results_earth_1 %>%
-  show_best(metric = "rmse", n = Inf)
-
-# Visualize Results
-tune_results_nnet_1 %>%
-  tune::autoplot() +
-  geom_smooth(se = FALSE)
-
-tune_results_prophet_1 %>%
-  tune::autoplot() +
-  geom_smooth(se = FALSE)
-
-tune_results_earth_1 %>%
-  tune::autoplot() +
-  geom_smooth(se = FALSE)
-
-# * Retrain and Assess ----
-set.seed(123)
-wflw_tune_earth_tscv <- wflw_tune_earth %>%
-  update_model(model_spec_earth) %>%
-  finalize_workflow(
-    tune_results_earth_1 %>%
-      show_best(metric = "rmse", n = 1)
-  ) %>%
-  fit(training(splits))
-
-wflw_tune_nnet_tscv <- wflw_tune_nnet %>%
-  update_model(model_spec_nnet) %>%
-  finalize_workflow(
-    tune_results_nnet_1 %>%
-      show_best(metric = "rmse", n = 1)
-  ) %>%
-  fit(training(splits))
-
-wflw_tune_prophet_tscv <- wflw_tune_prophet %>%
-  update_model(model_spec_prophet) %>%
-  finalize_workflow(
-    tune_results_prophet_1 %>%
-      show_best(metric = "rmse", n = 1)
-  ) %>%
-  fit(training(splits))
 
 calibration_tuned_tbl <- modeltime_table(
-  wflw_tune_earth_tscv,
-  wflw_tune_nnet_tscv,
-  wflw_tune_prophet_tscv
+  new_model
 ) %>%
+  update_model_description(1, "TUNED - EARTH") %>%
   modeltime_calibrate(testing(splits))
 
+parallel_start(n_cores)
+calibration_tbl <- combine_modeltime_tables(
+  calibration_tbl,
+  calibration_tuned_tbl
+) %>%
+  modeltime_refit(
+    data = data_tbl,
+    control = control_refit(
+      verbose = TRUE,
+      allow_par = TRUE
+    )
+  ) %>%
+  modeltime_calibrate(testing(splits))
+parallel_stop()
 
 # Refit to all Data -------------------------------------------------------
 
 parallel_start(n_cores)
-refit_tbl <- calibration_tuned_tbl %>%
+refit_tbl <- calibration_tbl %>%
   modeltime_refit(
     data = data_final_tbl
     , control = control_refit(
-      verbose   = TRUE
-      , allow_par = FALSE
+      verbose     = TRUE
+      , allow_par = TRUE
     )
   )
 parallel_stop()
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
-  arrange(desc(rsq)) %>% 
+  filter(rsq >= .1) %>%
+  arrange(rmse) %>%
   slice(1:2)
 
 ensemble_models <- refit_tbl %>%
@@ -696,8 +530,12 @@ ensemble_models <- refit_tbl %>%
   ) %>%
   modeltime_accuracy()
 
-model_choices <- rbind(top_two_models, ensemble_models)
+model_choices <- rbind(top_two_models, ensemble_models) %>%
+  arrange(rmse) %>%
+  slice(1:2)
 
+# Forecast Plot ----
+parallel_start(n_cores)
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
   modeltime_forecast(h = "1 year", actual_data = data_final_tbl) %>%
@@ -707,4 +545,4 @@ refit_tbl %>%
     , .conf_interval_show = FALSE
     , .title = "IP Discharges Excess Days Forecast 12 Months Out"
   )
-
+parallel_stop()
