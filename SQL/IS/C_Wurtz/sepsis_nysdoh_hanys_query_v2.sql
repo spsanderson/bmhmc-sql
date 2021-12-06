@@ -1,6 +1,6 @@
 /*
 ***********************************************************************
-File: sepsis_nysdoh_hanys_query.sql
+File: sepsis_nysdoh_hanys_query_v2.sql
 
 Input Parameters:
 	None
@@ -57,6 +57,24 @@ Date		Version		Description
 						Add:
 							AND CONCAT(RTRIM(LTRIM(A.def_type_ind)), RTRIM(LTRIM(A.val_sts_cd))) != 'TXC';
 2021-10-21	v8			Change Platelets where clause to A.def_type_ind != 'TX'
+2021-11-16	v9			Add:
+							WHERE disp_val IN ('.','S') The 'S' is new to 
+							Delete from #appt
+						Add:
+							WHERE (
+								disp_val IN ('.D', '.','U','S')
+								OR disp_val IS NULL
+							);
+							To the delete statement from delete from #inr
+						Add:
+							DELETE
+							FROM #sirs_temp
+							WHERE (
+								RIGHT(sirs_temperature, 1) = 'C'
+								OR sirs_temperature IN (
+										'9836.0000','982.0000','976.0000','968.0000'
+									) 
+								)
 ***********************************************************************
 */
 
@@ -99,8 +117,8 @@ WHERE (
 			AND ORGF_Ind = 1
 			)
 		)
-	AND Dsch_Date >= '2021-06-01'
-	AND Dsch_Date < '2021-07-01'
+	AND Dsch_Date >= '2021-10-01'
+	AND Dsch_Date < '2021-11-01'
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
@@ -1783,7 +1801,7 @@ WHERE obsv_cd = '00403154';
 
 DELETE
 FROM #appt
-WHERE disp_val IN ('.');
+WHERE disp_val IN ('.','S');
 
 DROP TABLE IF EXISTS #max_appt
 CREATE TABLE #max_appt (
@@ -2027,7 +2045,10 @@ WHERE A.obsv_cd = '2012';
 
 DELETE
 FROM #inr
-WHERE disp_val IN ('.D', '.');
+WHERE (
+	disp_val IN ('.D', '.','U','S')
+	OR disp_val IS NULL
+);
 
 DROP TABLE IF EXISTS #max_inr
 CREATE TABLE #max_inr (
@@ -2898,7 +2919,6 @@ WHERE A.obsv_cd = 'A_Temperature'
 	--AND A.def_type_ind != 'TX'
 	--AND A.val_sts_cd != 'C'
 
-
 DROP TABLE IF EXISTS #sirs_temp
 CREATE TABLE #sirs_temp (
 	episode_no VARCHAR(12),
@@ -2932,6 +2952,15 @@ FROM (
 		coll_dtime
 	FROM #sr_temp
 	) AS A
+
+DELETE
+FROM #sirs_temp
+WHERE (
+	RIGHT(sirs_temperature, 1) = 'C'
+	OR sirs_temperature IN (
+			'9836.0000','982.0000','976.0000','968.0000'
+		) 
+	)
 
 
 DROP TABLE IF EXISTS #max_sirs_temp
