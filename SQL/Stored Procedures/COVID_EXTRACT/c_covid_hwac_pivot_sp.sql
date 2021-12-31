@@ -34,6 +34,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2020-07-07	v1			Initial Creation
+2021-12-30	v2			Update to get data from PROD SC and then DSS
 ***********************************************************************
 */
 
