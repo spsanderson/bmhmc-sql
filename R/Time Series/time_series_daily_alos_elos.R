@@ -18,7 +18,8 @@ pacman::p_load(
   "stringr",
   "workflowsets",
   "parallel",
-  "healthyverse"
+  "healthyverse",
+  "gt"
 )
 
 n_cores = detectCores() - 1
@@ -169,7 +170,7 @@ data_final_tbl <- data_tbl %>%
 splits <- time_series_split(
   data_final_tbl
   , date_var = date_col
-  , assess = "12 months"
+  , assess = round(0.2*nrow(data_tbl), 0)
   , cumulative = TRUE
 )
 
@@ -184,7 +185,7 @@ recipe_base <- recipe(value ~ ., data = training(splits)) %>%
   step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
   step_rm(yr) %>%
   step_hai_fourier(value, scale_type = "sincos", period = 365/12, order = 1) %>%
-  step_lag(value, lag = 1) %>%
+  step_lag(value, lag = c(1,3,6,12)) %>%
   step_impute_knn(contains("lag_"))
 
 recipe_date <- recipe_base %>%
@@ -447,45 +448,94 @@ calibration_tbl %>%
 
 parallel_stop()
 
-calibration_tbl %>%
-  modeltime_accuracy() %>%
-  filter(rsq >= 0.01) %>%
-  arrange(rmse) %>%
-  table_modeltime_accuracy(.interactive = FALSE)
+calibration_tbl %>% 
+  #filter(!str_starts(.model_desc, "FOURIER")) %>%
+  #filter(!str_starts(.model_desc, "PCA")) %>%
+  #filter(!str_starts(.model_desc, "NUM_ONLY")) %>%
+  # filter(!str_starts(.model_desc, "ENSEMBLE")) %>%
+  # filter(!.model_id %in% c(5, 19, 10, 9)) %>%
+  ts_model_rank_tbl() %>%
+  as.data.frame() %>%
+  filter(rsq >= 0.1) %>%
+  filter(rsq < 1) %>%
+  filter(rmse > 100) %>%
+  select(-.type) %>%
+  gt()
 
+# New Calibration Tibble
+calibration_tbl_model_id <- calibration_tbl %>% 
+  ts_model_rank_tbl() %>%
+  as.data.frame() %>%
+  filter(rsq >= 0.1) %>%
+  filter(rsq < 1) %>%
+  filter(rmse > 100) %>%
+  pull(.model_id)
+
+calibration_tbl <- calibration_tbl %>%
+  filter(.model_id %in% calibration_tbl_model_id)
+
+# New Ensembles
+fit_mean_ensemble <- calibration_tbl %>%
+  ensemble_average(type = "mean")
+
+fit_median_ensemble <- calibration_tbl %>%
+  ensemble_average(type = "median")
+
+parallel_start(n_cores)
+calibration_tbl <- calibration_tbl %>%
+  add_modeltime_model(fit_mean_ensemble) %>%
+  add_modeltime_model(fit_median_ensemble) %>%
+  modeltime_calibrate(new_data = testing(splits))
+parallel_stop()
+
+calibration_tbl %>%
+  ts_model_rank_tbl() %>%
+  gt()
 
 # Hyperparameter Tuning ---------------------------------------------------
 
 tuned_model <- ts_model_auto_tune(
-  .modeltime_model_id = 15,
+  .modeltime_model_id = 30,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .date_col = date_col,
   .value_col = value,
   .tscv_assess = "12 months",
   .tscv_skip = "3 months",
-  .num_cores = n_cores
+  .num_cores = n_cores,
+  .grid_size = 30
 )
 
 original_model <- tuned_model$model_info$plucked_model
 new_model      <- tuned_model$model_info$tuned_tscv_wflw_spec
 
-calibrate_and_plot(
-  new_model
-  , original_model
-  , .type = "testing"
-  , .splits_obj = splits
-  , .data = data_final_tbl
-)$plot +
-  labs(
-    title = "Forecast Plot"
-    , subtitle = "Redline indicates the Tuned Model"
-  )
+original_model_desc <- model_extraction_helper(original_model)
+new_model_desc      <- paste0(model_extraction_helper(new_model), " - TUNED")
+
+ts_model_compare(
+  .model_1 = new_model,
+  .model_2 = original_model,
+  .type = "training",
+  .splits_obj = splits,
+  .data = data_final_tbl,
+  .print_info = TRUE,
+  .metric = "rsq"
+)
+
+ts_model_compare(
+  .model_1 = new_model,
+  .model_2 = original_model,
+  .type = "testing",
+  .splits_obj = splits,
+  .data = data_final_tbl,
+  .print_info = TRUE,
+  .metric = "rsq"
+)
 
 calibration_tuned_tbl <- modeltime_table(
   new_model
 ) %>%
-  update_model_description(1, "TUNED - EARTH") %>%
+  update_model_description(1, new_model_desc) %>%
   modeltime_calibrate(testing(splits))
 
 parallel_start(n_cores)
@@ -494,7 +544,7 @@ calibration_tbl <- combine_modeltime_tables(
   calibration_tuned_tbl
 ) %>%
   modeltime_refit(
-    data = data_tbl,
+    data = data_final_tbl,
     control = control_refit(
       verbose = TRUE,
       allow_par = TRUE
@@ -518,7 +568,10 @@ parallel_stop()
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 
+  as.data.frame() %>%
   filter(rsq >= .1) %>%
+  filter(rsq < 1.0) %>%
+  filter(rmse > 1.0) %>%
   arrange(rmse) %>%
   slice(1:2)
 
