@@ -64,6 +64,7 @@ Date		Version		Description
 							4. Room_Bed
 							5. Pt_Age
 2018-11-26	v4			Kick out orders where stp_date = '1900-01-01 00:00:00.000'
+2021-12-14	v5			Add 'PCO_SuicideWatch' to the svc_cd list
 ***********************************************************************
 */
 
@@ -150,7 +151,8 @@ BEGIN
 	)
 	AND A.svc_cd in (
 		'PCO_SafetyWatch',
-		'PCO_ConstantObs'
+		'PCO_ConstantObs',
+		'PCO_SuicideWatch'
 	)
 	AND C.Dsch_Date IS NULL
 	AND A.stp_date != '1900-01-01 00:00:00.000'
@@ -207,7 +209,8 @@ ELSE BEGIN
 	)
 	AND A.svc_cd in (
 		'PCO_SafetyWatch',
-		'PCO_ConstantObs'
+		'PCO_ConstantObs',
+		'PCO_SuicideWatch'
 	)
 	AND C.Dsch_Date IS NULL
 	AND A.stp_date != '1900-01-01 00:00:00.000'
