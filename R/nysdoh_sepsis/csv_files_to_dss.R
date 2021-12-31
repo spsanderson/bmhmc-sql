@@ -3,8 +3,8 @@ library(DBI)
 library(odbc)
 library(dbplyr)
 
-folder <- "Treatment"
-path   <- "G:/IS/C Wurtz/Sepsis/csv_files211/"
+folder <- "Comorbidity"
+path   <- "G:/IS/C Wurtz/Sepsis/csv_files212/"
 full_path <- paste0(path,folder,"/")
 
 file_list <- dir(full_path
@@ -18,13 +18,13 @@ files <- file_list %>%
 
 file_names <- file_list %>%
   str_remove(full_path) %>%
-  str_replace(pattern = "_VerD2.1.1.csv", replacement = "_v211.csv")
+  str_replace(pattern = "_VerD2.1.2.csv", replacement = "_v212.csv")
 
 names(files) <- file_names
 
 column_names <- c(
-  "pcs_code"
-  ,"pcs_code_description"
+  "icd10_cm_code"
+  ,"icd10_cm_code_description"
   ,"subcategory"
 )
 
@@ -44,7 +44,7 @@ for(i in 1:length(files)){
 con <- LICHospitalR::db_connect()
 for(i in 1:length(files)){
   file_to_dss_name <- paste0("c_nysdoh_sepsis_", names(files[i]))
-  file_name_clean  <- file_to_dss_name %>% str_replace("_v211.csv","")
+  file_name_clean  <- file_to_dss_name %>% str_replace("_v212.csv","")
   file_tbl         <- files[[i]]
   print(paste0("Inserting ",file_name_clean, " into DSS"))
   DBI::dbWriteTable(
