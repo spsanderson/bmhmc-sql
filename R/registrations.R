@@ -172,7 +172,8 @@ sma_o_plt <- data_tbl %>%
   slice(1:n() - 1) %>%
   select(-ip_op_flag) %>%
   ts_sma_plot(
-    .sma_order = c(3,6)
+    .date_col = adm_date
+    , .sma_order = c(3,6)
     , .partial = TRUE
   )
 sma_o_plt$plots$static_plot
@@ -186,7 +187,8 @@ sma_i_plt <- data_tbl %>%
   slice(1:n() - 1) %>%
   select(-ip_op_flag) %>%
   ts_sma_plot(
-    .sma_order = c(3,6)
+    .date_col = adm_date
+    , .sma_order = c(3,6)
     , .partial = TRUE
   )
 sma_i_plt$plots$static_plot
