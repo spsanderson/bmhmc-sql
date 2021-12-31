@@ -18,7 +18,8 @@ pacman::p_load(
   "stringr",
   "workflowsets",
   "parallel",
-  "healthyverse"
+  "healthyverse",
+  "gt"
 )
 
 n_cores = detectCores() - 1
@@ -29,107 +30,9 @@ my_path <- ("S:/Global Finance/1 REVENUE CYCLE/Steve Sanderson II/Code/R/Functio
 file_list <- list.files(my_path, "*.R")
 map(paste0(my_path, file_list), source)
 
-# DB Connection -----------------------------------------------------------
-
-db_con <- LICHospitalR::db_connect()
-
-# Query -------------------------------------------------------------------
-
-query <- dbGetQuery(
-  conn = db_con
-  , statement = paste0(
-    "
-    DECLARE @TODAY DATE;
-    DECLARE @END   DATE;
-    
-    SET @TODAY = CAST(GETDATE() AS date);
-    SET @END   = DATEADD(MM, DATEDIFF(MM, 0, @TODAY), 0);
-    
-    SELECT a.LIHN_Svc_Line
-    , b.Pt_No
-    , b.Dsch_Date
-    , CASE
-    	WHEN b.Days_Stay = '0'
-    		THEN '1'
-    		ELSE b.Days_Stay
-      END AS [LOS]
-    , CASE 
-    	WHEN d.Performance = '0'
-    		THEN '1'
-    	WHEN d.Performance IS null 
-    	AND b.Days_Stay = 0
-    		THEN '1'
-    	WHEN d.Performance IS null
-    	AND b.days_stay != 0
-    		THEN b.Days_Stay
-    		ELSE d.Performance
-      END AS [Performance]
-    
-    FROM smsdss.c_LIHN_Svc_Line_tbl                   AS a
-    LEFT JOIN smsdss.BMH_PLM_PtAcct_V                 AS b
-    ON a.Encounter = b.Pt_No
-    LEFT JOIN Customer.Custom_DRG                     AS c
-    ON b.PtNo_Num = c.PATIENT#
-    LEFT JOIN smsdss.c_LIHN_SPARCS_BenchmarkRates     AS d
-    ON c.APRDRGNO = d.[APRDRG Code]
-    	AND c.SEVERITY_OF_ILLNESS = d.SOI
-    	AND d.[Measure ID] = 4
-    	AND d.[Benchmark ID] = 3
-    	AND a.LIHN_Svc_Line = d.[LIHN Service Line]
-    LEFT JOIN smsdss.pract_dim_v                      AS e
-    ON b.Atn_Dr_No = e.src_pract_no
-    	AND e.orgz_cd = 's0x0'
-    LEFT JOIN smsdss.c_LIHN_APR_DRG_OutlierThresholds AS f
-    ON c.APRDRGNO = f.[apr-drgcode]
-    LEFT JOIN smsdss.pyr_dim_v AS G
-    ON B.Pyr1_Co_Plan_Cd = G.pyr_cd
-    	AND b.Regn_Hosp = G.orgz_cd
-    
-    WHERE b.Dsch_Date >= '2014-04-01'
-    AND b.Dsch_Date < @end
-    AND b.drg_no NOT IN (
-    	'0','981','982','983','984','985',
-    	'986','987','988','989','998','999'
-    )
-    AND b.Plm_Pt_Acct_Type = 'I'
-    AND LEFT(B.PTNO_NUM, 1) != '2'
-    AND LEFT(b.PtNo_Num, 4) != '1999'
-    AND b.tot_chg_amt > 0
-    AND e.med_staff_dept NOT IN ('?', 'Anesthesiology', 'Emergency Department')
-    AND c.PATIENT# IS NOT NULL
-    "
-  )
-) %>%
-  as_tibble() %>%
-  clean_names() %>%
-  select(
-    dsch_date
-    , los
-    , performance
-  )
-
-# DB Disconnect -----------------------------------------------------------
-
-dbDisconnect(db_con)
-
-
-# Manipulation ------------------------------------------------------------
-
-data_tbl <- query %>%
-  summarise_by_time(
-    .date_var      = dsch_date
-    , .by          = "month"
-    , visit_count  = n()
-    , sum_days     = sum(los, na.rm = TRUE)
-    , sum_exp_days = sum(performance, na.rm = TRUE)
-    , alos         = sum_days / visit_count
-    , elos         = sum_exp_days / visit_count
-    , excess_days  = sum_days - sum_exp_days
-    , avg_excess   = alos - elos
-  ) %>%
-  rename(date_col = dsch_date) %>%
-  mutate(date_col = ymd(date_col)) %>%
-  arrange(date_col)
+# Data ---
+data_tbl <- ts_to_tbl(AirPassengers) %>%
+  select(-index)
 
 # TS Plot -----------------------------------------------------------------
 
@@ -139,7 +42,7 @@ end_date   <- max(data_tbl$date_col)
 plot_time_series(
   .data = data_tbl
   , .date_var = date_col
-  , .value = avg_excess
+  , .value = value
   , .title = paste0(
     "Excess Days for IP Discharges from: "
     , start_date
@@ -152,24 +55,20 @@ plot_time_series(
 plot_seasonal_diagnostics(
   .data = data_tbl
   , .date_var = date_col
-  , .value = avg_excess
+  , .value = value
 )
 
 plot_anomaly_diagnostics(
   .data = data_tbl
   , .date_var = date_col
-  , .value = avg_excess
+  , .value = value
 )
 
 # Data Split --------------------------------------------------------------
-data_final_tbl <- data_tbl %>%
-  select(date_col, avg_excess) %>%
-  set_names("date_col","value")
-
 splits <- time_series_split(
-  data_final_tbl
+  data_tbl
   , date_var = date_col
-  , assess = "12 months"
+  , assess = round(0.2*nrow(data_tbl), 0)
   , cumulative = TRUE
 )
 
@@ -183,7 +82,6 @@ recipe_base <- recipe(value ~ ., data = training(splits)) %>%
   step_mutate(yr = lubridate::year(date_col)) %>%
   step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
   step_rm(yr) %>%
-  step_hai_fourier(value, scale_type = "sincos", period = 365/12, order = 1) %>%
   step_lag(value, lag = 1) %>%
   step_impute_knn(contains("lag_"))
 
@@ -193,7 +91,7 @@ recipe_date <- recipe_base %>%
   step_normalize(contains("index.num"), contains("date_col_year"))
 
 recipe_fourier <- recipe_date %>%
-  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_dummy(all_nominal(), one_hot = TRUE) %>%
   step_fourier(date_col, period = 365/12, K = 1) %>%
   step_YeoJohnson(value, limits = c(0,1))
 
@@ -438,7 +336,7 @@ parallel_start(n_cores)
 calibration_tbl %>%
   modeltime_forecast(
     new_data = testing(splits),
-    actual_data = data_final_tbl
+    actual_data = data_tbl
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
@@ -448,17 +346,50 @@ calibration_tbl %>%
 
 parallel_stop()
 
-calibration_tbl %>%
-  modeltime_accuracy() %>%
+calibration_tbl %>% 
+  filter(!str_starts(.model_desc, "FOURIER")) %>%
+  filter(!str_starts(.model_desc, "PCA")) %>%
+  filter(!str_starts(.model_desc, "NUM_ONLY")) %>%
+  filter(!str_starts(.model_desc, "ENSEMBLE")) %>%
+  filter(!.model_id %in% c(5, 19, 10, 9)) %>%
+  ts_model_rank_tbl() %>%
+  as.data.frame() %>%
   filter(rsq >= 0.01) %>%
-  arrange(rmse) %>%
-  table_modeltime_accuracy(.interactive = FALSE)
+  filter(rsq < 1) %>%
+  filter(rmse > 0.1) %>%
+  select(-.type) %>%
+  gt()
 
+# New Calibration Tibble
+calibration_tbl <- calibration_tbl %>% 
+  filter(!str_starts(.model_desc, "FOURIER")) %>%
+  filter(!str_starts(.model_desc, "PCA")) %>%
+  filter(!str_starts(.model_desc, "NUM_ONLY")) %>% 
+  filter(!str_starts(.model_desc, "ENSEMBLE")) %>%
+  filter(!.model_id %in% c(5, 19, 10, 9))
+
+# New Ensembles
+fit_mean_ensemble <- calibration_tbl %>%
+  ensemble_average(type = "mean")
+
+fit_median_ensemble <- calibration_tbl %>%
+  ensemble_average(type = "median")
+
+parallel_start(n_cores)
+calibration_tbl <- calibration_tbl %>%
+  add_modeltime_model(fit_mean_ensemble) %>%
+  add_modeltime_model(fit_median_ensemble) %>%
+  modeltime_calibrate(new_data = testing(splits))
+parallel_stop()
+
+calibration_tbl %>%
+  ts_model_rank_tbl() %>%
+  gt()
 
 # Hyperparameter Tuning ---------------------------------------------------
 
 tuned_model <- ts_model_auto_tune(
-  .modeltime_model_id = 6,
+  .modeltime_model_id = 2,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .date_col = date_col,
@@ -472,12 +403,15 @@ tuned_model <- ts_model_auto_tune(
 original_model <- tuned_model$model_info$plucked_model
 new_model      <- tuned_model$model_info$tuned_tscv_wflw_spec
 
+original_model_desc <- model_extraction_helper(original_model)
+new_model_desc      <- paste0(model_extraction_helper(new_model), " - TUNED")
+
 ts_model_compare(
   .model_1 = new_model,
   .model_2 = original_model,
   .type = "testing",
   .splits_obj = splits,
-  .data = data_final_tbl,
+  .data = data_tbl,
   .print_info = TRUE,
   .metric = "rsq"
 )
@@ -485,7 +419,7 @@ ts_model_compare(
 calibration_tuned_tbl <- modeltime_table(
   new_model
 ) %>%
-  update_model_description(1, "TUNED - EARTH") %>%
+  update_model_description(1, new_model_desc) %>%
   modeltime_calibrate(testing(splits))
 
 parallel_start(n_cores)
@@ -509,7 +443,7 @@ parallel_stop()
 parallel_start(n_cores)
 refit_tbl <- calibration_tbl %>%
   modeltime_refit(
-    data = data_final_tbl
+    data = data_tbl
     , control = control_refit(
       verbose     = TRUE
       , allow_par = TRUE
@@ -517,35 +451,34 @@ refit_tbl <- calibration_tbl %>%
   )
 parallel_stop()
 
-top_two_models <- refit_tbl %>% 
-  modeltime_accuracy() %>% 
-  filter(rsq >= .1) %>%
-  arrange(rmse) %>%
+top_two_models <- refit_tbl %>%
+  ts_model_rank_tbl() %>%
+  filter(rsq < 0.999) %>%
   slice(1:2)
 
 ensemble_models <- refit_tbl %>%
+  ts_model_rank_tbl() %>%
   filter(
     .model_desc %>%
       str_to_lower() %>%
       str_detect("ensemble")
-  ) %>%
-  modeltime_accuracy()
+  )
 
 model_choices <- rbind(top_two_models, ensemble_models) %>%
-  arrange(rmse) %>%
+  arrange(model_score) %>%
   slice(1:2)
 
 # Forecast Plot ----
 parallel_start(n_cores)
 refit_tbl %>%
   filter(.model_id %in% model_choices$.model_id) %>%
-  modeltime_forecast(h = "1 year", actual_data = data_final_tbl) %>%
-  filter_by_time(.date_var = .index, .start_date = "2020") %>%
+  modeltime_forecast(h = "1 year", actual_data = data_tbl) %>%
+  #filter_by_time(.date_var = .index, .start_date = "2020") %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
     , .interactive        = FALSE
     , .conf_interval_show = FALSE
-    , .title = "IP Discharges Avg Excess Days Forecast 12 Months Out"
+    #, .title = "IP Discharges Avg Excess Days Forecast 12 Months Out"
   )
 parallel_stop()
 
@@ -560,24 +493,24 @@ calibration_tbl %>%
   dplyr::ungroup() %>% 
   dplyr::select(-.model) %>% 
   tidyr::unnest(.calibration_data) %>% 
-  ggplot(
-    mapping = aes(
-      x = .residuals
-      , fill = .model_desc)
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(
+      sample = .residuals
+      , fill = .model_desc
+    )
   ) + 
-  geom_histogram(
-    binwidth = 25
-    , color = "black"
-  ) + 
-  facet_wrap(
+  ggplot2::stat_qq() +
+  ggplot2::stat_qq_line() +
+  ggplot2::facet_wrap(
     ~ .model_desc
-    , scales = "free_x"
+    , scales = "free"
   ) + 
-  scale_color_tq() + 
-  theme_tq()
+  tidyquant::scale_color_tq() + 
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "none")
 
 ts_sum_arrivals_plt(
-  .data = data_final_tbl
+  .data = data_tbl
   , .date_col = date_col
   , .value_col = value
   , .x_axis = wk
@@ -593,7 +526,7 @@ ts_sum_arrivals_plt(
   )
 
 ts_median_excess_plt(
-  .data = data_final_tbl
+  .data = data_tbl
   , .date_col = date_col
   , .value_col = value
   , .x_axis = wk
