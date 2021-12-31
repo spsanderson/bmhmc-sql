@@ -1,15 +1,13 @@
 db_conn <-
-function() {
-  db_con <- dbConnect(
-    odbc(),
-    Driver = "SQL Server",
-    Server = "BMH-HIDB",
-    Database = "SMSPHDSSS0X0",
-    Trusted_Connection = TRUE
-  )
-
-  return(db_con)
-}
+new("Microsoft SQL Server", ptr = <pointer: 0x000001e66b02bd70>, 
+    quote = "\"", info = structure(list(dbname = "SMSPHDSSS0X0", 
+        dbms.name = "Microsoft SQL Server", db.version = "13.00.5865", 
+        username = "dbo", host = "", port = "", sourcename = "", 
+        servername = "LI-HIDB", drivername = "SQLSRV32.DLL", 
+        odbc.version = "03.80.0000", driver.version = "10.00.19041", 
+        odbcdriver.version = "03.52", supports.transactions = TRUE, 
+        getdata.extensions.any_column = FALSE, getdata.extensions.any_order = FALSE), class = c("Microsoft SQL Server", 
+    "driver_info", "list")), encoding = "")
 db_dconn <-
 function(connection) {
   dbDisconnect(connection)
