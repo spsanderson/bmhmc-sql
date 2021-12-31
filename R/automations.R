@@ -127,6 +127,9 @@ geocode_discharges_automation <- function() {
       , stringr::str_detect(PartialAddress, "PATHOGUE, NY")          ~ "PATCHOGUE, NY, 11772"
       , stringr::str_detect(PartialAddress, "YHAPANK, NY")           ~ "YAPHANK, NY, 11980"
       , stringr::str_detect(PartialAddress, "SHIRELY, NY")           ~ "SHIRLEY, NY, 11967"
+      , stringr::str_detect(PartialAddress, "EDLEBOROUGH, MA")       ~ "ATTLEBORO, MA, 02703"
+      , stringr::str_detect(PartialAddress, "CENTERREACH, NY")       ~ "CENTEREACH, NY, 11720"
+      , stringr::str_detect(PartialAddress, "BBROOKHAVEN, NY")       ~ "BROOKHAVEN, NY, 11719"
       , TRUE ~ PartialAddress
     ))
 
