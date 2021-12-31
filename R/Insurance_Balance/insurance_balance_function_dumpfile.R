@@ -12,23 +12,14 @@ pacman::p_load(
   "janitor",
   "tsibble",
   "dtplyr",
-  "data.table"
+  "data.table",
+  "LICHospitalR"
 )
 
 
 # DB Connection -----------------------------------------------------------
 
-db_conn <- function() {
-  db_con <- dbConnect(
-    odbc(),
-    Driver = "SQL Server",
-    Server = "BMH-HIDB",
-    Database = "SMSPHDSSS0X0",
-    Trusted_Connection = TRUE
-  )
-
-  return(db_con)
-}
+db_conn <- db_connect() 
 
 db_dconn <- function(connection) {
   dbDisconnect(connection)
@@ -416,5 +407,5 @@ function_names <- c(
 
 dump(
   list = function_names,
-  file = "S:/Global Finance/1 REVENUE CYCLE/Steve Sanderson II/Code/R/Insurance_Balance/insurance_balance_functions.R"
+  file = "S://Global Finance//1 REVENUE CYCLE//Steve Sanderson II//Code//R//Insurance_Balance//insurance_balance_functions.R"
 )
