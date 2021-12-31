@@ -75,6 +75,9 @@ Date		Version		Description
 										'9836.0000','982.0000','976.0000','968.0000'
 									) 
 								)
+2021-12-08	v10			Minor fixes to exclude bad values
+2021-12-20	v11			Fix order of columns and add _poa to certain ones
+						update version number
 ***********************************************************************
 */
 
@@ -117,8 +120,8 @@ WHERE (
 			AND ORGF_Ind = 1
 			)
 		)
-	AND Dsch_Date >= '2021-10-01'
-	AND Dsch_Date < '2021-11-01'
+	AND Dsch_Date >= '2021-11-01'
+	AND Dsch_Date < '2021-12-01'
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
@@ -1891,7 +1894,7 @@ SELECT A.account,
 FROM smsdss.c_sepsis_ws_vitals_tbl AS A
 INNER JOIN #BasePopulation AS BP ON A.account = BP.PtNo_Num
 WHERE bp_diastolic IS NOT NULL
-	AND bp_diastolic NOT IN ('Patient refused', 'Refused', 'refused v/s', 'unknown','','0')
+	AND bp_diastolic NOT IN ('Patient refused', 'Refused', 'refused v/s', 'unknown','','0','palp')
 	AND bp_systolic != '0'
 	AND A.collected_datetime IS NOT NULL
 
@@ -2958,10 +2961,10 @@ FROM #sirs_temp
 WHERE (
 	RIGHT(sirs_temperature, 1) = 'C'
 	OR sirs_temperature IN (
-			'9836.0000','982.0000','976.0000','968.0000'
-		) 
+			'9836.0000','982.0000','976.0000','968.0000','uto'
+		)
+	OR cast(sirs_temperature as float) > '110.0'
 	)
-
 
 DROP TABLE IF EXISTS #max_sirs_temp
 CREATE TABLE #max_sirs_temp (
@@ -3514,118 +3517,118 @@ SELECT 	[facility_identifier] = '0885',
 	[transfer_facility_id_sending] = '',
 	[transfer_facility_nm_receiving] = '',
 	[transfer_facility_nm_sending] = '',
-	[acute_cardiovascular_conditions] = ISNULL(ACC_TBL.acute_cardiovascular_conditions, 0),
-	[aids_hiv_disease] = CASE 
+	[acute_cardiovascular_conditions_poa] = ISNULL(ACC_TBL.acute_cardiovascular_conditions, 0),
+	[aids_hiv_disease_poa] = CASE 
 		WHEN AIDS_HIV_TBL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[altered_mental_status] = CASE 
+	[altered_mental_status_poa] = CASE 
 		WHEN AMS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[asthma] = CASE 
+	[asthma_poa] = CASE 
 		WHEN ASTHMA.asthma IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[chronic_liver_disease] = CASE 
+	[chronic_liver_disease_poa] = CASE 
 		WHEN CLD.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[chronic_renal_failure] = CASE 
+	[chronic_renal_failure_poa] = CASE 
 		WHEN CRF.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[chronic_respiratory_failure] = CASE 
+	[chronic_respiratory_failure_poa] = CASE 
 		WHEN CRESPF.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[coagulopathy] = CASE 
+	[coagulopathy_poa] = CASE 
 		WHEN COAG.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[congestive_heart_failure] = CASE 
+	[congestive_heart_failure_poa] = CASE 
 		WHEN CHF.PT_ID IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[copd] = CASE 
+	[copd_poa] = CASE 
 		WHEN COPD.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[dementia] = CASE 
+	[dementia_poa] = CASE 
 		WHEN DEMENTIA.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[diabetes] = CASE 
+	[diabetes_poa] = CASE 
 		WHEN DIABETES.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[dialysis_comorbidity] = CASE 
+	[dialysis_comorbidity_poa] = CASE 
 		WHEN DIALYSIS_COMORBID.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[history_of_covid] = CASE 
+	[history_of_covid_poa] = CASE 
 		WHEN COVID_HIST.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[history_of_covid_dt] = CASE 
+	[history_of_covid_poa_dt] = CASE 
 		WHEN COVID_HIST.history_of_covid IS NULL
 			THEN NULL
 		ELSE CONVERT(CHAR(10), COVID_HIST.history_of_covid, 126) + ' ' + CONVERT(CHAR(5), COVID_HIST.history_of_covid, 108)
 		END,
-	[history_of_other_cvd] = CASE 
+	[history_of_other_cvd_poa] = CASE 
 		WHEN HX_OTH_CVD.history_of_other_cvd IS NULL
 			THEN '0'
 		ELSE HX_OTH_CVD.history_of_other_cvd
 		END,
-	[hypertension] = CASE 
+	[hypertension_poa] = CASE 
 		WHEN HYPERTENSION.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[immunocompromising] = CASE 
+	[immunocompromising_poa] = CASE 
 		WHEN IMMUNO.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[lymphoma_leukemia_multi_myeloma] = CASE 
+	[lymphoma_leukemia_multi_myeloma_poa] = CASE 
 		WHEN LLML.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[mechanical_vent_comorbidity] = CASE 
+	[mechanical_vent_comorbidity_poa] = CASE 
 		WHEN VENTS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[medication_anticoagulation] = CASE 
+	[medication_anticoagulation_poa] = CASE 
 		WHEN HML_MED_ANTICOAG.episode_no IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[medication_immune_modifying] = CASE 
+	[medication_immune_modifying_poa] = CASE 
 		WHEN HML_IMM_MOD.episode_no IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[metastatic_cancer] = CASE 
+	[metastatic_cancer_poa] = CASE 
 		WHEN METASTATIC_CX.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[obesity] = CASE 
+	[obesity_poa] = CASE 
 		WHEN OBESITY.pt_id IS NULL
 			AND BMI_TBL.episode_no IS NULL
 			THEN 0
@@ -3641,7 +3644,7 @@ SELECT 	[facility_identifier] = '0885',
 			THEN NULL
 		ELSE DNR_DNI_DATE.patient_care_considerations_date
 		END,
-	[pregnancy_comorbidity] = CASE 
+	[pregnancy_comorbidity_poa] = CASE 
 		WHEN PREG_COMORBID.pt_id IS NULL
 			THEN 0
 		ELSE 1
@@ -3651,12 +3654,12 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[smoking_vaping] = CASE 
+	[smoking_vaping_poa] = CASE 
 		WHEN SMOKING_VAPING.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[tracheostomy_on_arrival] = CASE 
+	[tracheostomy_on_arrival_poa] = CASE 
 		WHEN TRACH_ARR.pt_id IS NULL
 			THEN 0
 		ELSE 1
@@ -3823,10 +3826,10 @@ SELECT 	[facility_identifier] = '0885',
 	WS_BPD_PVT.diastolic_1,
 	WS_BPD_PVT.diastolic_2,
 	WS_BPD_PVT.diastolic_3,
+	WS_MIN_BPD.diastolic_min,
 	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_1, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_1, 108) AS diastolic_dt_1,
 	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_2, 108) AS diastolic_dt_2,
 	CONVERT(CHAR(10), WS_BPD_PVT.diastolic_dt_3, 126) + ' ' + CONVERT(CHAR(5), WS_BPD_PVT.diastolic_dt_3, 108) AS diastolic_dt_3,
-	WS_MIN_BPD.diastolic_min,
 	CONVERT(CHAR(10), WS_MIN_BPD.diastolic_dt_min, 126) + ' ' + CONVERT(CHAR(5), WS_MIN_BPD.diastolic_dt_min, 108) AS diastolic_dt_min,
 	CASE 
 		WHEN SUBSTRING(RIGHT(INR_PVT.inr_1, 2), 1, 1) = '.'
@@ -3934,10 +3937,10 @@ SELECT 	[facility_identifier] = '0885',
 	SIRS_RESP_PVT.sirs_respiratoryrate_1,
 	SIRS_RESP_PVT.sirs_respiratoryrate_2,
 	SIRS_RESP_PVT.sirs_respiratoryrate_3,
+	MAX_SIRS_RESP_RATE.sirs_respiratoryrate_max,
 	CONVERT(CHAR(10), SIRS_RESP_PVT.sirs_respiratoryrate_dt_1, 126) + ' ' + CONVERT(CHAR(5), SIRS_RESP_PVT.sirs_respiratoryrate_dt_1, 108) AS sirs_respiratoryrate_dt_1,
 	CONVERT(CHAR(10), SIRS_RESP_PVT.sirs_respiratoryrate_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_RESP_PVT.sirs_respiratoryrate_dt_2, 108) AS sirs_respiratoryrate_dt_2,
 	CONVERT(CHAR(10), SIRS_RESP_PVT.sirs_respiratoryrate_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_RESP_PVT.sirs_respiratoryrate_dt_3, 108) AS sirs_respiratoryrate_dt_3,
-	MAX_SIRS_RESP_RATE.sirs_respiratoryrate_max,
 	CONVERT(CHAR(10), MAX_SIRS_RESP_RATE.sirs_respiratoryrate_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_SIRS_RESP_RATE.sirs_respiratoryrate_dt_max, 108) AS sirs_respiratoryrate_dt_max,
 	CASE 
 		WHEN SUBSTRING(RIGHT(SIRS_TEMP_PVT.sirs_temperature_1, 2), 1, 1) = '.'
@@ -3954,24 +3957,24 @@ SELECT 	[facility_identifier] = '0885',
 			THEN SIRS_TEMP_PVT.sirs_temperature_3
 		ELSE SIRS_TEMP_PVT.SIRS_TEMPERATURE_3 + '.0'
 		END AS sirs_temperature_3,
-	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_1, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_1, 108) AS sirs_temperature_dt_1,
-	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_2, 108) AS sirs_temperature_dt_2,
-	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_3, 108) AS sirs_temperature_dt_3,
 	CASE 
 		WHEN SUBSTRING(RIGHT(MAX_SIRS_TEMP.sirs_temperature_max, 2), 1, 1) = '.'
 			THEN MAX_SIRS_TEMP.sirs_temperature_max
 		ELSE MAX_SIRS_TEMP.sirs_temperature_max + '.0'
 		END AS sirs_temperature_max,
+	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_1, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_1, 108) AS sirs_temperature_dt_1,
+	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_2, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_2, 108) AS sirs_temperature_dt_2,
+	CONVERT(CHAR(10), SIRS_TEMP_PVT.sirs_temperature_dt_3, 126) + ' ' + CONVERT(CHAR(5), SIRS_TEMP_PVT.sirs_temperature_dt_3, 108) AS sirs_temperature_dt_3,
 	CONVERT(CHAR(10), MAX_SIRS_TEMP.sirs_temperature_dt_max, 126) + ' ' + CONVERT(CHAR(5), MAX_SIRS_TEMP.sirs_temperature_dt_max, 108) AS sirs_temperature_dt_max,
 	BP_SYS_PVT.systolic_1,
 	BP_SYS_PVT.systolic_2,
 	BP_SYS_PVT.systolic_3,
+	MIN_SYS.systolic_min,
 	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_1, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_1, 108) AS systolic_dt_1,
 	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_2, 108) AS systolic_dt_2,
 	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_3, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_3, 108) AS systolic_dt_3,
-	MIN_SYS.systolic_min,
 	CONVERT(CHAR(10), MIN_SYS.systolic_dt_min, 126) + ' ' + CONVERT(CHAR(5), MIN_SYS.systolic_dt_min, 108) AS systolic_dt_min,
-	[version] = 'd2.1.1',
+	[version] = 'd2.1.2',
 	[quarter] = DATEPART(QUARTER, PV.VisitEndDateTime),
 	[year] = DATEPART(YEAR, PV.VisitEndDateTime)
 FROM #BasePopulation AS BP
