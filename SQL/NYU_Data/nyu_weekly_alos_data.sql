@@ -46,6 +46,7 @@ Date		Version		Description
 2021-11-30	v3			3. Add preadm_pt_id from smsmir.mir_pms_case
 2021-12-02	v4			4. Fix discharge date time column for straight 
 							OBV patients
+2021-12-20	v5			5. Per discussion with Mike and Will, add CMI
 ***********************************************************************
 */
 
@@ -68,7 +69,7 @@ SELECT PAV.Med_Rec_No AS [mrn],
 			THEN CAST(COALESCE(OBV.DSCH_STRT_DTIME, PAV.VST_START_DTIME) AS smalldatetime)
 		ELSE CAST(PAV.VST_END_DTIME AS smalldatetime)
 		END,
-	--PAV.Adm_Source,
+	PAV.Adm_Source,
 	--CAST(PAV.VST_END_DTIME AS smalldatetime) AS [vst_end_dtime],
 	CAST(PAV.DAYS_STAY AS INT) AS [LOS],
 	PAV.dsch_disp,
@@ -123,7 +124,8 @@ SELECT PAV.Med_Rec_No AS [mrn],
 	DRG.MDCDescText,
 	PAV.prin_dx_cd,
 	PYR.pyr_group2 AS [payor_grouping],
-	VST.ward_cd AS [discharge_unit]
+	VST.ward_cd AS [discharge_unit],
+	PAV.drg_cost_weight
 FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
 LEFT OUTER JOIN SMSDSS.pract_dim_v AS PDV ON PAV.Atn_Dr_No = PDV.src_pract_no
 	AND PAV.Regn_Hosp = PDV.orgz_cd
