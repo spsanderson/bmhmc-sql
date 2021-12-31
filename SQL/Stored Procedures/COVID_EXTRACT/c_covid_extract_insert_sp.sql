@@ -93,6 +93,26 @@ Date		Version		Description
 						DROP ORDER BY clause at the end of the initial query
 						that inserts into #TEMPA for performance
 						enhancement
+2021-12-23	v14			Change attending doctor to:
+							LEFT OUTER JOIN smsmir.hl7_vst AS HL7VST ON PVD.PatientAccountID = HL7VST.pt_id
+							LEFT OUTER JOIN SMSDSS.pract_dim_v AS PDV ON HL7VST.atn_pract_no = PDV.src_pract_no
+								AND PDV.orgz_cd = 'NTX0'
+						Change arrival mode to:
+							-- updated arrival mode
+							LEFT OUTER JOIN (
+									SELECT PVT.episode_no,
+									PVT.[2ARRIVAL] AS [Arrival_Mode],
+									PVT.[2ARVAMBL] AS [Arrival_Mode_Description]
+								FROM (
+									SELECT episode_no,
+										user_data_cd,
+										user_data_text
+									FROM smsmir.pms_user_episo
+									WHERE user_data_cd IN ('2ARRIVAL', '2ARVAMBL')
+									) AS A
+								PIVOT(MAX(USER_DATA_TEXT) FOR USER_DATA_CD IN ("2ARRIVAL", "2ARVAMBL")) PVT
+							) AS ArrivalMode
+							ON A.PatientAccountID = ArrivalMode.episode_no
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_covid_extract_insert_sp]
@@ -231,7 +251,7 @@ BEGIN
 		PDOC.Clinical_Note_CV19_Dx_CreatedDTime,
 		PDOC.DC_Summary_CV19_Dx,
 		PDOC.DC_Summary_CV19_Dx_CreatedDTime,
-		UPPER(ATN_DR.PRACT_RPT_NAME) AS [Attending_Provider],
+		UPPER(PDV.PRACT_RPT_NAME) AS [Attending_Provider],
 		PVD.Isolation_Indicator,
 		PVD.Isolation_Indicator_Abbr,
 		ADT02FINALTBL.Dx_Order_Abbr,
@@ -282,15 +302,10 @@ BEGIN
 	LEFT OUTER JOIN smsdss.c_covid_vax_sts_tbl AS WS_VAX_STS ON PVD.PatientAccountID = WS_VAX_STS.PatientAccountID
 		AND WS_VAX_STS.Source_System = 'WellSoft'
 	-- ATN DOCTOR
-	LEFT OUTER JOIN (
-		SELECT b.Name AS PRACT_RPT_NAME,
-			a.patientvisit_oid
-		FROM [SC_server].[Soarian_Clin_Prd_1].[dbo].HStaff B
-		INNER JOIN [SC_server].[Soarian_Clin_Prd_1].[dbo].HStaffAssociations a ON b.objectid = a.Staff_oid
-		WHERE a.RelationType = 0
-			AND a.IsVersioned = 0
-		) AS ATN_DR ON ATN_DR.PatientVisit_OID = PVD.PatientVisitOID
-	WHERE PVD.MRN IS NOT NULL
+	LEFT OUTER JOIN smsmir.hl7_vst AS HL7VST ON PVD.PatientAccountID = HL7VST.pt_id
+	LEFT OUTER JOIN SMSDSS.pract_dim_v AS PDV ON HL7VST.atn_pract_no = PDV.src_pract_no
+		--AND PDV.orgz_cd = HL7VST.orgz_from
+		AND PDV.orgz_cd = 'NTX0'
 	--ORDER BY PVD.Pt_Name,
 	--	CVRES.ResultDateTime DESC,
 	--	CVORD.CreationTime DESC;
@@ -646,26 +661,21 @@ BEGIN
 	-- MIR_PERS_ADDR = 'PE'
 	LEFT OUTER JOIN SMSMIR.MIR_PERS_ADDR AS EMPLOYER ON CAST(A.PatientAccountID AS VARCHAR) = SUBSTRING(EMPLOYER.PT_ID, 5, 8)
 		AND EMPLOYER.PERS_TYPE = 'PE'
-	-- Comment back in when Cathy Comes Back
+	-- updated arrival mode
 	LEFT OUTER JOIN (
-		SELECT pvt.PtNo_Num,
-		PVT.[52] AS [Arrival_Mode],
-		pvt.[54] AS [Arrival_Mode_Description]
+			SELECT PVT.episode_no,
+			PVT.[2ARRIVAL] AS [Arrival_Mode],
+			PVT.[2ARVAMBL] AS [Arrival_Mode_Description]
 		FROM (
-			SELECT A.PtNo_Num,
-			A.UserDataKey,
-			A.UserDataText
-			FROM SMSDSS.BMH_UserTwoFact_V AS A
-			INNER JOIN SMSDSS.c_covid_patient_visit_data_tbl AS B
-			ON A.PtNo_Num = B.PatientAccountID
-			WHERE A.UserDataKey IN ('52','54')
-		) AS A
-		PIVOT (
-			MAX(UserDataText)
-			FOR UserDataKey IN ("52","54")
-		) AS PVT
+			SELECT episode_no,
+				user_data_cd,
+				user_data_text
+			FROM smsmir.pms_user_episo
+			WHERE user_data_cd IN ('2ARRIVAL', '2ARVAMBL')
+			) AS A
+		PIVOT(MAX(USER_DATA_TEXT) FOR USER_DATA_CD IN ("2ARRIVAL", "2ARVAMBL")) PVT
 	) AS ArrivalMode
-	ON A.PatientAccountID = ArrivalMode.PtNo_Num
+	ON A.PatientAccountID = ArrivalMode.episode_no
 	OUTER APPLY (
 	SELECT TOP 1 B.MRN,
 		B.PatientAccountID,
