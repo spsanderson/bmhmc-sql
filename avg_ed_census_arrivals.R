@@ -140,7 +140,7 @@ df.arrivals.gathered$Arrival_Hour <- factor(
 
 # Visualize ####
 
-caption <- paste("From 12-30-2020 to 12-25-2021")
+caption <- paste("From 12-30-2020 to 01-01-2022")
 
 arrivals.boxplt <- df.arrivals.gathered %>% 
   ggplot(

@@ -47,6 +47,7 @@ Date		Version		Description
 2021-12-02	v4			4. Fix discharge date time column for straight 
 							OBV patients
 2021-12-20	v5			5. Per discussion with Mike and Will, add CMI
+2022-01-03	v6			6. Per discussion with Mike and Will, start_date is 2020-01-01
 ***********************************************************************
 */
 
@@ -139,7 +140,7 @@ LEFT OUTER JOIN smsdss.pyr_dim_v AS PYR ON PAV.Pyr1_Co_Plan_Cd = PYR.src_pyr_cd
 LEFT OUTER JOIN smsmir.vst_rpt AS VST ON PAV.Pt_No = VST.pt_id
 LEFT OUTER JOIN smsmir.mir_pms_case AS PMS ON CAST(PAV.PtNo_Num AS INT) = CAST(PMS.episode_no AS INT)
 LEFT OUTER JOIN smsdss.c_obv_Comb_1 AS OBV ON PAV.PtNo_Num = OBV.pt_id
-WHERE PAV.DSCH_DATE >= @START
+WHERE PAV.DSCH_DATE >= '2020-01-01' --@START
 	AND PAV.Dsch_Date < @END
 	AND LEFT(PAV.PTNO_NUM, 1) != '2'
 	AND LEFT(PAV.PTNO_NUM, 4) != '1999'

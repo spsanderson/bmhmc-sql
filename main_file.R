@@ -1,29 +1,34 @@
 
-# Source Files ------------------------------------------------------------
+# Source and Load ---------------------------------------------------------
 
 
-source("00_Scripts/source_file.R")
+source("00_Scripts/library_load.R")
+source("00_Scripts/db_con_obj.R")
+source("01_Queries/query_functions.R")
+source("02_Data_Manipulation/data_functions.R")
+source("03_Viz/viz_functions.R")
+source("04_TS_Modeling/ts_functions.R")
+library_load()
+
 
 # Get Data ----------------------------------------------------------------
 
-df_tbl <- covid_uninsured_query()
-df_tbl <- tibble::as_tibble(df_tbl) %>%
-  mutate(across(.fns = as.character))
 
-file_date <- base::as.Date(base::Sys.Date())
-file_name <- base::paste0(
-  "covid_uninsured_rundate_"
-  , file_date
-  , ".csv"
-)
+admits_tbl     <- admits_query()
+discharges_tbl <- discharges_query()
 
-# Write File --------------------------------------------------------------
+# Make workbook -----------------------------------------------------------
 
-readr::write_excel_csv(
-  x = df_tbl
-  , file = base::paste0("00_Data\\",file_name)
-)
+fdate <- Sys.Date()
+fname <- "ed_throughput_"
+full_fname <- paste0(fname, fdate, ".xlsx")
+wb <- xlsx::createWorkbook()
+admits_sheet <- xlsx::createSheet(wb, sheetName = "admits")
+discharges_sheet <- xlsx::createSheet(wb, sheetName = "discharges")
+xlsx::addDataFrame(x = admits_tbl, sheet = admits_sheet)
+xlsx::addDataFrame(x = discharges_tbl, sheet = discharges_sheet)
+xlsx::saveWorkbook(wb, file = paste0("00_Data/",full_fname))
 
-# Clean Environment -------------------------------------------------------
+# Clean Up ----------------------------------------------------------------
 
 rm(list = ls())
