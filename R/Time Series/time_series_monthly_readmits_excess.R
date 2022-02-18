@@ -27,7 +27,7 @@ n_cores = detectCores() - 1
 interactive <- TRUE
 
 my_path <- ("S:/Global Finance/1 REVENUE CYCLE/Steve Sanderson II/Code/R/Functions/time_series/")
-file_list <- list.files(my_path, "*.R")
+file_list <- list.files(my_path, "*\\.R$")
 map(paste0(my_path, file_list), source)
 
 # DB Connection -----------------------------------------------------------
@@ -468,7 +468,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(1,4,5,6,7,14,15,23,24,32,33)) %>%
+  filter(.model_id %in% c(5,15,24,33,45,1,4,7,14,6,23,32)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -566,12 +566,9 @@ refit_tbl <- calibration_tbl %>%
   )
 parallel_stop()
 
-top_two_models <- refit_tbl %>% 
-  modeltime_accuracy() %>% 
-  as.data.frame() %>%
-  filter(rsq >= .1) %>%
-  filter(rsq < 1.0) %>%
-  arrange(rmse) %>%
+top_two_models <- refit_tbl %>%
+  ts_model_rank_tbl() %>%
+  filter(rsq < 0.999) %>%
   slice(1:2)
 
 ensemble_models <- refit_tbl %>%
@@ -580,7 +577,7 @@ ensemble_models <- refit_tbl %>%
       str_to_lower() %>%
       str_detect("ensemble")
   ) %>%
-  modeltime_accuracy()
+  ts_model_rank_tbl()
 
 model_choices <- rbind(top_two_models, ensemble_models) %>%
   arrange(rmse) %>%
