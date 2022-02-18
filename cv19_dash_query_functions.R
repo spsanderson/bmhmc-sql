@@ -142,6 +142,40 @@ tot_hhs_adm_pos_query <- function(){
   
 }
 
+admit_dx_query <- function(){
+  
+  # * Connect to DSS ----
+  db_conn <- db_connect()
+  
+  # * Query ----
+  query <- DBI::dbGetQuery(
+    conn = db_conn
+    , statement = base::paste0(
+      "
+      SELECT PTNO_NUM,
+      	Dx_Order,
+      	Dx_Order_Abbr,
+      	LEFT(Dx_Order_Abbr, 1) AS [Abbr_1]
+      FROM smsdss.c_covid_hhs_tbl
+      WHERE SP_Run_DateTime = (
+          SELECT max(sp_run_datetime)
+          FROM smsdss.c_covid_hhs_tbl
+          )
+      AND positive_suspect_noncovid = 'positive'
+      AND in_house = '1'
+      ORDER BY Dx_Order;
+      "
+    )
+  )
+  
+  # * DB Disconnect ----
+  db_disconnect(.connection = db_conn)
+  
+  # * Return ----
+  return(query)
+  
+}
+
 tot_hhs_adm_sus_query <- function(){
   
   # * Connect to DSS ----
