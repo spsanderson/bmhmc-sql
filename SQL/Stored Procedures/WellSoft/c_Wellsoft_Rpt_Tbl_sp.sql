@@ -21,6 +21,7 @@ v5		2020-06-04	- Add AccessRmAssigned column
 v6	-	2020-06-05	- Remove schema bindings
 v7	-	2021-01-28	- Add field COVIDTestWI30Days
 v8	-	2021-08-03	- Add IncidentAddress
+v9	-	2022-02-14	- Add statusMDRm the time for the door to doc time
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_sp]
@@ -83,6 +84,7 @@ BEGIN
 	, COVIDTestWI30Days
 	, [Status]
 	, [IncidentAddress]
+	, [statusMDRm]
 	
 	INTO c_Wellsoft_Rpt_tbl_tmp
 	
