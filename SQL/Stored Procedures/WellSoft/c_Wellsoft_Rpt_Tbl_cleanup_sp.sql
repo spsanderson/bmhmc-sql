@@ -22,6 +22,7 @@ v3	- 2020-04-16	- Add PublicityCodeID, PublicityCodeText and InjuryCode
 v4	- 2020-06-05	- remove schema bindings
 v5	- 2021-01-25	- Add COVIDTestWI30Days
 v6	- 2021-08-03	- Add IncidentAddress
+v7	- 2022-02-14	- Add statusMDRm for the door to doc time
 =============================================
 */
 ALTER PROCEDURE [smsdss].[c_Wellsoft_Rpt_Tbl_cleanup_sp] 
@@ -172,6 +173,13 @@ BEGIN
 	 , COVIDTestWI30Days                                                  AS [COVID_test_within_30_days]
 	 , [Status]
 	 , [IncidentAddress]
+	 , CONVERT(VARCHAR,
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(statusMDRm), 1, 4) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(statusMDRm), 5, 2) + '-' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(statusMDRm), 7, 2) + ' ' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(statusMDRm), 9, 2) + ':' +
+	  SUBSTRING(DBO.c_udf_AlphaNumericChars(statusMDRm), 11, 2) + ':00',
+	  120) AS [Doc_Time]
 	  
 	INTO c_Wellsoft_Rpt_tbl
 
