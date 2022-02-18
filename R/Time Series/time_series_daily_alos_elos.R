@@ -449,26 +449,17 @@ calibration_tbl %>%
 parallel_stop()
 
 calibration_tbl %>% 
-  #filter(!str_starts(.model_desc, "FOURIER")) %>%
-  #filter(!str_starts(.model_desc, "PCA")) %>%
-  #filter(!str_starts(.model_desc, "NUM_ONLY")) %>%
-  # filter(!str_starts(.model_desc, "ENSEMBLE")) %>%
-  # filter(!.model_id %in% c(5, 19, 10, 9)) %>%
   ts_model_rank_tbl() %>%
   as.data.frame() %>%
   filter(rsq >= 0.1) %>%
   filter(rsq < 1) %>%
-  filter(rmse > 100) %>%
+  filter(rmse > 50) %>%
   select(-.type) %>%
   gt()
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  ts_model_rank_tbl() %>%
-  as.data.frame() %>%
-  filter(rsq >= 0.1) %>%
-  filter(rsq < 1) %>%
-  filter(rmse > 100) %>%
+  filter(.model_id %in% c(4,8,18,27,36,5,1,21,30)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -495,7 +486,7 @@ calibration_tbl %>%
 # Hyperparameter Tuning ---------------------------------------------------
 
 tuned_model <- ts_model_auto_tune(
-  .modeltime_model_id = 30,
+  .modeltime_model_id = 2,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .date_col = date_col,
@@ -566,13 +557,9 @@ refit_tbl <- calibration_tbl %>%
   )
 parallel_stop()
 
-top_two_models <- refit_tbl %>% 
-  modeltime_accuracy() %>% 
-  as.data.frame() %>%
-  filter(rsq >= .1) %>%
-  filter(rsq < 1.0) %>%
-  filter(rmse > 1.0) %>%
-  arrange(rmse) %>%
+top_two_models <- refit_tbl %>%
+  ts_model_rank_tbl() %>%
+  filter(rsq < 0.999) %>%
   slice(1:2)
 
 ensemble_models <- refit_tbl %>%
@@ -581,7 +568,7 @@ ensemble_models <- refit_tbl %>%
       str_to_lower() %>%
       str_detect("ensemble")
   ) %>%
-  modeltime_accuracy()
+  ts_model_rank_tbl()
 
 model_choices <- rbind(top_two_models, ensemble_models) %>%
   arrange(rmse) %>%
