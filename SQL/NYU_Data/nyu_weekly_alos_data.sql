@@ -48,6 +48,8 @@ Date		Version		Description
 							OBV patients
 2021-12-20	v5			5. Per discussion with Mike and Will, add CMI
 2022-01-03	v6			6. Per discussion with Mike and Will, start_date is 2020-01-01
+2022-01-14	v7			7. Add Admit Status Emergency, Truama, Newborn etc
+2022-02-10	v8			8. Add column [is_readmit] binary
 ***********************************************************************
 */
 
@@ -126,7 +128,32 @@ SELECT PAV.Med_Rec_No AS [mrn],
 	PAV.prin_dx_cd,
 	PYR.pyr_group2 AS [payor_grouping],
 	VST.ward_cd AS [discharge_unit],
-	PAV.drg_cost_weight
+	PAV.drg_cost_weight,
+	[admit_status] = CASE
+		WHEN PAV.adm_prio = 'N'
+			THEN 'Newborn'
+		WHEN PAV.adm_prio = 'O'
+			THEN 'Other'
+		WHEN PAV.adm_prio = 'P'
+			THEN 'Pregnancy'
+		WHEN PAV.adm_prio = 'Q'
+			THEN 'Other'
+		WHEN PAV.adm_prio = 'R'
+			THEN 'Routine Elective Admission'
+		WHEN PAV.adm_prio = 'S'
+			THEN 'Semiurgent Admission'
+		WHEN PAV.adm_prio = 'U'
+			THEN 'Urgent Admission'
+		WHEN PAV.adm_prio = 'W'
+			THEN 'Other'
+		WHEN PAV.adm_prio = 'X'
+			THEN 'Emergency Admission'
+		END,
+	[is_readmit] = CASE
+		WHEN RA.READMIT IS NOT NULL
+			THEN 1
+		ELSE 0
+		END
 FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
 LEFT OUTER JOIN SMSDSS.pract_dim_v AS PDV ON PAV.Atn_Dr_No = PDV.src_pract_no
 	AND PAV.Regn_Hosp = PDV.orgz_cd
@@ -140,6 +167,10 @@ LEFT OUTER JOIN smsdss.pyr_dim_v AS PYR ON PAV.Pyr1_Co_Plan_Cd = PYR.src_pyr_cd
 LEFT OUTER JOIN smsmir.vst_rpt AS VST ON PAV.Pt_No = VST.pt_id
 LEFT OUTER JOIN smsmir.mir_pms_case AS PMS ON CAST(PAV.PtNo_Num AS INT) = CAST(PMS.episode_no AS INT)
 LEFT OUTER JOIN smsdss.c_obv_Comb_1 AS OBV ON PAV.PtNo_Num = OBV.pt_id
+-- Get info on present accout, is it a readmit
+LEFT OUTER JOIN [smsdss].[vReadmits] AS RA ON PAV.PtNo_Num = RA.READMIT
+	AND RA.INTERIM IS NOT NULL
+	AND RA.INTERIM <= 30
 WHERE PAV.DSCH_DATE >= '2020-01-01' --@START
 	AND PAV.Dsch_Date < @END
 	AND LEFT(PAV.PTNO_NUM, 1) != '2'
