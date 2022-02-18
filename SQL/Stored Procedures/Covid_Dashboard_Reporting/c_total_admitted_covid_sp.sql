@@ -36,6 +36,8 @@ Date		Version		Description
 2020-12-29	v1			Initial Creation
 2020-12-31	v2			Fix issue where the extract had columns Arrival Mode
 						and Amb added but we don't care in this procedure
+
+**NOTE THIS CHECKS HERDS CRITERIA**
 ***********************************************************************
 */
 
