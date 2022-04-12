@@ -191,7 +191,6 @@ splits %>%
 recipe_base <- recipe(value ~ ., data = training(splits)) %>%
   step_mutate(yr = lubridate::year(date_col)) %>%
   step_harmonic(yr, frequency = 365/12, cycle_size = 1) %>%
-  step_rm(yr) %>%
   step_hai_fourier(value, scale_type = "sincos", period = 365/12, order = 1) %>%
   step_lag(value, lag = c(1,3,6,12)) %>%
   step_impute_knn(contains("lag_"))
@@ -468,7 +467,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(5,15,24,33,45,1,4,7,14,6,23,32)) %>%
+  filter(.model_id %in% c(5,15,24,33,45,1,4,7,14,6,23,6)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -495,7 +494,7 @@ calibration_tbl %>%
 # Hyperparameter Tuning ---------------------------------------------------
 
 tuned_model <- ts_model_auto_tune(
-  .modeltime_model_id = 7,
+  .modeltime_model_id = 3,
   .calibration_tbl    = calibration_tbl,
   .splits_obj         = splits,
   .date_col           = date_col,
@@ -568,6 +567,11 @@ parallel_stop()
 
 top_two_models <- refit_tbl %>%
   ts_model_rank_tbl() %>%
+  filter(
+    !.model_desc %>% 
+      str_to_lower() %>% 
+      str_detect("ensemble")
+    ) %>%
   filter(rsq < 0.999) %>%
   slice(1:2)
 
@@ -580,7 +584,7 @@ ensemble_models <- refit_tbl %>%
   ts_model_rank_tbl()
 
 model_choices <- rbind(top_two_models, ensemble_models) %>%
-  arrange(rmse) %>%
+  arrange(model_score) %>%
   slice(1:2)
 
 # Forecast Plot ----
