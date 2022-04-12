@@ -5,6 +5,7 @@ pacman::p_load(
   , "data.table"
   , "shiny"
 )
+
 pdf_list <- file.choose(new = TRUE)
 pdf <- extract_tables(pdf_list)
 df <- map_df(pdf, as.data.frame)
