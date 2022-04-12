@@ -527,25 +527,64 @@ ts_op_visits_tbl <- function(
 #'
 #'
 
-ts_ip_census_los_daily_tbl <- function(.data, .keep_nulls_only = FALSE){
+ts_ip_census_los_daily_tbl <- function(.data, .keep_nulls_only = FALSE,
+                                       .start_date_col, .end_date_col,
+                                       .by_time = "day"){
 
-  # * Check ----
+  # * Tidyeval Setup ----
+  start_date_var_expr <- rlang::enquo(.start_date_col)
+  end_date_var_expr   <- rlang::enquo(.end_date_col)
+  by_var_expr         <- .by_time
+  start_date_var_name <- rlang::quo_name(start_date_var_expr)
+  end_date_var_name <- rlang::quo_name(end_date_var_expr)
+
+  # * Checks ----
   if(!is.data.frame(.data)){
     stop(call. = FALSE,"(.data) is not a data.frame/tibble. Please supply.")
+  }
+
+  if(rlang::quo_is_missing(start_date_var_expr)){
+    stop(call. = FALSE,"(.start_date_col) is missing. Please supply.")
+  }
+
+  if(rlang::quo_is_missing(end_date_var_expr)){
+    stop(call. = FALSE,"(.end_date_col) is missing. Please supply.")
   }
 
   keep_nulls_only_bool <- .keep_nulls_only
 
   # * Data ----
-  # Ensure a tibble
   data_tbl <- tibble::as_tibble(.data)
 
   # * Manipulate ----
   # Get start date and end date
   all_dates_tbl <- data_tbl %>%
-    dplyr::filter(!is.na(data_tbl[[1]])) %>%
-    dplyr::filter(!is.na(data_tbl[[2]]))
+    dplyr::select(
+      {{ start_date_var_expr }}
+      , {{ end_date_var_expr }}
+      , dplyr::everything()
+    )
 
+  names(all_dates_tbl)[1] <- "start_date"
+  names(all_dates_tbl)[2] <- "end_date"
+
+  all_dates_tbl <- all_dates_tbl %>%
+    dplyr::mutate(start_date = as.Date(start_date)) %>%
+    dplyr::mutate(end_date   = as.Date(end_date))
+
+  # Filter out records where start_date is.na
+  all_dates_tbl <- all_dates_tbl %>%
+    dplyr::filter(!is.na(start_date)) %>%
+
+    # If end_date is.na, then make Sys.Date()
+    dplyr::mutate(
+      end_date = dplyr::case_when(
+        is.na(end_date) ~ Sys.Date(),
+        TRUE ~ end_date
+      )
+    )
+
+  # Make calendar dates ----
   start_date <- min(all_dates_tbl[[1]], all_dates_tbl[[2]])
   end_date   <- max(all_dates_tbl[[1]], all_dates_tbl[[2]])
   today      <- Sys.Date()
@@ -553,54 +592,52 @@ ts_ip_census_los_daily_tbl <- function(.data, .keep_nulls_only = FALSE){
   ts_day_tbl <- timetk::tk_make_timeseries(
     start_date = start_date
     , end_date = end_date
-    , by       = "day"
+    , by       = by_var_expr
   ) %>%
     tibble::as_tibble() %>%
-    dplyr::rename("date" = "value")
+    dplyr::rename("date"="value") %>%
+    dplyr::mutate(date = as.Date(date))
 
+  # Perform SQL ----
   res <- sqldf::sqldf(
     "
-    SELECT *
-    FROM ts_day_tbl AS A
-    LEFT JOIN data_tbl AS B
-    ON adm_date <= A.date
-      AND (
-        dsch_date >= A.date
-        or dsch_date is null
-      )
+    SELECT B.date,
+      A.*
+    FROM all_dates_tbl AS A
+    LEFT JOIN ts_day_tbl AS B
+    ON b.date >= a.start_date
+      AND b.date < a.end_date
+    ORDER BY b.date
     "
   )
 
-  res <- tibble::as_tibble(res) %>%
+  # Convert to tibble ----
+  res_tbl <- tibble::as_tibble(res) %>%
     dplyr::arrange(date)
 
-  los_tbl <- res %>%
+  los_tbl <- res_tbl %>%
     dplyr::mutate(
       los = dplyr::case_when(
-        !is.na(dsch_date) ~ difftime(
-          dsch_date, adm_date, units = "days"
+        !is.na(end_date) ~ difftime(
+          end_date, start_date, units = by_var_expr
         ) %>% as.integer()
         , TRUE ~ difftime(
-          today, adm_date, units = "days"
+          today, start_date, units = by_var_expr
         ) %>% as.integer()
       )
     ) %>%
     dplyr::mutate(census = 1) %>%
-    # dplyr::mutate(
-    #   date = dplyr::case_when(
-    #     is.na(dsch_date) ~ Sys.Date()
-    #     , TRUE ~ dsch_date
-    #   )
-    # ) %>%
-    dplyr::arrange(date)
+    dplyr::arrange(date) %>%
+    dplyr::rename(!!start_date_var_name := start_date) %>%
+    dplyr::rename(!!end_date_var_name := end_date)
 
   # Keep NA columns?
-  if(!keep_nulls_only_bool) {
+  if(!keep_nulls_only_bool){
     data_final_tbl <- los_tbl
   } else {
     data_final_tbl <- los_tbl %>%
-      dplyr::filter(is.na(dsch_date))
-    }
+      dplyr::filter(is.na(end_date))
+  }
 
   # * Return ----
   return(data_final_tbl)
