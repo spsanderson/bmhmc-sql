@@ -133,6 +133,7 @@ geocode_discharges_automation <- function() {
       , stringr::str_detect(PartialAddress, "MORCIHES, NY")          ~ "MORICHES, NY, 11955"
       , stringr::str_detect(PartialAddress, "NEW DEHLI, NY")         ~ "DELHI, NY, 10060"
       , stringr::str_detect(PartialAddress, "CENTERMORICHES, NY")    ~ "CENTER MORICHES, NY, 11934"
+      , stringr::str_detect(PartialAddress, "EASTPATCHOGUE, NY")     ~ "EAST PATCHOGUE, NY, 11772"
       , TRUE ~ PartialAddress
     ))
 
