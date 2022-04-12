@@ -477,19 +477,20 @@ ts_ip_census_los_daily_query <- function(){
     conn = db_con_obj
     , statement = base::paste0(
       "
-      SELECT Adm_Date AS [adm_date],
-      Dsch_Date AS [dsch_date]
+      SELECT CAST(Adm_Date AS DATE) AS [adm_date],
+      CAST(Dsch_Date AS DATE) AS [dsch_date]
       FROM SMSDSS.BMH_PLM_PtAcct_V
       WHERE Plm_Pt_Acct_Type = 'I'
       AND LEFT(PTNO_NUM, 1) != '2'
       AND LEFT(PTNO_NUM, 4) != '1999'
       AND Adm_Date >= '2001-01-01'
+      AND tot_chg_amt > 0
+      ORDER BY CAST(Adm_Date AS DATE)
       "
     )
   ) %>%
     tibble::as_tibble() %>%
-    dplyr::mutate(dplyr::across(.cols = dplyr::everything(), .fns = as.Date)) %>%
-    dplyr::arrange(adm_date)
+    dplyr::mutate(dplyr::across(.fns = lubridate::ymd))
 
   # * DB Disconnect ----
   LICHospitalR::db_disconnect(.connection = db_con_obj)
