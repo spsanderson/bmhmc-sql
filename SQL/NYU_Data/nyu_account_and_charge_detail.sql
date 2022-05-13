@@ -26,6 +26,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2022-03-31	v1			Initial Creation
+2022-04-15	v2			Add MRN
 ***********************************************************************
 */
 
@@ -35,7 +36,8 @@ DECLARE @END_DATE DATE;
 SET @START_DATE = '2022-01-01';
 SET @END_DATE = '2022-02-01';
 
-SELECT A.pt_id,
+SELECT C.Med_Rec_No,
+	A.pt_id,
 	A.unit_seq_no,
 	C.pt_name, 
 	[ip_op_ed_flag] = CASE
@@ -68,7 +70,8 @@ LEFT OUTER JOIN smsdss.pyr_dim_v AS D ON C.Pyr1_Co_Plan_Cd = D.src_pyr_cd
 	AND C.Regn_Hosp = D.orgz_cd
 WHERE CAST(A.actv_entry_date AS DATE) >= @START_DATE
 	AND CAST(A.actv_entry_date AS DATE) < @END_DATE
-GROUP BY A.pt_id,
+GROUP BY C.Med_Rec_No,
+	A.pt_id,
 	A.unit_seq_no,
 	C.pt_name,
 	CASE
