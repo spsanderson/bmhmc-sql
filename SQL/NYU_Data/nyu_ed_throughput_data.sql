@@ -39,6 +39,9 @@ Date        Version     Description
 						ED Disposition
 						or_flag
 						or_first_date
+2022-04-25	v3			Fix or_first_date flag where it would catch
+						multiple dates instead of the first date.
+2022-04-29 v4			Fix duplicates related to ESI level duplication
 ***********************************************************************
 */
 
@@ -387,8 +390,7 @@ WHERE A.actv_cd IN (
 		'00800300', '00800318', '00800326'
 	)
 GROUP BY A.pt_id,
-	A.unit_seq_no,
-	A.actv_dtime
+	A.unit_seq_no
 HAVING SUM(A.actv_tot_qty) > 0;
 
 -- Pull it all together
@@ -486,7 +488,21 @@ FROM #Base_Population_tbl AS A
 	LEFT JOIN smsmir.cen_hist AS Dsch_Entry_Dtime ON A.account = Dsch_Entry_Dtime.episode_no
 		AND Dsch_Entry_Dtime.src_sys_id = '#PMSNTX0'
 		AND Dsch_Entry_Dtime.cng_type = 'D'
-	LEFT JOIN smsdss.c_er_tracking AS ESI ON A.account = ESI.episode_no
+	--LEFT JOIN smsdss.c_er_tracking AS ESI ON A.account = ESI.episode_no
+	LEFT JOIN (
+		SELECT a.pt_id,
+			b.actv_name AS [er_level],
+			a.actv_date,
+			[rn] = ROW_NUMBER() OVER(PARTITION BY A.PT_ID ORDER BY A.ACTV_DATE)
+		FROM smsmir.actv as a
+		LEFT JOIN smsdss.actv_cd_dim_v as b on a.actv_cd = b.actv_cd
+			and a.orgz_cd = b.orgz_cd
+		WHERE a.actv_cd in ('04600011','04600409','04600458','04600508','04600557'
+				,'04600607','04600656','04600706','04600755','04600805'
+				,'04600854','04600904','04600953'
+			)
+	) AS ESI ON SUBSTRING(ESI.pt_id, 5, 8) = A.account
+		AND ESI.rn = 1
 	LEFT JOIN #Arrival_Mode_Pivot_tbl AS AMPT ON A.account = AMPT.episode_no
 	LEFT JOIN smsdss.pract_dim_v AS PDV ON A.adm_dr_no = PDV.src_pract_no
 		AND PDV.orgz_cd = 'S0X0'
