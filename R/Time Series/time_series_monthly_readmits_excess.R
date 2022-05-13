@@ -467,7 +467,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(5,15,24,33,45,1,4,7,14,6,23,6)) %>%
+  filter(.model_id %in% c(1,4,5,6,7,8)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
