@@ -77,59 +77,45 @@ data_tbl %>%
     , .title       = "Admissions by IP/OP" 
   )
 
-data_tbl %>%
+ip_vva <- data_tbl %>%
   filter(ip_op_flag == "Inpatient") %>%
   filter_by_time(
     .date_var     = adm_date
     , .start_date = "2019"
   ) %>%
   slice(1:n() - 1) %>%
-  tk_augment_differences(.value = value, .differences = 1) %>%
-  tk_augment_differences(.value = value, .differences = 2) %>%
-  rename(velocity = contains("_diff1")) %>%
-  rename(acceleration = contains("_diff2")) %>%
-  pivot_longer(c(-adm_date, -ip_op_flag)) %>%
-  mutate(name = str_to_title(name)) %>%
-  mutate(name = as_factor(name)) %>%
-  ggplot(aes(x = adm_date, y = value, group = name, color = name)) +
-  geom_line() +
-  geom_smooth(se = FALSE) +
-  facet_wrap(name ~ ., ncol = 1, scale = "free") +
-  theme_minimal() +
+  healthyR.ts::ts_vva_plot(
+    .date_col = adm_date,
+    .value_col = value
+  )
+
+ip_vva$plots$static_plot +
   labs(
     title = "Inpatient Registration Trend, Velocity and Acceleration",
     x = "Date",
     y = "",
     color = ""
-  ) +
-  scale_color_tq()
+  )
 
-data_tbl %>%
+df <- data_tbl %>%
   filter(ip_op_flag == "Outpatient") %>%
   filter_by_time(
     .date_var     = adm_date
     , .start_date = "2019"
   ) %>%
   slice(1:n() - 1) %>%
-  tk_augment_differences(.value = value, .differences = 1) %>%
-  tk_augment_differences(.value = value, .differences = 2) %>%
-  rename(velocity = contains("_diff1")) %>%
-  rename(acceleration = contains("_diff2")) %>%
-  pivot_longer(c(-adm_date, -ip_op_flag)) %>%
-  mutate(name = str_to_title(name)) %>%
-  mutate(name = as_factor(name)) %>%
-  ggplot(aes(x = adm_date, y = value, group = name, color = name)) +
-  geom_line() +
-  geom_smooth(se = FALSE) +
-  facet_wrap(name ~ ., ncol = 1, scale = "free") +
-  theme_minimal() +
+  healthyR.ts::ts_vva_plot(
+    .date_col = adm_date,
+    .value_col = value
+  )
+
+df$plots$static_plot +
   labs(
     title = "Outpatient Registration Trend, Velocity and Acceleration",
     x = "Date",
     y = "",
     color = ""
-  ) +
-  scale_color_tq()
+  )
 
 ip_out <- data_tbl %>%
   filter(ip_op_flag == "Inpatient") %>%
