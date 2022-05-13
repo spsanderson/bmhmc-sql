@@ -22,6 +22,7 @@ data_working_tbl <- data_raw_tbl %>%
   set_names("account_no","admit_date","discharge_date","coder","coding_status","psi_edit")
 
 data_final_tbl <- data_working_tbl %>%
+  filter(!admit_date == "Admit") %>%
   mutate(admit_date = as.Date(as.numeric(admit_date), origin = "1899-12-30")) %>%
   mutate(discharge_date = as.Date(as.numeric(discharge_date), origin = "1899-12-30")) %>%
   mutate(across(where(is.character), str_squish)) %>%
