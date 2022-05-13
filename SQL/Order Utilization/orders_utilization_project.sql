@@ -160,9 +160,9 @@ FROM @T1 T1
 WHERE T1.Order_Occ_sts_cd = '4'
 AND T1.SVC_SUB_DEPT NOT IN ('133','117')
 
-SELECT *
-FROM  smsdss.c_Lab_Rad_Order_Utilization ZZZ
-WHERE ZZZ.ED_IP_FLAG IN ('IP','ED')  -- ED OR IP
-AND ZZZ.Svc_Dept_Desc IN ('Laboratory','Radiology') -- Laboratory OR Radiology
-ORDER BY ED_IP_FLAG, Svc_Dept_Desc
+--SELECT *
+--FROM  smsdss.c_Lab_Rad_Order_Utilization ZZZ
+--WHERE ZZZ.ED_IP_FLAG IN ('IP','ED')  -- ED OR IP
+--AND ZZZ.Svc_Dept_Desc IN ('Laboratory','Radiology') -- Laboratory OR Radiology
+--ORDER BY ED_IP_FLAG, Svc_Dept_Desc
 --DROP TABLE #order_tmp_tbl
