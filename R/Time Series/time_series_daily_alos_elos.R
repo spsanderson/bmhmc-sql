@@ -458,7 +458,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(24,4,21,27,8,1,5)) %>%
+  filter(.model_id %in% c(4,22,31,21,30)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -479,13 +479,24 @@ calibration_tbl <- calibration_tbl %>%
 parallel_stop()
 
 calibration_tbl %>%
+  modeltime_forecast(
+    new_data = testing(splits),
+    actual_data = data_final_tbl
+  ) %>%
+  plot_modeltime_forecast(
+    .legend_max_width = 25,
+    .interactive = interactive,
+    .conf_interval_show = FALSE
+  )
+
+calibration_tbl %>%
   ts_model_rank_tbl() %>%
   gt()
 
 # Hyperparameter Tuning ---------------------------------------------------
 
 tuned_model <- ts_model_auto_tune(
-  .modeltime_model_id = 5,
+  .modeltime_model_id = 2,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .date_col = date_col,
