@@ -1,6 +1,6 @@
 /*
 ***********************************************************************
-File: sepsis_nysdoh_hanys_query_v2.sql
+File: sepsis_nysdoh_hanys_query_v3.sql
 
 Input Parameters:
 	None
@@ -92,6 +92,7 @@ Date		Version		Description
 							during_hospital_anticoagulation
 							cardiovascular_outcomes_at_hospital
 							pe/dvt
+2022-04-25	v13			Make fixes
 ***********************************************************************
 */
 
@@ -149,7 +150,7 @@ WHERE (
 			)
 		)
 	AND Dsch_Date >= '2022-01-01'
-	AND Dsch_Date < '2022-02-01'
+	AND Dsch_Date < '2022-04-01'
 	AND PT_Age >= 21
 	AND LEFT(A.PT_NO, 5) NOT IN ('00003', '00006', '00007');
 
@@ -642,16 +643,15 @@ INSERT INTO #history_of_covid_tbl (
 	history_of_covid
 	)
 SELECT DISTINCT A.PTNO_NUM,
-	[history_of_covid_dt] = A.first_positive_flag_dtime,
+	[history_of_covid_dt] = A.Last_Positive_Result_DTime,
 	[history_of_covid] = CASE
-		WHEN ABS(DATEDIFF(DAY, BP.vst_start_dtime, A.first_positive_flag_dtime)) <= (12*7)
+		WHEN ABS(DATEDIFF(DAY, BP.vst_start_dtime, A.Last_Positive_Result_DTime)) <= (12*7)
 			THEN 1
 		ELSE 0
 		END
 FROM SMSDSS.c_covid_extract_tbl AS a
 INNER JOIN #BasePopulation AS BP ON A.PTNO_NUM = BP.PtNo_Num
-WHERE A.first_positive_flag_dtime IS NOT NULL
-
+WHERE A.Last_Positive_Result_DTime IS NOT NULL
 
 -- History of Other CVD 
 /*
@@ -788,48 +788,53 @@ INSERT INTO #vent_tbl (
 	)
 SELECT DISTINCT A.pt_id,
 	[mechanical_vent_comorbidity] = CASE
-		WHEN b.icd10_cm_code IS NULL
+		WHEN A.poa_ind = 'N'
 			THEN 0
 		ELSE 1
 		END
+	--[mechanical_vent_comorbidity] = CASE
+	--	WHEN b.icd10_cm_code IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END
 FROM SMSMIR.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_mechanical_vent_comorbidity_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
--- MEDICAITON ANTICOAGULATION HOME MED LIST
-DECLARE @HML_Medication_Anticoagulation TABLE (
-	NDC VARCHAR(12)
-)
-INSERT INTO @HML_Medication_Anticoagulation (NDC)
-SELECT CASE
-	WHEN LEN(NDC) = 10
-		THEN '0' + NDC
-	WHEN LEN(NDC) = 9
-		THEN '00' + NDC
-	WHEN LEN(NDC) = 8
-		THEN '000' + NDC
-	WHEN LEN(NDC) = 7
-		THEN '0000' + NDC
-	ELSE NDC
-	END
-FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
+---- MEDICAITON ANTICOAGULATION HOME MED LIST
+--DECLARE @HML_Medication_Anticoagulation TABLE (
+--	NDC VARCHAR(12)
+--)
+--INSERT INTO @HML_Medication_Anticoagulation (NDC)
+--SELECT CASE
+--	WHEN LEN(NDC) = 10
+--		THEN '0' + NDC
+--	WHEN LEN(NDC) = 9
+--		THEN '00' + NDC
+--	WHEN LEN(NDC) = 8
+--		THEN '000' + NDC
+--	WHEN LEN(NDC) = 7
+--		THEN '0000' + NDC
+--	ELSE NDC
+--	END
+--FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
 
-DROP TABLE IF EXISTS #hml_med_anticoag
-CREATE TABLE #hml_med_anticoag (
-	episode_no VARCHAR(12)
-)
-INSERT INTO #hml_med_anticoag
-SELECT DISTINCT c.PatientAccountID
-FROM smsmir.mir_sc_vw_MRC_Medlist AS a
-INNER JOIN smsmir.mir_sc_XMLDocStorage AS b
-ON a.XMLDocStorageOid = b.XMLDocStorageOid
-INNER JOIN smsmir.mir_sc_PatientVisit AS c
-ON b.Patient_OID = c.Patient_oid
-    AND b.PatientVisit_OID = c.StartingVisitOID
-INNER JOIN smsmir.mir_PHM_DrugMstr as d on upper(coalesce(a.GenericName, a.brandname)) = upper(coalesce(d.gnrcname, d.brandname))
-INNER JOIN @HML_Medication_Anticoagulation AS E ON REPLACE(D.NDC, '-','') = E.NDC
-INNER JOIN #BasePopulation AS BP ON C.PatientAccountID = BP.PtNo_Num
-WHERE a.DocumentType = 'hml'
+--DROP TABLE IF EXISTS #hml_med_anticoag
+--CREATE TABLE #hml_med_anticoag (
+--	episode_no VARCHAR(12)
+--)
+--INSERT INTO #hml_med_anticoag
+--SELECT DISTINCT c.PatientAccountID
+--FROM smsmir.mir_sc_vw_MRC_Medlist AS a
+--INNER JOIN smsmir.mir_sc_XMLDocStorage AS b
+--ON a.XMLDocStorageOid = b.XMLDocStorageOid
+--INNER JOIN smsmir.mir_sc_PatientVisit AS c
+--ON b.Patient_OID = c.Patient_oid
+--    AND b.PatientVisit_OID = c.StartingVisitOID
+--INNER JOIN smsmir.mir_PHM_DrugMstr as d on upper(coalesce(a.GenericName, a.brandname)) = upper(coalesce(d.gnrcname, d.brandname))
+--INNER JOIN @HML_Medication_Anticoagulation AS E ON REPLACE(D.NDC, '-','') = E.NDC
+--INNER JOIN #BasePopulation AS BP ON C.PatientAccountID = BP.PtNo_Num
+--WHERE a.DocumentType = 'hml'
 
 -- MEDICATION IMMUNE MODIFYING HOME MED LIST
 DECLARE @HML_Medication_Immune_Modifying TABLE (
@@ -866,35 +871,35 @@ INNER JOIN @HML_Medication_Immune_Modifying AS E ON REPLACE(D.NDC, '-','') = E.N
 INNER JOIN #BasePopulation AS BP ON C.PatientAccountID = BP.PtNo_Num
 WHERE a.DocumentType = 'hml'
 
--- MEDICATION ANTICOAGULATION IN HOSPITAL
-DECLARE @Medication_Anticoagulation TABLE (
-	NDC VARCHAR(12)
-)
-INSERT INTO @Medication_Anticoagulation (NDC)
-SELECT CASE
-	WHEN LEN(NDC) = 10
-		THEN '0' + NDC
-	WHEN LEN(NDC) = 9
-		THEN '00' + NDC
-	WHEN LEN(NDC) = 8
-		THEN '000' + NDC
-	WHEN LEN(NDC) = 7
-		THEN '0000' + NDC
-	ELSE NDC
-	END
-FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
+---- MEDICATION ANTICOAGULATION IN HOSPITAL
+--DECLARE @Medication_Anticoagulation TABLE (
+--	NDC VARCHAR(12)
+--)
+--INSERT INTO @Medication_Anticoagulation (NDC)
+--SELECT CASE
+--	WHEN LEN(NDC) = 10
+--		THEN '0' + NDC
+--	WHEN LEN(NDC) = 9
+--		THEN '00' + NDC
+--	WHEN LEN(NDC) = 8
+--		THEN '000' + NDC
+--	WHEN LEN(NDC) = 7
+--		THEN '0000' + NDC
+--	ELSE NDC
+--	END
+--FROM smsdss.c_nysdoh_sepsis_medication_anticoagulation_ndc_code
 
-DROP TABLE IF EXISTS #med_anticoag 
-CREATE TABLE #med_anticoag (
-	episode_no VARCHAR(12)
-)
+--DROP TABLE IF EXISTS #med_anticoag 
+--CREATE TABLE #med_anticoag (
+--	episode_no VARCHAR(12)
+--)
 
-INSERT INTO #med_anticoag (episode_no)
-SELECT DISTINCT C.EpisodeNo
-FROM @Medication_Anticoagulation AS A
-INNER JOIN smsmir.mir_PHM_DrugMstr AS B ON A.NDC = REPLACE(B.NDC, '-', '')
-INNER JOIN SMSMIR.mir_PHM_Ord AS C ON B.NDC = C.NDC
-INNER JOIN #BasePopulation AS BP ON C.EpisodeNo = BP.PtNo_Num
+--INSERT INTO #med_anticoag (episode_no)
+--SELECT DISTINCT C.EpisodeNo
+--FROM @Medication_Anticoagulation AS A
+--INNER JOIN smsmir.mir_PHM_DrugMstr AS B ON A.NDC = REPLACE(B.NDC, '-', '')
+--INNER JOIN SMSMIR.mir_PHM_Ord AS C ON B.NDC = C.NDC
+--INNER JOIN #BasePopulation AS BP ON C.EpisodeNo = BP.PtNo_Num
 
 -- MEDICATION IMMUNE MODIFYING IN HOSPITAL
 DECLARE @Medication_Immune_Modifying TABLE (
@@ -1863,23 +1868,23 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_tracheostomy_at_discharge_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
--- PE/DVT
-DROP TABLE IF EXISTS #pe_dvt_tbl
-CREATE TABLE #pe_dvt_tbl (
-	pt_id VARCHAR(12),
-	pe_dvt VARCHAR(12)
-)
+---- PE/DVT
+--DROP TABLE IF EXISTS #pe_dvt_tbl
+--CREATE TABLE #pe_dvt_tbl (
+--	pt_id VARCHAR(12),
+--	pe_dvt VARCHAR(12)
+--)
 
-INSERT INTO #pe_dvt_tbl (pt_id, pe_dvt)
-SELECT DISTINCT A.pt_id,
-	[pe_dvt] = CASE
-		WHEN B.icd10_cm_code IS NULL
-			THEN 0
-		ELSE 1
-		END
-FROM smsmir.dx_grp AS A
-INNER JOIN smsdss.c_nysdoh_sepsis_pe_dvt_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
-INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+--INSERT INTO #pe_dvt_tbl (pt_id, pe_dvt)
+--SELECT DISTINCT A.pt_id,
+--	[pe_dvt] = CASE
+--		WHEN B.icd10_cm_code IS NULL
+--			THEN 0
+--		ELSE 1
+--		END
+--FROM smsmir.dx_grp AS A
+--INNER JOIN smsdss.c_nysdoh_sepsis_pe_dvt_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd10_cm_code
+--INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
 -- Tracheostomy In Hospital
 DROP TABLE IF EXISTS #trach_in_hosp_tbl
@@ -1891,12 +1896,12 @@ CREATE TABLE #trach_in_hosp_tbl (
 INSERT INTO #trach_in_hosp_tbl (pt_id, tracheostomy_in_hospital)
 SELECT DISTINCT A.pt_id,
 	[pe_dvt] = CASE
-		WHEN B.icd10_cm_code IS NULL
+		WHEN B.pcs_code IS NULL
 			THEN 0
 		ELSE 1
 		END
 FROM smsmir.sproc AS A
-INNER JOIN smsdss.c_nysdoh_sepsis_tracheostomy_in_hospital_code AS B ON REPLACE(A.proc_cd, '.','') = B.icd10_cm_code
+INNER JOIN smsdss.c_nysdoh_sepsis_tracheostomy_in_hospital_code AS B ON REPLACE(A.proc_cd, '.','') = B.pcs_code
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 
 -- Severity Variables -------------------------------------------------
@@ -1932,7 +1937,7 @@ WHERE obsv_cd = '00403154';
 
 DELETE
 FROM #appt
-WHERE disp_val IN ('.','S');
+WHERE disp_val IN ('.','S','1/','R');
 
 DROP TABLE IF EXISTS #max_appt
 CREATE TABLE #max_appt (
@@ -2177,7 +2182,8 @@ WHERE A.obsv_cd = '2012';
 DELETE
 FROM #inr
 WHERE (
-	disp_val IN ('.D', '.','U','S')
+	RTRIM(LTRIM(disp_val)) IN ('.D', '.','U','S','12/','02/','. ')
+	OR REPLACE(disp_val, CHAR(13), '') = '.'
 	OR disp_val IS NULL
 );
 
@@ -3089,7 +3095,9 @@ FROM #sirs_temp
 WHERE (
 	RIGHT(sirs_temperature, 1) = 'C'
 	OR sirs_temperature IN (
-			'9836.0000','982.0000','976.0000','968.0000','uto'
+			'9836.0000','982.0000','976.0000','968.0000','uto','venti-mask',
+			'pt refused','93.5rectal','88.0F','87.8 F','bvm'
+
 		)
 	OR cast(sirs_temperature as float) > '110.0'
 	)
@@ -3395,6 +3403,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_1] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[01] IS NOT NULL
+			AND DX_POA.[01] != ' '
 			THEN 'U'
 		ELSE DX_POA.[01]
 		END,
@@ -3402,6 +3411,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_2] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[02] IS NOT NULL
+			AND DX_POA.[02] != ' ' 
 			THEN 'U'
 		ELSE DX_POA.[02]
 		END,
@@ -3409,6 +3419,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_3] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[03] IS NOT NULL
+			AND DX_POA.[03] != ' '
 			THEN 'U'
 		ELSE DX_POA.[03]
 		END,
@@ -3416,6 +3427,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_4] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[04] IS NOT NULL
+			AND DX_POA.[04] != ' '
 			THEN 'U'
 		ELSE DX_POA.[04]
 		END,
@@ -3424,6 +3436,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_5] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[05] IS NOT NULL
+			AND DX_POA.[05] != ' '
 			THEN 'U'
 		ELSE DX_POA.[05]
 		END,
@@ -3431,6 +3444,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_6] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[06] IS NOT NULL
+			AND DX_POA.[06] != ' '
 			THEN 'U'
 		ELSE DX_POA.[06]
 		END,
@@ -3438,6 +3452,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_7] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[07] IS NOT NULL
+			AND DX_POA.[07] != ' '
 			THEN 'U'
 		ELSE DX_POA.[07]
 		END,
@@ -3445,6 +3460,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_8] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[08] IS NOT NULL
+			AND DX_POA.[08] != ' '
 			THEN 'U'
 		ELSE DX_POA.[08]
 		END,
@@ -3452,6 +3468,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_9] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[09] IS NOT NULL
+			AND DX_POA.[09] != ' '
 			THEN 'U'
 		ELSE DX_POA.[09]
 		END,
@@ -3459,6 +3476,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_10] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[10] IS NOT NULL
+			AND DX_POA.[10] != ' '
 			THEN 'U'
 		ELSE DX_POA.[10]
 		END,
@@ -3466,6 +3484,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_11] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[11] IS NOT NULL
+			AND DX_POA.[11] != ' '
 			THEN 'U'
 		ELSE DX_POA.[11]
 		END,
@@ -3473,6 +3492,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_12] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[12] IS NOT NULL
+			AND DX_POA.[12] != ' '
 			THEN 'U'
 		ELSE DX_POA.[12]
 		END,
@@ -3480,6 +3500,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_13] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[13] IS NOT NULL
+			AND DX_POA.[13] != ' '
 			THEN 'U'
 		ELSE DX_POA.[13]
 		END,
@@ -3487,6 +3508,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_14] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[14] IS NOT NULL
+			AND DX_POA.[14] != ' '
 			THEN 'U'
 		ELSE DX_POA.[14]
 		END,
@@ -3494,6 +3516,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_15] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[15] IS NOT NULL
+			AND DX_POA.[15] != ' '
 			THEN 'U'
 		ELSE DX_POA.[15]
 		END,
@@ -3501,6 +3524,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_16] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[16] IS NOT NULL
+			AND DX_POA.[16] != ' '
 			THEN 'U'
 		ELSE DX_POA.[16]
 		END,
@@ -3508,6 +3532,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_17] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[17] IS NOT NULL
+			AND DX_POA.[17] != ' '
 			THEN 'U'
 		ELSE DX_POA.[17]
 		END,
@@ -3515,6 +3540,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_18] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[18] IS NOT NULL
+			AND DX_POA.[18] != ' '
 			THEN 'U'
 		ELSE DX_POA.[18]
 		END,
@@ -3522,6 +3548,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_19] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[19] IS NOT NULL
+			AND DX_POA.[19] != ' '
 			THEN 'U'
 		ELSE DX_POA.[19]
 		END,
@@ -3529,6 +3556,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_20] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[20] IS NOT NULL
+			AND DX_POA.[20] != ' '
 			THEN 'U'
 		ELSE DX_POA.[20]
 		END,
@@ -3536,6 +3564,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_21] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[21] IS NOT NULL
+			AND DX_POA.[21] != ' '
 			THEN 'U'
 		ELSE DX_POA.[21]
 		END,
@@ -3543,6 +3572,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_22] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[22] IS NOT NULL
+			AND DX_POA.[22] != ' '
 			THEN 'U'
 		ELSE DX_POA.[22]
 		END,
@@ -3550,6 +3580,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_23] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[23] IS NOT NULL
+			AND DX_POA.[23] != ' '
 			THEN 'U'
 		ELSE DX_POA.[23]
 		END,
@@ -3557,6 +3588,7 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_24] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[24] IS NOT NULL
+			AND DX_POA.[24] != ' '
 			THEN 'U'
 		ELSE DX_POA.[24]
 		END,
@@ -3564,12 +3596,13 @@ SELECT 	[facility_identifier] = '0885',
 	[icd_10_cm_poa_indicator_25] = CASE 
 		WHEN LEFT(pv.PatientAccountID, 1) = '8'
 			AND DX_POA.[25] IS NOT NULL
+			AND DX_POA.[25] != ' '
 			THEN 'U'
 		ELSE DX_POA.[25]
 		END,
-    --[inclusion_septic_shock] = ,
-    --[inclusion_severe_covid] = ,
-    --[inclusion_severe_sepsis] = ,
+    [inclusion_septic_shock] = bp.inclusion_septic_shock,
+    [inclusion_severe_covid] = bp.inclusion_severe_covid,
+    [inclusion_severe_sepsis] = bp.inclusion_severe_sepsis,
 	[insurance_number] = CASE 
 		WHEN LEFT(PYRPLAN.PYR_CD, 1) IN ('A', 'Z')
 			THEN REPLACE(PYRPLAN.POL_NO, '-','')
@@ -3585,11 +3618,11 @@ SELECT 	[facility_identifier] = '0885',
 	[payer_3] = PAYER.Pyr3,
 	[other_payer_3] = NULL,
 	[patient_control_number] = pv.PatientAccountID,
-    --[pat_addr_city] = ,
-    --[pat_addr_cnty_cd] =,
-    --[pat_addr_line1] = ,
-    --[pat_addr_line2] = ,
-    --[pat_addr_st] = ,
+    [pat_addr_city] = ADDR.pat_addr_city,
+    [pat_addr_cnty_cd] = ADDR.pat_addr_cnty_cd,
+    [pat_addr_line1] = ADDR.pat_addr_line1,
+    [pat_addr_line2] = ADDR.pat_addr_line2,
+    [pat_addr_st] = ADDR.pat_addr_st,
 	[patient_zip_code_of_residence] = CAST(PAV.Pt_Zip_Cd AS VARCHAR) + '-' + '0000',
 	[race] = CASE 
 		WHEN LTRIM(RTRIM(PAV.race_cd)) = 'I'
@@ -3654,12 +3687,12 @@ SELECT 	[facility_identifier] = '0885',
 	[transfer_facility_nm_receiving] = '',
 	[transfer_facility_nm_sending] = '',
 	[acute_cardiovascular_conditions_poa] = ISNULL(ACC_TBL.acute_cardiovascular_conditions, 0),
-	[aids_hiv_disease_poa] = CASE 
+	[aids_hiv_disease] = CASE 
 		WHEN AIDS_HIV_TBL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[asthma_poa] = CASE 
+	[asthma] = CASE 
 		WHEN ASTHMA.asthma IS NULL
 			THEN 0
 		ELSE 1
@@ -3669,12 +3702,12 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[chronic_kidney_failure] = CASE 
+	[chronic_kidney_disease] = CASE 
 		WHEN CRF.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[chronic_respiratory_failure_poa] = CASE 
+	[chronic_respiratory_failure] = CASE 
 		WHEN CRESPF.pt_id IS NULL
 			THEN 0
 		ELSE 1
@@ -3684,22 +3717,22 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[congestive_heart_failure_poa] = CASE 
+	[congestive_heart_failure] = CASE 
 		WHEN CHF.PT_ID IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[copd_poa] = CASE 
+	[copd] = CASE 
 		WHEN COPD.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[dementia_poa] = CASE 
+	[dementia] = CASE 
 		WHEN DEMENTIA.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[diabetes_poa] = CASE 
+	[diabetes] = CASE 
 		WHEN DIABETES.pt_id IS NULL
 			THEN 0
 		ELSE 1
@@ -3709,32 +3742,34 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[history_of_covid_poa] = CASE 
+	[history_of_covid] = CASE 
 		WHEN COVID_HIST.pt_id IS NULL
 			THEN 0
 		ELSE COVID_HIST.history_of_covid
 		END,
-	[history_of_covid_poa_dt] = CASE 
-		WHEN COVID_HIST.history_of_covid_dt IS NULL
+	[history_of_covid_dt] = CASE 
+		WHEN COVID_HIST.PT_ID IS NULL
+			THEN NULL
+		WHEN COVID_HIST.history_of_covid = 0
 			THEN NULL
 		ELSE CONVERT(CHAR(10), COVID_HIST.history_of_covid_dt, 126) + ' ' + CONVERT(CHAR(5), COVID_HIST.history_of_covid_dt, 108)
 		END,
-	[history_of_other_cvd_poa] = CASE 
+	[history_of_other_cvd] = CASE 
 		WHEN HX_OTH_CVD.history_of_other_cvd IS NULL
 			THEN '0'
 		ELSE HX_OTH_CVD.history_of_other_cvd
 		END,
-	[hypertension_poa] = CASE 
+	[hypertension] = CASE 
 		WHEN HYPERTENSION.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[immunocompromising_poa] = CASE 
+	[immunocompromising] = CASE 
 		WHEN IMMUNO.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[lymphoma_leukemia_multi_myeloma_poa] = CASE 
+	[lymphoma_leukemia_multi_myeloma] = CASE 
 		WHEN LLML.pt_id IS NULL
 			THEN 0
 		ELSE 1
@@ -3744,22 +3779,22 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[medication_anticoagulation_poa] = CASE 
-		WHEN HML_MED_ANTICOAG.episode_no IS NULL
-			THEN 0
-		ELSE 1
-		END,
-	[medication_immune_modifying_poa] = CASE 
+	--[medication_anticoagulation_poa] = CASE 
+	--	WHEN HML_MED_ANTICOAG.episode_no IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
+	[medication_immune_modifying_pre_hospital] = CASE 
 		WHEN HML_IMM_MOD.episode_no IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[metastatic_cancer_poa] = CASE 
+	[metastatic_cancer] = CASE 
 		WHEN METASTATIC_CX.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[obesity_poa] = CASE 
+	[obesity] = CASE 
 		WHEN OBESITY.pt_id IS NULL
 			AND BMI_TBL.episode_no IS NULL
 			THEN 0
@@ -3775,7 +3810,7 @@ SELECT 	[facility_identifier] = '0885',
 			THEN NULL
 		ELSE DNR_DNI_DATE.patient_care_considerations_date
 		END,
-	[pregnancy_comorbidity_poa] = CASE 
+	[pregnancy_comorbidity] = CASE 
 		WHEN PREG_COMORBID.pt_id IS NULL
 			THEN 0
 		ELSE 1
@@ -3785,7 +3820,12 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[smoking_vaping_poa] = CASE 
+	[skin_disorders_burns] = CASE
+		WHEN SKIN.skin_disorders_burns IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[smoking_vaping] = CASE 
 		WHEN SMOKING_VAPING.pt_id IS NULL
 			THEN 0
 		ELSE 1
@@ -3827,11 +3867,11 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[during_hospital_anticoagulation] = CASE 
-		WHEN MED_ANTICOAG.episode_no IS NULL
-			THEN 0
-		ELSE 1
-		END,
+	--[during_hospital_anticoagulation] = CASE 
+	--	WHEN MED_ANTICOAG.episode_no IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
 	[during_hospital_immune_mod_med] = CASE 
 		WHEN MED_IMM_MOD.episode_no IS NULL
 			THEN 0
@@ -3867,11 +3907,11 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[cv_outcomes_at_discharge] = CASE 
-		WHEN CV_OUT_DSCH.pt_id IS NULL
-			THEN 0
-		ELSE 1
-		END,
+	--[cv_outcomes_at_discharge] = CASE 
+	--	WHEN CV_OUT_DSCH.pt_id IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
 	[dialysis_outcome] = CASE 
 		WHEN DO.pt_id IS NULL
 			THEN 0
@@ -3903,11 +3943,11 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[pe_dvt] = CASE 
-		WHEN PEDVT_TBL.pt_id IS NULL
-			THEN 0
-		ELSE 1
-		END,
+	--[pe_dvt] = CASE 
+	--	WHEN PEDVT_TBL.pt_id IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
 	[tracheostomy_in_hospital] = CASE 
 		WHEN TRACH_IN.pt_id IS NULL
 			THEN 0
@@ -4104,7 +4144,7 @@ SELECT 	[facility_identifier] = '0885',
 	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_2, 108) AS systolic_dt_2,
 	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_3, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_3, 108) AS systolic_dt_3,
 	CONVERT(CHAR(10), MIN_SYS.systolic_dt_min, 126) + ' ' + CONVERT(CHAR(5), MIN_SYS.systolic_dt_min, 108) AS systolic_dt_min,
-	[version] = 'd2.1.2',
+	[version] = 'd3.0',
 	[quarter] = DATEPART(QUARTER, PV.VisitEndDateTime),
 	[year] = DATEPART(YEAR, PV.VisitEndDateTime)
 FROM #BasePopulation AS BP
@@ -4135,7 +4175,8 @@ LEFT OUTER JOIN (
 			dx_cd_prio,
 			[poa] = CASE 
 				WHEN right(dx_cd_type, 1) = ''
-					THEN 'E'
+					AND LEFT(pt_id, 5) != '00008'
+					THEN '1'
 				ELSE RIGHT(DX_CD_TYPE, 1)
 				END
 		FROM SMSMIR.dx_grp
@@ -4298,7 +4339,7 @@ LEFT JOIN #mvo_tbl AS MVO_TBL ON PAV.Pt_No = MVO_TBL.pt_id
 LEFT JOIN #trach_outcome_tbl AS TRACH_OUT ON PAV.PT_NO = TRACH_OUT.pt_id
 LEFT JOIN #cv_outcome_dsch_pvt_tbl AS CV_OUT_DSCH ON PAV.Pt_No = CV_OUT_DSCH.pt_id
 LEFT JOIN #cv_outcome_hosp_pvt_tbl AS CV_IN_HOSP ON PAV.Pt_No = CV_IN_HOSP.pt_id
-LEFT JOIN #pe_dvt_tbl AS PEDVT_TBL ON PAV.Pt_No = PEDVT_TBL.pt_id
+--LEFT JOIN #pe_dvt_tbl AS PEDVT_TBL ON PAV.Pt_No = PEDVT_TBL.pt_id
 LEFT JOIN #trach_in_hosp_tbl AS TRACH_IN ON PAV.Pt_No = TRACH_IN.pt_id
 LEFT JOIN #dnr_dni_final_tbl AS DNR_DNI ON PAV.PtNo_Num = DNR_DNI.episode_no
 LEFT JOIN #dnr_dni_date_tbl AS DNR_DNI_DATE ON PAV.PtNo_Num = DNR_DNI_DATE.episode_no
@@ -4306,11 +4347,14 @@ LEFT JOIN #od_cardiovascular AS OD_CARD ON PAV.Pt_No = OD_CARD.pt_id
 LEFT JOIN #od_hematologic AS OD_HEMA ON PAV.PT_NO = OD_HEMA.pt_id
 LEFT JOIN #od_hepatic AS OD_HEPA ON PAV.PT_NO = OD_HEPA.pt_id
 LEFT JOIN #ogd_renal AS OGD_RENAL ON PAV.Pt_No = OGD_RENAL.pt_id
-LEFT JOIN #med_anticoag AS MED_ANTICOAG ON PAV.PtNo_Num = MED_ANTICOAG.episode_no
+--LEFT JOIN #med_anticoag AS MED_ANTICOAG ON PAV.PtNo_Num = MED_ANTICOAG.episode_no
 LEFT JOIN #med_imm_mod AS MED_IMM_MOD ON PAV.PtNo_Num = MED_IMM_MOD.episode_no
 LEFT JOIN #med_vasopressor AS MED_VASO ON PAV.PtNo_Num = MED_VASO.episode_no
-LEFT JOIN #hml_med_anticoag AS HML_MED_ANTICOAG ON PAV.PtNo_Num = HML_MED_ANTICOAG.episode_no
+--LEFT JOIN #hml_med_anticoag AS HML_MED_ANTICOAG ON PAV.PtNo_Num = HML_MED_ANTICOAG.episode_no
 LEFT JOIN #hml_med_imm_mod AS HML_IMM_MOD ON PAV.PtNo_Num = HML_IMM_MOD.episode_no
 -- death test
 LEFT JOIN #death_info_tbl AS DEATH ON DEATH.PatientAccountID = BP.PtNo_Num
 	AND DEATH.Has_Time_Flag = 'HAS_TIME'
+LEFT JOIN #Patient_Address_tbl AS ADDR ON BP.PtNo_Num = ADDR.ptno_num
+	AND BP.unit_seq_no = ADDR.unit_seq_no
+LEFT JOIN #skin_disorders_pvt_tbl AS SKIN ON BP.Pt_No = SKIN.pt_id
