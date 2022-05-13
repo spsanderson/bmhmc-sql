@@ -50,6 +50,8 @@ Date		Version		Description
 2022-01-03	v6			6. Per discussion with Mike and Will, start_date is 2020-01-01
 2022-01-14	v7			7. Add Admit Status Emergency, Truama, Newborn etc
 2022-02-10	v8			8. Add column [is_readmit] binary
+2022-04-28	v9			9. Add principal_procedure_code and description
+2022-05-12	v10			10. Add patient age at admit and pt_birthdate per Matt G.
 ***********************************************************************
 */
 
@@ -153,7 +155,15 @@ SELECT PAV.Med_Rec_No AS [mrn],
 		WHEN RA.READMIT IS NOT NULL
 			THEN 1
 		ELSE 0
-		END
+		END,
+	[principal_proc_cd] = CASE
+		WHEN PAV.Plm_Pt_Acct_Type = 'I'
+			THEN PAV.Prin_Icd10_Proc_Cd
+		ELSE PAV.Prin_Hcpc_Proc_Cd
+		END,
+	[principal_proc_cd_desc] = PROC_DESC.alt_clasf_desc,
+	pav.pt_age,
+	CAST(pav.pt_birthdate AS DATE) AS [pt_birthdate]
 FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
 LEFT OUTER JOIN SMSDSS.pract_dim_v AS PDV ON PAV.Atn_Dr_No = PDV.src_pract_no
 	AND PAV.Regn_Hosp = PDV.orgz_cd
@@ -171,6 +181,8 @@ LEFT OUTER JOIN smsdss.c_obv_Comb_1 AS OBV ON PAV.PtNo_Num = OBV.pt_id
 LEFT OUTER JOIN [smsdss].[vReadmits] AS RA ON PAV.PtNo_Num = RA.READMIT
 	AND RA.INTERIM IS NOT NULL
 	AND RA.INTERIM <= 30
+-- PROC_CD_DESC
+LEFT OUTER JOIN smsdss.proc_dim_v AS PROC_DESC ON PAV.proc_cd = PROC_DESC.proc_cd
 WHERE PAV.DSCH_DATE >= '2020-01-01' --@START
 	AND PAV.Dsch_Date < @END
 	AND LEFT(PAV.PTNO_NUM, 1) != '2'
