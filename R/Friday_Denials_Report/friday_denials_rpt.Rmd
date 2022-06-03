@@ -31,6 +31,8 @@ pacman::p_load(
     , "ggrepel"
 )
 
+#library(kableExtra)
+
 # DB Connection ----
 db_con <- dbConnect(
     odbc(),
@@ -149,7 +151,7 @@ The encounter at that time must have a denial code of 10501104 which is defined 
         , "Total Charges"
     )
     %>% kable()
-    %>% kable_styling(
+    %>% kableExtra::kable_styling(
         bootstrap_options = c(
             "striped"
             , "hover"
