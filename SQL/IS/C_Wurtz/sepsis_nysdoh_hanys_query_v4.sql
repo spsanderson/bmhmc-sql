@@ -1,6 +1,6 @@
 /*
 ***********************************************************************
-File: sepsis_nysdoh_hanys_query_v3.sql
+File: sepsis_nysdoh_hanys_query_v4.sql
 
 Input Parameters:
 	None
@@ -652,7 +652,7 @@ SELECT A.MRN,
     A.Result_DTime,
     A.Result_Flag
 FROM smsdss.c_covid_extract_tbl AS A
-INNER JOIN #BasePopulation AS BP ON A.PTNO_NUM = BP.PtNo_Num
+INNER JOIN #BasePopulation AS BP ON a.MRN = bp.Med_Rec_No --A.PTNO_NUM = BP.PtNo_Num
 WHERE RESULT_CLEAN = 'detected';
 
 DROP TABLE IF EXISTS #covid_hist_long_tbl
@@ -1348,7 +1348,7 @@ FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_skin_disorders_burn_disease_code AS B ON REPLACE(A.DX_CD, '.', '') = B.[ICD.10.CM.Code]
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 	
-DROP TABLE #skin_disorders_pvt_tbl
+DROP TABLE IF EXISTS #skin_disorders_pvt_tbl
 CREATE TABLE #skin_disorders_pvt_tbl (
 	pt_id VARCHAR(12),
 	skin_disorders_burns VARCHAR(20)
