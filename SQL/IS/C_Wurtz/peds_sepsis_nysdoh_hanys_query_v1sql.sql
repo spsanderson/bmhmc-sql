@@ -43,6 +43,7 @@ Date		Version		Description
 -- Get the base population of persons we are interested in
 DROP TABLE IF EXISTS #BasePopulation
 	CREATE TABLE #BasePopulation (
+		Med_Rec_No VARCHAR(12),
 		Pt_No VARCHAR(12),
 		PtNo_Num VARCHAR(12),
 		unit_seq_no VARCHAR(12),
@@ -57,6 +58,7 @@ DROP TABLE IF EXISTS #BasePopulation
 		)
 
 INSERT INTO #BasePopulation (
+	Med_Rec_No,
 	Pt_No,
 	PtNo_Num,
 	unit_seq_no,
@@ -69,7 +71,8 @@ INSERT INTO #BasePopulation (
 	inclusion_severe_covid,
 	inclusion_severe_sepsis
 	)
-SELECT A.Pt_No,
+SELECT A.Med_Rec_No,
+	A.Pt_No,
 	SUBSTRING(A.Pt_No, 5, 8) AS [PtNo_Num],
 	A.unit_seq_no,
 	A.from_file_ind,
@@ -214,7 +217,7 @@ CREATE TABLE #absent_spleen_tbl (
 )
 
 INSERT INTO #absent_spleen_tbl (pt_id, acquired_absent_spleen)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[absent_spleen] = CASE
 		WHEN C.icd_10_cm_code IS NULL
 			THEN 0
@@ -224,7 +227,6 @@ FROM smsmir.dx_grp AS A
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
 	AND A.unit_seq_no = BP.unit_seq_no
 INNER JOIN SMSDSS.c_nysdoh_sepsis_ped_acquired_absent_spleen_code AS C ON REPLACE(A.DX_CD, '.', '') = C.icd_10_cm_code
-GROUP BY A.pt_id
 
 -- Adrenal Gland Disorder
 DROP TABLE IF EXISTS #adrenal_gland_disorder_tbl
@@ -234,7 +236,7 @@ CREATE TABLE #adrenal_gland_disorder_tbl (
 )
 
 INSERT INTO #adrenal_gland_disorder_tbl (pt_id, adrenal_gland_disorder_poa)
-SELECT A.pt_id,
+SELECT DISTINCT A.pt_id,
 	[adrenal_gland_disorder_poa] = CASE
 		WHEN C.icd_10_cm_code IS NULL
 			THEN 0
@@ -243,8 +245,7 @@ SELECT A.pt_id,
 FROM smsmir.dx_grp AS A
 INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.PT_no
 	AND A.unit_seq_no = BP.unit_seq_no
-INNER JOIN smsdss.c_nysdoh_sepsis_ped_adrenal_gland_disorder_code AS C ON REPLACE(A.DX_CD, '.', '') = C.icd_10_cm_code
-GROUP BY A.pt_id
+INNER JOIN smsdss.c_nysdoh_sepsis_ped_adrenal_gland_disorder_code AS C ON REPLACE(A.DX_CD, '.', '') = C.icd_10_cm_code;
 
 -- AIDS / HIV
 DROP TABLE IF EXISTS #aids_hiv_tbl
@@ -640,6 +641,64 @@ INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
 	AND A.unit_seq_no = BP.unit_seq_no
 
 -- History Of COVID
+DROP TABLE IF EXISTS #covid_positive_tbl
+CREATE TABLE #covid_positive_tbl (
+	mrn VARCHAR(12),
+	ptno_num VARCHAR(12),
+	result_clean VARCHAR(5000),
+	result_dtime SMALLDATETIME,
+	result_flag VARCHAR(12)
+)
+
+INSERT INTO #covid_positive_tbl (
+	mrn, ptno_num, result_clean, result_dtime, result_flag
+)
+SELECT A.MRN,
+	A.PTNO_NUM,
+    A.RESULT_CLEAN,
+    A.Result_DTime,
+    A.Result_Flag
+FROM smsdss.c_covid_extract_tbl AS A
+INNER JOIN #BasePopulation AS BP ON a.MRN = bp.Med_Rec_No --A.PTNO_NUM = BP.PtNo_Num
+WHERE RESULT_CLEAN = 'detected';
+
+DROP TABLE IF EXISTS #covid_hist_long_tbl
+CREATE TABLE #covid_hist_long_tbl (
+	med_rec_no VARCHAR(12),
+	ptno_num VARCHAR(12),
+	vst_start_dtime SMALLDATETIME,
+	result_account VARCHAR(12),
+	history_of_covid_dt SMALLDATETIME,
+	history_of_covid INT,
+	rn INT
+)
+
+INSERT INTO #covid_hist_long_tbl (
+	med_rec_no, ptno_num, vst_start_dtime, result_account, history_of_covid_dt, history_of_covid, rn
+)
+SELECT bp.Med_Rec_No,
+	bp.ptno_num,
+	BP.vst_start_dtime,
+	tt.PTNO_NUM as [result_account],
+	tt.Result_DTime AS [history_of_covid_dt],
+	[history_of_covid] = case
+		when abs(datediff(day, tt.Result_DTime, bp.vst_start_dtime)) <= (12*7)
+			then 1
+		else 0
+		end,
+	[RN] = ROW_NUMBER() OVER(
+		PARTITION BY BP.PTNO_NUM
+		ORDER BY TT.RESULT_DTIME
+		)
+FROM #BasePopulation AS BP
+LEFT JOIN #covid_positive_tbl AS tt ON tt.MRN = bp.Med_Rec_No
+	AND TT.Result_DTime <= BP.vst_start_dtime
+	and tt.PTNO_NUM != bp.PtNo_Num;
+
+DELETE
+FROM #covid_hist_long_tbl
+WHERE RN != 1;
+
 DROP TABLE IF EXISTS #history_of_covid_tbl
 CREATE TABLE #history_of_covid_tbl (
 	pt_id VARCHAR(12),
@@ -653,15 +712,32 @@ INSERT INTO #history_of_covid_tbl (
 	history_of_covid
 	)
 SELECT DISTINCT A.PTNO_NUM,
-	[history_of_covid_dt] = A.Last_Positive_Result_DTime,
-	[history_of_covid] = CASE
-		WHEN ABS(DATEDIFF(DAY, BP.vst_start_dtime, A.Last_Positive_Result_DTime)) <= (12*7)
-			THEN 1
-		ELSE 0
-		END
-FROM SMSDSS.c_covid_extract_tbl AS a
-INNER JOIN #BasePopulation AS BP ON A.PTNO_NUM = BP.PtNo_Num
-WHERE A.Last_Positive_Result_DTime IS NOT NULL
+	A.history_of_covid_dt,
+	A.history_of_covid
+FROM #covid_hist_long_tbl AS A
+WHERE A.history_of_covid = 1
+--DROP TABLE IF EXISTS #history_of_covid_tbl
+--CREATE TABLE #history_of_covid_tbl (
+--	pt_id VARCHAR(12),
+--	history_of_covid_dt DATETIME,
+--	history_of_covid INT
+--	)
+
+--INSERT INTO #history_of_covid_tbl (
+--	pt_id,
+--	history_of_covid_dt,
+--	history_of_covid
+--	)
+--SELECT DISTINCT A.PTNO_NUM,
+--	[history_of_covid_dt] = A.Last_Positive_Result_DTime,
+--	[history_of_covid] = CASE
+--		WHEN ABS(DATEDIFF(DAY, BP.vst_start_dtime, A.Last_Positive_Result_DTime)) <= (12*7)
+--			THEN 1
+--		ELSE 0
+--		END
+--FROM SMSDSS.c_covid_extract_tbl AS a
+--INNER JOIN #BasePopulation AS BP ON A.PTNO_NUM = BP.PtNo_Num
+--WHERE A.Last_Positive_Result_DTime IS NOT NULL
 
 -- History of Other CVD 
 /*
@@ -1010,7 +1086,7 @@ SELECT DISTINCT A.pt_id,
 		END
 FROM SMSMIR.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_ped_metastatic_cancer_code AS B ON REPLACE(A.DX_CD, '.','') = B.icd_10_cm_code
-INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No
+INNER JOIN #BasePopulation AS BP ON A.pt_id = BP.Pt_No;
 
 -- NEUTROPENIC PATIENTS
 DROP TABLE IF EXISTS #neutropenic_patients_tbl
@@ -1439,7 +1515,12 @@ CREATE TABLE #stem_cell_transplant_recipients_tbl (
 )
 
 INSERT INTO #stem_cell_transplant_recipients_tbl (pt_id, stem_cell_transplant_recipients)
-SELECT DISTINCT A.PT_ID
+SELECT DISTINCT A.PT_ID,
+	[stem_cell_transplant_recipients] = CASE
+		WHEN B.icd_10_cm_code IS NULL
+			THEN 0
+		ELSE 1
+		END
 FROM smsmir.dx_grp AS A
 INNER JOIN smsdss.c_nysdoh_sepsis_ped_stem_cell_transplant_recipients_code AS B ON REPLACE(A.DX_CD, '.', '') = B.icd_10_cm_code
 INNER JOIN #BasePopulation AS BP ON A.PT_ID = BP.Pt_No
@@ -3459,7 +3540,7 @@ FROM (
 	) AS A
 PIVOT(MAX(bp_systolic) FOR bp_reading_num IN ("1", "2", "3")) AS PVT_BP_SYSTOLIC
 PIVOT(MAX(obsv_dtime) FOR bp_reading_num2 IN ("01", "02", "03")) AS PVT_BP_COLL_DTIME
-GROUP BY episode_no
+GROUP BY episode_no;
 
 -- Pull it all together
 SELECT 	[facility_identifier] = '0885',
@@ -3742,7 +3823,7 @@ SELECT 	[facility_identifier] = '0885',
 		ELSE DX_POA.[25]
 		END,
     [inclusion_septic_shock] = bp.inclusion_septic_shock,
-    [inclusion_severe_covid] = bp.inclusion_severe_covid,
+    [inclusion_covid_19] = bp.inclusion_severe_covid,
     [inclusion_severe_sepsis] = bp.inclusion_severe_sepsis,
 	[insurance_number] = CASE 
 		WHEN LEFT(PYRPLAN.PYR_CD, 1) IN ('A', 'Z')
@@ -3827,7 +3908,17 @@ SELECT 	[facility_identifier] = '0885',
 	[transfer_facility_id_sending] = '',
 	[transfer_facility_nm_receiving] = '',
 	[transfer_facility_nm_sending] = '',
-	[acute_cardiovascular_conditions_poa] = ISNULL(ACC_TBL.acute_cardiovascular_conditions, 0),
+	[acute_cardiovascular_conditions] = ISNULL(ACC_TBL.acute_cardiovascular_conditions, 0),
+	[acquired_absent_spleen] = CASE
+		WHEN SPLEEN.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[adrenal_gland_disorder] = CASE
+		WHEN ADRENAL_GLAND.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[aids_hiv_disease] = CASE 
 		WHEN AIDS_HIV_TBL.pt_id IS NULL
 			THEN 0
@@ -3835,6 +3926,11 @@ SELECT 	[facility_identifier] = '0885',
 		END,
 	[asthma] = CASE 
 		WHEN ASTHMA.asthma IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[bronchopulmonary_dysplasia] = CASE
+		WHEN BPDT.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
@@ -3863,16 +3959,21 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[copd] = CASE 
-		WHEN COPD.pt_id IS NULL
+	[cystic_fibrosis] = CASE
+		WHEN CYSTIC_FIBROSIS.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
-	[dementia] = CASE 
-		WHEN DEMENTIA.pt_id IS NULL
-			THEN 0
-		ELSE 1
-		END,
+	--[copd] = CASE 
+	--	WHEN COPD.pt_id IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
+	--[dementia] = CASE 
+	--	WHEN DEMENTIA.pt_id IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
 	[diabetes] = CASE 
 		WHEN DIABETES.pt_id IS NULL
 			THEN 0
@@ -3935,6 +4036,11 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
+	[neutropenic_patients_poa] = CASE
+		WHEN NEUTROPENIC.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[obesity] = CASE 
 		WHEN OBESITY.pt_id IS NULL
 			AND BMI_TBL.episode_no IS NULL
@@ -3961,6 +4067,16 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
+	[prematurity] = CASE
+		WHEN PREMATURITY.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
+	[sickle_cell_disease] = CASE
+		WHEN SICKLE_CELL.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[skin_disorders_burns] = CASE
 		WHEN SKIN.skin_disorders_burns IS NULL
 			THEN 0
@@ -3971,8 +4087,13 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
-	[tracheostomy_on_arrival_poa] = CASE 
-		WHEN TRACH_ARR.pt_id IS NULL
+	--[tracheostomy_on_arrival_poa] = CASE 
+	--	WHEN TRACH_ARR.pt_id IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
+	[stem_cell_transplant_recipients] = CASE
+		WHEN STEM_CELL.pt_id IS NULL
 			THEN 0
 		ELSE 1
 		END,
@@ -4034,6 +4155,11 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
+	[ivig] = CASE
+		WHEN IVIG.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[mechanical_vent_treatment] = CASE 
 		WHEN MVT_TBL.pt_id IS NULL
 			THEN 0
@@ -4063,6 +4189,11 @@ SELECT 	[facility_identifier] = '0885',
 			THEN 0
 		ELSE 1
 		END,
+	[neurological_outcome] = CASE
+		WHEN NEURO_OUTCOME.pt_id IS NULL
+			THEN 0
+		ELSE 1
+		END,
 	[tracheostomy_at_discharge] = CASE 
 		WHEN TRACH_OUT.pt_id IS NULL
 			THEN 0
@@ -4089,11 +4220,11 @@ SELECT 	[facility_identifier] = '0885',
 	--		THEN 0
 	--	ELSE 1
 	--	END,
-	[tracheostomy_in_hospital] = CASE 
-		WHEN TRACH_IN.pt_id IS NULL
-			THEN 0
-		ELSE 1
-		END,
+	--[tracheostomy_in_hospital] = CASE 
+	--	WHEN TRACH_IN.pt_id IS NULL
+	--		THEN 0
+	--	ELSE 1
+	--	END,
 	CASE 
 		WHEN SUBSTRING(RIGHT(APPT_PVT.appt_1, 2), 1, 1) = '.'
 			THEN APPT_PVT.appt_1
@@ -4285,7 +4416,7 @@ SELECT 	[facility_identifier] = '0885',
 	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_2, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_2, 108) AS systolic_dt_2,
 	CONVERT(CHAR(10), BP_SYS_PVT.systolic_dt_3, 126) + ' ' + CONVERT(CHAR(5), BP_SYS_PVT.systolic_dt_3, 108) AS systolic_dt_3,
 	CONVERT(CHAR(10), MIN_SYS.systolic_dt_min, 126) + ' ' + CONVERT(CHAR(5), MIN_SYS.systolic_dt_min, 108) AS systolic_dt_min,
-	[version] = 'd3.0',
+	[version] = 'd2.0',
 	[quarter] = DATEPART(QUARTER, PV.VisitEndDateTime),
 	[year] = DATEPART(YEAR, PV.VisitEndDateTime)
 FROM #BasePopulation AS BP
@@ -4499,3 +4630,13 @@ LEFT JOIN #death_info_tbl AS DEATH ON DEATH.PatientAccountID = BP.PtNo_Num
 LEFT JOIN #Patient_Address_tbl AS ADDR ON BP.PtNo_Num = ADDR.ptno_num
 	AND BP.unit_seq_no = ADDR.unit_seq_no
 LEFT JOIN #skin_disorders_pvt_tbl AS SKIN ON BP.Pt_No = SKIN.pt_id
+LEFT JOIN #absent_spleen_tbl AS SPLEEN ON BP.PT_NO = SPLEEN.PT_ID
+LEFT JOIN #adrenal_gland_disorder_tbl AS ADRENAL_GLAND ON BP.PT_NO = ADRENAL_GLAND.pt_id
+LEFT JOIN #bronchopulmonary_dysplasia_tbl AS BPDT ON BP.Pt_No = BPDT.pt_id
+LEFT JOIN #cystic_fibrosis_tbl AS CYSTIC_FIBROSIS ON BP.PT_NO = CYSTIC_FIBROSIS.pt_id
+LEFT JOIN #neutropenic_patients_tbl AS NEUTROPENIC ON BP.Pt_No = NEUTROPENIC.pt_id
+LEFT JOIN #prematurity_tbl AS PREMATURITY ON BP.PT_no = PREMATURITY.pt_id
+LEFT JOIN #sickle_cell_disease_tbl AS SICKLE_CELL ON BP.Pt_No = SICKLE_CELL.pt_id
+LEFT JOIN #stem_cell_transplant_recipients_tbl AS STEM_CELL ON BP.Pt_No = STEM_CELL.pt_id
+LEFT JOIN #ivig_tbl AS IVIG ON BP.Pt_No = IVIG.pt_id
+LEFT JOIN #neurological_outcome_tbl AS NEURO_OUTCOME ON BP.Pt_No = NEURO_OUTCOME.pt_id
