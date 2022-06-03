@@ -458,7 +458,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(4,22,31,21,30)) %>%
+  filter(.model_id %in% c(4,5,8,15,18)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -496,7 +496,7 @@ calibration_tbl %>%
 # Hyperparameter Tuning ---------------------------------------------------
 
 tuned_model <- ts_model_auto_tune(
-  .modeltime_model_id = 2,
+  .modeltime_model_id = 4,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .date_col = date_col,
@@ -504,7 +504,7 @@ tuned_model <- ts_model_auto_tune(
   .tscv_assess = "12 months",
   .tscv_skip = "3 months",
   .num_cores = n_cores,
-  .grid_size = 5
+  .grid_size = 10
 )
 
 original_model <- tuned_model$model_info$plucked_model
