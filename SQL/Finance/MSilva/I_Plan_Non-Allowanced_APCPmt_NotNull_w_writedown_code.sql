@@ -22,6 +22,7 @@ Date		Version		Description
 ----		----		----
 2018-09-24	v1			Initial Creation
 2019-06-21	v2			Minimize code
+2022-06-03	v3			Add K80
 -------------------------------------------------------------------------------- 
 */
 
@@ -99,7 +100,9 @@ LEFT JOIN SMSMIR.mir_pyr_plan_user AS INS_NAME ON PYRPLAN.PT_ID = INS_NAME.PT_ID
 	AND PYRPLAN.pyr_seq_no = '1'
 	AND INS_NAME.pyr_seq_no = '1'
 WHERE VST.vst_end_date IS NOT NULL
-	AND PYRPLAN.PYR_CD IN ('I01', 'I04', 'I06', 'I07', 'I10')
+	AND PYRPLAN.PYR_CD IN ('I01', 'I04', 'I06', 'I07', 'I10',
+		'K80'
+	)
 	AND VST.tot_bal_amt > 0
 	AND PYRPLAN.tot_amt_due > 0
 	-- Exclude all accounts that have 09701590 pay code
@@ -146,8 +149,14 @@ SELECT A.pt_id,
 			THEN A.INS_BAL_AMT - A.APC_Est_Net_Pay_Amt
 		WHEN A.pyr_cd = 'I10'
 			THEN A.INS_BAL_AMT - A.APC_Est_Net_Pay_Amt
+		WHEN A.pyr_cd = 'K80'
+			THEN A.INS_BAL_AMT - (2.25 * A.APC_Est_Net_Pay_Amt)
 		END AS [Write_Down_Amt],
-	[Write_Down_Code] = '09735077'
+	[Write_Down_Code] = CASE
+		WHEN A.pyr_cd = 'K80'
+			THEN '09735135'
+		ELSE '09735077'
+		END
 FROM #TEMPC AS A;
 
 DROP TABLE #TEMPA
