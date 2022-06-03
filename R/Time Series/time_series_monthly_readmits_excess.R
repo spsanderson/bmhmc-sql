@@ -467,7 +467,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(1,4,5,6,7,8)) %>%
+  filter(.model_id %in% c(1,4,5,6,7,8,14,15,16,17,18,23)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -585,7 +585,7 @@ ensemble_models <- refit_tbl %>%
 
 model_choices <- rbind(top_two_models, ensemble_models) %>%
   arrange(model_score) %>%
-  slice(1:2)
+  slice(2)
 
 # Forecast Plot ----
 parallel_start(n_cores)
