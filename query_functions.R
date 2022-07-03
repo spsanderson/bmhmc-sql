@@ -39,7 +39,31 @@ inr_glucose_query <- function() {
       )
       AND COLL_DTIME >= DATEADD(MM, DATEDIFF(MM, 0, @TODAY) - 13, 0)
       AND COLL_DTIME < DATEADD(MM, DATEDIFF(MM, 0, @TODAY), 0)
-      AND LEFT(EPISODE_NO, 1) = '1';
+      AND LEFT(EPISODE_NO, 1) = '1'
+      AND B.Pt_Age >= 18
+	    AND B.Days_Stay < 121
+      AND NOT EXISTS (
+		    SELECT 1
+		    FROM smsmir.dx_grp AS ZZZ
+		    WHERE ZZZ.dx_cd IN (
+          -- PALLIATIVE CARE/HOSPICE
+          'Z51.5', 'V66.7',
+          -- ESRD
+          'N18.6'
+	      )
+        AND LEFT(DX_CD_TYPE, 2) = 'DF'
+		    AND ZZZ.pt_id = B.PT_NO
+		    AND ZZZ.unit_seq_no = B.unit_seq_no
+      )
+      AND NOT EXISTS (
+      	SELECT 1
+      	FROM smsmir.dx_grp AS XXX
+      	WHERE XXX.dx_cd BETWEEN 'COO.O' AND 'D09.9'
+      	AND LEFT(DX_CD_TYPE, 2) = 'DA'
+      	AND XXX.pt_id = B.PT_NO
+      	AND XXX.unit_seq_no = B.unit_seq_no
+      )
+	   ;
     "
     )
   )
