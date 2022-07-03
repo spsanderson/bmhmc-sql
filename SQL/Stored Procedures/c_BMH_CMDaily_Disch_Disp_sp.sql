@@ -6,7 +6,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE [smsdss].[c_BMH_CMDaily_Disch_Disp_sp]
+ALTER PROCEDURE [smsdss].[c_BMH_CMDaily_Disch_Disp_sp]
 AS
 
 SET NOCOUNT ON;
@@ -354,7 +354,7 @@ BEGIN
 	, PTNO_NUM
 	, FORM_COLLECTED_BY
 	, CASE
-		WHEN LEFT(PtNo_Num, 1) = '8'
+		WHEN LEFT(PtNo_Num, 1) IN ('8','9')
 			THEN 'ED'
 			ELSE B.ward_cd 
 	  END AS [Dsch_Unit]
@@ -639,7 +639,7 @@ ELSE BEGIN
 	, PTNO_NUM
 	, FORM_COLLECTED_BY
 	, CASE
-		WHEN LEFT(PtNo_Num, 1) = '8'
+		WHEN LEFT(PtNo_Num, 1) IN ( '8','9')
 			THEN 'ED'
 			ELSE B.ward_cd 
 	  END AS [Dsch_Unit]

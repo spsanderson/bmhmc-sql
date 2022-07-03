@@ -12,7 +12,7 @@ pacman::p_load(
   , "janitor"
   , "tidytable"
   , "lubridate"
-  , "healthyverse"
+  , "healthyR.ts"
 )
 
 
@@ -63,7 +63,7 @@ data_tbl %>%
   group_by(ip_op_flag) %>%
   filter_by_time(
     .date_var     = adm_date
-    , .start_date = "2019"
+    , .start_date = "2018"
   ) %>%
   slice(1:n() - 1) %>%
   plot_time_series(
@@ -76,6 +76,7 @@ data_tbl %>%
     , .interactive = FALSE
     , .title       = "Admissions by IP/OP" 
   )
+
 
 ip_vva <- data_tbl %>%
   filter(ip_op_flag == "Inpatient") %>%
@@ -178,3 +179,4 @@ sma_i_plt <- data_tbl %>%
     , .partial = TRUE
   )
 sma_i_plt$plots$static_plot
+

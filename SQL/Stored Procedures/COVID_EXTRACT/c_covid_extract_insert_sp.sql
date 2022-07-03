@@ -1,10 +1,11 @@
 USE [SMSPHDSSS0X0]
 GO
-/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 12/30/2020 3:31:23 PM ******/
+/****** Object:  StoredProcedure [dbo].[c_covid_extract_insert_sp]    Script Date: 6/17/2022 9:22:34 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
+
 
 /*
 ***********************************************************************
@@ -113,6 +114,8 @@ Date		Version		Description
 								PIVOT(MAX(USER_DATA_TEXT) FOR USER_DATA_CD IN ("2ARRIVAL", "2ARVAMBL")) PVT
 							) AS ArrivalMode
 							ON A.PatientAccountID = ArrivalMode.episode_no
+2022-06-16	v15			Fix looking for ED_Only to look for accounts with 8 or 9
+						as invision ran out of 8 account numbers for ED TR patients
 ***********************************************************************
 */
 ALTER PROCEDURE [dbo].[c_covid_extract_insert_sp]
@@ -466,7 +469,7 @@ BEGIN
 						A.ORDER_DTIME DESC
 					) = 1
 				THEN 'Discharged'
-			WHEN LEFT(A.PatientAccountID, 1) = '8'
+			WHEN LEFT(A.PatientAccountID, 1) in ('8','9')
 				AND ROW_NUMBER() OVER (
 					PARTITION BY A.PatientAccountID ORDER BY A.RESULT_DTIME DESC,
 						A.ORDER_DTIME DESC
@@ -748,3 +751,4 @@ OUTER APPLY (
 
 	DROP TABLE #TEMPA;
 END;
+

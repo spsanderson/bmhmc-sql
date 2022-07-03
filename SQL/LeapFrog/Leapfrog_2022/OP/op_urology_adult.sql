@@ -30,6 +30,7 @@ Date		Version		Description
 2019-06-04	v1			Initial Creation
 2019-06-27	v2			Add CCSParent_Description
 2021-06-18	v3			2021 survey 2020 data
+2022-06-21	v4			2022 survey 2021 data
 ***********************************************************************
 */
 
@@ -74,9 +75,11 @@ CROSS APPLY (
 	) AS CCS
 WHERE PAV.Pt_Age >= 18
 	AND PAV.tot_chg_amt > 0
-	AND LEFT(PAV.PTNO_NUM, 1) NOT IN ('2', '8')
+	AND LEFT(PAV.PTNO_NUM, 1) NOT IN ('2', '8', '9')
 	AND LEFT(PAV.PTNO_NUM, 4) != '1999'
 	AND PAV.Adm_Date >= '2020-01-01'
 	AND PAV.Adm_Date < '2021-01-01'
 	AND PAV.Plm_Pt_Acct_Type != 'I'
 ORDER BY PAV.PtNo_Num
+
+

@@ -390,7 +390,7 @@ wf_fits <- wfsets %>%
   modeltime_fit_workflowset(
     data = training(splits)
     , control = control_fit_workflowset(
-      allow_par = TRUE
+      allow_par = FALSE
       , verbose = TRUE
     )
   )
@@ -458,7 +458,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(4,5,8,15,18)) %>%
+  filter(.model_id %in% c(1,2,5,14,3,4,15,17,13)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -562,7 +562,7 @@ refit_tbl <- calibration_tbl %>%
     data = data_final_tbl
     , control = control_refit(
       verbose     = TRUE
-      , allow_par = TRUE
+      , allow_par = FALSE
     )
   )
 parallel_stop()
@@ -570,8 +570,8 @@ parallel_stop()
 top_two_models <- refit_tbl %>%
   ts_model_rank_tbl() %>%
   filter(
-    !.model_desc %>% 
-      str_to_lower() %>% 
+    !.model_desc %>%
+      str_to_lower() %>%
       str_detect("ensemble")
   ) %>%
   filter(rsq < 0.999) %>%

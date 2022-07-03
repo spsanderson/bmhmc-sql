@@ -191,7 +191,7 @@ BEGIN
 	   -- CHANGE TO ADMIT DATE
 	   AND D.adm_date >= @START
 	   AND D.adm_date < @END
-	   AND LEFT(A.episode_no, 1) IN ('1', '8')
+	   AND LEFT(A.episode_no, 1) IN ('1', '8','9')
 	   AND LEFT(A.episode_no, 4) != '1999'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
        AND LEFT(A.episode_no, 1) != '7'
@@ -212,7 +212,7 @@ BEGIN
 		   WHEN T1.Order_Loc = 'EDICMS'
 				  THEN 'ED'
 		   WHEN T1.Order_Loc != 'EDICMS'
-				  AND LEFT(T1.Encounter, 1) = '8'
+				  AND LEFT(T1.Encounter, 1) IN ('8','9')
 				  THEN 'ED'
 		   WHEN T1.Order_Loc != 'EDICMS'
 				  AND T1.Ord_Pty_Spclty = 'EMRED'
@@ -427,7 +427,7 @@ ELSE BEGIN
 	   -- CHANGE TO ADMIT DATE
 	   AND D.adm_date >= @START_b
 	   AND D.adm_date < @END_b
-	   AND LEFT(A.episode_no, 1) IN ('1', '8')
+	   AND LEFT(A.episode_no, 1) IN ('1', '8','9')
 	   AND LEFT(A.episode_no, 4) != '1999'
        -- CAN ADD UNITIZED ACCOUNTS BACK IN IF NEEDED
        AND LEFT(A.episode_no, 1) != '7'
@@ -448,7 +448,7 @@ ELSE BEGIN
 		   WHEN T2.Order_Loc = 'EDICMS'
 				  THEN 'ED'
 		   WHEN T2.Order_Loc != 'EDICMS'
-				  AND LEFT(T2.Encounter, 1) = '8'
+				  AND LEFT(T2.Encounter, 1) IN ('8','9')
 				  THEN 'ED'
 		   WHEN T2.Order_Loc != 'EDICMS'
 				  AND T2.Ord_Pty_Spclty = 'EMRED'

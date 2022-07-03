@@ -35,12 +35,7 @@ WITH cte AS (
   
 	WHERE (
 		A.PtNo_Num < '20000000' -- INPATIENTS
-		OR
-			(
-				A.PtNo_Num >= '80000000' -- ER VISITS
-				AND
-				A.PtNo_Num < '90000000'
-			)
+		OR LEFT(A.PtNo_Num, 1) IN ('8','9') -- ED VISITS
 	)
 	AND LEFT(A.PtNo_Num, 4) != '1999' -- NO PREADMITS
 	AND A.tot_chg_amt > '0' -- MAKE SURE THERE WAS SOME CHARGES

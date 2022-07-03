@@ -41,7 +41,8 @@ Date        Version     Description
 						or_first_date
 2022-04-25	v3			Fix or_first_date flag where it would catch
 						multiple dates instead of the first date.
-2022-04-29 v4			Fix duplicates related to ESI level duplication
+2022-04-29  v4			Fix duplicates related to ESI level duplication
+2022-06-06	v5			Add MRN
 ***********************************************************************
 */
 
@@ -60,6 +61,7 @@ Base Population Section 
 DROP TABLE IF EXISTS #Base_Population_tbl
 CREATE TABLE #Base_Population_tbl
 (
+	med_rec_no VARCHAR(12),
 	account VARCHAR(12),
 	unit_seq_no VARCHAR(12),
 	edmdid VARCHAR(12),
@@ -81,6 +83,7 @@ CREATE TABLE #Base_Population_tbl
 );
 INSERT INTO #Base_Population_tbl
 	(
+	med_rec_no,
 	account,
 	unit_seq_no,
 	edmdid,
@@ -100,7 +103,8 @@ INSERT INTO #Base_Population_tbl
 	dsch_disp,
 	ed_disp
 	)
-SELECT PAV.PtNo_Num AS [Account],
+SELECT PAV.Med_Rec_No,
+	PAV.PtNo_Num AS [Account],
 	PAV.unit_seq_no,
 	Wellsoft.EDMDID,
 	Wellsoft.ED_MD,
@@ -477,7 +481,8 @@ SELECT A.account,
 			THEN 1
 		ELSE 0
 		END,
-	[or_first_date] = ORTIME.first_svc_date
+	[or_first_date] = ORTIME.first_svc_date,
+	A.med_rec_no
 FROM #Base_Population_tbl AS A
 	LEFT JOIN #Admit_OrdDT_tbl AS B ON A.account = B.episode_no
 	LEFT JOIN #Dsch_OrdDT_tbl AS C ON A.account = C.episode_no

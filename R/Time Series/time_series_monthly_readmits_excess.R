@@ -4,6 +4,7 @@
 if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
   "tidymodels",
+  "healthyR.ts",
   "modeltime",
   "rules",
   "plotly",
@@ -221,187 +222,27 @@ recipe_pca <- recipe_base %>%
 recipe_num_only <- recipe_pca %>%
   step_rm(-value, -all_numeric_predictors())
 
+rec_objs <- list(recipe_base, recipe_date, recipe_fourier, 
+                 recipe_fourier_final, recipe_num_only,
+                 recipe_pca)
 # Models ------------------------------------------------------------------
 
-# Auto ARIMA --------------------------------------------------------------
+mars_wfs   <- ts_wfs_mars(.recipe_list = rec_objs)
+lin_wfs    <- ts_wfs_lin_reg(.model_type = "all_engines", .recipe_list = rec_objs)
+nnetar_wfs <- ts_wfs_nnetar_reg(.recipe_list = rec_objs)
+poly_wfs   <- ts_wfs_svm_poly(.recipe_list = rec_objs)
+rbf_wfs    <- ts_wfs_svm_rbf(.recipe_list = rec_objs)
 
-model_spec_arima_no_boost <- arima_reg() %>%
-  set_engine(engine = "auto_arima")
+wfs_tbl <- rbind(mars_wfs, lin_wfs, nnetar_wfs, poly_wfs, rbf_wfs)
 
-# Boosted Auto ARIMA ------------------------------------------------------
-
-model_spec_arima_boosted <- arima_boost(
-  min_n = 2
-  , learn_rate = 0.015
-) %>%
-  set_engine(engine = "auto_arima_xgboost")
-
-# ETS ---------------------------------------------------------------------
-
-model_spec_ets <- exp_smoothing(
-  seasonal_period = "auto",
-  error = "auto",
-  trend = "auto",
-  season = "auto",
-  damping = "auto"
-) %>%
-  set_engine(engine = "ets") 
-
-model_spec_croston <- exp_smoothing(
-  seasonal_period = "auto",
-  error = "auto",
-  trend = "auto",
-  season = "auto",
-  damping = "auto"
-) %>%
-  set_engine(engine = "croston")
-
-model_spec_theta <- exp_smoothing(
-  seasonal_period = "auto",
-  error = "auto",
-  trend = "auto",
-  season = "auto",
-  damping = "auto"
-) %>%
-  set_engine(engine = "theta")
-
-
-# STLM ETS ----------------------------------------------------------------
-
-model_spec_stlm_ets <- seasonal_reg(
-  seasonal_period_1 = "auto",
-  seasonal_period_2 = "auto",
-  seasonal_period_3 = "auto"
-) %>%
-  set_engine("stlm_ets")
-
-model_spec_stlm_tbats <- seasonal_reg(
-  seasonal_period_1 = "auto",
-  seasonal_period_2 = "auto",
-  seasonal_period_3 = "auto"
-) %>%
-  set_engine("tbats")
-
-model_spec_stlm_arima <- seasonal_reg(
-  seasonal_period_1 = "auto",
-  seasonal_period_2 = "auto",
-  seasonal_period_3 = "auto"
-) %>%
-  set_engine("stlm_arima")
-
-# NNETAR ------------------------------------------------------------------
-
-model_spec_nnetar <- nnetar_reg(
-  mode              = "regression"
-  , seasonal_period = "auto"
-) %>%
-  set_engine("nnetar")
-
-
-# Prophet -----------------------------------------------------------------
-
-model_spec_prophet <- prophet_reg(
-  seasonality_yearly = "auto",
-  seasonality_weekly = "auto",
-  seasonality_daily = "auto"
-) %>%
-  set_engine(engine = "prophet")
-
-model_spec_prophet_boost <- prophet_boost(
-  learn_rate = 0.1
-  , trees = 10
-  , seasonality_yearly = FALSE
-  , seasonality_weekly = FALSE
-  , seasonality_daily  = FALSE
-) %>% 
-  set_engine("prophet_xgboost") 
-
-# TSLM --------------------------------------------------------------------
-
-model_spec_lm <- linear_reg() %>%
-  set_engine("lm")
-
-model_spec_glm <- linear_reg(
-  penalty = 1,
-  mixture = 0.5
-) %>%
-  set_engine("glmnet")
-
-model_spec_stan <- linear_reg() %>%
-  set_engine("stan")
-
-model_spec_spark <- linear_reg(
-  penalty = 1,
-  mixture = 0.5
-) %>% 
-  set_engine("spark")
-
-model_spec_keras <- linear_reg(
-  penalty = 1,
-  mixture = 0.5
-) %>%
-  set_engine("keras")
-
-# MARS --------------------------------------------------------------------
-
-model_spec_mars <- mars(mode = "regression") %>%
-  set_engine("earth")
-
-# XGBoost -----------------------------------------------------------------
-
-model_spec_xgboost <- boost_tree(
-  mode  = "regression",
-  mtry  = 10,
-  trees = 100,
-  min_n = 5,
-  tree_depth = 3,
-  learn_rate = 0.3,
-  loss_reduction = 0.01
-) %>%
-  set_engine("xgboost")
-
-# Workflowsets ------------------------------------------------------------
-
-wfsets <- workflow_set(
-  preproc = list(
-    base          = recipe_base,
-    date          = recipe_date,
-    fourier       = recipe_fourier,
-    fourier_final = recipe_fourier_final,
-    pca           = recipe_pca,
-    num_only_pca  = recipe_num_only
-  ),
-  models = list(
-    model_spec_arima_no_boost,
-    model_spec_arima_boosted,
-    model_spec_ets,
-    model_spec_lm,
-    model_spec_glm,
-    # model_spec_stan,
-    # model_spec_spark,
-    # model_spec_keras,
-    model_spec_mars,
-    model_spec_nnetar,
-    model_spec_prophet,
-    model_spec_prophet_boost,
-    model_spec_stlm_arima,
-    model_spec_stlm_ets,
-    model_spec_stlm_tbats,
-    model_spec_xgboost
-  ),
-  cross = TRUE
-)
-
-parallel_start(n_cores)
-wf_fits <- wfsets %>% 
+wf_fits <- wfs_tbl %>%
   modeltime_fit_workflowset(
     data = training(splits)
     , control = control_fit_workflowset(
-      allow_par = TRUE
+      allow_par = FALSE
       , verbose = TRUE
     )
   )
-parallel_stop()
 
 wf_fits <- wf_fits %>%
   filter(.model != "NULL")
@@ -467,7 +308,7 @@ calibration_tbl %>%
 
 # New Calibration Tibble
 calibration_tbl_model_id <- calibration_tbl %>% 
-  filter(.model_id %in% c(1,4,5,6,7,8,14,15,16,17,18,23)) %>%
+  filter(.model_id %in% c(1:4,7:10,19,22,25,28)) %>%
   pull(.model_id)
 
 calibration_tbl <- calibration_tbl %>%
@@ -585,7 +426,7 @@ ensemble_models <- refit_tbl %>%
 
 model_choices <- rbind(top_two_models, ensemble_models) %>%
   arrange(model_score) %>%
-  slice(2)
+  slice(1:2)
 
 # Forecast Plot ----
 parallel_start(n_cores)

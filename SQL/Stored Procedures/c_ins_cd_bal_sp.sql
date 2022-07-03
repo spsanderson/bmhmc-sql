@@ -93,7 +93,7 @@ BEGIN
     AND VST.fc not in (
         '1','2','3','4','5','6','7','8','9'
     )
-    AND LEFT(VST.pt_id, 5) NOT IN ('00007', '00009')
+    AND LEFT(VST.pt_id, 5) NOT IN ('00007')
     AND LEFT(VST.PT_ID, 6) != '000009'
 
     ORDER BY PYRPLAN.pt_id
@@ -233,7 +233,7 @@ ELSE BEGIN
     AND VST.fc not in (
         '1','2','3','4','5','6','7','8','9'
     )
-    AND LEFT(VST.pt_id, 5) NOT IN ('00007', '00009')
+    AND LEFT(VST.pt_id, 5) NOT IN ('00007')
     AND LEFT(VST.PT_ID, 6) != '000009'
 
     ORDER BY PYRPLAN.pt_id

@@ -30,6 +30,7 @@ Date		Version		Description
 2019-06-04	v1			Initial Creation
 2019-06-27	v2			Add CCSParent_Description
 2021-06-18	v3			2021 survey 2020 data
+2022-06-21	v4			2022 survey 2021 data
 ***********************************************************************
 */
 
@@ -62,25 +63,13 @@ CROSS APPLY (
 				THEN 'Hysteroscopy'
 			WHEN PVN.CLASFCD IN ('58661', '58662', '58670', '58671')
 				THEN 'Uterus_and_Adnexa_Laparoscopy'
-			WHEN PVN.CLASFCD BETWEEN '58555'
-					AND '58558'
-				THEN 'Other diagnostic procedures, female organs'
-			WHEN PVN.CLASFCD BETWEEN '58661'
-					AND '58661'
-				THEN 'Oophorectomy, unilateral and bilateral'
-			WHEN PVN.CLASFCD BETWEEN '58670'
-					AND '58671'
-				THEN 'Ligation of fallopian tubes'
-			WHEN PVN.CLASFCD BETWEEN '58662'
-					AND '58662'
-				THEN 'Other OR therapeutic procedures, female organs'
 			END AS 'Description'
 	) AS CCS
 WHERE PAV.Pt_Age >= 18
 	AND PAV.tot_chg_amt > 0
-	AND LEFT(PAV.PTNO_NUM, 1) NOT IN ('2', '8')
+	AND LEFT(PAV.PTNO_NUM, 1) NOT IN ('2', '8', '9')
 	AND LEFT(PAV.PTNO_NUM, 4) != '1999'
-	AND PAV.Adm_Date >= '2020-01-01'
-	AND PAV.Adm_Date < '2021-01-01'
+	AND PAV.Adm_Date >= '2021-01-01'
+	AND PAV.Adm_Date < '2022-01-01'
 	AND PAV.Plm_Pt_Acct_Type != 'I'
 ORDER BY PAV.PtNo_Num

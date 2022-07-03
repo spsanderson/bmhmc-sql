@@ -176,7 +176,7 @@ ON a.Proc01 = p.ICDCode
 	AND a.proc_cd_schm = RIGHT(p.ICD_Ver_Flag, 1)
 	AND a.proc_cd_schm = '0'
 	
-WHERE a.drg_schm IN ('MC11', 'MC12', 'MC13', 'MC14', 'MC15', 'MCT4', 'MC16', 'MC17','MC18')
+WHERE a.drg_schm IN ('MC11', 'MC12', 'MC13', 'MC14', 'MC15', 'MCT4', 'MC16', 'MC17','MC18','MC19','MC20','MC21')
 
 
 GO

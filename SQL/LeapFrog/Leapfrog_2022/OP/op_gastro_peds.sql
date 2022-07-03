@@ -30,6 +30,7 @@ Date		Version		Description
 2019-06-04	v1			Initial Creation
 2019-06-26	v2			Add Parent CCS Description
 2021-06-17	v3			2021 surver of 2020 data
+2022-06-20	v4			2022 survey of 2021 data
 ***********************************************************************
 */
 
@@ -58,14 +59,6 @@ ON PAV.Pt_No = PVN.Pt_No
 		OR
 		-- Other Upper GI Procedure
 		PVN.ClasfCd IN ('43450','43453','43460')
-		OR
-		-- Small Intestine and Stomal Endoscopy
-		PVN.ClasfCd IN (
-			'44360','44361','44363','44364','44365','44366',
-			'44369','44370','44372','44373','44376','44377',
-			'44378','44379','44380','44381','44382','44384',
-			'44385','44386'
-		)
 		-- Lower GI Endoscopy
 		OR
 		PVN.ClasfCd IN (
@@ -97,12 +90,6 @@ CROSS APPLY (
 			'43259','43266','43270'
 		) THEN 'Upper_GI_Endoscopy'
 			WHEN PVN.CLASFCD IN ('43450','43453','43460') THEN 'Other_Upper_GI_Procedure'
-			WHEN PVN.CLASFCD IN (
-			'44360','44361','44363','44364','44365','44366',
-			'44369','44370','44372','44373','44376','44377',
-			'44378','44379','44380','44381','44382','44384',
-			'44385','44386'
-		) THEN 'Small_Intestine_and_Stomal_Endoscopy'
 			WHEN PVN.CLASFCD IN (
 			'44388','44389','44390','44391','44392','44394',
 			'44401','44402','44403','44404','44405','44406',
