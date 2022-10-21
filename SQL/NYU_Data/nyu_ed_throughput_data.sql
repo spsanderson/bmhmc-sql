@@ -43,6 +43,8 @@ Date        Version     Description
 						multiple dates instead of the first date.
 2022-04-29  v4			Fix duplicates related to ESI level duplication
 2022-06-06	v5			Add MRN
+2022-08-11	v6			Add Chief Complaint and Admitting DX 1 and 2
+2022-10-13	v7			Add nurs station to output for first non-er bed
 ***********************************************************************
 */
 
@@ -482,7 +484,11 @@ SELECT A.account,
 		ELSE 0
 		END,
 	[or_first_date] = ORTIME.first_svc_date,
-	A.med_rec_no
+	A.med_rec_no,
+	CHIEF_COMP.chief_complaint,
+	CHIEF_COMP.admitting_dx_1,
+	CHIEF_COMP.admitting_dx_2,
+	IP_Bed.nurs_sta
 FROM #Base_Population_tbl AS A
 	LEFT JOIN #Admit_OrdDT_tbl AS B ON A.account = B.episode_no
 	LEFT JOIN #Dsch_OrdDT_tbl AS C ON A.account = C.episode_no
@@ -512,4 +518,24 @@ FROM #Base_Population_tbl AS A
 	LEFT JOIN smsdss.pract_dim_v AS PDV ON A.adm_dr_no = PDV.src_pract_no
 		AND PDV.orgz_cd = 'S0X0'
 	LEFT JOIN #OR_Room_Time_tbl AS ORTIME ON A.account = SUBSTRING(ORTIME.pt_id, 5, 8)
-		AND A.unit_seq_no = ORTIME.unit_seq_no;
+		AND A.unit_seq_no = ORTIME.unit_seq_no
+	LEFT JOIN (
+		SELECT PVT.PtNo_Num,
+			PVT.[2CHFCOMP] AS [chief_complaint],
+			PVT.[2ADMDIAG] AS [admitting_dx_1],
+			PVT.[2ADMDIA2] AS [admitting_dx_2]
+		FROM (
+		SELECT PtNo_Num,
+			UserDataCd,
+			UserDataText
+		FROM smsdss.BMH_UserTwoFact_V AS A
+		LEFT JOIN smsdss.BMH_UserTwoField_Dim_V AS B ON a.UserDataKey = b.UserTwoKey
+		WHERE b.UserDataCd in ('2chfcomp','2admdiag','2admdia2')
+		) AS A
+
+		PIVOT(
+			MAX(A.USERDATATEXT)
+			FOR A.USERDATACD IN ("2CHFCOMP","2ADMDIAG","2ADMDIA2")
+		) AS PVT
+	) AS CHIEF_COMP ON A.account = CHIEF_COMP.PtNo_Num
+	;
