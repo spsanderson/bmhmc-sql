@@ -680,24 +680,117 @@ FROM SMSMIR.acct AS ACCT
 INNER JOIN #unique_visits_tbl AS UV ON ACCT.pt_id = UV.pt_id
 	AND ACCT.unit_seq_no = UV.unit_seq_no
 
+-- Budget Unit Code Logic
+DROP TABLE IF EXISTS #unit_logic_tbl
+CREATE TABLE #unit_logic_tbl (
+	encounter_id VARCHAR(12),
+	unit_seq_no VARCHAR(12),
+	department_id VARCHAR(255),
+	pt_type VARCHAR(3),
+	pt_type_cd_desc VARCHAR(255),
+	hosp_svc_desc VARCHAR(255),
+	ekg_chgs MONEY,
+	ct_chgs MONEY,
+	us_chgs MONEY,
+	mri_chgs MONEY,
+	hyperbaric_chgs MONEY
+)
+
+INSERT INTO #unit_logic_tbl
+SELECT A.encounter_id,
+	A.unit_seq_no,
+	A.department_id,
+	B.pt_type,
+	C.pt_type_cd_desc,
+	D.hosp_svc_cd_desc,
+	ISNULL(EKG.EKG_CHGS, 0) AS [ekg_chgs],
+	ISNULL(CT.CT_CHGS, 0) AS [ct_chgs],
+	ISNULL(US.US_CHGS, 0) AS [us_chgs],
+	ISNULL(MRI.MRI_CHGS, 0) AS [mri_chgs],
+	ISNULL(HYPERBARIC.HYPERBARIC_CHGS, 0) AS [hyperbaric_chgs]
+FROM #base_tbl AS A
+INNER JOIN SMSDSS.BMH_PLM_PtAcct_V AS B ON A.encounter_id = B.PtNo_Num
+	AND A.unit_seq_no = B.unit_seq_no
+LEFT JOIN SMSDSS.pt_type_dim_v AS C ON B.pt_type = C.src_pt_type
+	AND B.Regn_Hosp = C.orgz_cd
+LEFT JOIN smsdss.hosp_svc_dim_v AS D ON B.hosp_svc = D.src_hosp_svc
+	AND B.Regn_Hosp = D.orgz_cd
+-- EKG
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [EKG_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '006'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS EKG ON A.PT_ID = EKG.pt_id
+	AND A.unit_seq_no = EKG.unit_seq_no
+-- CT Charges
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [CT_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '013'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS CT ON A.PT_ID = CT.pt_id
+	AND A.unit_seq_no = CT.unit_seq_no
+-- ULTRASOUND
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [US_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '014'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS US ON A.PT_ID = US.pt_id
+	AND A.unit_seq_no = US.unit_seq_no
+-- MRI
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [MRI_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '023'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS MRI ON A.PT_ID = MRI.pt_id
+	AND A.unit_seq_no = MRI.unit_seq_no
+-- hyperbaric
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [HYPERBARIC_CHGS]
+	FROM smsmir.actv AS ZZZ
+	INNER JOIN smsdss.actv_cd_dim_v AS XXX ON ZZZ.actv_cd = XXX.actv_cd
+		AND ZZZ.orgz_cd = XXX.orgz_cd
+		AND XXX.actv_name LIKE '%HYPERBARIC%'
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '025'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS HYPERBARIC ON A.PT_ID = HYPERBARIC.pt_id
+	AND A.unit_seq_no = HYPERBARIC.unit_seq_no;
+
 -- PULL IT ALL TOGETHER
 SELECT BASE.med_rec_no,
 	BASE.encounter_id,
 	BASE.pt_id,
 	BASE.unit_seq_no,
 	BASE.admit_date,
-	BASE.discharge_date,
-	BASE.admit_source,
-	BASE.disposition,
-	BASE.length_of_stay,
 	BASE.payer_one_code,
 	BASE.payer_one_name,
 	BASE.payer_two_code,
 	BASE.payer_two_name,
 	BASE.payer_three_code,
 	BASE.payer_three_name,
-	BASE.payer_four_code,
-	BASE.payer_four_name,
 	BASE.payer_one_type,
 	BASE.pt_name,
 	PTDEMOS.pt_street_address,
@@ -710,25 +803,22 @@ SELECT BASE.med_rec_no,
 	BASE.pt_ssn_last_four,
 	BASE.department_id,
 	BASE.department_name,
-	BASE.billing_drg_no,
-	BASE.billing_drg_weight,
 	BASE.total_charges,
 	BASE.total_payments,
 	BASE.total_amount_due,
 	PT_BAL.pt_balance_amt,
-	ADM_DX.admitting_dx_code,
 	DX_PVT.dx_cd_one,
 	DX_PVT.dx_cd_two,
 	DX_PVT.dx_cd_three,
 	DX_PVT.dx_cd_four,
 	DX_PVT.dx_cd_five,
+	DX_PVT.dx_cd_six,
 	PROC_PVT.proc_cd_one,
 	PROC_PVT.proc_cd_two,
 	PROC_PVT.proc_cd_three,
 	PROC_PVT.proc_cd_four,
 	PROC_PVT.proc_cd_five,
-	APR.apr_drg,
-	APR.apr_severity,
+	PROC_PVT.proc_cd_six,
 	REF_PROV.ref_pract_name,
 	ATN_PROV.attending_code,
 	ATN_PROV.attending_npi,
@@ -761,18 +851,23 @@ SELECT BASE.med_rec_no,
 	REV_PVT.[760],
 	REV_PVT.[761],
 	REV_PVT.[762],
-	REV_PVT.[769]
+	REV_PVT.[769],
+	UL.hosp_svc_desc,
+	UL.pt_type_cd_desc,
+	UL.ekg_chgs,
+	UL.mri_chgs,
+	UL.ct_chgs,
+	UL.us_chgs,
+	UL.hyperbaric_chgs,
+	VST.ward_cd
 FROM #base_tbl AS BASE
 LEFT OUTER JOIN #pt_bal_amt_tbl AS PT_BAL ON BASE.pt_id = PT_BAL.encounter_id
 	AND BASE.unit_seq_no = PT_BAL.unit_seq_no
 LEFT OUTER JOIN #pt_demos_tbl AS PTDEMOS ON BASE.pt_id = PTDEMOS.encounter_id
-LEFT OUTER JOIN #admit_dx_tbl AS ADM_DX ON BASE.pt_id = ADM_DX.encounter_id
-	AND BASE.unit_seq_no = ADM_DX.unit_seq_no
 LEFT OUTER JOIN #dx_cd_pvt_tbl AS DX_PVT ON BASE.pt_id = DX_PVT.encounter_id
 	AND BASE.unit_seq_no = DX_PVT.unit_seq_no
 LEFT OUTER JOIN #proc_cd_tbl AS PROC_PVT ON BASE.pt_id = PROC_PVT.encounter_id
 	AND BASE.unit_seq_no = PROC_PVT.unit_seq_no
-LEFT OUTER JOIN #apr_drg_tbl AS APR ON BASE.encounter_id = APR.encounter_id
 LEFT OUTER JOIN #referring_provider_tbl AS REF_PROV ON BASE.pt_id = REF_PROV.pt_id
 LEFT OUTER JOIN #attending_provider_tbl AS ATN_PROV ON BASE.encounter_id = ATN_PROV.encounter_id
 	AND BASE.unit_seq_no = ATN_PROV.unit_seq_no
@@ -782,8 +877,12 @@ LEFT OUTER JOIN #ins_policy_info_tbl AS INS_POL ON BASE.pt_id = INS_POL.encounte
 	AND BASE.unit_seq_no = INS_POL.unit_seq_no
 LEFT OUTER JOIN #rev_cd_pvt_tbl AS REV_PVT ON BASE.pt_id = REV_PVT.encounter_id
 	AND BASE.unit_seq_no = REV_PVT.unit_seq_no
-ORDER BY BASE.med_rec_no,
- BASE.encounter_id;
+LEFT OUTER JOIN #unit_logic_tbl AS UL ON BASE.encounter_id = UL.encounter_id
+	AND BASE.unit_seq_no = UL.unit_seq_no
+LEFT OUTER JOIN smsmir.vst_rpt AS VST ON BASE.pt_id = VST.pt_id
+	AND BASE.unit_seq_no = VST.unit_seq_no
+--ORDER BY BASE.med_rec_no,
+-- BASE.encounter_id;
 
  -- Outpatient --------------------------------------------------------
 DECLARE @START DATE;
@@ -1389,6 +1488,105 @@ FROM SMSMIR.acct AS ACCT
 INNER JOIN #unique_visits_tbl AS UV ON ACCT.pt_id = UV.pt_id
 	AND ACCT.unit_seq_no = UV.unit_seq_no
 
+-- Budget Unit Code Logic
+DROP TABLE IF EXISTS #unit_logic_tbl
+CREATE TABLE #unit_logic_tbl (
+	encounter_id VARCHAR(12),
+	unit_seq_no VARCHAR(12),
+	department_id VARCHAR(255),
+	pt_type VARCHAR(3),
+	pt_type_cd_desc VARCHAR(255),
+	hosp_svc_desc VARCHAR(255),
+	ekg_chgs MONEY,
+	ct_chgs MONEY,
+	us_chgs MONEY,
+	mri_chgs MONEY,
+	hyperbaric_chgs MONEY
+)
+
+INSERT INTO #unit_logic_tbl
+SELECT A.encounter_id,
+	A.unit_seq_no,
+	A.department_id,
+	B.pt_type,
+	C.pt_type_cd_desc,
+	D.hosp_svc_cd_desc,
+	ISNULL(EKG.EKG_CHGS, 0) AS [ekg_chgs],
+	ISNULL(CT.CT_CHGS, 0) AS [ct_chgs],
+	ISNULL(US.US_CHGS, 0) AS [us_chgs],
+	ISNULL(MRI.MRI_CHGS, 0) AS [mri_chgs],
+	ISNULL(HYPERBARIC.HYPERBARIC_CHGS, 0) AS [hyperbaric_chgs]
+FROM #base_tbl AS A
+INNER JOIN SMSDSS.BMH_PLM_PtAcct_V AS B ON A.encounter_id = B.PtNo_Num
+	AND A.unit_seq_no = B.unit_seq_no
+LEFT JOIN SMSDSS.pt_type_dim_v AS C ON B.pt_type = C.src_pt_type
+	AND B.Regn_Hosp = C.orgz_cd
+LEFT JOIN smsdss.hosp_svc_dim_v AS D ON B.hosp_svc = D.src_hosp_svc
+	AND B.Regn_Hosp = D.orgz_cd
+-- EKG
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [EKG_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '006'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS EKG ON A.PT_ID = EKG.pt_id
+	AND A.unit_seq_no = EKG.unit_seq_no
+-- CT Charges
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [CT_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '013'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS CT ON A.PT_ID = CT.pt_id
+	AND A.unit_seq_no = CT.unit_seq_no
+-- ULTRASOUND
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [US_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '014'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS US ON A.PT_ID = US.pt_id
+	AND A.unit_seq_no = US.unit_seq_no
+-- MRI
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [MRI_CHGS]
+	FROM smsmir.actv AS ZZZ
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '023'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS MRI ON A.PT_ID = MRI.pt_id
+	AND A.unit_seq_no = MRI.unit_seq_no
+-- hyperbaric
+LEFT JOIN (
+	SELECT ZZZ.pt_id,
+		ZZZ.unit_seq_no,
+		SUM(ZZZ.chg_tot_amt) AS [HYPERBARIC_CHGS]
+	FROM smsmir.actv AS ZZZ
+	INNER JOIN smsdss.actv_cd_dim_v AS XXX ON ZZZ.actv_cd = XXX.actv_cd
+		AND ZZZ.orgz_cd = XXX.orgz_cd
+		AND XXX.actv_name LIKE '%HYPERBARIC%'
+	WHERE LEFT(ZZZ.ACTV_CD, 3) = '025'
+		AND ZZZ.chg_tot_amt != 0
+	GROUP BY ZZZ.PT_ID,
+		ZZZ.unit_seq_no
+) AS HYPERBARIC ON A.PT_ID = HYPERBARIC.pt_id
+	AND A.unit_seq_no = HYPERBARIC.unit_seq_no;
+
 -- PULL IT ALL TOGETHER
 SELECT BASE.med_rec_no,
 	BASE.encounter_id,
@@ -1485,7 +1683,14 @@ SELECT BASE.med_rec_no,
 	REV_PVT.[760],
 	REV_PVT.[761],
 	REV_PVT.[762],
-	REV_PVT.[769]
+	REV_PVT.[769],
+	UL.hosp_svc_desc,
+	UL.pt_type_cd_desc,
+	UL.ekg_chgs,
+	UL.mri_chgs,
+	UL.ct_chgs,
+	UL.us_chgs,
+	UL.hyperbaric_chgs
 FROM #base_tbl AS BASE
 LEFT OUTER JOIN #pt_bal_amt_tbl AS PT_BAL ON BASE.pt_id = PT_BAL.encounter_id
 	AND BASE.unit_seq_no = PT_BAL.unit_seq_no
@@ -1505,5 +1710,7 @@ LEFT OUTER JOIN #rev_cd_pvt_tbl AS REV_PVT ON BASE.pt_id = REV_PVT.encounter_id
 	AND BASE.unit_seq_no = REV_PVT.unit_seq_no
 LEFT OUTER JOIN #cpt_cd_tbl AS CPT ON BASE.pt_id = CPT.pt_id
 	AND BASE.unit_seq_no = CPT.unit_seq_no
-ORDER BY BASE.med_rec_no,
- BASE.encounter_id;
+LEFT OUTER JOIN #unit_logic_tbl AS UL ON BASE.encounter_id = UL.encounter_id
+	AND BASE.unit_seq_no = UL.unit_seq_no
+--ORDER BY BASE.med_rec_no,
+-- BASE.encounter_id;

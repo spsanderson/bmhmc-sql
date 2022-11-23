@@ -82,3 +82,4 @@ INNER JOIN smsmir.pay AS PAY ON UV.pt_id = PAY.pt_id
 INNER JOIN smsdss.pay_cd_dim_v AS PAYDIM ON PAY.pay_cd = PAYDIM.pay_cd
 	AND PAY.orgz_cd = PAYDIM.orgz_cd
 WHERE PAY.tot_pay_adj_amt != 0
+	AND PAY.pay_entry_dtime >= DATEADD(DAY, -1, CAST(GETDATE() AS DATE));

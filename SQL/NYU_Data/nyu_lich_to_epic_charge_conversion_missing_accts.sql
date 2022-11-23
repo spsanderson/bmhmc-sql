@@ -59,7 +59,7 @@ SELECT [MRN] = pav.Med_Rec_No,
 FROM smsdss.BMH_PLM_PtAcct_V AS PAV
 INNER JOIN smsmir.actv AS ACTV ON PAV.PT_NO = ACTV.PT_ID
 	AND PAV.unit_seq_no = ACTV.unit_seq_no
-LEFT JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS HPV ON PAV.PtNo_Num = HPV.PatientAccountID
+--LEFT JOIN [SC_server].[Soarian_Clin_Prd_1].DBO.HPatientVisit AS HPV ON PAV.PtNo_Num = HPV.PatientAccountID
 LEFT JOIN smsdss.c_lich_to_nyu_charge_conversion_tbl AS NYU_CONVERT ON ACTV.actv_cd = NYU_CONVERT.FULL_LICH_CODE
 --LEFT JOIN smsdss.c_patient_demos_v AS PTDEMOS ON PAV.PT_NO = PTDEMOS.pt_id
 --	AND ACTV.pt_id_start_dtime = PTDEMOS.pt_id_start_dtime
@@ -94,10 +94,10 @@ WHERE PAV.tot_chg_amt > 0
 	AND LEFT(PAV.PTNO_NUM, 1) != '2'
 	AND LEFT(PAV.PTNO_NUM, 4) != '1999'
 	AND PAV.PtNo_Num IN (
-		
+		'90201104','90200866','90201096'
 	)
 	AND ACTV.chg_tot_amt != 0
 	-- kick out 4+ day charges pre admit
 	AND DATEDIFF(DAY, PAV.Adm_Date, ACTV.actv_date) >= - 3
 	-- post date is through Monday 11-07-2022
-	AND ACTV.ACTV_DATE <= '2022-11-07'
+	AND ACTV.ACTV_DATE <= '2022-11-08'
