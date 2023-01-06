@@ -83,16 +83,16 @@ SELECT [RECORD_IDENTIFIER] = 'INS2',
 	[PAYER_PHONE] = INS.Ins_Tel_No,
 	[SUBSCRIBER_DATE_OF_BIRTH] = CAST(PAV.Pt_Birthdate AS DATE),
 	[CONTACT_EXTENSION_NUMBER] = '',
-	[GROUP_NUMBER] = VST.subscr_ins1_grp_id,
+	[GROUP_NUMBER] = '',--VST.subscr_ins1_grp_id,
 	[GROUP_NAME] = '',
 	[PLAN_NUMBER] = '',
-	[POLICY_NUMBER] = INS.Ins_Pol_No,
-	[PRECERTIFICATION_NUMBER] = VST.ins1_treat_authz_no,
+	[POLICY_NUMBER] = COALESCE(VST.SUBSCR_INS1_GRP_ID, VST.INS1_POL_NO),--INS.Ins_Pol_No,
+	[PRECERTIFICATION_NUMBER] = '',--VST.ins1_treat_authz_no,
 	[POLICY_EFFECTIVE_DATE] = '',
 	[INSURANCE_COVERAGE_START] = '',
 	[INSURANCE_CONTACT_PERSON] = '',
 	[SUBSCRIBER_NAME] = GUA.GuarantorLast + ', ' + GUA.GuarantorFirst,
-	[SUBSCRIBER_RELATIONSHIP_TO_PATIENT] = '',
+	[SUBSCRIBER_RELATIONSHIP_TO_PATIENT] = SUBSCR_REL.[PAT_RELATION_TO_GUARNT], --'',
 	[SUBSCRIBER_SSN] = GUA.GuarantorSocial,
 	[CASE_RATE] = PAV.drg_cost_weight,
 	[PRIOR_APPROVAL_NUMBER] = '',
@@ -101,7 +101,7 @@ SELECT [RECORD_IDENTIFIER] = 'INS2',
 	[BILL_TYPE] = '',
 	[CLAIM_ID] = CLAIM.pay_desc,
 	[OUTSTANDING_PAYER_BALANCE] = PYRPLAN.tot_amt_due,
-	[SUBSCRIBER_SEX] = ''
+	[SUBSCRIBER_SEX] = GUA.gender_cd
 FROM #visits_tbl AS UV
 INNER JOIN smsdss.BMH_PLM_PTACCT_V AS PAV ON UV.med_rec_no = PAV.Med_Rec_No
 	AND UV.pt_id = PAV.Pt_No
@@ -119,7 +119,39 @@ LEFT JOIN smsmir.PAY AS CLAIM ON PAV.PT_NO = CLAIM.pt_id
 	AND PAV.unit_seq_no = CLAIM.unit_seq_no
 	AND CLAIM.pay_cd = '10501435'
 LEFT JOIN smsmir.pyr_plan AS PYRPLAN ON PAV.PT_NO = PYRPLAN.PT_ID
-	AND PAV.unit_seq_no = PYRPLAN.PT_ID
+	AND PAV.unit_seq_no = PYRPLAN.unit_seq_no
 	AND PAV.Pyr2_Co_Plan_Cd = PYRPLAN.pyr_cd
 LEFT JOIN smsdss.pract_dim_v AS MD ON PAV.Atn_Dr_No = MD.src_pract_no
 	AND PAV.Regn_Hosp = MD.orgz_cd
+-- SUBSCRIBER RELATION TO PT
+LEFT JOIN (
+SELECT A.pt_id,
+	guar_rel,
+	[PAT_RELATION_TO_GUARNT] = CASE 
+		WHEN A.guar_rel = '1'
+			THEN 'SELF'
+		WHEN A.guar_rel = '2'
+			THEN 'SPOUSE'
+		WHEN A.guar_rel = '3'
+			THEN 'FATHER'
+		WHEN A.guar_rel = '4'
+			THEN 'MOTHER'
+		WHEN A.guar_rel = '5'
+			THEN 'STEP PARENT'
+		WHEN A.guar_rel = '6'
+			THEN 'GRANDPARENT'
+		WHEN A.guar_rel = 'A'
+			THEN 'POA'
+		WHEN A.guar_rel = 'B'
+			THEN 'GUARDIAN'
+		WHEN A.guar_rel = 'C'
+			THEN 'OTHER'
+		END,
+	[rn] = ROW_NUMBER() OVER (
+		PARTITION BY A.PT_ID ORDER BY B.EVNT_DTIME DESC
+		)
+FROM smsmir.hl7_guar AS A
+LEFT JOIN smsmir.hl7_msg_hdr AS B ON A.last_msg_cntrl_id = B.msg_cntrl_id
+	AND A.pt_id = B.pt_id
+) AS SUBSCR_REL ON PAV.PtNo_Num = SUBSCR_REL.pt_id
+	AND SUBSCR_REL.rn = 1
