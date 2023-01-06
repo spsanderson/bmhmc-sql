@@ -23,3 +23,45 @@ Sub PasswordBreaker()
     Next: Next: Next: Next: Next: Next
     Next: Next: Next: Next: Next: Next
 End Sub
+
+' OR
+' https://techcommunity.microsoft.com/t5/excel/how-to-unprotect-the-excel-sheet-if-forgot-the-password/m-p/1574559
+Sub GetPass()
+
+    Const a = 65, b = 66, c = 32, d = 126
+
+    Dim i#, j#, k#, l#, m#, n#, o#, p#, q#, r#, s#, t#
+
+    With ActiveSheet
+        If .ProtectContents Then
+            On Error Resume Next
+            For i = a To b
+                For j = a To b
+                    For k = a To b
+                        For l = a To b
+                            For m = a To b
+                                For n = a To b
+                                    For o = a To b
+                                        For p = a To b
+                                            For q = a To b
+                                                For r = a To b
+                                                    For s = a To b
+                                                        For t = c To d
+            ActiveSheet.Unprotect Chr(i) & Chr(j) & Chr(k) & Chr(l) & Chr(m) & _
+            Chr(n) & Chr(o) & Chr(p) & Chr(q) & Chr(r) & Chr(s) & Chr(t)
+                                                        Next t
+                                                    Next s
+                                                Next r
+                                            Next q
+                                        Next p
+                                    Next o
+                                Next n
+                            Next m
+                        Next l
+                    Next k
+                Next j
+            Next i
+            MsgBox "Finished"
+        End If
+    End With
+End Sub
