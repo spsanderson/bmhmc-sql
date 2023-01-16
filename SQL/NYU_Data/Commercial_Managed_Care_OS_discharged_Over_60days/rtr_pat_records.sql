@@ -51,11 +51,11 @@ SELECT [RECORD_IDENTIFIER] = 'PAT',
 FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
 LEFT JOIN smsdss.c_patient_demos_v AS PT ON PAV.PT_NO = PT.pt_id
 	AND PAV.pt_id_start_dtime = PT.pt_id_start_dtime
-WHERE PAV.fc IN ('G', 'P', 'R')
-	AND PAV.Tot_Amt_Due > 0
+--WHERE PAV.fc IN ('G', 'P', 'R')
+WHERE PAV.Tot_Amt_Due > 0
     AND PAV.Tot_Chg_Amt > 0
 	AND PAV.prin_dx_cd IS NOT NULL
-	AND PAV.unit_seq_no != '99999999'
+	--AND PAV.unit_seq_no != '99999999'
 	AND PAV.hosp_svc NOT IN ('DIA', 'DMS')
 	AND LEFT(PAV.PT_NAME, 1) BETWEEN 'A' AND 'L'
 	AND EXISTS (

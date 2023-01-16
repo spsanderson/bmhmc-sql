@@ -49,11 +49,11 @@ SELECT DISTINCT PAV.Med_Rec_No,
 	PAV.pt_id_start_dtime
 FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
 WHERE PAV.Tot_Amt_Due > 0
-	AND PAV.FC IN ('G', 'P', 'R')
+	--AND PAV.FC IN ('G', 'P', 'R')
 	AND PAV.tot_chg_amt > 0
 	AND PAV.Tot_Amt_Due > 0
 	AND PAV.prin_dx_cd IS NOT NULL
-	AND PAV.unit_seq_no != '99999999'
+	--AND PAV.unit_seq_no != '99999999'
 	AND PAV.hosp_svc NOT IN ('DIA', 'DMS')
 	AND NOT LEFT(PAV.PT_NAME, 1) BETWEEN 'A' AND 'L'
 	AND EXISTS (
