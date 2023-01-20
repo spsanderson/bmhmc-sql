@@ -69,7 +69,9 @@ SELECT RA.MRN,
 	RA.INTERIM
 FROM smsdss.c_Readmission_IP_ER_v AS RA
 WHERE INTERIM < 31
-	AND [READMIT SOURCE DESC] != 'Scheduled Admission';
+	AND [READMIT SOURCE DESC] != 'Scheduled Admission'
+	AND LEFT(RA.[READMIT], 1) = '1'
+	AND RA.INTERIM < 366;
 
 DROP TABLE IF EXISTS smsdss.c_nyu_usnwr_aaa_accounts_tbl
 	-- Create the table in the specified schema
@@ -107,19 +109,18 @@ SELECT [group_name] = 'AAA',
 		ELSE 'N'
 		END,
 	[infection] = CASE 
-		WHEN EXISTS (
-				SELECT 1
-				FROM smsmir.dx_grp AS DX
-				WHERE PAV.PT_NO = DX.PT_ID
-					AND PAV.unit_seq_no = DX.unit_seq_no
-					AND LEFT(DX.dx_cd_type, 2) = 'DF'
-					AND REPLACE(DX.dx_cd, '.', '') IN ('J853', 'L03319', 'L08', 'L088', 'L0889', 'L089', 'M8618', 'M8628', 'T8131XA', 'T8131XD', 'T8131XS', 'T8132XA', 'T8132XD', 'T8132XS', 'T8140XA', 'T8141XA', 'T8141XD', 'T8141XS', 'T8142XA', 'T8142XD', 'T8142XS', 'T8143XA', 'T8143XD', 'T8143XS', 'T8144XA', 'T8144XD', 'T8144XS', 'T8149XA', 'T8149XD', 'T8149XS', 'T814XXA', 'T814XXD', 'T814XXS', 'T826XXA', 'T826XXD', 'T826XXS', 'T827XXA', 'T827XXD', 'T827XXS', 'T8450XA', 'T8450XD', 'T8450XS', 'T8460XA', 'T8460XD', 'T8460XS', 'T847XXA', 'T847XXD', 'T847XXS', 'T8579XA', 'T8579XD', 'T8579XS')
-				)
+		WHEN EXISTS(
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE RA.interim < 366
+			AND PAV.PtNo_Num = RA.index_account
 			AND EXISTS (
 				SELECT 1
-				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				FROM smsmir.sproc AS SPROC
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
+					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('J853', 'L03319', 'L08', 'L088', 'L0889', 'L089', 'M8618', 'M8628', 'T8131XA', 'T8131XD', 'T8131XS', 'T8132XA', 'T8132XD', 'T8132XS', 'T8140XA', 'T8141XA', 'T8141XD', 'T8141XS', 'T8142XA', 'T8142XD', 'T8142XS', 'T8143XA', 'T8143XD', 'T8143XS', 'T8144XA', 'T8144XD', 'T8144XS', 'T8149XA', 'T8149XD', 'T8149XS', 'T814XXA', 'T814XXD', 'T814XXS', 'T826XXA', 'T826XXD', 'T826XXS', 'T827XXA', 'T827XXD', 'T827XXS', 'T8450XA', 'T8450XD', 'T8450XS', 'T8460XA', 'T8460XD', 'T8460XS', 'T847XXA', 'T847XXD', 'T847XXS', 'T8579XA', 'T8579XD', 'T8579XS')
 				)
+			)
 			THEN 'Y'
 		ELSE 'N'
 		END,
@@ -127,7 +128,8 @@ SELECT [group_name] = 'AAA',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
@@ -797,7 +799,8 @@ SELECT [group_name] = 'HIP_FRACTURE',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
@@ -881,115 +884,118 @@ SELECT [group_name] = 'HIP_REPLACEMENT',
 		ELSE 'N'
 		END,
 	[infection] = CASE 
+	-- the current mrn readmits inside of 1 year
+	-- and that readmit account has an infection
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.dx_grp AS DX
-				WHERE PAV.PT_NO = DX.pt_id
-					AND PAV.UNIT_SEQ_NO = DX.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(DX.pt_id, 5, 8)
+					--AND PAV.UNIT_SEQ_NO = DX.unit_seq_no
 					AND LEFT(DX.DX_CD_TYPE, 2) = 'DF'
 					AND DX.DX_CD IN ('T8140XA','T8141XA','T8142XA','T8143XA','T8144XA','T8149XA','T8450XA','T8450XD','T8450XS','T8451XA','T8451XD','T8451XS','T8452XA','T8452XD','T8452XS','T8459XA','T84620A','T84620D','T84620S','T84621A','T84621D','T84621S','T84629A','T84629D','T84629S','T8469XA','T8469XD','T8469XS','T847XXA','T847XXD','T847XXS','T8579XA','T8579XD','T8579XS','Z89621','Z89622','Z89629')
+				
 				)
-				AND EXISTS (
-					SELECT 1
-					FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-					WHERE PAV.PtNo_Num = RA.readmit_account
-				)
+			)
 			THEN 'Y'
 		ELSE 'N'
 		END,
 	[revision] = CASE 
 		WHEN EXISTS (
+			SELECT 1 
+			FROM SMSDSS.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
-					AND REPLACE(SPROC.proc_cd, '.', '') IN ('0SPB00Z','0SPB03Z','0SPB04Z','0SPB05Z','0SPB07Z','0SPB08Z','0SPB09Z','0SPB0BZ','0SPB0EZ','0SPB0JZ','0SPB0KZ','0SP900Z','0SP903Z','0SP904Z','0SP905Z','0SP907Z','0SP908Z','0SP909Z','0SP90BZ','0SP90EZ','0SP90JZ','0SP90KZ','0SWB00Z','0SWB03Z','0SWB04Z','0SWB05Z','0SWB07Z','0SWB08Z','0SWB09Z','0SWB0BZ','0SWB0JZ','0SWB0KZ','0SW900Z','0SW903Z','0SW904Z','0SW905Z','0SW907Z','0SW908Z','0SW909Z','0SW90BZ','0SW90JZ','0SW90KZ')
-				)
-				AND EXISTS (
-					SELECT 1
-					FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-					WHERE PAV.PtNo_Num = RA.readmit_account
-				)
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
+				AND REPLACE(SPROC.proc_cd, '.', '') IN ('0SPB00Z','0SPB03Z','0SPB04Z','0SPB05Z','0SPB07Z','0SPB08Z','0SPB09Z','0SPB0BZ','0SPB0EZ','0SPB0JZ','0SPB0KZ','0SP900Z','0SP903Z','0SP904Z','0SP905Z','0SP907Z','0SP908Z','0SP909Z','0SP90BZ','0SP90EZ','0SP90JZ','0SP90KZ','0SWB00Z','0SWB03Z','0SWB04Z','0SWB05Z','0SWB07Z','0SWB08Z','0SWB09Z','0SWB0BZ','0SWB0JZ','0SWB0KZ','0SW900Z','0SW903Z','0SW904Z','0SW905Z','0SW907Z','0SW908Z','0SW909Z','0SW90BZ','0SW90JZ','0SW90KZ')
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.pt_id
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
 					AND SPROC.proc_cd IN ('0SRR019','0SRR01A','0SRR01Z','0SRR039','0SRR03A','0SRR03Z','0SRR07Z','0SRR0J9','0SRR0JA','0SRR0JZ','0SRR0KZ','0SRA009','0SRA00A','0SRA00Z','0SRA019','0SRA01A','0SRA01Z','0SRA039','0SRA03A','0SRA03Z','0SRA07Z','0SRA0J9','0SRA0JA','0SRA0JZ','0SRA0KZ','0SR9019','0SR901A','0SR901Z','0SR9029','0SR902A','0SR902Z','0SR9039','0SR903A','0SR903Z','0SR9049','0SR904A','0SR904Z','0SR9069','0SR906A','0SR906Z','0SR907Z','0SR90EZ','0SR90J9','0SR90JA','0SR90JZ','0SR90KZ')
 				)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
+					--AND PAV.unit_seq_no = SPROC.unit_seq_no
 					AND SPROC.PROC_CD IN ('0SP90JZ')
 				)
-				AND EXISTS (
-					SELECT 1
-					FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-					WHERE PAV.PtNo_Num = RA.readmit_account
-				)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account 
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
 					AND PAV.unit_seq_no = SPROC.unit_seq_no
 					AND SPROC.proc_cd IN ('0SRS019','0SRS01A','0SRS01Z','0SRS039','0SRS03A','0SRS03Z','0SRS07Z','0SRS0J9','0SRS0JA','0SRS0JZ','0SRS0KZ','0SRE009','0SRE00A','0SRE00Z','0SRE019','0SRE01A','0SRE01Z','0SRE039','0SRE03A','0SRE03Z','0SRE07Z','0SRE0J9','0SRE0JA','0SRE0JZ','0SRE0KZ','0SRB019','0SRB01A','0SRB01Z','0SRB029','0SRB02A','0SRB02Z','0SRB039','0SRB03A','0SRB03Z','0SRB049','0SRB04A','0SRB04Z','0SRB069','0SRB06A','0SRB06Z','0SRB07Z','0SRB0EZ','0SRB0J9','0SRB0JA','0SRB0JZ','0SRB0KZ')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
 					AND PAV.unit_seq_no = SPROC.unit_seq_no
 					AND SPROC.proc_cd IN ('0SPB0JZ')
-				)
-				AND EXISTS (
-					SELECT 1
-					FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-					WHERE PAV.PtNo_Num = RA.readmit_account
-				)
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account 
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
+					AND SPROC.PROC_CD IN ('0SP909Z','0SP90JZ')
+			)
+			AND EXISTS (
+				SELECT 1
+				FROM smsmir.SPROC AS SPROC
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
 					AND SPROC.proc_cd IN ('0SUR09Z','0SUR0BZ','0SUA09Z','0SUA0BZ','0SU907Z','0SU909Z','0SU90BZ','0SU90JZ','0SU90KZ')
 				)
-			AND EXISTS (
-				SELECT 1
-				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.pt_id
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
-					AND SPROC.PROC_CD IN ('0SP909Z','0SP90JZ')
-				)
-			AND EXISTS (
-				SELECT 1
-				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
-			)
+		) 
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account 
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
 					AND SPROC.PROC_CD IN ('0SUS09Z','0SUS0BZ','0SUE09Z','0SUE0BZ','0SUB07Z','0SUB09Z','0SUB0BZ','0SUB0JZ','0SUB0KZ')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.pt_id
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
 					AND SPROC.PROC_CD IN ('0SPB09Z', '0SPB0J')
-				)
-			AND EXISTS (
-				SELECT 1
-				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
 			)
+		)
 			THEN 'Y'
 		ELSE 'N'
 		END,
@@ -997,7 +1003,8 @@ SELECT [group_name] = 'HIP_REPLACEMENT',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
@@ -1187,139 +1194,177 @@ SELECT [group_name] = 'KNEE_REPLACEMENT',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
 		END,
 	[revision] = CASE 
-		WHEN EXISTS (
+		WHEN EXISTS(
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE RA.interim < 366
+			AND PAV.PtNo_Num = RA.index_account
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.pt_id
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPD00Z', '0SPD03Z', '0SPD04Z', '0SPD05Z', '0SPD07Z', '0SPD08Z', '0SPD09Z', '0SPD0EZ', '0SPD0JC', '0SPD0JZ', '0SPD0KZ', '0SPD0LZ', '0SPD0MZ', '0SPD0NZ', '0SPC00Z', '0SPC03Z', '0SPC04Z', '0SPC05Z', '0SPC07Z', '0SPC08Z', '0SPC09Z', '0SPC0EZ', '0SPC0JC', '0SPC0JZ', '0SPC0KZ', '0SPC0LZ', '0SPC0MZ', '0SPC0NZ')
 				)
+			)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
-					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SRC069', '0SRC06A', '0SRC06Z', '0SRC07Z', '0SRC0EZ', '0SRC0J9', '0SRC0JA', '0SRC0JZ', '0SRC0KZ', '0SRC0L9', '0SRC0LA', '0SRC0LZ', '0SRC0M9', '0SRC0MA', '0SRC0MZ', '0SRC0N9', '0SRC0NA', '0SRC0NZ', '0SRV0JZ')
-				)
+				WHERE RA.readmit_account = SUBSTRING(SPROC.PT_ID, 5, 8)
+				AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SRC069', '0SRC06A', '0SRC06Z', '0SRC07Z', '0SRC0EZ', '0SRC0J9', '0SRC0JA', '0SRC0JZ', '0SRC0KZ', '0SRC0L9', '0SRC0LA', '0SRC0LZ', '0SRC0M9', '0SRC0MA', '0SRC0MZ', '0SRC0N9', '0SRC0NA', '0SRC0NZ', '0SRV0JZ')
+			)
+			AND EXISTS (
+				SELECT 1
+				FROM smsmir.sproc AS SPROC
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
+				AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPC0JZ')
+			)
+		)
+			THEN 'Y'
+		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
-					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPC0JZ')
-				)
-			THEN 'Y'
-		WHEN EXISTS (
-				SELECT 1
-				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SUV09Z')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPC09Z')
-				)
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
-				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				FROM smsmir.SPROC AS SPROC
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SRT0JZ', '0SUC0JZ', '0SUT09Z')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
-				FROM smsmir.sproc AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				FROM smsmir.SPROC AS SPROC
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPC0JZ', '0SPC09Z')
-				)
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.pt_id
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0QRD0JZ', '0QUD0JZ', '0SUC09C')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0QPD0JZ')
-				)
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SRD069', '0SRD06A', '0SRD06Z', '0SRD07Z', '0SRD0EZ', '0SRD0J9', '0SRD0JA', '0SRD0JZ', '0SRD0KZ', '0SRD0L9', '0SRD0LA', '0SRD0LZ', '0SRD0M9', '0SRD0MA', '0SRD0MZ', '0SRD0N9', '0SRD0NA', '0SRD0NZ', '0SRW0JZ')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPD0JZ')
-				)
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SUW09Z')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPD09Z')
-				)
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
+			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SRU0JZ', '0SUD0JZ', '0SUU09Z')
-				)
+			)
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0SPD0JZ', '0SPD09Z')
-				)
+			)
+		)
 			THEN 'Y'
 		WHEN EXISTS (
-				SELECT 1
-				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.pt_id
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
-					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0QRF0JZ', '0QUF0JZ', '0SUD09C')
-				)
+			SELECT 1
+			FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
+			WHERE PAV.PtNo_Num = RA.index_account
+			AND RA.interim < 366
 			AND EXISTS (
 				SELECT 1
 				FROM smsmir.SPROC AS SPROC
-				WHERE PAV.PT_NO = SPROC.PT_ID
-					AND PAV.unit_seq_no = SPROC.unit_seq_no
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
+					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0QRF0JZ', '0QUF0JZ', '0SUD09C')
+			)
+			AND EXISTS (
+				SELECT 1
+				FROM smsmir.SPROC AS SPROC
+				WHERE RA.readmit_account = SUBSTRING(SPROC.pt_id, 5, 8)
 					AND REPLACE(SPROC.PROC_CD, '.', '') IN ('0QPF0JZ')
-				)
+			)
+		)
 			THEN 'Y'
 		ELSE 'N'
 		END
@@ -1371,8 +1416,7 @@ WHERE PAV.tot_chg_amt > 0
 				-- ICD10
 				'0SR9019', '0SR901A', '0SR901Z', '0SR9029', '0SR902A', '0SR902Z', '0SR9039', '0SR903A', '0SR903Z', '0SR9049', '0SR904A', '0SR904Z', '0SR9069', '0SR906A', '0SR906Z', '0SR907Z', '0SR90J9', '0SR90JA', '0SR90JZ', '0SR90KZ', '0SRB019', '0SRB01A', '0SRB01Z', '0SRB029', '0SRB02A', '0SRB02Z', '0SRB039', '0SRB03A', '0SRB03Z', '0SRB049', '0SRB04A', '0SRB04Z', '0SRB069', '0SRB06A', '0SRB06Z', '0SRB07Z', '0SRB0J9', '0SRB0JA', '0SRB0JZ', '0SRB0KZ'
 				)
-		)
-
+		);
 
 -- Lung Cancer Surgery
 DROP TABLE IF EXISTS smsdss.c_nyu_usnwr_lung_cancer_surgery_accounts_tbl 
@@ -1492,7 +1536,8 @@ SELECT [group_name] = 'OVARIAN_CANCER_SURGERY',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
@@ -1647,7 +1692,8 @@ SELECT [group_name] = 'PROSTRATE_CANCER_SURGERY',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
@@ -1886,7 +1932,8 @@ SELECT [group_name] = 'TAVR',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
@@ -1971,7 +2018,8 @@ SELECT [group_name] = 'UTERINE_CANCER_SURGERY',
 		WHEN EXISTS (
 				SELECT 1
 				FROM smsdss.c_nyu_usnwr_readmits_tbl AS RA
-				WHERE PAV.PtNo_Num = RA.readmit_account
+				WHERE PAV.PtNo_Num = RA.index_account
+				AND RA.interim < 31
 				)
 			THEN 'Y'
 		ELSE 'N'
