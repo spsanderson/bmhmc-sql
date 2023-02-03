@@ -31,6 +31,7 @@ Revision History:
 Date		Version		Description
 ----		----		----
 2022-10-20	v1			Initial Creation
+23023-02-03	V2			ADD PATIENT BALANCE
 ***********************************************************************
 */
 
@@ -39,19 +40,23 @@ DROP TABLE IF EXISTS #visits_tbl
 		med_rec_no VARCHAR(12),
 		pt_id VARCHAR(12),
 		unit_seq_no VARCHAR(12),
-		pt_id_start_dtime DATE
+		pt_id_start_dtime DATE,
+		patient_balance MONEY
 		)
 
 INSERT INTO #visits_tbl
 SELECT DISTINCT PAV.Med_Rec_No,
 	PAV.Pt_No,
 	PAV.unit_seq_no,
-	PAV.pt_id_start_dtime
+	PAV.pt_id_start_dtime,
+	ACCT.pt_bal_amt
 FROM SMSDSS.BMH_PLM_PtAcct_V AS PAV
+INNER JOIN smsmir.acct AS ACCT ON PAV.PT_NO = ACCT.pt_id
+	AND PAV.unit_seq_no = ACCT.unit_seq_no
 WHERE PAV.Tot_Amt_Due > 0
 	--AND PAV.FC IN ('G', 'P', 'R')
 	AND PAV.tot_chg_amt > 0
-	AND PAV.Tot_Amt_Due > 0
+	--AND PAV.Tot_Amt_Due > 0
 	AND PAV.prin_dx_cd IS NOT NULL
 	--AND PAV.unit_seq_no != '99999999'
 	AND PAV.hosp_svc NOT IN ('DIA', 'DMS')
@@ -116,7 +121,8 @@ SELECT [RECORD_IDENTIFIER] = 'ACT',
 		WHEN PAV.hosp_svc = 'DIA'
 			THEN '1235210931'
 		ELSE '1053354100'
-		END
+		END,
+	[PATIENT_BALANCE] = UV.patient_balance
 FROM #visits_tbl AS UV
 INNER JOIN smsdss.BMH_PLM_PTACCT_V AS PAV ON UV.med_rec_no = PAV.Med_Rec_No
 	AND UV.pt_id = PAV.Pt_No
