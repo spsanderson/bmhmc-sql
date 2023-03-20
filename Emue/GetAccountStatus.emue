@@ -1,0 +1,228 @@
+
+:SetStartups_Label
+ 'Gateway Connection Info
+SetStartUp RumbaInterfaceType "TN3270"
+SetStartUp SNAServer1 "64.46.246.196"
+SetStartUp DeviceName "LU01X0NT"
+SetStartUp ManualLogin "Yes"
+SetStartUp HasMessageScreenAfterLogin "Yes"
+ 'Optimizations & Misc
+SetStartUp DisplayBackgroundColor "Black"
+SetStartUp DisplayColors "Lime;Yellow;Red;White"
+SetStartUp AllowTypeAhead "Yes"
+SetStartUp QuietTime "0"
+
+ 'Input File
+SetStartUp InputFile "C:\Emue\SMS Scripts\GetAccountStatus\InputFiles\*.*"
+SetStartUp MoveInputFile "C:\Emue\SMS Scripts\GetAccountStatus\InputProcessing\"
+SetStartUp MoveInputFileAfterProcessing "C:\Emue\SMS Scripts\GetAccountStatus\InputArchive\#ScriptFileName#_#today#_#time#.input"
+SetStartUp InputFileSortOrder "Name_Ascending"
+SetStartUp WaitForInputFile "No" 'Not available for Express version of EMUE
+SetStartUp MaxFileWaitTime "0" 'Not available for Express version of EMUE
+SetStartUp WaitAgain "No"
+SetStartUp FailScriptOnMissingInputFile "Yes"
+
+ 'Activity Log
+SetStartUp ActivityLogFile "C:\Emue\SMS Scripts\GetAccountStatus\ActivityLogs\#ScriptFileName#_#today#_#time#.log"
+SetStartUp OverWriteActivityLog "No"
+SetStartUp VerboseLogInfo ""
+
+ 'Output Log
+SetStartUp LogFile "C:\Emue\SMS Scripts\GetAccountStatus\OutputLogs\#ScriptFileName#_#today#_#time#.log"
+
+ 'Trace Log 'Line by line detailed EMUE logging
+'SetStartUp TraceLogFile "C:\Emue\SMS Scripts\GetAccountStatus\TraceLogs\#ScriptFileName#_#today#_#time#.log"
+'SetStartUp TraceLogMaxLineCount "5000"
+
+ 'Email Settings
+SetStartUp SMTPServer "BMH-Exchange-SMTP.bmhmc.org"
+SetStartUp EmailFrom "bmh-emue@bmhmc.org"
+SetStartUp SuccessEmail "kjankowski@bmhmc.org"
+SetStartUp SuccessEmail_IncludeInputFile "No"
+SetStartUp SuccessEmail_IncludeOutputLog "No"
+SetStartUp SuccessEmail_IncludeActivityLog "No"
+SetStartUp SuccessEmail_MessageSubject "GetAccountStatus Completed Successfully"
+SetStartUp SuccessEmail_MessageBody ""
+SetStartUp ErrorEmail "kjankowski@bmhmc.org"
+SetStartUp ErrorEmail_IncludeOutputLog "Yes"
+SetStartUp ErrorEmail_IncludeInputFile "No"
+SetStartUp ErrorEmail_IncludeActivityLog "No"
+SetStartUp ErrorEmail_MessageSubject "Error Processing GetAccountStatus"
+SetStartUp ErrorEmail_MessageBody ""
+SetStartUp SendEmailOnErrorWhenDebugging "No"
+
+ 'Automation Settings
+SetStartUp AutoClose "Yes"
+SetStartUp AutoDisconnect "Yes"
+SetStartUp AllowCompletionOptionsOnError "No"
+SetStartUp SortLists "No"
+
+ 'Debugging Settings
+SetStartUp EnableDebugger "Yes" 'Change to "No" for Production
+SetStartUp ParseScriptOnLoad "Yes" 'Change to "No" for Production
+SetStartUp RequireVariableAssignmentBeforeRead "Yes"
+
+:Logon
+Sleep 2
+Paste "smsnet" 3 2
+Sleep 4
+Send s ""
+Sleep 2
+Paste "chps" 1 1
+Sleep 4
+Send s ""
+
+:Start_Of_Script_Label
+REM ----------------------------------------------------------------------------
+REM *******  Brookhaven CREDIT RATING INFO from Unity FMS    *****
+Copy Version "Script Version 1.0         04/06/16 "
+Tell Version
+Rem -----------------------------------------------------------
+
+Sleep 2
+Paste "emuexp" 6 11
+Sleep 2
+Paste "12345" 9 11
+Sleep 2
+Send s ""
+Sleep 2
+
+:initializeVariables 
+Copy PtNo ""
+Copy CreditRating ""
+Copy CourtAllow ""
+Copy FinCLs ""
+Copy Accttype ""
+Copy AcctBal ""
+Copy ins1 ""
+Copy ins1bal ""
+Copy ins2 ""
+Copy ins2bal ""
+Copy PtBal ""
+Copy PtRep ""
+Copy respcode ""
+
+:Confirm
+REM **** Confirm they are beginning on the correct screen ****
+IF CHECK s "GENERAL MASTER MENU" * GOTO CreateHeader
+REM If not on the right screen, pop up as message and allow them to get there
+Pause " You are not on the GENERAL MASTER MENU screen (GEUFUN01).  Please go there now. "
+IF CHECK s "GENERAL MASTER MENU" * GOTO CreateHeader
+Log "Script ended prematurely.  Unable to go to us GENERAL MASTER MENU (GEUFUN01)" "\n\n\n\n"
+GOTO Abort
+
+:CreateHeader
+REM Build header for the log file
+'LOG "CRED Log:    CREDIT RATING UPDATE SCRIPT" "\n"
+'Log "             " Version "\n"
+'LOG "Created By:  Tom Bradley, Cerner Strategic Consulting, 610-219-1423" "\n\n"
+'LOG "IMPORTANT:   Items beginning with '*' did not complete successfully" "\n\n\n\n"
+'LOG "   Pt No     Processing Details" "\n"
+'LOG "   --------  -------------------------" "\n"
+Log "getcreditrating" "\n"
+Log "Acct #  ,CR,CA,FC,AT,       Acct Bal,ins1,ins1bal,ins2,ins2bal, PtBal,PtRep,Respcode" "\n" 
+
+
+:GEUFUN01
+REM **** From GEUFUN01 (Signon TCL within Unity FMS is SIGNONUN), Get to PTIQ screen
+REM      This only needs to be done once
+PASTE "02" 22 63
+SEND s ""
+PASTE "01" 21 63
+SEND s ""
+PASTE "PTIQ" 22 61
+SEND s ""
+IF CHECK s "PAQINQ01" * GOTO BeginInquiry
+GOTO LogMessage
+
+:BeginInquiry
+
+:ReadData
+REM **** Read the data from the data file ****
+IF eof GOTO QuitScript
+'Sleep 1
+READ
+COPYFIELD PtNo FILE 1 "'"
+'COPYFIELD CreditRating FILE 2 ","
+        
+:UpdateOLIEScreen
+TELL "Processing: " PtNo 
+
+:PTIQ
+GetCursorPosition 05 27
+SEND s "[Erase]"
+Paste PtNo 5 27
+SEND s ""
+IF CHECK s "PATIENT OVERVIEW" * GOTO PF16
+GOTO LogMessage
+
+:PF16
+SEND s "[PF2]"
+IF CHECK s "PATIENT FINANCIAL DATA" * GOTO InputData
+GOTO LogMessage
+
+:InputData
+Rem Input data from the souce file
+Copy CreditRating SCREEN 11 20 1
+Copy CourtAllow SCREEN 12 62 1
+Copy FinCLs SCREEN 4 37 1
+Copy Accttype SCREEN 3 79 1
+Copy AcctBal SCREEN 4 68 12
+Copy ins1 SCREEN 18 21 3
+Copy ins1bal SCREEN 19 21 7
+Copy ins2 SCREEN 18 34 3
+Copy ins2bal Screen 19 34 7
+Copy PtBal SCREEN 19 72 8
+Copy PtRep SCREEN 11 68 3
+Copy respcode SCREEN 11 62 1
+Logline PtNo ", " CreditRating ", " CourtAllow ", " FinCls ", " Accttype ",    " AcctBal "," ins1 "," ins1bal "," ins2 "," ins2bal "," Ptbal "," PtRep "," Respcode ""
+Goto Complete
+
+:Complete
+Rem Try to complete the screen
+Send s "[PF14]"
+GOTO ReadData
+
+:Success
+COPY LineTwentyFour SCREEN 24 2 65
+LOG "   " PtNo "  " LineTwentyFour "\n"
+GOTO ReturnMaster
+
+:LogMessage
+COPY LineTwentyFour SCREEN 24 2 65
+LOG "*  " PtNo "  " LineTwentyFour "\n"
+TELL "     *** " LineTwentyFour " ***"
+REJECT
+GOTO ReturnMaster
+
+:ReturnMaster
+IF CHECK s "PAQINQ01" * GOTO BeginInquiry
+IF CHECK s "GENERAL MASTER MENU" * GOTO GEUFUN01
+SEND s "[PF13]"
+IF CHECK s "PAQINQ01" * GOTO BeginInquiry
+IF CHECK s "GENERAL MASTER MENU" * GOTO GEUFUN01
+SEND s "[PF13]"
+IF CHECK s "PAQINQ01" * GOTO BeginInquiry
+IF CHECK s "GENERAL MASTER MENU" * GOTO GEUFUN01
+SEND s "[clear]"
+IF CHECK s "GENERAL MASTER MENU" * GOTO GEUFUN01
+Log "Unable to return to Master Menu.   Script Ending"
+Goto Abort
+
+
+:QuitScript
+LOG "Log End" "\n\n\n\n"
+	copyfile logfile "\\Is-ken\c$\Users\bhb212\Desktop\*.*"
+
+
+'CopyFile logfile "\\bmh-ras\ras2\"
+EXIT
+
+
+:Exit_Label
+ 'Exit
+Exit
+
+:Abort
+ 'Exit Error
+ExitError

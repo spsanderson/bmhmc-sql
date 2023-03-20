@@ -1,0 +1,31 @@
+SetStartUp RumbaInterfaceType "NoConnection"
+
+SetStartUp Inputfile "C:\EMUE\BuildQuery\InputFiles\*.txt"
+SetStartUp MoveInputFile "C:\EMUE\BuildQuery\InputProcessing\"
+SetStartUp MoveInputFileAfterProcessing "C:\EMUE\BuildQuery\InputArchive\"
+
+SetStartUp Logfile "C:\EMUE\BuildQuery\OutputLogs\#ScriptFileName#_#today#_#time#.txt"
+
+LogLine "Copy query " &doublequote &doublequote
+
+:ReadFile
+If EOF Then
+	Goto Done
+EndIf
+
+Read
+
+Copy currentline FILE 1 300
+Replace currentline currentline &TAB ""
+Trim currentline currentline
+
+If currentline EQ "" Goto ReadFile
+If currentline like "--*" Goto ReadFile
+
+LogLine "Concatenate query query " &doublequote currentline " " &doublequote
+
+Goto ReadFile
+
+:Done
+Exit
+

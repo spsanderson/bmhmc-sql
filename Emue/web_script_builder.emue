@@ -1,0 +1,883 @@
+'***** Copyright Databound Healthcare Solutions 2016                                          *****
+'***** Author: Mike Harris                                                                    *****
+
+'***** This script automates the process of creating a template file and folder structure     *****
+'***** for many of the common EMUE template types.                                            *****
+'***** To run the process, click play, and provide a script name to the pop-up if one appears *****
+'***** Choosing a name different from the options will create a TN3270 template with the name *****
+'***** you provided in the pop-up                                                             *****
+'***** Express users will have a TN3270 template created only.                                *****
+
+SetStartUp RumbaInterfaceType "NoConnection"
+SetStartUp EnableDebugger "Yes"
+SetStartUp Logfile "C:\EMUE\Mainframe_Template.EMUE"
+SetStartUp AutoClose "Yes"
+
+OnError GOTO ExitError_Label
+
+:GetUserInput
+'Gets User version and asks what type of template they would like to create
+Copy version &EMUEEdition 
+If ((version eq "WebScripting") OR (version eq "Enterprise") OR (version eq "Advanced")) Then
+	Concatenate Message "What template would you like to create?" &CRLF "Type: " &CRLF &CRLF &DoubleQuote "1" &DoubleQuote " for web scripting" &CRLF &DoubleQuote "2" &DoubleQuote " for mainframe" &CRLF &DoubleQuote "3" &DoubleQuote " for Novell SAA" &CRLF &DoubleQuote "4" &DoubleQuote " for TPX" &CRLF &DoubleQuote "5" &DoubleQuote " for a blank Template"   
+	Copy TemplateNumber USERINPUT Message
+	If ((TemplateNumber < 1 ) or (TemplateNumber > 5)) Then
+		Pause "You have not entered a valid selection. Press 'Yes' to try again. Press 'No' to exit."
+		Goto GetUserInput
+	Endif
+	
+	:FTPSelection
+	Concatenate FTPMessage "Will this script use FTP" &CRLF "Type: " &CRLF &CRLF &DoubleQuote "1" &DoubleQuote " for YES" &CRLF &DoubleQuote "2" &DoubleQuote " for NO"
+	Copy FTPSelector USERINPUT FTPMessage
+	If ((FTPSelector < 1 ) or (FTPSelector > 2)) Then
+		Pause "You have not entered a valid selection. Press 'Yes' to try again. Press 'No' to exit."
+		Goto FTPSelection
+	Endif
+
+	Copy TemplateToCreate USERINPUT "Please enter a name for your script. Leave blank to name 'Template'"
+	'UpperCase TemplateToCreateComparison TemplateToCreate
+'	If TemplateToCreate EQ "BLANK" Then
+'		Copy UserScriptName USERINPUT "Please provide a script name"
+'		Goto CreateBlankTemplate
+'	Endif
+
+	If     (FindString(TemplateNumber, "1") NE 0) Then
+		Goto WebScriptingTemplateCreation
+	ElseIf (FindString(TemplateNumber, "2") NE 0) Then
+		Goto TN3270TemplateCreation
+	ElseIf (FindString(TemplateNumber, "3") NE 0) Then
+		Goto NovellTemplateCreation
+	ElseIf (FindString(TemplateNumber, "4") NE 0) Then
+		Goto TPXTemplateCreation
+	ElseIf (FindString(TemplateNumber, "5") NE 0) Then
+		Goto BlankTemplateCreation
+	Else
+		Pause "You have not entered a valid selection. Press 'Yes' to try again. Press 'No' to exit."
+		Goto GetUserInput
+	EndIf
+
+Else
+	Goto ExpressFileCreation
+Endif
+
+:TN3270TemplateCreation
+Call DirectoryCheck
+Call OpenLog
+Concatenate TNMessage "Type " &DoubleQuote "1" &DoubleQuote " for TN3270 (Invision) Template" &CRLF "Type " &DoubleQuote "2" &DoubleQuote " for TN5250 (MS4) Template"
+:GetTNInput
+Copy TNSelection USERINPUT TNMessage
+	If ((TNSelection < 1 ) or (TNSelection > 2)) Then
+		Pause "You have not entered a valid selection. Press 'Yes' to try again. Press 'No' to exit."
+		Goto GetTNInput
+	Endif
+
+If     (FindString(TNSelection, "1") NE 0) Then
+    Copy TNSelection "TN3270"
+	Call TN3270SetStartUps
+ElseIf (FindString(TNSelection, "2") NE 0) Then
+    Copy TNSelection "TN5250"
+	Call TN5250SetStartUps
+Endif
+If FTPSelector EQ 1 Then
+	Call FTPSetStartUps
+Endif
+Call OptimizationsSetStartUps
+Call InputFileSetStartUps
+Call LoggingSetStartUps
+Call EmailSetStartUps
+Call AutomationSettingsSetStartUp
+Call DebuggingSetStartUps
+Call StartOfScript
+Call CloseLogFileAndCreateFileStructure
+
+Goto Exit
+
+:WebScriptingTemplateCreation
+Concatenate BestPracticeMessage "Would you like to add best practices to your script?" &CRLF &CRLF "Type " &DoubleQuote "0" &DoubleQuote " for script without best practices" &CRLF "Type " &DoubleQuote "1" &DoubleQuote " for generic web best practices" &CRLF "Type " &DoubleQuote "2" &DoubleQuote " for Soarian Best Practices"
+:GetBestPracticeInput
+Copy BestPracticeSelection USERINPUT BestPracticeMessage
+	If ((BestPracticeSelection < 0 ) or (BestPracticeSelection > 2)) Then
+		Pause "You have not entered a valid selection. Press 'Yes' to try again. Press 'No' to exit."
+		Goto GetBestPracticeInput
+	Endif
+
+Call DirectoryCheck
+Call OpenLog
+Call WebScriptingSetStartUps
+If FTPSelector EQ 1 Then
+	Call FTPSetStartUps
+Endif
+Call InputFileSetStartUps
+Call LoggingSetStartUps
+Call EmailSetStartUps
+Call AutomationSettingsSetStartUp
+Call DebuggingSetStartUps
+Call StartOfScript
+Call CloseLogFileAndCreateFileStructure
+
+Goto Exit
+
+:NovellTemplateCreation
+Call DirectoryCheck
+Call OpenLog
+Call NovellSetStartUps
+If FTPSelector EQ 1 Then
+	Call FTPSetStartUps
+Endif
+Call OptimizationsSetStartUps
+Call InputFileSetStartUps
+Call LoggingSetStartUps
+Call EmailSetStartUps
+Call AutomationSettingsSetStartUp
+Call DebuggingSetStartUps
+Call StartOfScript
+Call CloseLogFileAndCreateFileStructure
+
+Goto Exit
+
+:TPXTemplateCreation
+Call DirectoryCheck
+Call OpenLog
+Call TPXSetStartUps
+If FTPSelector EQ 1 Then
+	Call FTPSetStartUps
+Endif
+Call OptimizationsSetStartUps
+Call InputFileSetStartUps
+Call LoggingSetStartUps
+Call EmailSetStartUps
+Call AutomationSettingsSetStartUp
+Call DebuggingSetStartUps
+Call StartOfScript
+Call CloseLogFileAndCreateFileStructure
+
+Goto Exit
+
+:BlankTemplateCreation
+Call DirectoryCheck
+Call OpenLog
+Call BlankSetStartUps
+If FTPSelector EQ 1 Then
+	Call FTPSetStartUps
+Endif
+Call InputFileSetStartUps
+Call LoggingSetStartUps
+Call EmailSetStartUps
+Call AutomationSettingsSetStartUp
+Call DebuggingSetStartUps
+Call StartOfScript
+Call CloseLogFileAndCreateFileStructure
+
+Goto Exit
+
+:Exit
+'Exit the script Successfully
+Exit
+
+:ExitError_Label
+Pause "An Error has occurred while trying to create the folder structure. Please review and try again."
+ExitError
+
+:DirectoryCheck
+'Check to make sure that there is not a template file in this directory with the same name.
+Let EMUEStringPosition = findstring &fullscriptfilename "EMUE "
+Let EMUEStringPosition = EMUEStringPosition - 1
+Left TemplateFilePath &FullScriptFileName EMUEStringPosition
+
+If TemplateToCreate EQ "" Then
+	Concatenate TemplateName TemplateToCreate "Template"
+Else
+	Copy TemplateName TemplateToCreate
+Endif
+
+GetFileList ListOfFiles TemplateFilePath
+
+Concatenate TemplateNameSearch TemplateName ".EMUE"
+FindListPosition ListOfFiles TemplateNameSearch 1 START ENABLEWILDCARD
+If (!(EndOfList("ListOfFiles"))) Then
+	Pause "A template file already exists. Please review this directory and try again."
+	Goto GetUserInput
+Else
+	Return 
+Endif
+
+
+:OpenLog
+Copy LogFileLocation &FullScriptFileName
+Replace LogFileLocation LogFileLocation &scriptfilename TemplateName
+OpenLog "NewEMUE" LogFileLocation
+
+Copy SourceFileLocation &FullScriptFileName
+Replace SourceFileLocation SourceFileLocation &scriptfilename ""
+Replace SourceFileLocation SourceFileLocation ".EMUE" ""
+Replace SourceFileLocation SourceFileLocation "\\" "\"
+Left UNCPath SourceFileLocation 1
+If UNCPatH EQ "\" Then
+	Concatenate SourceFileLocation "\" SourceFileLocation
+Endif
+Return
+
+:TN3270SetStartUps
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":SetStartups_Label"
+WriteLogLine "NewEMUE" " 'Gateway Connection Info"
+WriteLogLine "NewEMUE" "SetStartUp RumbaInterfaceType " &DoubleQuote TNSelection &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SNAServer1 " &DoubleQuote "Mainframe_IP_or_DNS_name" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ManualLogin " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOnPathway " &DoubleQuote "StandardSignatureAndInvision" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp PreSignonKeystrokes " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CICS " &DoubleQuote "cics" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CICSMessage " &DoubleQuote "******\\  ******\\  ******\\   ******\\" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CHPS " &DoubleQuote "chpshosp=ytest" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOn " &DoubleQuote "Username" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp Password " &DoubleQuote "Password" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOnPosition " &DoubleQuote "13,71" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp PasswordPosition " &DoubleQuote "17,71" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp HasMessageScreenAfterLogin " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp MainMenu " &DoubleQuote "GEMFUN01" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp LogOffKeySequence " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:TN5250SetStartUps
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":SetStartups_Label"
+WriteLogLine "NewEMUE" " 'Gateway Connection Info"
+WriteLogLine "NewEMUE" "SetStartUp RumbaInterfaceType " &DoubleQuote TNSelection &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SNAServer1 " &DoubleQuote "Mainframe_IP_or_DNS_name" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp DeviceName " &DoubleQuote "MS4DeviceName" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp TerminalPort " &DoubleQuote "23" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ManualLogin " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOnPathway " &DoubleQuote "StandardMS4" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp PreSignonKeystrokes " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp TerminalIsAvailableMessage " &DoubleQuote "Sign On" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOn " &DoubleQuote "YourUsernameHere" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp Password " &DoubleQuote "YourPasswordHere" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOnPosition " &DoubleQuote "17,51" &DoubleQuote " 'May change based on facility"
+WriteLogLine "NewEMUE" "SetStartUp PasswordPosition " &DoubleQuote "18,51" &DoubleQuote " 'May change based on facility"
+WriteLogLine "NewEMUE" "SetStartUp HasMessageScreenAfterLogin " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp MainMenuPosition " &DoubleQuote "1,2" &DoubleQuote " 'May change based on installation"
+WriteLogLine "NewEMUE" "SetStartUp MainMenu " &DoubleQuote "MainMenuNameHere" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp LogOffKeySequence " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+
+:WebScriptingSetStartUps
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":SetStartups_Label"
+WriteLogLine "NewEMUE" " 'Gateway Connection Info"
+WriteLogLine "NewEMUE" "SetStartUp RumbaInterfaceType " &DoubleQuote "NoConnection" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" " 'Web Scripting"
+WriteLogLine "NewEMUE" "SetStartUp OpenWebPageRetries " &DoubleQuote "3" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp WebElementTimeout " &DoubleQuote "10000" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp WaitForWebPageCompletion " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CloseUnhandledDialogBoxes " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp WebTypingOptimization " &DoubleQuote "TypeLastCharacter" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp IncludeNestedWebTablesInPositionCount " &DoubleQuote "No" &DoubleQuote
+'Concatenate WebSmartNameFileString SourceFileLocation "SoarianSmartNames.emuesmartnames" &DoubleQuote " 'For Soarian use only"
+Concatenate WebSmartNameFileString "C:\EMUE\SoarianSmartNames.emuesmartnames" &DoubleQuote " 'For Soarian use only"
+WriteLogLine "NewEMUE" "'SetStartUp WebSmartNameFile " &DoubleQuote WebSmartNameFileString &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:NovellSetStartUps
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" " 'Gateway Connection Info"
+WriteLogLine "NewEMUE" ":SetStartups_Label"
+WriteLogLine "NewEMUE" "SetStartUp RumbaInterfaceType " &DoubleQuote "NovellSAA" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_LogonOption " &DoubleQuote "UseLogonUserName" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_ServerIdentifier " &DoubleQuote "IPXSPXServerName" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_ServerName " &DoubleQuote "SRV-SAA1" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_ServiceName " &DoubleQuote "TFFFFFFF" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_LUCategory " &DoubleQuote "DedicatedLU" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_GroupOrLUName " &DoubleQuote "TFFFFFFF" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_HotStandby " &DoubleQuote "True" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SAA_LoadBalancing " &DoubleQuote "False" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" " 'Signature Signon Info"
+WriteLogLine "NewEMUE" "SetStartUp SignOnPathway " &DoubleQuote "StandardSignatureAndInvision" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp PreSignonKeystrokes " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CICS " &DoubleQuote "AB12" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp CICSMessage " &DoubleQuote "******\\  ******\\  ******\\   ******\\" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CHPS " &DoubleQuote "STEST=Y" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOn " &DoubleQuote "Username" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp Password " &DoubleQuote "Password" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp SignOnPosition " &DoubleQuote "13,71" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp PasswordPosition " &DoubleQuote "17,71" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp HasMessageScreenAfterLogin " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp MainMenu " &DoubleQuote "GEMFUN01" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp LogOffKeySequence " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:TPXSetStartUps
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":SetStartups_Label"
+WriteLogLine "NewEMUE" " 'Gateway Connection Info"
+WriteLogLine "NewEMUE" "SetStartUp RumbaInterfaceType " &DoubleQuote "TN3270" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" " 'TPX Settings"
+WriteLogLine "NewEMUE" "SetStartUp TPXCommand " &DoubleQuote "TPX" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp TPXPassword " &DoubleQuote "YourTPXPasswordHere" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp TPXUsername " &DoubleQuote "YourTPXUsernameHere" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp TPXLoginScreenText " &DoubleQuote "YourTPXLoginScreenHere" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp TPXMenuScreenText " &DoubleQuote "YourMainMenuTextHere" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SNAServer1 " &DoubleQuote "Mainframe_IP_or_DNS_name" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ManualLogin " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOnPathway " &DoubleQuote "StandardSignatureAndInvision" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp PreSignonKeystrokes " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CICS " &DoubleQuote "cics" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CICSPosition " &DoubleQuote "22, 15" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp CHPS " &DoubleQuote "chpshosp=ytest" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SignOn " &DoubleQuote "Username" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp Password " &DoubleQuote "Password" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp SignOnPosition " &DoubleQuote "13,71" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp PasswordPosition " &DoubleQuote "17,71" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp HasMessageScreenAfterLogin " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp MainMenu " &DoubleQuote "GEMFUN01" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp LogOffKeySequence " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" ""
+
+:BlankSetStartUps
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":SetStartups_Label"
+WriteLogLine "NewEMUE" " 'Gateway Connection Info"
+WriteLogLine "NewEMUE" "SetStartUp RumbaInterfaceType " &DoubleQuote "NoConnection" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+
+Return
+
+:FTPSetStartUps
+WriteLogLine "NewEMUE" "'SetStartUp FTP_AcceptInvalidCertificate " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_Compression " &DoubleQuote "NONE" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_FilterListingLocally " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_IncludeLeadingSlashInPath " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_Username " &DoubleQuote "YourUserNameHere" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_Password " &DoubleQuote "YourPasswordHere" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_PortNumber " &DoubleQuote "YourPortNumberHere" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_PortType " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_RetryCount " &DoubleQuote "5" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_SecurityType " &DoubleQuote "None" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_Timeout " &DoubleQuote "30" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_UsePassive " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_ValidateServerSSLCertificate " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_ProxyPassword " &DoubleQuote "YourProxyPassword" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_ProxyPort " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_ProxyServer " &DoubleQuote "ProxyServerAddress" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_ProxyType " &DoubleQuote "None" &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp FTP_ProxyUsername " &DoubleQuote "YourProxyUsername" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+
+Return 
+
+:OptimizationsSetStartUps
+WriteLogLine "NewEMUE" " 'Optimizations & Misc"
+WriteLogLine "NewEMUE" "SetStartUp DisplayBackgroundColor " &DoubleQuote "Black" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp DisplayColors " &DoubleQuote "Lime;Yellow;Red;White" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp AllowTypeAhead " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp QuietTime " &DoubleQuote "0" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:InputFileSetStartUps
+WriteLogLine "NewEMUE" " 'Input File"
+
+Concatenate  InputFileString SourceFileLocation TemplateName "\InputFiles\*.*"
+WriteLogLine "NewEMUE" "'SetStartUp InputFile " &DoubleQuote InputFileString &DoubleQuote
+
+Concatenate InputProcessingString SourceFileLocation TemplateName "\InputProcessing\"
+WriteLogLine "NewEMUE" "'SetStartUp MoveInputFile " &DoubleQuote InputProcessingString &DoubleQuote
+
+Concatenate InputArchiveString SourceFileLocation TemplateName "\InputArchive\"
+WriteLogLine "NewEMUE" "'SetStartUp MoveInputFileAfterProcessing " &DoubleQuote InputArchiveString &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp InputFileSortOrder " &DoubleQuote "Name_Ascending" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp WaitForInputFile " &DoubleQuote "No" &DoubleQuote " 'Not available for Express version of EMUE"
+WriteLogLine "NewEMUE" "SetStartUp MaxFileWaitTime " &DoubleQuote "0" &DoubleQuote " 'Not available for Express version of EMUE"
+WriteLogLine "NewEMUE" "SetStartUp WaitAgain " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp FailScriptOnMissingInputFile " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:LoggingSetStartUps
+WriteLogLine "NewEMUE" " 'Activity Log"
+
+Concatenate ActivityLogString SourceFileLocation TemplateName "\ActivityLogs\#ScriptFileName#_#today#_#time#.log"
+WriteLogLine "NewEMUE" "SetStartUp ActivityLogFile " &DoubleQuote ActivityLogString &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp OverWriteActivityLog " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp VerboseLogInfo " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" " 'Output Log"
+
+Concatenate OutputLogString SourceFileLocation TemplateName "\OutputLogs\#ScriptFileName#_#today#_#time#.log"
+WriteLogLine "NewEMUE" "SetStartUp LogFile " &DoubleQuote OutputLogString &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" " 'Trace Log 'Line by line detailed EMUE logging"
+
+Concatenate TraceLogString SourceFileLocation TemplateName "\TraceLogs\#ScriptFileName#_#today#_#time#.log"
+WriteLogLine "NewEMUE" "'SetStartUp TraceLogFile " &DoubleQuote TraceLogString &DoubleQuote
+WriteLogLine "NewEMUE" "'SetStartUp TraceLogMaxLineCount " &DoubleQuote "5000" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:EmailSetStartUps
+WriteLogLine "NewEMUE" " 'Email Settings"
+WriteLogLine "NewEMUE" "SetStartUp SMTPServer " &DoubleQuote "BMH-Exchange-SMTP.bmhmc.org" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp EmailFrom " &DoubleQuote "bmh-emue@bmhmc.org" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SuccessEmail " &DoubleQuote "destination_email@hosp.org" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SuccessEmail_IncludeInputFile " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SuccessEmail_IncludeOutputLog " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SuccessEmail_IncludeActivityLog " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SuccessEmail_MessageSubject " &DoubleQuote TemplateName " Completed Successfully" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SuccessEmail_MessageBody " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ErrorEmail " &DoubleQuote "destination_email@hosp.org" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ErrorEmail_IncludeOutputLog " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ErrorEmail_IncludeInputFile " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ErrorEmail_IncludeActivityLog " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ErrorEmail_MessageSubject " &DoubleQuote "Error Processing " TemplateName &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp ErrorEmail_MessageBody " &DoubleQuote &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SendEmailOnErrorWhenDebugging " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:AutomationSettingsSetStartUp
+WriteLogLine "NewEMUE" " 'Automation Settings"
+WriteLogLine "NewEMUE" "SetStartUp AutoClose " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp AutoDisconnect " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp AllowCompletionOptionsOnError " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "SetStartUp SortLists " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:DebuggingSetStartUps
+WriteLogLine "NewEMUE" " 'Debugging Settings"
+WriteLogLine "NewEMUE" "SetStartUp EnableDebugger " &DoubleQuote "Yes"  &DoubleQuote " 'Change to " &DoubleQuote "No" &DoubleQuote " for Production"
+WriteLogLine "NewEMUE" "SetStartUp ParseScriptOnLoad " &DoubleQuote "Yes" &DoubleQuote " 'Change to " &DoubleQuote "No" &DoubleQuote " for Production"
+WriteLogLine "NewEMUE" "SetStartUp RequireVariableAssignmentBeforeRead " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+Return
+
+:StartOfScript
+If BestPracticeSelection EQ 1 Then
+	Call GenericBestPractices
+	Return
+ElseIf BestPracticeSelection EQ 2 Then
+	Call SoarianBestPractices
+	Return
+Endif
+WriteLogLine "NewEMUE" ":Start_Of_Script_Label"
+WriteLogLine "NewEMUE" " 'Here is where your script commands will start"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Exit_Label"
+WriteLogLine "NewEMUE" " 'Exit"
+WriteLogLine "NewEMUE" "Exit"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Exit_Error_Label"
+WriteLogLine "NewEMUE" " 'Exit Error"
+WriteLogLine "NewEMUE" "ExitError"
+Return
+
+:CloseLogFileAndCreateFileStructure
+CloseLog "NewEMUE"
+
+Concatenate TemplateFolder SourceFileLocation TemplateName
+CreateFileFolder TemplateFolder
+
+Concatenate TemplateFolderFile TemplateFolder "\" TemplateName ".EMUE"
+Concatenate TemplateInputFiles TemplateFolder "\InputFiles"
+Concatenate TemplateInputProcessing TemplateFolder "\InputProcessing"
+Concatenate TemplateInputArchive TemplateFolder "\InputArchive"
+Concatenate TemplateOutputLogs TemplateFolder "\OutputLogs"
+Concatenate TemplateActivityLogs TemplateFolder "\ActivityLogs"
+MoveFile LogFileLocation TemplateFolderFile
+
+CreateFileFolder TemplateInputFiles
+CreateFileFolder TemplateInputProcessing 
+CreateFileFolder TemplateInputArchive 
+CreateFileFolder TemplateOutputLogs 
+CreateFileFolder TemplateActivityLogs
+Return
+
+:GenericBestPractices
+WriteLogLine "NewEMUE" ":SetLoginInfo"
+WriteLogLine "NewEMUE" "Copy UserName " &DoubleQuote "Username" &DoubleQuote
+WriteLogLine "NewEMUE" "Copy Password " &DoubleQuote "password" &DoubleQuote " 'Don't forget to encrypt the password!"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "'-----------------Use this section if data is from a spreadsheet or database---------------------"
+WriteLogLine "NewEMUE" ":GetData"
+WriteLogLine "NewEMUE" "GetOLEDBData Data " &DoubleQuote "ConnectionString" &DoubleQuote " " &DoubleQuote "Query" &DoubleQuote " 'Data is from OLEDB database, such as SQL Server"
+WriteLogLine "NewEMUE" "'GetAccessData Data " &DoubleQuote "Path to Database" &DoubleQuote " " &DoubleQuote "Query" &DoubleQuote " " &DoubleQuote "Access Version" &DoubleQuote " 'Data is from Access database"
+WriteLogLine "NewEMUE" "'GetExcelData Data " &DoubleQuote "Path to Spreadsheet" &DoubleQuote " " &DoubleQuote "Query" &DoubleQuote " " &DoubleQuote "Excel Version" &DoubleQuote " 'Data is from Excel spreadsheet"
+WriteLogLine "NewEMUE" "GetListCount Count Data"
+WriteLogLine "NewEMUE" "'If nothing to process, exit the script before opening the webpage"
+WriteLogLine "NewEMUE" "If Count eq 0 goto ExitNoBrowser"
+WriteLogLine "NewEMUE" "'------------------------------------------------------------------------------------------------"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":InitializeVariables"
+WriteLogLine "NewEMUE" "Copy RetryRecord " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "'Initialize Counters"
+WriteLogLine "NewEMUE" "Let RetryRecordCount = 0"
+WriteLogLine "NewEMUE" "Let GlobalRetryCount = 0"
+WriteLogLine "NewEMUE" "Let ExpireWarningCount = 0"
+WriteLogLine "NewEMUE" "Let LoginErrorCount = 0"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":OpenBrowser"
+WriteLogLine "NewEMUE" "OnError GOTO ErrorHandling"
+WriteLogLine "NewEMUE" "OpenWebPage " &DoubleQuote "http://www.WebsiteName.com" &DoubleQuote " ClearAll"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Signon"
+WriteLogLine "NewEMUE" "'Look for Login Page"
+WriteLogLine "NewEMUE" "If WebElementExists " &DoubleQuote "LoginButton" &DoubleQuote " 60000 Then"
+WriteLogLine "NewEMUE" "	'Username"
+WriteLogLine "NewEMUE" "	TypeWebValue UserName " &DoubleQuote "UserNameTextBox" &DoubleQuote 
+WriteLogLine "NewEMUE" "	'Password"
+WriteLogLine "NewEMUE" "	TypeWebValue Password " &DoubleQuote "PasswordTextBox" &DoubleQuote
+WriteLogLine "NewEMUE" "	'Sign In"
+WriteLogLine "NewEMUE" "	ClickWebElement " &DoubleQuote "LoginButton" &DoubleQuote
+WriteLogLine "NewEMUE" "Else"
+WriteLogLine "NewEMUE" "	Tell " &DoubleQuote "Can't find signon page.  Restarting." &DoubleQuote
+WriteLogLine "NewEMUE" "	Goto RetryLogic"
+WriteLogLine "NewEMUE" "Endif"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":CheckPasswordNotice"
+WriteLogLine "NewEMUE" "'Check for warning that password is about to expire"
+WriteLogLine "NewEMUE" "If WebElementExists " &DoubleQuote "PasswordWarningMessage" &DoubleQuote " Then"
+WriteLogLine "NewEMUE" "	If ExpireWarningCount EQ 0 Then"
+WriteLogLine "NewEMUE" "		'Only send an e-mail the first time you get the Password notice"
+WriteLogLine "NewEMUE" "		Concatenate EmailSubject " &DoubleQuote "WebsiteName Password about to expire for " &DoubleQuote " UserName"
+WriteLogLine "NewEMUE" "		Concatenate EmailBody " &DoubleQuote "WebsiteName Password is about to expire for username " &DoubleQuote " UserName " &DoubleQuote ". Please change the password and update the script." &DoubleQuote
+WriteLogLine "NewEMUE" "		SendEmail UserEmail EmailSubject EmailBody"
+WriteLogLine "NewEMUE" "	EndIf"
+WriteLogLine "NewEMUE" "	Let ExpireWarningCount = ExpireWarningCount + 1"
+WriteLogLine "NewEMUE" "EndIf"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":CheckForSuccessfulLogin"
+WriteLogLine "NewEMUE" "WaitForWebElementGoto LoginError 30 " &DoubleQuote SomethingOnPageAfterSuccessfulLogin &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":GetNextRecord "
+WriteLogLine "NewEMUE" "'If re-trying same record, don't get next record "
+WriteLogLine "NewEMUE" "If RetryRecord EQ " &DoubleQuote "No" &DoubleQuote " Then "
+WriteLogLine "NewEMUE" "\tIf EndOfList Data Goto Exit 'For Excel or Database input "
+WriteLogLine "NewEMUE" "\t'If EOF Goto Exit 'For Text file input "
+WriteLogLine "NewEMUE" "\tUpdatestatus Data 'For Excel or Database input "
+WriteLogLine "NewEMUE" "\tGetListMember Data Var1 Var2 Var3 ... 'For Excel or Database input "
+WriteLogLine "NewEMUE" "\t'Read	'For Text file input "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "\t'Reset Values, clear variables "
+WriteLogLine "NewEMUE" "\tCopy RetryRecord " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "Endif "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":ProcessRecord "
+WriteLogLine "NewEMUE" "'Code specific to your website/process goes here... "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "'Record successfully processed. Set RetryRecord to No so that you will get the next record "
+WriteLogLine "NewEMUE" "Copy RetryRecord " &DoubleQuote "No" &DoubleQuote 
+WriteLogLine "NewEMUE" "Goto GetNextRecord "
+WriteLogLine "NewEMUE" " "
+WriteLogLine "NewEMUE" ":LoginError "
+WriteLogLine "NewEMUE" "Let LoginErrorCount = LoginErrorCount + 1 "
+WriteLogLine "NewEMUE" "Tell " &DoubleQuote "Unable to log into WebsiteName with username " &DoubleQuote " UserName " &DoubleQuote "." &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "If LoginErrorCount GE 2 Then "
+WriteLogLine "NewEMUE" "\tConcatenate ErrorEmailSubject " &DoubleQuote "Too many login attempts for WebsiteName user " &DoubleQuote " UserName"
+WriteLogLine "NewEMUE" "\tCopy ErrorEmailMsg " &DoubleQuote "Aborting script to avoid locking account. Check password in script." &DoubleQuote
+WriteLogLine "NewEMUE" "\tSetRuntime ErrorEmail_MessageSubject ErrorEmailSubject "
+WriteLogLine "NewEMUE" "\tSetRuntime ErrorEmail_MessageBody ErrorEmailMsg "
+WriteLogLine "NewEMUE" "\tGoto Abort "
+WriteLogLine "NewEMUE" "Else "
+WriteLogLine "NewEMUE" "\tGoto RetryLogic "
+WriteLogLine "NewEMUE" "Endif "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":ErrorHandling "
+WriteLogLine "NewEMUE" "OnError Resume Next"
+WriteLogLine "NewEMUE" "Resume RetryLogic "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":RetryLogic "
+WriteLogLine "NewEMUE" "Let GlobalRetryCount = GlobalRetryCount + 1 "
+WriteLogLine "NewEMUE" "Tell " &DoubleQuote "GlobalRetryCount is " &DoubleQuote " GlobalRetryCount"
+WriteLogLine "NewEMUE" "'Retry up to 20 times "
+WriteLogLine "NewEMUE" "If GlobalRetryCount GE 20 Then "
+WriteLogLine "NewEMUE" "\tTell " &DoubleQuote "Exceded maximum allowed GlobalRetryCount. Aborting Script." &DoubleQuote
+WriteLogLine "NewEMUE" "\tGoto Abort "
+WriteLogLine "NewEMUE" "Endif"
+WriteLogLine "NewEMUE" "'Retry the same record up to 3 times. If count > 2, move on to next. "
+WriteLogLine "NewEMUE" "If RetryRecord EQ " &DoubleQuote "Yes" &DoubleQuote " Then "
+WriteLogLine "NewEMUE" "\tLet RetryRecordCount = RetryRecordCount + 1 "
+WriteLogLine "NewEMUE" "\tTell " &DoubleQuote "RetryRecordCount = " &DoubleQuote " RetryRecordCount"
+WriteLogLine "NewEMUE" "\tIf RetryRecordCount GE 3 Then "
+WriteLogLine "NewEMUE" "\t\tCopy RetryRecord " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "\t\tTell " &DoubleQuote "Reached max record retries. Moving on to next record." &DoubleQuote
+WriteLogLine "NewEMUE" "\t\t'Reset record retry counter "
+WriteLogLine "NewEMUE" "\t\tLet RetryRecordCount = 0 "
+WriteLogLine "NewEMUE" "\tEndif "
+WriteLogLine "NewEMUE" "Endif "
+WriteLogLine "NewEMUE" "CloseWebPage "
+WriteLogLine "NewEMUE" "ClearCallStack  "
+WriteLogLine "NewEMUE" "Goto OpenBrowser "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Abort"
+WriteLogLine "NewEMUE" "CloseWebPage"
+WriteLogLine "NewEMUE" "ExitError"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":ExitNoBrowser"
+WriteLogLine "NewEMUE" "Exit"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Exit"
+WriteLogLine "NewEMUE" "'Log Off of website"
+WriteLogLine "NewEMUE" "ClickWebElement " &DoubleQuote "SignOutbutton" &DoubleQuote
+WriteLogLine "NewEMUE" "CloseWebPage"
+WriteLogLine "NewEMUE" "Exit"
+Return
+
+:SoarianBestPractices
+WriteLogLine "NewEMUE" ":SetLoginInfo"
+WriteLogLine "NewEMUE" "Copy UserName " &DoubleQuote "Username" &DoubleQuote
+WriteLogLine "NewEMUE" "Copy Password " &DoubleQuote "password" &DoubleQuote " 'Don't forget to encrypt the password!"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "'-----------------Use this section if data is from a spreadsheet or database---------------------"
+WriteLogLine "NewEMUE" ":GetData"
+WriteLogLine "NewEMUE" "GetOLEDBData Data " &DoubleQuote "ConnectionString" &DoubleQuote " " &DoubleQuote "Query" &DoubleQuote " 'Data is from OLEDB database, such as SQL Server"
+WriteLogLine "NewEMUE" "'GetAccessData Data " &DoubleQuote "Path to Database" &DoubleQuote " " &DoubleQuote "Query" &DoubleQuote " " &DoubleQuote "Access Version" &DoubleQuote " 'Data is from Access database"
+WriteLogLine "NewEMUE" "'GetExcelData Data " &DoubleQuote "Path to Spreadsheet" &DoubleQuote " " &DoubleQuote "Query" &DoubleQuote " " &DoubleQuote "Excel Version" &DoubleQuote " 'Data is from Excel spreadsheet"
+WriteLogLine "NewEMUE" "GetListCount Count Data"
+WriteLogLine "NewEMUE" "'If nothing to process, exit the script before opening the webpage"
+WriteLogLine "NewEMUE" "If Count eq 0 goto ExitNoBrowser"
+WriteLogLine "NewEMUE" "'------------------------------------------------------------------------------------------------"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":InitializeVariables"
+WriteLogLine "NewEMUE" "Copy RetryRecord " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "'Initialize Counters"
+WriteLogLine "NewEMUE" "Let RetryRecordCount = 0"
+WriteLogLine "NewEMUE" "Let GlobalRetryCount = 0"
+WriteLogLine "NewEMUE" "Let ExpireWarningCount = 0"
+WriteLogLine "NewEMUE" "Let LoginErrorCount = 0"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":OpenBrowser"
+WriteLogLine "NewEMUE" "OnError GOTO ErrorHandling"
+WriteLogLine "NewEMUE" "OpenWebPage " &DoubleQuote "https://www.SoarianWebsite.com" &DoubleQuote " ClearAll"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Signon"
+WriteLogLine "NewEMUE" "'Look for Home Page"
+WriteLogLine "NewEMUE" "WaitForWebElement 30 Login.UserName_TextBox"
+WriteLogLine "NewEMUE" "LogonToSoarian UserName Password"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":CheckForSuccessfulLogin"
+WriteLogLine "NewEMUE" "WaitForWebElementGoto LoginError 30 HomePage.CheckScreen1_HomePageHeader_Value"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":GetNextRecord "
+WriteLogLine "NewEMUE" "'If re-trying same record, don't get next record "
+WriteLogLine "NewEMUE" "If RetryRecord EQ " &DoubleQuote "No" &DoubleQuote " Then "
+WriteLogLine "NewEMUE" "\tIf EndOfList Data Goto Exit 'For Excel or Database input "
+WriteLogLine "NewEMUE" "\t'If EOF Goto Exit 'For Text file input "
+WriteLogLine "NewEMUE" "\tUpdatestatus Data 'For Excel or Database input "
+WriteLogLine "NewEMUE" "\tGetListMember Data Var1 Var2 Var3 ... 'For Excel or Database input "
+WriteLogLine "NewEMUE" "\t'Read	'For Text file input "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "\t'Reset Values, clear variables "
+WriteLogLine "NewEMUE" "\tCopy RetryRecord " &DoubleQuote "Yes" &DoubleQuote
+WriteLogLine "NewEMUE" "Endif "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":ProcessRecord "
+WriteLogLine "NewEMUE" "'Code specific to your process goes here... "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" "'Record successfully processed. Set RetryRecord to No so that you will get the next record "
+WriteLogLine "NewEMUE" "Copy RetryRecord " &DoubleQuote "No" &DoubleQuote 
+WriteLogLine "NewEMUE" "Goto GetNextRecord "
+WriteLogLine "NewEMUE" " "
+WriteLogLine "NewEMUE" ":LoginError "
+WriteLogLine "NewEMUE" "Let LoginErrorCount = LoginErrorCount + 1 "
+WriteLogLine "NewEMUE" "Tell " &DoubleQuote "Unable to log into Soarian with username " &DoubleQuote " UserName " &DoubleQuote "." &DoubleQuote
+WriteLogLine "NewEMUE" " "
+WriteLogLine "NewEMUE" "If LoginErrorCount GE 2 Then "
+WriteLogLine "NewEMUE" "\tConcatenate ErrorEmailSubject " &DoubleQuote "Too many login attempts for Soarian user " &DoubleQuote " UserName"
+WriteLogLine "NewEMUE" "\tCopy ErrorEmailMsg " &DoubleQuote "Aborting script to avoid locking account. Check password in script." &DoubleQuote
+WriteLogLine "NewEMUE" "\tSetRuntime ErrorEmail_MessageSubject ErrorEmailSubject "
+WriteLogLine "NewEMUE" "\tSetRuntime ErrorEmail_MessageBody ErrorEmailMsg "
+WriteLogLine "NewEMUE" "\tGoto Abort "
+WriteLogLine "NewEMUE" "Else "
+WriteLogLine "NewEMUE" "\tGoto RetryLogic "
+WriteLogLine "NewEMUE" "Endif "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":ErrorHandling "
+WriteLogLine "NewEMUE" "OnError Resume Next"
+WriteLogLine "NewEMUE" "Resume RetryLogic "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":RetryLogic "
+WriteLogLine "NewEMUE" "Let GlobalRetryCount = GlobalRetryCount + 1 "
+WriteLogLine "NewEMUE" "Tell " &DoubleQuote "GlobalRetryCount is " &DoubleQuote " GlobalRetryCount"
+WriteLogLine "NewEMUE" "'Retry up to 20 times "
+WriteLogLine "NewEMUE" "If GlobalRetryCount GE 20 Then "
+WriteLogLine "NewEMUE" "\tTell " &DoubleQuote "Exceded maximum allowed GlobalRetryCount. Aborting Script." &DoubleQuote
+WriteLogLine "NewEMUE" "\tGoto Abort "
+WriteLogLine "NewEMUE" "Endif "
+WriteLogLine "NewEMUE" "'Retry the same record up to 3 times. If count > 2, move on to next. "
+WriteLogLine "NewEMUE" "If RetryRecord EQ " &DoubleQuote "Yes" &DoubleQuote " Then "
+WriteLogLine "NewEMUE" "\tLet RetryRecordCount = RetryRecordCount + 1 "
+WriteLogLine "NewEMUE" "\tTell " &DoubleQuote "RetryRecordCount = " &DoubleQuote " RetryRecordCount"
+WriteLogLine "NewEMUE" "\tIf RetryRecordCount GE 3 Then "
+WriteLogLine "NewEMUE" "\t\tCopy RetryRecord " &DoubleQuote "No" &DoubleQuote
+WriteLogLine "NewEMUE" "\t\tTell " &DoubleQuote "Reached max record retries. Moving on to next record." &DoubleQuote
+WriteLogLine "NewEMUE" "\t\t'Reset record retry counter "
+WriteLogLine "NewEMUE" "\t\tLet RetryRecordCount = 0 "
+WriteLogLine "NewEMUE" "\tEndif "
+WriteLogLine "NewEMUE" "Endif "
+WriteLogLine "NewEMUE" "CloseWebPage "
+WriteLogLine "NewEMUE" "ClearCallStack  "
+WriteLogLine "NewEMUE" "Goto OpenBrowser "
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Abort"
+WriteLogLine "NewEMUE" "CloseWebPage"
+WriteLogLine "NewEMUE" "ExitError"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":ExitNoBrowser"
+WriteLogLine "NewEMUE" "Exit"
+WriteLogLine "NewEMUE" ""
+WriteLogLine "NewEMUE" ":Exit"
+WriteLogLine "NewEMUE" "'Log Off of website"
+WriteLogLine "NewEMUE" "ClickWebElement Logoff.Logoff_Link"
+WriteLogLine "NewEMUE" "CloseWebPage"
+WriteLogLine "NewEMUE" "Exit"
+Return
+
+
+
+
+
+:ExpressFileCreation
+Copy TemplateToCreate USERINPUT "Please enter a name for your script. Leave blank to name 'Template'"
+Call DirectoryCheck
+'Create SetStartUps
+LogLine ""
+LogLine ":SetStartups_Label"
+LogLine " 'Gateway Connection Info"
+LogLine "SetStartUp RumbaInterfaceType " &DoubleQuote "TN3270" &DoubleQuote
+LogLine "SetStartUp SNAServer1 " &DoubleQuote "Mainframe_IP_or_DNS_name" &DoubleQuote
+LogLine "SetStartUp ManualLogin " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp SignOnPathway " &DoubleQuote "StandardSignatureAndInvision" &DoubleQuote
+LogLine "SetStartUp PreSignonKeystrokes " &DoubleQuote &DoubleQuote
+LogLine "SetStartUp CICS " &DoubleQuote "cics" &DoubleQuote
+LogLine "SetStartUp CICSMessage " &DoubleQuote "******\\  ******\\  ******\\   ******\\" &DoubleQuote
+LogLine "SetStartUp CHPS " &DoubleQuote "chpshosp=ytest" &DoubleQuote
+LogLine "SetStartUp SignOn " &DoubleQuote "Username" &DoubleQuote
+LogLine "SetStartUp Password " &DoubleQuote "Password" &DoubleQuote
+LogLine "SetStartUp SignOnPosition " &DoubleQuote "13,71" &DoubleQuote
+LogLine "SetStartUp PasswordPosition " &DoubleQuote "17,71" &DoubleQuote
+LogLine "SetStartUp HasMessageScreenAfterLogin " &DoubleQuote "Yes" &DoubleQuote
+LogLine "SetStartUp MainMenu " &DoubleQuote "GEMFUN01" &DoubleQuote
+LogLine "SetStartUp LogOffKeySequence " &DoubleQuote &DoubleQuote
+LogLine ""
+LogLine " 'Optimizations & Misc"
+LogLine "SetStartUp DisplayBackgroundColor " &DoubleQuote "Black" &DoubleQuote
+LogLine "SetStartUp DisplayColors " &DoubleQuote "Lime;Yellow;Red;White" &DoubleQuote
+LogLine "SetStartUp AllowTypeAhead " &DoubleQuote "Yes" &DoubleQuote
+LogLine "SetStartUp SortLists " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp QuietTime " &DoubleQuote "0" &DoubleQuote
+LogLine ""
+LogLine " 'Input File"
+'Get The Source File's Location
+Copy SourceFileLocation &FullScriptFileName
+Replace SourceFileLocation SourceFileLocation &scriptfilename ""
+Replace SourceFileLocation SourceFileLocation ".EMUE" ""
+'Create the Input File location string
+Concatenate  InputFileString SourceFileLocation TemplateName "\InputFiles\*.*"
+LogLine "'SetStartUp InputFile " &DoubleQuote InputFileString &DoubleQuote
+'Create the Input Processing File location string
+Concatenate InputProcessingString SourceFileLocation TemplateName "\InputProcessing\"
+LogLine "'SetStartUp MoveInputFile " &DoubleQuote InputProcessingString &DoubleQuote
+'Create the Input Archive File location string
+Concatenate InputArchiveString SourceFileLocation TemplateName "\InputArchive\"
+LogLine "'SetStartUp MoveInputFileAfterProcessing " &DoubleQuote InputArchiveString &DoubleQuote
+LogLine "SetStartUp InputFileSortOrder " &DoubleQuote "Name_Ascending" &DoubleQuote
+LogLine "'SetStartUp WaitForInputFile " &DoubleQuote "No" &DoubleQuote " 'Not available for Express version of EMUE"
+LogLine "'SetStartUp MaxFileWaitTime " &DoubleQuote "0" &DoubleQuote " 'Not available for Express version of EMUE"
+LogLine "SetStartUp WaitAgain " &DoubleQuote "No" &DoubleQuote
+LogLine ""
+LogLine " 'Activity Log"
+'Create the Activity Log File location string
+Concatenate ActivityLogString SourceFileLocation TemplateName "\ActivityLogs\#ScriptFileName#_#today#_#time#.log"
+LogLine "SetStartUp ActivityLogFile " &DoubleQuote ActivityLogString &DoubleQuote
+LogLine "SetStartUp OverWriteActivityLog " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp VerboseLogInfo " &DoubleQuote &DoubleQuote
+LogLine ""
+LogLine " 'Output Log"
+'Create the Output Log File location string
+Concatenate OutputLogString SourceFileLocation TemplateName "\OutputLogs\#ScriptFileName#_#today#_#time#.log"
+LogLine "SetStartUp LogFile " &DoubleQuote OutputLogString &DoubleQuote
+LogLine ""
+LogLine " 'Trace Log 'Line by line detailed EMUE logging"
+'Create the Trace Log File location string
+Concatenate TraceLogString SourceFileLocation TemplateName "\TraceLogs\#ScriptFileName#_#today#_#time#.log"
+LogLine "'SetStartUp TraceLogFile " &DoubleQuote TraceLogString &DoubleQuote
+LogLine "'SetStartUp TraceLogMaxLineCount " &DoubleQuote "5000" &DoubleQuote
+LogLine ""
+LogLine " 'Email Settings"
+LogLine "SetStartUp SMTPServer " &DoubleQuote "SMTP_Relay_Server" &DoubleQuote
+LogLine "SetStartUp EmailFrom " &DoubleQuote "emue@hosp.org" &DoubleQuote
+LogLine "SetStartUp SuccessEmail " &DoubleQuote "destination_email@hosp.org" &DoubleQuote
+LogLine "SetStartUp SuccessEmail_IncludeInputFile " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp SuccessEmail_IncludeOutputLog " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp SuccessEmail_IncludeActivityLog " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp SuccessEmail_MessageSubject " &DoubleQuote "Template Completed Successfully" &DoubleQuote
+LogLine "SetStartUp SuccessEmail_MessageBody " &DoubleQuote &DoubleQuote
+LogLine "SetStartUp ErrorEmail " &DoubleQuote "destination_email@hosp.org" &DoubleQuote
+LogLine "SetStartUp ErrorEmail_IncludeOutputLog " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp ErrorEmail_IncludeInputFile " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp ErrorEmail_IncludeActivityLog " &DoubleQuote "No" &DoubleQuote
+LogLine "SetStartUp ErrorEmail_MessageSubject " &DoubleQuote "Error Processing Template" &DoubleQuote
+LogLine "SetStartUp ErrorEmail_MessageBody " &DoubleQuote &DoubleQuote
+LogLine "SetStartUp SendEmailOnErrorWhenDebugging " &DoubleQuote "No" &DoubleQuote
+LogLine ""
+LogLine " 'Automation Settings"
+LogLine "SetStartUp AutoClose " &DoubleQuote "Yes" &DoubleQuote
+LogLine "SetStartUp AutoDisconnect " &DoubleQuote "Yes" &DoubleQuote
+LogLine "SetStartUp AllowCompletionOptionsOnError " &DoubleQuote "No" &DoubleQuote
+LogLine ""
+LogLine " 'Debugging Settings"
+LogLine "SetStartUp EnableDebugger " &DoubleQuote "Yes"  &DoubleQuote " 'Change to " &DoubleQuote "No" &DoubleQuote " for Production"
+LogLine "SetStartUp ParseScriptOnLoad " &DoubleQuote "Yes" &DoubleQuote " 'Change to " &DoubleQuote "No" &DoubleQuote " for Production"
+LogLine "SetStartUp RequireVariableAssignmentBeforeRead " &DoubleQuote "Yes" &DoubleQuote
+LogLine ""
+LogLine ":Start_Of_Script_Label"
+LogLine " 'Here is where your script commands will start"
+LogLine ""
+LogLine ":Exit_Label"
+LogLine " 'Exit"
+LogLine "Exit"
+LogLine ""
+LogLine ":Exit_Error_Label"
+LogLine " 'ExitError"
+LogLine "ExitError"
+
+
+'Create the Template Folder location string
+Concatenate  TemplateFolder SourceFileLocation TemplateName
+CreateFileFolder TemplateFolder
+'Create the Template Folder structure location string
+Concatenate TemplateFolderFile TemplateFolder "\" TemplateName ".EMUE"
+Concatenate TemplateInputFiles TemplateFolder "\InputFiles"
+Concatenate TemplateInputProcessing TemplateFolder "\InputProcessing"
+Concatenate TemplateInputArchive TemplateFolder "\InputArchive"
+Concatenate TemplateOutputLogs TemplateFolder "\OutputLogs"
+Concatenate TemplateActivityLogs TemplateFolder "\ActivityLogs"
+MoveFile LogFile TemplateFolderFile '"C:\EMUE\Mainframe_Template.EMUE" TemplateFolderFile
+'Create the Template Folder structure
+CreateFileFolder TemplateInputFiles
+CreateFileFolder TemplateInputProcessing 
+CreateFileFolder TemplateInputArchive 
+CreateFileFolder TemplateOutputLogs 
+CreateFileFolder TemplateActivityLogs
+
+Goto Exit

@@ -1,0 +1,92 @@
+REM Gateway Connection Info
+SETSTARTUP RumbaInterfaceType "NoConnection"
+
+'File location Info – note that the log file will be stamped with the current time and date
+SETSTARTUP InputFile "C:\EMUE\ExcelExample\InputFiles\*.xlsx"
+SETSTARTUP MoveInputFile "C:\EMUE\ExcelExample\InputProcessing\"
+SETSTARTUP MoveInputFileAfterProcessing "C:\EMUE\ExcelExample\InputArchive\"
+SETSTARTUP ActivityLogFile "C:\EMUE\ExcelExample\ActivityLogs\ActLog_#today#_#time#.log"
+
+'SortLists is set to "No" so that data read from Excel will not be automatically sorted
+SetStartUp SortLists "No"
+SetStartUp AutoClose "Yes"
+
+'--------------------------------------------------------------------------------------------------
+'Reading From an Excel file
+'--------------------------------------------------------------------------------------------------
+:Get_Sheet_1_Data
+'Use the GetExcelData command to read all data from the first worksheet
+'The second parameter uses a literal string to specify the path to the Excel file
+'The data is stored in a list called Hospital1
+GetExcelData Hospital1 "C:\EMUE\ExcelExample\InputProcessing\ExcelExample.xlsx" "Select * from [*Worksheet1$]" "Excel2007" "WithHeader"
+
+'Lists created from Excel may have extra blank columns that could cause errors later in your script.  
+'The next line of code removes any blank columns from the list.  If there are no blank columns, the list will remain unchanged
+RemoveBlankColumnsFromList Hospital1
+'A list created from Excel may also have blank rows which could cause errors in your script.
+'The next line of code removes any blank rows from the list.  If there are no blank rows, the list will remain unchanged
+RemoveBlankListMembers Hospital1
+
+
+:Get_Sheet_2_Data
+'Use the GetExcelData command to read specific columns (PTID, Doctor, Appt Date) from the sheet named Hosp2
+'If the column name has a space in it (such as App Date), it must be enclosed in square brackets
+'The second parameter uses the built in variable &FullInputFileName to specify the path to the Excel file
+'The data is stored in a list called Hospital2
+GetExcelData Hospital2 &FullInputFileName "Select PTID, Name, [Appt Date] from [Hosp2$]" "Excel2007" "WithHeader"
+
+'Remove blank rows from the list.  Since we specified column names for Hospital2, we will not have any extra blank columns.
+RemoveBlankListMembers Hospital2
+
+:Get_Sheet_3_Data
+'Use the GetExcelData command to read from a sheet with multiple header rows.  Sheet Hosp3 has 6 rows of header.
+'If your file does not have a header or the header is not on the first line of the file, you can still select specific columns.
+'Use Fx to specify the column, where x is the column number.  For example, Column A is F1, B is F2, C is F3, etc.
+'The data is stored in a list called Hospital3
+GetExcelData Hospital3 &FullInputFileName "Select F4, F5 from [Hosp3$]" "Excel2007" "WithHeader:6" 
+
+'Remove blank rows form the list
+RemoveBlankListMembers Hospital3
+
+'--------------------------------------------------------------------------------------------------
+'Working with a list
+'--------------------------------------------------------------------------------------------------
+'Create a list that will be used to store only PTID and name
+CreateList Patients
+:GetNextPatient
+'Before reading from the list Hospital2, make sure you are not at the end of the list.
+'If you are at the end of the list, Go to a label named Export
+If EndOfList Hospital1 Goto Export
+
+'Read the next member from the list Hospital1.  
+'A variable name is given for each column
+GetListMember Hospital1 PTID PtName DOB ApptType Doctor ApptDate
+
+'Use UpdateStatus to show the current record in the bottom left-hand corner of the EMUE window
+UpdateStatus Hospital1
+
+'This is where you would put your code to process each record.
+'In this example, we are going to take just the PTID, PtName, and ApptDate from each record and put them into a separate list.
+PutListMember Patients PTID PtName ApptDate
+
+'Once the record is processed, go back to the label GetNextPatient to continue with the next record
+Goto GetNextPatient
+
+'--------------------------------------------------------------------------------------------------
+'Export to Excel
+'--------------------------------------------------------------------------------------------------
+:Export
+'The following command will write the list Patients to a new Excel file.  
+'The generated filename will contain today's date, and the data will be written to a sheet named "PatientData"
+'If the file already exists, the list will be appended below the existing data in the file.
+ExportListToExcel Patients "C:\EMUE\ExcelExample\OutputLogs\HospitalData_#Date#.xlsx" "PatientData" APPEND
+
+'Append the patient data from Hospital 2 to the same sheet
+ExportListToExcel Hospital2 "C:\EMUE\ExcelExample\OutputLogs\HospitalData_#Date#.xlsx" "PatientData" APPEND
+
+'Write the doctor data from Hospital 3 to a new sheet "Doctors" in the same file
+'If the file already exists, the list will overwrite any existing data
+ExportListToExcel Hospital3 "C:\EMUE\ExcelExample\OutputLogs\HospitalData_#Date#.xlsx" "Doctors" OVERWRITE
+
+:Done
+EXIT

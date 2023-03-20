@@ -1,0 +1,1221 @@
+'***** Author: Steven P Sanderson II, MPH                        *****'
+'***** Claims information checking                               *****'
+'***** Gets accounts from TRAC STAT lists along with getting     *****'
+'***** additionl data from SMS/NET                               *****'
+
+:SetStartups_Label
+'----------------------------------------------------------------
+'Addition of Rumba interface connection
+'----------------------------------------------------------------
+ 'Gateway Connection Info
+SetStartUp RumbaInterfaceType "TN3270"
+SetStartUp SNAServer1 "64.46.246.196"
+SetStartUp DeviceName "LU01X0NT"
+SetStartUp ManualLogin "Yes"
+SetStartUp SignOnPathway "StandardSignatureAndInvision"
+SetStartUp PreSignonKeystrokes ""
+SetStartUp CICS "smsnet"
+SetStartUp CICSMessage "******\  ******\  ******\   ******\"
+SetStartUp CHPS "chps"
+SetStartUp SignOn "emue3"
+SetStartUp Password "123456"
+SetStartUp SignOnPosition "14,71"
+SetStartUp PasswordPosition "17,71"
+SetStartUp HasMessageScreenAfterLogin "Yes"
+SetStartUp MainMenu "GEMFUN01"
+SetStartUp LogOffKeySequence ""
+ 'Optimizations & Misc
+SetStartUp DisplayBackgroundColor "Black"
+SetStartUp DisplayColors "Lime;Yellow;Red;White"
+SetStartUp AllowTypeAhead "Yes"
+SetStartUp QuietTime "0"
+'----------------------------------------------------------------
+'End of rumba mainframe interface connection
+'----------------------------------------------------------------
+
+ 'Web Scripting
+SetStartUp OpenWebPageRetries "3"
+SetStartUp WebElementTimeout "10000"
+SetStartUp WaitForWebPageCompletion "Yes"
+SetStartUp CloseUnhandledDialogBoxes "Yes"
+SetStartUp WebTypingOptimization "TypeLastCharacter"
+SetStartUp IncludeNestedWebTablesInPositionCount "No"
+'SetStartUp WebSmartNameFile "C:\EMUE\SoarianSmartNames.emuesmartnames" 'For Soarian use only"
+
+ 'Input File
+'SetStartUp InputFile "C:\Emue\Web Scripts\insurance_comments\InputFiles\*.*"
+'SetStartUp MoveInputFile "C:\Emue\Web Scripts\insurance_comments\InputProcessing\"
+'SetStartUp MoveInputFileAfterProcessing "C:\Emue\Web Scripts\insurance_comments\InputArchive\"
+SetStartUp InputFileSortOrder "Name_Ascending"
+SetStartUp WaitForInputFile "No" 'Not available for Express version of EMUE
+SetStartUp MaxFileWaitTime "0" 'Not available for Express version of EMUE
+SetStartUp WaitAgain "No"
+SetStartUp FailScriptOnMissingInputFile "No"
+
+ 'Activity Log
+SetStartUp ActivityLogFile "C:\Emue\Web Scripts\insurance_comments\ActivityLogs\#ScriptFileName#_#today#_#time#.log"
+SetStartUp OverWriteActivityLog "No"
+SetStartUp VerboseLogInfo ""
+
+ 'Output Log
+SetStartUp LogFile "C:\Emue\Web Scripts\insurance_comments\OutputLogs\#ScriptFileName#_#today#_#time#.log"
+
+ 'Trace Log 'Line by line detailed EMUE logging
+'SetStartUp TraceLogFile "C:\Emue\Web Scripts\insurance_comments\TraceLogs\#ScriptFileName#_#today#_#time#.log"
+'SetStartUp TraceLogMaxLineCount "5000"
+
+ 'Email Settings
+SetStartUp SMTPServer "BMH-Exchange-SMTP.bmhmc.org"
+SetStartUp EmailFrom "bmh-emue@bmhmc.org"
+SetStartUp SuccessEmail "ssanderson@bmhmc.org"
+SetStartUp SuccessEmail_IncludeInputFile "No"
+SetStartUp SuccessEmail_IncludeOutputLog "Yes"
+SetStartUp SuccessEmail_IncludeActivityLog "Yes"
+SetStartUp SuccessEmail_MessageSubject "insurance_comments Completed Successfully"
+SetStartUp SuccessEmail_MessageBody "Insurance Comments has successfully completed it's mission. Message End."
+SetStartUp ErrorEmail "ssanderson@bmhmc.org"
+SetStartUp ErrorEmail_IncludeOutputLog "Yes"
+SetStartUp ErrorEmail_IncludeInputFile "No"
+SetStartUp ErrorEmail_IncludeActivityLog "Yes"
+SetStartUp ErrorEmail_MessageSubject "Error Processing insurance_comments"
+SetStartUp ErrorEmail_MessageBody ""
+SetStartUp SendEmailOnErrorWhenDebugging "Yes"
+
+ 'Automation Settings
+SetStartUp AutoClose "Yes"
+SetStartUp AutoDisconnect "Yes"
+SetStartUp AllowCompletionOptionsOnError "No"
+SetStartUp SortLists "No"
+
+ 'Debugging Settings
+SetStartUp EnableDebugger "Yes" 'Change to "No" for Production
+SetStartUp ParseScriptOnLoad "Yes" 'Change to "No" for Production
+SetStartUp RequireVariableAssignmentBeforeRead "Yes"
+
+:TerminalLogon
+Tell "Loging Into SMS/NET Terminal. This only needs to be done once as it will stay logged in."
+Sleep 2
+Paste "smsnet" 3 2
+Sleep 4
+Send s ""
+Sleep 2
+Paste "chps" 1 1
+Sleep 4
+Send s ""
+
+Sleep 2
+Paste "emue3" 6 11
+Sleep 2
+Paste "123456" 9 11
+Sleep 2
+Send s ""
+Sleep 2
+
+Tell "Go to patient lookup page."
+Paste 02 22 63
+Send s ""
+Sleep 2
+Paste 01 21 63
+Send s ""
+Sleep 2
+Paste "PTIQ" 22 61
+Send s ""
+Sleep 2
+
+:SetLoginInfo
+Tell "Setting login information for Stockamp TRAC STAT list."
+Copy UserName "VpnAccess"
+Copy Password "<encrypted>6eOlhYa7fjI=</encrypted>" 'Don't forget to encrypt the password!
+
+'-----------------Use this section if data is from a spreadsheet or database---------------------
+':GetData
+'GetOLEDBData Data "ConnectionString" "Query" 'Data is from OLEDB database, such as SQL Server
+'GetAccessData Data "Path to Database" "Query" "Access Version" 'Data is from Access database
+'GetExcelData Data "Path to Spreadsheet" "Query" "Excel Version" 'Data is from Excel spreadsheet
+'GetListCount Count Data
+'If nothing to process, exit the script before opening the webpage
+'If Count eq 0 goto ExitNoBrowser
+'------------------------------------------------------------------------------------------------
+
+:InitializeVariables
+Copy RetryRecord "No"
+Copy RetryList "No"
+Copy webTRAC "http://bmh-huron/trac/login.asp?Login=False"
+
+Copy webHealthFirst "https://secure.healthx.com/v3app/a/?6715140E180102070C1D182C0D0246020A021B1D37434A3B0A0207074B1252381D5E0E17551A100F095F2457540D435D0746426C46046E5C48565900470C7F54575C405C5117505C567C13411A0B17131B10241B016A1E045D59014A1829534C0F425156595D090872435F0D080348431275400632015D5D5B5D435C6E0D191F1D0F5C46502A2C7328262B2F5D20454B7730511450562B5155401170212255355E56355158567628222A2B/"
+Copy webHFUN "ssanderson@bmhmc.org"
+Copy webHFPW "<encrypted>WSytwjdoWxne6HA67MVMhQ==</encrypted>"
+
+Copy webUHC "https://healthid.optum.com/tb/app/index.html?TARGET=https%3A%2F%2Fprovider-linkhealth.unitedhealthcareonline.com%2Fb2c%2FLoginAction.do%3Ftype%3DTmV0c2NhcGUjNS4wIChXaW5kb3dzIE5UIDYuMTsgVHJpZGVudC83LjA7IFNMQ0MyOyAuTkVUIENMUiAyLjAuNTA3Mjc7IC5ORVQgQ0xSIDMuNS4zMDcyOTsgLk5FVCBDTFIgMy4wLjMwNzI5OyBNZWRpYSBDZW50ZXIgUEMgNi4wOyAuTkVUNC4wQzsgLk5FVDQuMEU7IHJ2OjExLjApIGxpa2UgR2Vja28jZmFsc2UjMTE%3D&relyingAppId=UHO60026#/login"
+Copy webUHCUN "ssanderson@bmhmc.org"
+Copy webUHCPW "<encrypted>+ECn0ZXUnwATrK1uq+QlrQ==</encrypted>"
+
+Copy webAffinityMedicaidI01 "https://affinityportal.affinityplan.org/Portal/login.aspx"
+Copy webAfI01UN "ssanderson"
+Copy webAfI01PW "<encrypted>WSytwjdoWxnURJ+qeByiLg==</encrypted>"
+
+Copy webAffinityMedicareE14 "https://affinityproviderportal.tmghealth.com/portal/home"
+Copy webAfE14UN "ssanderson@bmhmc.org"
+Copy webAfE14PW "<encrypted>lNZQQZcppq336Fh8ZwCrFg==</encrypted>"
+
+Copy webAffinityEssentialsJ01 "https://affinityny-portals.ikaenterprise.com/Default.aspx"
+Copy webAfJ01UN "sanderson1"
+Copy webAfJ01PW "<encrypted>lNZQQZcppq336Fh8ZwCrFg==</encrypted>"
+
+
+'Initialize Counters
+Let RetryRecordCount = 0
+Let GlobalRetryCount = 0
+Let ExpireWarningCount = 0
+Let LoginErrorCount = 0
+Let LoginNotFoundCount = 0
+
+'Create Lists
+CreateList TRACData NOVERIFYCOUNT
+PutListMember TRACData "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date"
+
+CreateList TRACDataToProcess NOVERIFYCOUNT
+PutListMember TRACDataToProcess "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date"
+
+CreateList tracUHCProcessRecords NOVERIFYCOUNT
+PutListMember tracUHCProcessRecords "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date" "DateDataObtainedFromTrac" "TimeDataObtainedFromTrac" "SMS_TotalCharges" "SMS_PTDob" "SMS_SSN" "SMS_GuarSSN" "SMS_GuarDOB"
+
+CreateList tracAffinityProcessRecords NOVERIFYCOUNT
+PutListMember tracAffinityProcessRecords "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date" "DateDataObtainedFromTrac" "TimeDataObtainedFromTrac" "SMS_TotalCharges" "SMS_PTDob" "SMS_SSN" "SMS_GuarSSN" "SMS_GuarDOB"
+
+CreateList tracHealthFirstProcessRecords NOVERIFYCOUNT
+PutListMember tracHealthFirstProcessRecords "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date" "DateDataObtainedFromTrac" "TimeDataObtainedFromTrac" "SMS_TotalCharges" "SMS_PTDob" "SMS_SSN" "SMS_GuarSSN" "SMS_GuarDOB"
+
+CreateList tracStatActivity NOVERIFYCOUNT
+PutListMember tracStatActivity "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date"
+
+CreateList TRACDataToProcessFinal NOVERIFYCOUNT
+PutListMember TRACDataToProcessFinal "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date" "DateDataObtainedFromTrac" "TimeDataObtainedFromTrac"
+
+CreateList smsProcessedList NOVERIFYCOUNT
+PutListMember smsProcessedList "Account Number" "FAC" "Carrier Code" "Phone Number" "Patient Name" "Policy Number" "Group Number" "Admit Date" "Discharge Date" "Balance" "Follow-up Date" "DateDataObtainedFromTrac" "TimeDataObtainedFromTrac" "SMS_TotalCharges" "SMS_PTDob" "SMS_SSN" "SMS_GuarSSN" "SMS_GuarDOB"
+
+CreateList OPTUMAccountDataTbl NOVERIFYCOUNT
+PutListMember OPTUMAccountDataTbl "Account_Number" "Policy_Number" "Group_Number" "Pt_DOB" "Admit_Date" "Discharge_Date" "Date_Data_Obtained" "Time_Data_Obtained" "OPTUM_Policy_Number" "OPTUM_Group_Number" "OPTUM_Claim_Number" "OPTUM_Date_Claim_Received" "OPTUM_Total_Billed" "OPTUM_Total_Paid" "OPTUM_Current_Status" "OPTUM_Status_Cd" "OPTUM_Status_Cd_Description" "OPTUM_Payment_Type" "OPTUM_Payment_Issue_Date" "OPTUM_Check_Number" "OPTUM_Check_Amount"
+
+CreateList HFAccountDataTbl NOVERIFYCOUNT
+PutListMember HFAccountDataTbl "Account_Number" "Policy_Number" "Group_Number" "Pt_DOB" "Admit_Date" "Discharge_Date" "Date_Data_Obtained" "Time_Data_Obtained" "HF_Policy_Number" "HF_Claim_Number" "HF_Date_Claim_Received" "HF_Total_Billed" "HF_Total_Paid" "HF_Current_Status" "HF_Payment_Issue_Date" "HF_Check_Number"
+
+'Set all lists here that will be selected from the drop down
+CreateList tracSTATListToProcess NOVERIFYCOUNT
+PutListMember tracSTATListToProcess "Trac_STAT_LIST"
+PutListMember tracSTATListToProcess "6011 - CCMC $7.5K A-KOzz"
+PutListMember tracSTATListToProcess "6021 - CCMC $2750-$7499.99, A-KO"
+PutListMember tracSTATListToProcess "6031 - CCMC $800-$2749.99, ZZ-ZZ"
+PutListMember tracSTATListToProcess "6032 - CCMC $800-$2749.99, A-KZ"
+PutListMember tracSTATListToProcess "6033 - CCMC $800-$2749.99 LA-Z"
+PutListMember tracSTATListToProcess "6050 - CCMC $0-$799.99 - 71 DFS"
+PutListMember tracSTATListToProcess "6051 - CCMCIPlns$0-$799.99-71DFS"
+PutListMember tracSTATListToProcess "6070 - CCMC $0-$799.99 71+ DFS"
+PutListMember tracSTATListToProcess "6071 - CCMCIPlns$0-799.99 71+DFS"
+
+'Create TRAC List Variables
+Copy tracCheckBox ""
+Copy tracAccount "Account Number"
+Copy tracFAC "Fac"
+Copy tracCarrierCd "Carrier Code"
+Copy tracPhoneNumber "Phone Number"
+Copy tracPatientName "Patient Name"
+Copy tracPolicyNumber "Policy Number"
+Copy tracGroupNumber "Group Number"
+Copy tracAdmitDate "Admit Date"
+Copy tracDischargeDate "Discharge Date"
+Copy tracBalance "Balance"
+Copy tracFollowUpDate "Follow-up Date"
+
+:OpenBrowser
+OnError Goto ErrorHandling
+OpenWebPage webTRAC ClearAll
+Tell "Opening " webTRAC
+
+:Signon
+Tell "Looking for signon elements"
+'Look for logon elements, UserName and Password
+If (WebElementExists("Browser=Login - Stockamp & Associates::TextBox,id=txtLoginName,INDEX=1") And WebElementExists("Browser=Login - Stockamp & Associates::TextBox,id=txtPassword,INDEX=1")) Then
+	TypeWebValue UserName "Browser=Login - Stockamp & Associates::TextBox,id=txtLoginName,INDEX=1"
+	TypeWebValue Password "Browser=Login - Stockamp & Associates::TextBox,id=txtPassword,INDEX=1"
+	Sleep 2
+	ClickWebElement "Browser=Login - Stockamp & Associates::Button,id=submit1,INDEX=1"
+	Tell "Signon elements found, going to now check for successful logon"
+Else
+	Tell "Signon elements not found, going to LoginNotFound label"
+	Goto LoginNotFound
+EndIf
+Goto CheckForSuccessfulLogin
+
+':CheckPasswordNotice
+'Check for warning that password is about to expire
+'If WebElementExists "PasswordWarningMessage" Then
+' If ExpireWarningCount EQ 0 Then
+  'Only send an e-mail the first time you get the Password notice
+'  Concatenate EmailSubject "WebsiteName Password about to expire for " UserName
+'  Concatenate EmailBody "WebsiteName Password is about to expire for username " UserName ". Please change the password and update the script."
+'  SendEmail UserEmail EmailSubject EmailBody
+' EndIf
+' Let ExpireWarningCount = ExpireWarningCount + 1
+'EndIf
+
+:CheckForSuccessfulLogin
+If WebElementExists "Browser=Welcome - Stockamp & Associates QUIC - TRAC::SpanSection,InnerText= Access|, VPN,INDEX=1" 3000 Then 
+	Tell "Mission logon successfull...Continue Mission MCP"
+	Concatenate SuccessEmailSubject "Claims Information Mission Started"
+	Copy SuccessEmailMsg "Starting Claims Informaiton Mission"
+	SetRuntime SuccessEmail_MessageSubject SuccessEmailSubject
+	SetRuntime SuccessEmail_MessageBody SuccessEmailMsg
+	SendEmail "ssanderson@bmhmc.org" SuccessEmailSubject SuccessEmailMsg
+	Goto ClickSTAT
+Else
+	Tell "Can't find the STAT button. Aborting mission..."
+	Goto Abort
+EndIf
+'Goto LoginError 30 "0" 'keep for possible future use
+
+:ClickSTAT
+If WebElementExists "Browser=Welcome - Stockamp & Associates QUIC - TRAC::Link,innertext=STAT,INDEX=1" 3000 Then
+	ClickWebElement "Browser=Welcome - Stockamp & Associates QUIC - TRAC::Link,innertext=STAT,INDEX=1"
+	Tell "STAT link found and clicked"
+Else
+	Goto Abort
+EndIf
+
+' Need to set the list position of tracSTATListToProcess to 2 in order to start
+' on first row of actual data since position 1 is the header
+Tell "Setting the position to 2 in order to skip header and start with the first TRAC STAT List" 
+SetListPosition tracSTATListToProcess 2 Set
+Goto GetTRACInfo
+
+:GetTRACInfo
+If RetryList EQ "No" Then
+	Tell "RetryList equals " RetryList " so go to the next record in the list"
+	If EndOfList tracSTATListToProcess Goto SetProcessRecordsToListPosition
+	UpdateStatus tracSTATListToProcess
+	
+		If WebElementExists "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::DropDownList,id=cboOtherWorkList,INDEX=1" 3000 Then
+			GetListMember tracSTATListToProcess statList
+			SetWebDropDown statList "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::DropDownList,id=cboOtherWorkList,INDEX=1"
+			If WebElementExists "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::TableCell,innertext=No Accounts...,INDEX=1" 3000 Then
+				Goto GetTRACInfo
+			Else
+				Sleep 1
+				Tell "The list is loaded successfully, your script is amazing"
+				Goto LlistIsLoaded
+		Else
+			Goto Exit
+		EndIf
+'Else
+'	Goto Abort
+
+EndIf
+Goto RetryListNo
+
+:RetryListNo
+Copy RetryList "No"
+Goto GetTRACInfo
+
+:LlistIsLoaded
+If WebElementExists "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Link,innertext=Account Number,INDEX=1" 3000 Then 
+	Tell "Starting to process TRAC Application STAT List for the mission. The list is " statList
+EndIf
+Goto PageOneFirstList
+
+:PageOneFirstList
+'Make sure you are on page 1 to start
+If WebElementExists "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::SpanSection,InnerText= [ 1 ],INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::SpanSection,InnerText= [ 1 ],INDEX=1"
+	Tell "The script is on page 1 of the " statList " list"
+	Sleep 1
+EndIf
+Goto GetWebTableList
+
+:GetWebTableList
+'Get list of items
+GetWebTable TRACData "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Table,align=center,INDEX=12"
+UpdateStatus TRACData
+Tell "Successfully got the webtable element and sent it to the TRACData list"
+
+' Since data starts at position 3 set list to start there
+SetListPosition TRACData 3 Set
+Goto GetNextRecord
+
+:GetNextRecord 
+'If re-trying same record, don't get next record 
+
+If RetryRecord EQ "No" Then
+    
+	If EndOfList TRACData Goto GetNextTRACPage 'For Excel or Database input
+    Updatestatus TRACData 'For Excel or Database input
+    GetListMember TRACData tracCheckBox tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate
+	Tell "Getting information for " tracAccount
+
+    If IsAllNumeric tracAccount Then
+        If (In(tracCarrierCd, "I010", "J010", "X022", "K015", "E008", "I001", "J001", "E014", "I004", "J014")) Then
+			Tell "Account " tracAccount " will be added for further processing"
+            Goto addRecordForProcessing
+        Else
+            Copy RetryRecord "No"
+            Goto GetNextRecord
+        EndIf
+        Copy RetryRecord "Yes"
+    
+	Endif
+
+EndIf
+Goto RetryRecordNo 
+
+'Record successfully processed. Set RetryRecord to No so that you will get the next record
+:RetryRecordNo
+Copy RetryRecord "No"
+Goto GetNextRecord 
+
+:addRecordForProcessing
+PutListMember TRACDataToProcess tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate
+Tell tracAccount " was succussfully added to the list for further processing"
+Goto GetNextRecord
+
+:GetNextTRACPage
+If WebElementExists "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Link,innertext=[Next],INDEX=1" 3000 Then		
+	GetWebElementAttribute tracPageNew "href" "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Link,innertext=[Next],INDEX=1"
+	ClickWebElement "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Link,innertext=[Next],INDEX=1"
+Else
+	Goto GetTRACInfo	
+EndIf
+
+Goto GetWebTableList
+
+'
+'----------------------------------------------------------
+'Prune un-usable records
+'----------------------------------------------------------
+'
+:SetProcessRecordsToListPosition
+Tell "Going to start pruning records before getting additional information from SMS/NET"
+SetListPosition TRACDataToProcess 2 Set
+
+:PruneRecords
+'Check the TRACDataToProcess List to see if it can be pruned
+'We only want accounts that have been touched by the system only
+If WebElementExists "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Link,innertext=Search Accounts,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Link,innertext=Search Accounts,INDEX=1"
+EndIf
+Goto PruneRecordsLoop
+
+:PruneRecordsLoop
+'Loop through records
+If RetryRecord EQ "No" Then
+	If EndOfList TRACDataToProcess Goto LogOutOfTRAC
+	UpdateStatus TRACDataToProcess
+	GetListMember TRACDataToProcess tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate
+
+	If WebElementExists "Browser=Search Accounts - Stockamp & Associates - eSTAT - TRAC::TextBox,id=txtAccountNumber,INDEX=1" 3000 Then 
+
+		If WebElementExists "Browser=Search Accounts - Stockamp & Associates - eSTAT - TRAC::Button,id=submit1,INDEX=1" 3000 Then
+			TypeWebValue tracAccount "Browser=Search Accounts - Stockamp & Associates - eSTAT - TRAC::TextBox,id=txtAccountNumber,INDEX=1"
+			ClickWebElement "Browser=Search Accounts - Stockamp & Associates - eSTAT - TRAC::Button,id=submit1,INDEX=1"
+			ClickWebElement "Browser=Viewing Account Search Results - Stockamp & Associates - eSTAT - TRAC::Link,title=View Account Details,INDEX=1"
+			
+			GetWebTable tracStatActivity "Browser=Viewing Account Detail - Stockamp & Associates - eSTAT - TRAC::Table,align=center,INDEX=27"
+			UpdateStatus tracStatActivity
+			SetListPosition tracStatActivity 2 Set
+			GetListMember tracStatActivity tracStatActivityCode
+			If tracStatActivityCode EQ "INIT" Then
+				PutListMember TRACDataToProcessFinal tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate &Today &Time
+				Tell tracAccount " was added to the list to be sent to SMS/NET FMS for further processing"
+			Else
+				Copy RetryRecord "No"
+				Goto PruneRecords
+			EndIf
+		EndIf
+		Copy RetryRecord "No"
+		Goto PruneRecords
+
+	EndIf
+
+EndIf
+
+:LogOutOfTRAC
+ClickWebElement "Browser=Viewing Worklist Accounts - Stockamp & Associates - eSTAT - TRAC::Link,innertext=Log Off System,INDEX=1"
+CloseWebPage
+Tell webTrac " has been logged out and the browser closed"
+Goto GetSMSInformation
+
+'----------------------------------------------------------------------
+'Get total charges from SMS/NET
+'----------------------------------------------------------------------
+:GetSMSInformation
+Tell "Going to start looping through the list TRACDataToProcessFinal"
+SetListPosition TRACDataToProcessFinal 2 Set
+IF CHECK s "PATIENT SELECTION CRITERIA" * Then
+	Goto LoopSMSData
+Else
+	Tell  " - TERMINAL NOT AT PATIENT SELECTION CRITERIA SCREEN!!!" "\n"
+	Concatenate ErrorEmailSubject "TERMINAL NOT AT PATIENT SELECTION CRITERIA SCREEN!!!"
+	Copy ErrorEmailMsg "TERMINAL NOT AT PATIENT SELECTION CRITERIA SCREEN!!! YOU NEED TO LOGIN TO THE EMUE SERVER AND CORRECT THIS - SCRIPT WILL REMAIN PAUSED UNTIL THEN"
+	SetRuntime ErrorEmail_MessageSubject ErrorEmailSubject
+	SetRuntime ErrorEmail_MessageBody ErrorEmailmsg
+	SendEmail "ssanderson@bmhmc.org" ErrorEmailSubject ErrorEmailMsg
+	Pause
+EndIf
+
+:LoopSMSData
+If RetryRecord EQ "NO" Then
+	If EndOfList TRACDataToProcessFinal Then
+		Tell "Reached the end of the list TRACDataToProcessFinal, going to process all records to their respective list"
+		SetListPosition smsProcessedList 2 Set
+		Goto ProcessRecordsToList
+	Else
+		GetListMember TRACDataToProcessFinal tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained
+		Paste tracAccount 5 27
+		Send s ""
+		'Sleep 1
+
+		'Get patient DOB and SSN
+		SetCursorPosition 6 18
+		Copy smsPtDOB SCREEN 6 18 10
+		Copy smsPtSSN SCREEN 8 18 9
+
+		'Get total charges
+		Send s "[PF5]"
+		Copy smsTotCharges SCREEN 6 24 9
+
+		'Get Guarnator DOB and SSN
+		Send s "[PF15]"
+		Send s "[PF4]"
+		Copy smsGuarantorDOB SCREEN 6 21 10
+		Copy smsGuarantorSSN SCREEN 7 22 9
+		Tell "Finished getting information for account number: " tracAccount
+
+		PutListMember smsProcessedList tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+		Send s "[PF15]"
+		Send s "[PF14]"
+
+	EndIf
+	Copy RetryRecord "No"
+	Goto LoopSMSData
+EndIf
+SetListPosition smsProcessedList 2 Set
+Goto ProcessRecordsToList
+
+:ProcessRecordsToList
+'Code specific to your website/process goes here... 
+'Split list into sub-lists
+If RetryRecord EQ "No" Then
+	If EndOfList smsProcessedList Goto GetInfoFromInsuranceWebsite 'Will need to change this to process actual records
+	GetListMember smsProcessedList tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+		If ((In(tracCarrierCd, "I010", "J010", "X022", "K015", "E008")) And (tracPolicyNumber NE "") And (tracPolicyNUmber NE "   ")) Then
+			PutListMember tracUHCProcessRecords tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+		ElseIf ((In(tracCarrierCd, "I001", "J001", "E014")) And (tracPolicyNumber NE "") And (tracPolicyNUmber NE "   ")) Then
+			PutListMember tracAffinityProcessRecords tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+		ElseIf ((In(tracCarrierCd, "I004", "J014")) And (tracCarrierCd NE "") And (tracPolicyNUmber NE "   ")) Then
+			PutListMember tracHealthFirstProcessRecords tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+		Else
+			Copy RetryRecord "No"
+			Goto ProcessRecordsToList
+		EndIf 
+		Copy RetryRecord "No"
+		Goto ProcessRecordsToList
+
+	EndIf
+
+EndIf
+
+Goto GetInfoFromInsuranceWebsite
+ 
+'-----------------------------------------------------------------------
+' Get information from Insurance company website
+'-----------------------------------------------------------------------
+:GetInfoFromInsuranceWebsite
+Tell "Going to start processing the final account list. Starting with United Health Care"
+Goto OpenUnitedHealthCare
+
+:OpenUnitedHealthCare
+OnError Goto ErrorHandling
+OpenWebPage webUHC ClearAll
+Tell "Opening " webUHC
+Tell "Waiting for the page to load"
+Sleep 10
+
+Goto LogonUnitedHealthCare
+
+:LogonUnitedHealthCare
+Tell "Looking for username and password input boxes"
+
+'Fill in username
+If WebElementExists "Browser=Sign In With Your Optum ID - Optum ID::TextBox,id=userNameId_input,INDEX=1" 3000 Then 
+	TypeWebValue webUHCUN "Browser=Sign In With Your Optum ID - Optum ID::TextBox,id=userNameId_input,INDEX=1"
+	Tell "Username input box found and populated"
+Else
+	Tell "Cannot find username input box"
+	Goto Exit_Error_Label
+EndIf
+
+'Fill in password
+If WebElementExists "Browser=Sign In With Your Optum ID - Optum ID::TextBox,id=passwdId_input,INDEX=1" 3000 Then 
+	TypeWebValue webUHCPW "Browser=Sign In With Your Optum ID - Optum ID::TextBox,id=passwdId_input,INDEX=1"
+	Tell "Password input box found and populated"
+Else
+	Tell "Cannot find password input box"
+	Goto Exit_Error_Label
+EndIf
+
+'Click logon button
+If WebElementExists "Browser=Sign In With Your Optum ID - Optum ID::Button,id=SignIn,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Sign In With Your Optum ID - Optum ID::Button,id=SignIn,INDEX=1"
+	Tell "Logon button clicked."
+	Sleep 15
+Else
+	Tell "Cannot find logon button"
+	Log &Today " at: " &Time " - Cannot find logon button"
+	Goto Exit_Error_Label
+EndIf
+
+:PasswordUsernameWrong
+If WebElementExists "Browser=Sign In With Your Optum ID - Optum ID::H1,innertext=Sign In With Your Optum ID,INDEX=1" 3000 Then 
+	Tell "Optum says password or username is wrong"
+	Copy ErrorEmailMsg "OPTUM says password or username is wrong \n"
+	SetRuntime ErrorEmail_MessageSubject ErrorEmailSubject
+	SetRuntime ErrorEmail_MessageBody ErrorEmailMsg
+	Goto Abort
+EndIf
+
+:OptumDeviceNotRecognized
+'Check if device is recognized or not
+If WebElementExists "Browser=Unrecognized Device - Optum ID::H1,innertext=Unrecognized Device ,INDEX=1" 3000 Then 
+	GetWebValue deviceNotRecognized "Browser=Unrecognized Device - Optum ID::Label,id=challengeQuestionLabelId,INDEX=1"
+	Tell deviceNotRecognized
+Else
+	'See if password needs re-setting
+	Goto OptumAskingForPasswordchange
+EndIf
+
+'Security question(s)
+If deviceNotRecognized Like "*company of your first job?*" Then
+	TypeWebValue "Brookhaven" "Browser=Unrecognized Device - Optum ID::TextBox,id=challengeQuestionList[0].userAnswer,INDEX=1"
+Elseif deviceNotRecognized LIKE "*favorite color? *" Then
+	TypeWebValue "blue" "Browser=Unrecognized Device - Optum ID::TextBox,id=challengeQuestionList[0].userAnswer,INDEX=1"
+ElseIf deviceNotRecognized Like "*phone number*" Then
+	TypeWebValue "6516547100" "Browser=Unrecognized Device - Optum ID::TextBox,id=challengeQuestionList[0].userAnswer,INDEX=1"
+Else
+	'Not at device not recognized page
+	Goto OptumAskingForPasswordchange
+EndIf
+
+'Check off box for personal computer don't ask again
+If WebElementExists "Browser=Unrecognized Device - Optum ID::CheckBox,id=ac,INDEX=1" 3000 Then 
+	SetWebCheckbox Checked "Browser=Unrecognized Device - Optum ID::CheckBox,id=ac,INDEX=1"
+Else
+	'skeep the check and login
+EndIf
+
+'Click PersonalDeviceCheck Next Button
+If WebElementExists "Browser=Unrecognized Device - Optum ID::Button,id=authQuesSubmitButton,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Unrecognized Device - Optum ID::Button,id=authQuesSubmitButton,INDEX=1"
+EndIf
+
+:OptumAskingForPasswordchange
+If WebElementExists "Browser=Change Password - Optum ID::H1,innertext=Change Password,INDEX=1" 3000 Then 
+	Concatenate ErrorEmailSubject "Optum Asking for Password Change"
+	Copy ErrorEmailMsg "Aborting mission because OPTUM is aksing for a Password Change. Please handle this and update the appropriate variable in the script and then re-run \n"
+	SetRuntime ErrorEmail_MessageSubject ErrorEmailSubject
+	SetRuntime ErrorEmail_MessageBody ErrorEmailMsg
+	Tell "OPTUM Needs new password, Aborting Mission...End Line"
+	Goto Abort
+Else
+	Tell "Password passed"
+	Goto AtOPTUMLinkMainPage
+EndIf
+
+:AtOPTUMLinkMainPage
+' Check to make sure we are at the main application page Link
+If WebElementExists "Browser=Link:frame_watin****:H1,innertext=eligibilityLink,INDEX=1" 3000 Then 
+	GotoNewWebPage "https://claims.linkhealth.com/?referrer=tile:link%20application#/"
+	Sleep 5
+	Goto SearchOPTUMAccounts
+Else
+	Tell "Cannot find search page"
+	Goto Abort
+EndIf
+
+:SearchOPTUMAccounts
+If WebElementExists "Browser=Claims Search | Claims Link::H2,innertext=Claims Search,INDEX=1" 3000 Then 
+	Tell "Search page found"
+Else
+	Tell "Cannot find search page"
+	Goto Abort
+EndIf
+
+'Make sure you are on a new search by clicking the New Search button
+If WebElementExists "Browser=Claims Search | Claims Link::Button,id=select-reset-button,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Claims Search | Claims Link::Button,id=select-reset-button,INDEX=1"
+EndIf
+SetListPosition tracUHCProcessRecords 2 Set
+Goto LoopUHCRecords
+
+:ClickSearchOPTUMAccounts
+ClickWebElement "Browser=Claim Results | Claims Link::Link,innertext=New Search,INDEX=1"
+Goto LoopUHCRecords
+
+:LoopUHCRecords
+If RetryRecord EQ "No" Then
+	If EndOfList tracUHCProcessRecords Then
+		Goto LogOutOPTUM
+	Else
+		If WebElementExists "Browser=Claims Search | Claims Link::TextBox,id=select-memberid-input,INDEX=1" 3000 Then 
+			ClickWebElement "Browser=Claims Search | Claims Link::Button,id=select-reset-button,INDEX=1" 
+			RefreshWebPageInfo
+			GetListMember tracUHCProcessRecords tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+			'Enter Ins policy number
+			Trim tracPolicyNumber tracPolicyNumber
+			TypeWebValue tracPolicyNumber "Browser=Claims Search | Claims Link::TextBox,id=select-memberid-input,INDEX=1"
+			'Enter patient DOB
+			TypeWebValue smsPtDOB "Browser=Claims Search | Claims Link::TextBox,id=select-dob-input,INDEX=1"
+			 'Enter Admit Date
+			TypeWebValue tracAdmitDate "Browser=Claims Search | Claims Link::Label,id=select-startdate-label,INDEX=1->Position=TextBox,id=select-startdate-input,INDEX=1"
+			 'Click Search Button
+			ClickWebElement "Browser=Claims Search | Claims Link::Button,id=submit-search-button,INDEX=1"'
+			 'Unfortunately the website is so slow this must be set to 10, if it is set to sooner, it will error out
+			Sleep 5
+			Goto SearchingRecordsMessageBox
+
+			:WarningMessage
+			 'Check for a warning message
+			If WebElementExists "Browser=Claims Search | Claims Link::DivSection,id=search-warning-message,INDEX=1" 3000 Then  
+				Sleep 3
+				Tell "There was a Error searching for " tracAccount " on the OPTUM webpage"
+				GetWebValue OPTUMSearchError "Browser=Claims Search | Claims Link::DivSection,id=search-warning-message,INDEX=1"
+				Tell "The error is: " OPTUMSearchError
+				Goto LoopUHCRecords
+			EndIf
+			 
+			 'Click on claim number to claim detail link
+
+			If WebElementExists "Browser=Claim Results | Claims Link::Link,id=claimnumber-to-claimdetails-link-0,INDEX=1" 3000 Then 
+				ClickWebElement "Browser=Claim Results | Claims Link::Link,id=claimnumber-to-claimdetails-link-0,INDEX=1"
+				Goto GetOPTUMClaimsInformaiton
+			Else 
+				ClickWebElement "Browser=Claim Results | Claims Link::Link,innertext=New Search,INDEX=1"
+				Tell "Could not find link to claim, it is most likely pending"
+				Goto LoopUHCRecords
+			EndIf	
+		Else
+			'Will go back to check the search page if an input box cannot be found
+			Goto ClickSearchOPTUMAccounts		
+		EndIf
+	EndIf
+EndIf
+Copy RetryRecord "No"
+
+:SearchingRecordsMessageBox
+Sleep 3
+If WebElementExists "Browser=Claims Search | Claims Link::DivSection,InnerText=*Searching for member...*Searching for claims...,INDEX=1" 3000 Then 
+	Goto SearchingRecordsMessageBox
+Else
+	Goto WarningMessage
+EndIf
+
+:GetOPTUMClaimsInformaiton
+WaitForWebElement 10 "Browser=Claim Details | Claims Link::H3,innertext=Search Summary,INDEX=1"
+Sleep 1
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=memberinfo-data-memberid,INDEX=1" 100 Then
+	GetWebValue OPTUMPolicyNumber "Browser=Claim Details | Claims Link::Paragraph,id=memberinfo-data-memberid,INDEX=1"
+Else
+	Copy OPTUMPolicyNumber "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=memberinfo-data-policy,INDEX=1" 100 Then
+	GetWebValue OPTUMGroupNumber "Browser=Claim Details | Claims Link::Paragraph,id=memberinfo-data-policy,INDEX=1"
+Else
+	Copy OPTUMGroupNumber "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=claiminfo-data-claimnumber,INDEX=1" 100 Then
+	GetWebValue OPTUMClaimNumber "Browser=Claim Details | Claims Link::Paragraph,id=claiminfo-data-claimnumber,INDEX=1"
+Else
+	Copy OPTUMClaimNumber "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=claiminfo-data-firstdate,INDEX=1" 100 Then
+	GetWebValue OPTUMDateClaimReceived "Browser=Claim Details | Claims Link::Paragraph,id=claiminfo-data-firstdate,INDEX=1"
+Else
+	Copy OPTUMDateClaimReceived "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=billingsummary-data-totalbilled,INDEX=1" 100 Then
+	GetWebValue OPTUMTotalBilled "Browser=Claim Details | Claims Link::Paragraph,id=billingsummary-data-totalbilled,INDEX=1"
+Else
+	Copy OPTUMTotalBilled "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=billingsummary-data-totalpaidamount,INDEX=1" 100 Then
+	GetWebValue OPTUMTotalPaid "Browser=Claim Details | Claims Link::Paragraph,id=billingsummary-data-totalpaidamount,INDEX=1"
+Else
+	Copy OPTUMTotalPaid "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::H3,innertext=Claim Status,INDEX=1->Position=Paragraph,id=claimstatus-status-data,INDEX=1" 100 Then
+	GetWebValue OPTUMCurrentClaimStatus "Browser=Claim Details | Claims Link::H3,innertext=Claim Status,INDEX=1->Position=Paragraph,id=claimstatus-status-data,INDEX=1"
+Else
+	Copy OPTUMCurrentClaimStatus "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::SpanSection,id=claimstatus-507code,INDEX=1" 100 Then
+	GetWebValue OPTUMStatusCd "Browser=Claim Details | Claims Link::SpanSection,id=claimstatus-507code,INDEX=1"
+Else
+	Copy OPTUMStatusCd "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::SpanSection,id=claimstatus-507description,INDEX=1" 100 Then
+	GetWebValue OPTUMStatsCdDesc "Browser=Claim Details | Claims Link::SpanSection,id=claimstatus-507description,INDEX=1"
+Else
+	Copy OPTUMStatsCdDesc "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-paymenttype-0,INDEX=1" 100 Then
+	GetWebValue OPTUMPaymentType "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-paymenttype-0,INDEX=1"
+Else
+	Copy OPTUMPaymentType "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-paymentissuedate-0,INDEX=1" 100 Then
+	GetWebValue OPTUMPaymentIssueDate "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-paymentissuedate-0,INDEX=1"
+Else
+	Copy OPTUMPaymentIssueDate "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-checknumber-0,INDEX=1" 100 Then
+	GetWebValue OPTUMCheckNumber "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-checknumber-0,INDEX=1"
+Else
+	Copy OPTUMCheckNumber "N/A"
+EndIf
+
+If WebElementExists "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-checkAmount-0,INDEX=1" 100 Then
+	GetWebValue OPTUMCheckAmount "Browser=Claim Details | Claims Link::Paragraph,id=paymentinfo-data-checkAmount-0,INDEX=1"
+Else
+	Copy OPTUMCheckAmount "N/A"
+EndIf
+
+ 'Only put records in where the OPTUM_Check_Amount and OPTUM_Chekc_Number are valued
+If ((OPTUMCheckAmount NE "N/A") And (OPTUMCheckNumber NE "N/A")) Then
+	PutListMember OPTUMAccountDataTbl tracAccount tracPolicyNumber tracGroupNumber smsPtDOB tracAdmitDate tracDischargeDate &Today &Time OPTUMPolicyNumber OPTUMGroupNumber OPTUMClaimNumber OPTUMDateClaimReceived OPTUMTotalBilled OPTUMTotalPaid OPTUMCurrentClaimStatus OPTUMStatusCd OPTUMStatsCdDesc OPTUMPaymentType OPTUMPaymentIssueDate OPTUMCheckNumber OPTUMCheckAmount
+	ClickWebElement "Browser=Claim Details | Claims Link::Link,innertext=New Search,INDEX=1"
+	Tell tracAccount " was added to OPTUMAccountDataTbl"
+	Goto LoopUHCRecords
+Else
+	Tell tracAccount " was not added to OPTUMAccountDataTbl. OPTUMCheckNumber = " OPTUMCheckNumber " and OPTUMCheckAmount = " OPTUMCheckAmount
+	Goto LoopUHCRecords
+EndIf
+
+:LogOutOPTUM
+ClickWebElement "Browser=Claims Search | Claims Link::Link,title=Menu,INDEX=1"
+ClickWebElement "Browser=Claims Search | Claims Link::ListItem,innertext=Sign Out,INDEX=1"
+CloseWebPage
+Goto OpenHealthfirst
+
+:OpenHealthfirst
+OnError Goto ErrorHandling
+OpenWebPage webHealthFirst ClearAll
+Tell "Opening " webHealthFirst
+Tell "Waiting for the page to load"
+
+Goto LogonHealthFirst
+
+:LogonHealthFirst
+Tell "Looking for username and password input boxes"
+If WebElementExists "Browser=Healthfirst Provider Secure Services Website::TextBox,id=ctl00_MainContent_uxLoginForm_ctl00_uxUserNameText_textbox,INDEX=1" 3000 Then 
+	TypeWebValue webHFUN "Browser=Healthfirst Provider Secure Services Website::TextBox,id=ctl00_MainContent_uxLoginForm_ctl00_uxUserNameText_textbox,INDEX=1"
+	Tell "Username input box found and populated"
+Else
+	Tell "Cannot find username input box"
+	Goto Exit_Error_Label
+EndIf
+
+If WebElementExists "Browser=Healthfirst Provider Secure Services Website::TextBox,id=ctl00_MainContent_uxLoginForm_ctl00_uxPasswordText_textbox,INDEX=1" 3000 Then 
+	TypeWebValue webHFPW "Browser=Healthfirst Provider Secure Services Website::TextBox,id=ctl00_MainContent_uxLoginForm_ctl00_uxPasswordText_textbox,INDEX=1"
+	Tell "Username input box found and populated"
+Else
+	Tell "Cannot find username input box"
+	Goto Exit_Error_Label
+EndIf
+
+'Click submit button to logon to site
+ClickWebElement "Browser=Healthfirst Provider Secure Services Website::Button,id=ctl00_MainContent_uxLoginForm_ctl01_uxLoginButton,INDEX=1"
+Sleep 3
+
+'Check if a survey pop-up is loaded
+If WebElementExists "Browser=Healthfirst Provider Secure Services Website::Image,src=https|://siteintercept.qualtrics.com/WRQualtricsShared/Graphics/siteintercept/bwc_close.png,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Healthfirst Provider Secure Services Website::Image,src=https|://siteintercept.qualtrics.com/WRQualtricsShared/Graphics/siteintercept/bwc_close.png,INDEX=1"
+EndIf
+
+'See if what's new page is up and click on Proceede button
+If WebElementExists  "Browser=Healthfirst Provider Secure Services Website::Image,src=https|://siteintercept.qualtrics.com/WRQualtricsShared/Graphics/siteintercept/bwc_close.png,INDEX=1" 3000 Then
+	ClickWebElement "Browser=Healthfirst Provider Secure Services Website::Image,src=https|://siteintercept.qualtrics.com/WRQualtricsShared/Graphics/siteintercept/bwc_close.png,INDEX=1"
+EndIf
+
+'check to see if a password needs to be changed
+If WebElementExists "Browser=Healthfirst Provider Secure Services Website::Legend,innertext= Change your Password ,INDEX=1" 3000 Then 
+	Concatenate ErrorEmailSubject "The Healthfirst - Change Password"
+	Copy ErrorEmailMsg "The Healthfirst website is asking for a new password. The script is going to Abort. Please change password. \n"
+	SetRuntime ErrorEmail_MessageSubject ErrorEmailSubject
+	SetRuntime ErrorEmail_MessageBody ErrorEmailMsg
+	Tell "Healthfirst needs to have its password updated."
+	Goto Abort
+EndIf
+
+If WebElementExists "Browser=Healthfirst Provider Secure Services Website::Button,id=ctl00_MainContent_uxContinue_Normal,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Healthfirst Provider Secure Services Website::Button,id=ctl00_MainContent_uxContinue_Normal,INDEX=1"
+	Sleep 2
+Else
+	Goto HealthFirstClaimsLookup
+EndIf
+
+:HealthFirstClaimsLookup
+If WebElementExists "Browser=Healthfirst Provider Secure Services Website::Link,innertext=Claims Look Up,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Healthfirst Provider Secure Services Website::Link,innertext=Claims Look Up,INDEX=1"
+Else
+	Tell "Cannot find Claims Lookup Link"
+	Goto Exit_Error_Label
+EndIf
+Sleep 1
+
+SetListPosition tracHealthFirstProcessRecords 2 Set
+
+:LoopHFRecords
+If RetryRecord EQ "No" Then
+	Tell "RetryRecord EQ " RetryRecord
+	If EndOfList tracHealthFirstProcessRecords Then
+		Goto LogOutHF
+	Else
+		GetListMember tracHealthFirstProcessRecords tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+		If tracPolicyNumber EQ "" Then
+			Tell tracAccount " had a blank policy number, skipping record"
+			Goto LoopHFRecords
+		EndIf
+
+		RefreshWebPageInfo
+		 'Enter Policy Number
+		 'Clicking below will clear screen of date_picker boxes
+		ClickWebElement "Browser=Provider Portal::TextBox,id=ctl00_MainContent_uxClaimControl_ClaimNumberInput,INDEX=1"
+		Sleep 2
+		If WebElementExists "Browser=Healthfirst Provider Secure Services Website::Label,id=ctl00_MainContent_uxClaimControl_MemberIDLabel,INDEX=1->Position=TextBox,id=ctl00_MainContent_uxClaimControl_MemberIDInput,INDEX=1" 3000 Then
+			TypeWebValue tracPolicyNumber "Browser=Healthfirst Provider Secure Services Website::Label,id=ctl00_MainContent_uxClaimControl_MemberIDLabel,INDEX=1->Position=TextBox,id=ctl00_MainContent_uxClaimControl_MemberIDInput,INDEX=1"
+		EndIf 
+		 'Enter Patient DOB
+		ClickWebElement "Browser=Provider Portal::TextBox,id=ctl00_MainContent_uxClaimControl_ClaimNumberInput,INDEX=1"
+		Sleep 1
+		If WebElementExists "Browser=Healthfirst Provider Secure Services Website::TextBox,id=ctl00_MainContent_uxClaimControl_DOBInput,INDEX=1" 3000 Then
+			TypeWebValue smsPtDOB "Browser=Healthfirst Provider Secure Services Website::TextBox,id=ctl00_MainContent_uxClaimControl_DOBInput,INDEX=1"
+		EndIf
+		 'Enter Admit Date
+		ClickWebElement "Browser=Provider Portal::TextBox,id=ctl00_MainContent_uxClaimControl_ClaimNumberInput,INDEX=1"
+		Sleep 1
+		If WebElementExists "Browser=Provider Portal::TextBox,id=ctl00_MainContent_uxClaimControl_BeginDateInput,INDEX=1" 3000 Then 
+			TypeWebValue tracAdmitDate "Browser=Provider Portal::TextBox,id=ctl00_MainContent_uxClaimControl_BeginDateInput,INDEX=1"
+		EndIf
+		 'Click Search button
+		ClickWebElement "Browser=Provider Portal::TextBox,id=ctl00_MainContent_uxClaimControl_ClaimNumberInput,INDEX=1"
+		ClickWebElement "Browser=Provider Portal::Button,id=ctl00_MainContent_uxClaimControl_uxSearch,INDEX=1"
+		Sleep 1
+		Tell "Healthfirst search button clicked for " tracAccount " with policy number " tracPolicyNumber
+		
+		Goto HealthFirstClaimsCheck
+		
+	EndIf
+EndIf
+
+:HealthFirstClaimsCheck
+GetWebValue NumClaimsFound "Browser=Provider Portal::SpanSection,id=ctl00_MainContent_uxClaimControl_uxMessageLabel,INDEX=1"
+If NumClaimsFound LIKE "1 claim*" Then
+	If WebElementExists "Browser=Provider Portal::SpanSection,InnerText=No claims found.,INDEX=1" 3000 Then 
+		GetWebValue HFNoClaimsFound "Browser=Provider Portal::SpanSection,InnerText=No claims found.,INDEX=1"
+		Tell HFNoClaimsFound " for " tracAccount " with policy number " tracPolicyNumber
+	 	'Go get next record
+		Goto LoopHFRecords
+	ElseIf WebElementExists "Browser=Provider Portal::TableHeader,innertext=Claim Number ,INDEX=1->Position=Link,href=javascript|:__doPostBack('ctl00$MainContent$uxClaimControl$uxListGrid'|,'SelectID$*'),INDEX=1" 3000 Then 
+		ClickWebElement "Browser=Provider Portal::TableHeader,innertext=Claim Number ,INDEX=1->Position=Link,href=javascript|:__doPostBack('ctl00$MainContent$uxClaimControl$uxListGrid'|,'SelectID$*'),INDEX=1"
+		Tell "Getting claims information for " tracAccount
+		Tell "Clicked claims link"
+	EndIf
+	Goto HealthFirstClaimsInfo
+ElseIf NumClaimsFound LIKE "*No Claims Found*" Then
+	Tell tracAccount " has " NumClaimsFound
+	Goto LoopHFRecords
+Else
+	Tell tracAccount " has more than one claim. Skipping and going to next record"
+	Goto LoopHFRecords
+EndIf
+
+:HealthFirstClaimsInfo
+ 'get claims information
+If WebElementExists "Browser=Provider Portal::B,innertext=Member ID|: ,INDEX=1->Position=TableCell,valign=top,INDEX=1" 3000 Then 
+	GetWebValue HFPolicyNumber "Browser=Provider Portal::B,innertext=Member ID|: ,INDEX=1->Position=TableCell,valign=top,INDEX=1"
+Else
+	Copy HFPolicyNumber "N/A"
+EndIf
+
+ 'Claim Number
+If WebElementExists "Browser=Provider Portal::B,innertext=Claim Number|: ,INDEX=1" 3000 Then 
+	GetWebValue HFClaimNumber "Browser=Provider Portal::B,innertext=Claim Number|: ,INDEX=1->Position=TableCell,valign=top,INDEX=1"
+Else
+	Copy HFClaimNumber "N/A"
+EndIf
+
+ 'Claim Date Recieved
+If WebElementExists "Browser=Provider Portal::B,innertext=Claim Received|: ,INDEX=1" 3000 Then 
+	GetWebValue HFDateClaimReceived "Browser=Provider Portal::B,innertext=Claim Received|: ,INDEX=1->Position=TableCell,valign=top,INDEX=1"
+Else
+	Copy HFDateClaimReceived "N/A"
+EndIf
+
+ 'Total Charges
+If WebElementExists "Browser=Provider Portal::TableCell,innertext=Column Totals,INDEX=1" 3000 Then 
+	GetWebValue HFTotalBilled "Browser=Provider Portal::B,innertext=Column Totals,INDEX=1->Position=TableCell,valign=top,INDEX=1"
+Else
+	Copy HFTotalBilled "N/A"
+EndIf
+
+ 'Total Paid
+If WebElementExists "Browser=Provider Portal::B,innertext=Paid Amount|:,INDEX=1" 3000 Then 
+	GetWebValue HFTotalPaid "Browser=Provider Portal::B,innertext=Paid Amount|:,INDEX=1->Position=TableCell,valign=top,INDEX=1"
+Else
+	Copy HFTotalPaid "N/A"
+EndIf
+
+ 'Claim Status
+If WebElementExists "Browser=Provider Portal::ListItem,innertext=Claim Status,INDEX=1->Position=Link,innertext=I have a question about this claim,INDEX=1" 3000 Then 
+	GetWebValue HFClaimStatus "Browser=Provider Portal::ListItem,innertext=Claim Status,INDEX=1->Position=ListItem,innertext=Posted|: Claim has been finalized and posted to accounts payable,INDEX=1"
+Else
+	Copy HFClaimStatus "N/A"
+EndIf
+
+ 'Payment Issue Date
+If WebElementExists "Browser=Provider Portal::B,innertext=Paid Date|:,INDEX=1" 3000 Then 
+	GetWebValue HFPaymentIssueDate "Browser=Provider Portal::B,innertext=Paid Date|:,INDEX=1->Position=TableCell,valign=top,INDEX=1"
+Else
+	Copy HFPaymentIssueDate "N/A"
+EndIf
+
+ 'Check/EFT number
+If WebElementExists "Browser=Provider Portal::B,innertext=Check/EFT # (?)|:,INDEX=1" 3000 Then 
+	GetWebValue HFCheckNumber "Browser=Provider Portal::B,innertext=Check/EFT # (?)|:,INDEX=1->Position=TableCell,valign=top,INDEX=1"
+Else
+	Copy HFCheckNumber "N/A"
+EndIf
+
+ 'Put the record into the HFAccountDataTbl
+If ((HFCheckNumber EQ "N/A") Or (HFCheckNumber EQ "   ") Or (HFTotalPaid EQ "N/A") Or (HFTotalPaid EQ "   ") Or (HFClaimNumber EQ "N/A")) Then	
+	Tell tracAccount " was not added to HFAccountDataTbl. HFCheckNumber = " HFCheckNumber " and HFTotalPaid = " HFTotalPaid
+	Goto LoopHFRecords	
+Else
+	PutListMember HFAccountDataTbl tracAccount tracPolicyNumber tracGroupNumber smsPtDOB tracAdmitDate tracDischargeDate &Today &Time HFPolicyNumber HFClaimNumber HFDateClaimReceived HFTotalBilled HFTotalPaid HFClaimStatus HFPaymentIssueDate HFCheckNumber
+	Tell tracAccount " was added to HFAccountDataTbl"
+	ClickWebElement "Browser=Provider Portal::Link,href=javascript|:__doPostBack('ctl00$MainContent$uxClaimTabLink'|,''),INDEX=1"
+	Goto LoopHFRecords
+EndIf
+
+:LogOutHF
+ClickWebElement "Browser=Provider Portal::Link,innertext=Logout,INDEX=1"
+CloseWebPage
+Goto OpenAffinityMedicaidI01
+
+:OpenAffinityMedicaidI01
+OnError goto ErrorHandling
+OpenWebPage webAffinityMedicaidI01 ClearAll
+Tell "Opening " webAffinityMedicaidI01
+Tell "Waiting for the page to load"
+ 'Click on the provider link
+ClickWebElement "Browser=Affinity Health Plan::Link,href=https|://identity.affinityplan.org/Account/ProviderLogin*,INDEX=1"
+Sleep 5
+
+:AffinityMedicaidI01Login
+ 'find username input box, click it and enter informtion
+Tell "Looking for username inptut box"
+TypeWebValue webAfI01UN "Browser=Affinity Health Plan::TextBox,id=Username,INDEX=1"
+Tell "Username entered"
+Sleep 1
+Tell "Looking for password box"
+TypeWebValue webAfI01PW "Browser=Affinity Health Plan::TextBox,id=Password,INDEX=1"
+Tell "Password entered"
+Sleep 1
+ClickWebElement "Browser=Affinity Health Plan::Button,type=submit,INDEX=1"
+Tell "Clicked login"
+Goto AffinityI01AskingForNewUserName
+
+:AffinityI01AskingForNewUserName
+Sleep 5
+If WebElementExists "Browser=Affinity Health Plan::TextBox,id=NewUserName,INDEX=1" 3000 Then 
+	Tell "Affinity Medicaid I01 is asking for a new username"
+	Concatenate AffinityMedicaidI01NewUserNameSubject "EMUE Claims Status - Affinity Medicaid I01 - Need new username/password"
+	Copy AffinityMedicaidI01NewUserNameMessage "Affinity Medicaid I01 login is asking for a new user name/password, please address, script will pause until fixed."
+	SetRuntime ErrorEmail_MessageSubject AffinityMedicaidI01NewUserNameSubject
+	SetRuntime ErrorEmail_MessageBody AffinityMedicaidI01NewUserNameMessage
+	SendEmail "ssanderson@bmhmc.org" AffinityMedicaidI01NewUserNameSubject AffinityMedicaidI01NewUserNameMessage
+	Pause
+Else
+	Goto AffinityMedicaidI01LoginCheck
+EndIf
+
+:AffinityMedicaidI01LoginCheck
+WaitForWebElementGoto AffinityMedicaidI01ClaimsSearch 5 "Browser=Home Page::DivSection,InnerText=Logged in as|: VPN Access ,INDEX=1"
+
+:AffinityMedicaidI01ClaimsSearch
+Tell "Successful login to Affinity Medicaid I01 product, start claims search"
+Sleep 5
+If WebElementExists "Browser=Home Page::Link,innertext=Claims Search ,INDEX=1" 3000 Then 
+	ClickWebElement "Browser=Home Page::Link,href=https|://providerportal.affinityplan.org/Claims,INDEX=1"
+Else
+	Tell "Cannot find claims search, going to abort script"
+	Goto Abort
+EndIf
+
+ 'click on Advanced Search chckbox
+SetWebCheckbox Checked "Browser=Claims Search::CheckBox,id=AdvancedQuery,INDEX=1"
+Tell "Trying to set Advanced search on in order to check by affinity member id/CIN id, dob etc"
+ 
+ 'was it set to Advance Search?
+If WebElementExists "Browser=Claims Search::DivSection,InnerText=Advanced Search ,INDEX=1" 3000 Then 
+	Tell "Inside of Advanced Search"
+	Goto LoopAffinityI01
+Else
+	Tell "Advanced Search Failed, trying to set again"
+	SetWebCheckbox Checked "Browser=Claims Search::CheckBox,id=AdvancedQuery,INDEX=1"
+	
+	If WebElementExists "Browser=Claims Search::DivSection,InnerText=Advanced Search ,INDEX=1" 3000 Then 
+		Tell "Inside of Advanced Search"
+		Goto LoopAffinityI01
+	Else
+		Tell "Advanced Sarch Failed, again, goign to Abort Script"
+		Goto Abort
+	EndIf
+
+EndIf
+Goto LoopAffinityI01
+SetListPosition tracAffinityProcessRecords 2 Set
+
+:LoopAffinityI01
+If RetryRecord EQ "No" Then
+	If EndOfList tracAffinityProcessRecords Then
+		Goto LogOutAffinityI01
+	Else
+		GetListMember tracAffinityProcessRecords tracAccount tracFAC tracCarrierCd tracPhoneNumber tracPatientName tracPolicyNumber tracGroupNumber tracAdmitDate tracDischargeDate tracBalance tracFollowUpDate tracDateDataObtained tracTimeDataObtained smsTotCharges smsPtDOB smsPtSSN smsGuarantorSSN smsGuarantorDOB
+		
+		If tracPolicyNumber EQ "" Then
+			Tell tracAccount " had a blank policy number, skipping record"
+			Goto LoopAffinityI01
+		EndIf
+
+		RefreshWebPageInfo
+		SetWebDropDown "All" "Browser=Claims Search::DropDownList,id=SelectedProvider,INDEX=1"
+		 'Set policy number
+		Trim tracPolicyNumber tracPolicyNumber
+		TypeWebValue tracPolicyNumber "Browser=Claims Search::TextBox,id=AffinityMemberId,INDEX=1"
+		 'Enter SMS_Pt_DOB
+		TypeWebValue smsPtDOB "Browser=Claims Search::TextBox,id=DateOfBirth,INDEX=1"
+		 'Enter tracAdmitDate
+		'TypeWebValue tracAdmitDate "Browser=Claims Search::TextBox,id=DateRangeFrom,INDEX=1"
+		 'Click Search button
+		ClickWebElement "Browser=Claims Search::Button,value=Search,INDEX=1"
+	EndIf
+EndIf
+
+:OpenAffinityMedicareE14
+OnError Goto ErrorHandling
+OpenWebPage webAffinityMedicareE14 ClearAll
+Tell "Opening " webAffinityMedicareE14
+Tell "Waiting for the page to load"
+
+Goto LogonAffinityMedicareE14
+
+:LogonAffinityMedicareE14
+Tell "Looking for username and password input boxes"
+
+
+Goto Exit
+'
+'-----------------------------------------------------------------------
+'Login Errors
+'-----------------------------------------------------------------------
+'
+:LoginError 
+Let LoginErrorCount = LoginErrorCount + 1 
+Tell "Unable to log into WebsiteName with username " UserName "."
+
+If LoginErrorCount GE 2 Then 
+	Concatenate ErrorEmailSubject "Too many login attempts for WebsiteName user " UserName
+	Copy ErrorEmailMsg "Aborting script to avoid locking account. Check password in script."
+	SetRuntime ErrorEmail_MessageSubject ErrorEmailSubject 
+	SetRuntime ErrorEmail_MessageBody ErrorEmailMsg 
+	Goto Abort 
+Else 
+	Goto RetryLogic 
+Endif 
+
+:LoginNotFound
+Let LoginNotFoundCount = LoginNotFoundCount + 1
+Tell "Canot find username or password input box for " webTRAC "."
+
+If LoginNotFoundCount GE 1 Then
+	Concatenate ErrorEmailSubject "Login Username/Password input box not found for webpage " webTRAC
+	Copy ErrorEmailMsg "Aborting mission to log in to webpage"
+	SetRuntime ErrorEmail_MessageSubject ErrorEmailSubject
+	SetRuntime ErrorEmail_MessageBody ErrorEmailMsg
+	Goto Abort
+Else
+	Goto Signon
+Endif
+
+'
+'-----------------------------------------------------------------------
+'Error handling
+'-----------------------------------------------------------------------
+'
+
+:ErrorHandling 
+OnError Resume Next
+Resume RetryLogic 
+
+:RetryLogic 
+Let GlobalRetryCount = GlobalRetryCount + 1 
+Tell "GlobalRetryCount is " GlobalRetryCount
+'Retry up to 20 times 
+If GlobalRetryCount GE 20 Then 
+	Tell "Exceded maximum allowed GlobalRetryCount. Aborting Script."
+	Goto Abort 
+Endif
+'Retry the same record up to 3 times. If count > 2, move on to next. 
+If RetryRecord EQ "Yes" Then 
+	Let RetryRecordCount = RetryRecordCount + 1 
+	Tell "RetryRecordCount = " RetryRecordCount
+	If RetryRecordCount GE 3 Then 
+		Copy RetryRecord "No"
+		Tell "Reached max record retries. Moving on to next record."
+		'Reset record retry counter 
+		Let RetryRecordCount = 0 
+	Endif 
+Endif 
+CloseWebPage 
+ClearCallStack  
+Goto OpenBrowser 
+
+:Abort
+CloseWebPage
+ExitError
+
+:ExitNoBrowser
+Exit
+
+:Exit
+Tell "Claims Information Mission has been successful."
+Concatenate SuccessEmailSubject "Claims Information Mission Completed"
+Copy SuccessEmailMsg "Finished Claims Informaiton Mission. Steve thanks you for using this script."
+SetRuntime SuccessEmail_MessageSubject SuccessEmailSubject
+SetRuntime SuccessEmail_MessageBody SuccessEmailMsg
+'SetStartUp SuccessEmail_IncludeOutputLog "Yes"
+Exit
+
+:Exit_Error_Label
+'Exit Error
+ExitError

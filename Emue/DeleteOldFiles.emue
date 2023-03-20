@@ -1,0 +1,45 @@
+REM Gateway Connection Info
+SETSTARTUP RumbaInterfaceType "noconnection"
+
+'File location Info – note that the log files will be stamped with the current time and date
+SETSTARTUP InputFile ""
+SETSTARTUP ActivityLogFile "C:\EMUE\DeleteOldFiles\ActivityLogs\ActLog_#today#_#time#.log"
+SETSTARTUP ParseScriptOnLoad "Yes"
+
+'Automation Settings
+SETSTARTUP AutoClose "YES"
+SETSTARTUP AllowCompletionOptionsOnError "NO"
+
+'Debugging settings
+SETSTARTUP EnableDebugger "YES"
+SETSTARTUP RequireVariableAssignmentBeforeRead "YES"
+
+'Optimizations & Misc
+SETSTARTUP SortLists "NO"
+
+:PurgeOldFiles
+'Use the GetFileList command to build a list of all of the files in the directories you want to purge
+'This example will purge the Output Logs, Activity Logs, and archived input files
+GetFileList FileList "C:\EMUE\DeleteOldFiles\OutputLogs\"
+GetFileList FileList "C:\EMUE\DeleteOldFiles\ActivityLogs\"
+GetFileList FileList "C:\EMUE\DeleteOldFiles\TraceLogs\"
+GetFileList FileList "C:\EMUE\DeleteOldFiles\InputArchive\"
+
+:GetNextFile
+'Work through the list of files.  Get the File name, File Directory, and File Date
+If EndOfList FileList Goto Done
+GetListMember FileList FileName FileDir x FileDate x
+'Use DateDiff to determine how old a file is.  Specify the unit of time you would like to use.  
+'This example is using Days
+DateDiff FileAge &today FileDate "DAYS"
+'The line below checks if the file is older than your specified cutoff date.  This example is checking for files older than 90 days.
+If FileAge LT 90 Goto GetNextFile 'If the file is not old enough, don't do anything and move on to the next file
+'Use concatenate to build the full path to the file you want to delete
+Concatenate FullFilePath FileDir "\" FileName
+'Delete the file
+DeleteFile FullFilePath
+Goto GetNextFile
+
+:Done
+Tell "Deleted all files more than 90 days old."
+Exit

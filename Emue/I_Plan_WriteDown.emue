@@ -1,0 +1,340 @@
+
+:SetStartups_Label
+ 'Gateway Connection Info
+SetStartUp RumbaInterfaceType "TN3270"
+SetStartUp SNAServer1 "64.46.246.196"
+SetStartUp DeviceName "LU01X0NT"
+SetStartUp ManualLogin "Yes"
+SetStartUp SignOnPathway "StandardSignatureAndInvision"
+SetStartUp PreSignonKeystrokes ""
+SetStartUp CICS "smsnet"
+SetStartUp CICSMessage "******\  ******\  ******\   ******\"
+SetStartUp CHPS "chps"
+SetStartUp SignOn "EMUEPA"
+SetStartUp Password "123456"
+SetStartUp SignOnPosition "14,71"
+SetStartUp PasswordPosition "17,71"
+SetStartUp HasMessageScreenAfterLogin "Yes"
+SetStartUp MainMenu "GEMFUN01"
+SetStartUp LogOffKeySequence ""
+ 'Optimizations & Misc
+SetStartUp DisplayBackgroundColor "Black"
+SetStartUp DisplayColors "Lime;Yellow;Red;White"
+SetStartUp AllowTypeAhead "Yes"
+SetStartUp QuietTime "0"
+
+ 'Input File
+SetStartUp InputFile "C:\Emue\SMS Scripts\I_Plan_Writedown\InputFiles\*.*"
+SetStartUp MoveInputFile "C:\Emue\SMS Scripts\I_Plan_Writedown\InputProcessing\"
+SetStartUp MoveInputFileAfterProcessing "C:\Emue\SMS Scripts\I_Plan_Writedown\InputArchive\"
+SetStartUp InputFileSortOrder "Name_Ascending"
+SetStartUp WaitForInputFile "No" 'Not available for Express version of EMUE
+SetStartUp MaxFileWaitTime "0" 'Not available for Express version of EMUE
+SetStartUp WaitAgain "No"
+SetStartUp FailScriptOnMissingInputFile "Yes"
+
+ 'Activity Log
+SetStartUp ActivityLogFile "C:\Emue\SMS Scripts\I_Plan_Writedown\ActivityLogs\#ScriptFileName#_#today#_#time#.log"
+SetStartUp OverWriteActivityLog "No"
+SetStartUp VerboseLogInfo ""
+
+ 'Output Log
+SetStartUp LogFile "C:\Emue\SMS Scripts\I_Plan_Writedown\OutputLogs\#ScriptFileName#_#today#_#time#.log"
+
+ 'Trace Log 'Line by line detailed EMUE logging
+SetStartUp TraceLogFile "C:\Emue\SMS Scripts\I_Plan_Writedown\TraceLogs\#ScriptFileName#_#today#_#time#.log"
+'SetStartUp TraceLogMaxLineCount "5000"
+
+ 'Email Settings
+SetStartUp SMTPServer "BMH-Exchange-SMTP.bmhmc.org"
+SetStartUp EmailFrom "bmh-emue@bmhmc.org"
+SetStartUp SuccessEmail "ssanderson@bmhmc.org"
+SetStartUp SuccessEmail_IncludeInputFile "Yes"
+SetStartUp SuccessEmail_IncludeOutputLog "Yes"
+SetStartUp SuccessEmail_IncludeActivityLog "Yes"
+SetStartUp SuccessEmail_MessageSubject "I_Plan_Writedown Completed Successfully"
+SetStartUp SuccessEmail_MessageBody ""
+SetStartUp ErrorEmail "ssanderson@LICommunityhospital.org"
+SetStartUp ErrorEmail_IncludeOutputLog "Yes"
+SetStartUp ErrorEmail_IncludeInputFile "Yes"
+SetStartUp ErrorEmail_IncludeActivityLog "Yes"
+SetStartUp ErrorEmail_MessageSubject "Error Processing I_Plan_Writedown"
+SetStartUp ErrorEmail_MessageBody ""
+SetStartUp SendEmailOnErrorWhenDebugging "No"
+
+ 'Automation Settings
+SetStartUp AutoClose "Yes"
+SetStartUp AutoDisconnect "Yes"
+SetStartUp AllowCompletionOptionsOnError "No"
+SetStartUp SortLists "No"
+
+ 'Debugging Settings
+SetStartUp EnableDebugger "Yes" 'Change to "No" for Production
+SetStartUp ParseScriptOnLoad "Yes" 'Change to "No" for Production
+SetStartUp RequireVariableAssignmentBeforeRead "Yes"
+
+:Logon
+Sleep 2
+Paste "smsnet" 3 2
+Sleep 4
+Send s ""
+Sleep 2
+Paste "chps" 1 1
+Sleep 4
+Send s ""
+
+Sleep 2
+Paste "EMUEPA" 6 11
+Sleep 2
+Paste "123456" 9 11
+Sleep 2
+Send s ""
+Sleep 2
+
+Tell "Go to patient lookup page."
+Paste 02 22 63
+Send s ""
+Sleep 2
+Paste 01 21 63
+Send s ""
+Sleep 2
+Paste "PTIQ" 22 61
+Send s ""
+Sleep 2
+
+:Start_Of_Script_Label
+REM --------------------------------------------------------------
+REM * I Plan Writedown *
+Copy bl " \n"
+Copy Version "Script Version 1.0 \n"
+Copy VersionDate "Written on 09/26/2018 \n"
+Copy VersionAuthor "Written by Steven P Sanderson II, MPH \n"
+Copy VersionAuthorDept "Department: Finance, Revenue Cycle"
+Tell bl Version VersionDate VersionAuthor VersionAuthorDept
+Rem -----------------------------------------------------------
+
+:InitialzeVariables
+Copy PtNo ""
+Copy WriteDownCode "09735077"
+Let WriteDownAmount = 0
+
+'Create Lists
+CreateList DataWithTotExpPay NOVERIFYCOUNT
+PutListMember DataWithTotExpPay "PT_ID" "ADMIT_DATE" "DISCHARGE_DATE" "FC" "HOSP_SVC" "EME_FLAG" "AGE_IN_DAYS" "PYR_CD" "PYR_SEQ_NO" "TOT_CHG_AMT" "TOT_BAL_AMT" "INS_PAY_AMT" "PT_BAL_AMT" "INS_BAL_AMT" "TOT_PAY_AMT" "PT_PAY_AMT" "GUARANTORDOB" "GUARANTORFIRST" "GUARANTORLAST" "PT_FIRST_NAME" "PT_LAST_NAME" "INS1" "INS1_NAME" "INS2" "INS3" "INS4" "DRG_NO" "AUTH" "Total_Exp_Pay_Amt"
+CreateList WriteDownList NOVERIFYCOUNT
+PutListMember WriteDownList "PT_ID" "PyrCd" "INS_BAL_AMT" "Total_Exp_Pay_Amt" "WriteDownAmt" "WriteDownCode"
+CreateList ErrorAccounts NOVERIFYCOUNT
+PutListMember ErrorAccounts "PT_ID"
+CreateList ErrorAccountsKD noverifycount
+PutListMember ErrorAccountsKD "PT_ID"
+
+:ReadData
+REM ***** Read the data from the data file *****
+If EOF Goto QuitScript
+Sleep 1
+Read
+
+CopyField PtNo File 1 ","
+CopyField Admit_Date File 2 ","
+CopyField Discharge_Date File 3 ","
+CopyField FC File 4 ","
+CopyField HospSvc File 5 ","
+CopyField EME_Flag File 6 ","
+CopyField AgeInDays File 7 ","
+CopyField PyrCd File 8 ","
+CopyField PyrSeqNo File 9 ","
+CopyField TotChgAmt File 10 ","
+CopyField TotBalAmt File 11 ","
+CopyField InsPayAmt File 12 ","
+CopyField PtBalAmt File 13 ","
+CopyField InsBalAmt File 14 ","
+CopyField TotPayAmt File 15 ","
+CopyField PtPayAmt File 16 ","
+CopyField GuarantorDOB File 17 ","
+CopyField GuarantorFirst File 18 ","
+CopyField guarantorLast File 19 ","
+CopyField PtFirstName File 20 ","
+CopyField PtLastName File 21 ","
+CopyField Ins1 File 22 ","
+CopyField Ins1Name File 23 ","
+CopyField Ins2 File 24 ","
+CopyField Ins3 File 25 ","
+CopyField Ins4 File 26 ","
+CopyField DRGNo File 27 ","
+CopyField Auth File 28 ","
+Trim PtNo PtNo
+Goto PtNoNumeric
+
+:PtNoNumeric
+If IsAllNumeric PtNo Then
+	Tell Ptno " is good. Get APG data."
+Else
+	Tell "Encounter number is not numeric, go to the next one"
+	Goto ReadData
+EndIf
+Goto ProcessRecord
+
+:ProcessRecord
+Tell "Processing: " PtNo
+Goto PTIQ
+
+:PTIQ
+If Check s "PAQINQ01" * Then
+	GetCursorPosition 05 27
+	Send s "[Erase]"
+	Paste PtNo 05 27
+	Send s ""
+	If CHECK s "PATIENT OVERVIEW" * Then
+		GOTO PF3
+	EndIf
+Else
+	Tell "There was an error processing account: " PtNo
+	Goto AddToErrorsList
+EndIf
+
+:AddToErrorsList
+SetListPosition ErrorAccounts 2 Set
+PutListMember ErrorAccounts PtNo
+Goto PF14
+
+:PF3
+Tell "Going to Patient Insurance Data Screen"
+Send s "[PF3]"
+If check s "PATIENT INSURANCE DATA" * Then
+	Goto PF9
+Else
+	Goto AddToErrorsList
+EndIf
+
+:PF9
+Tell "Going to Claim Selection Page"
+Send s "[PF9]"
+If check s "CLAIM SELECTION" * Then
+	Tell "At Claim Selection Page. Going to get information for " PtNo
+	Copy ClaimLine ""
+	Tell "ClaimLine Initialized"
+	Let ClaimLineRowIterator = 17
+ElseIf Check s "NO CLAIM DATA AVAILABLE" Then
+	Goto PF14
+EndIf
+
+Goto GetClaimLine	
+
+:GetClaimLine
+If ClaimLineRowIterator EQ 6 Then
+	SetListPosition ErrorAccountsKD 2 set
+	PutListMember ErrorAccountsKD PtNo
+	Goto PF14
+EndIf
+
+SetCursorPosition ClaimLinerowIterator 08
+Copy ClaimLine SCREEN ClaimLineRowIterator 04 5
+If ClaimLine EQ "     " Then
+	Tell "Claim Line is blank, checking next line"
+	Let ClaimLineRowIterator = ClaimLineRowIterator - 1
+	Goto GetClaimLine
+EndIf
+
+Trim ClaimLine ClaimLine
+Tell "Using Claim Line: " ClaimLine
+
+Goto ClaimSelectionPyrCdCheck
+
+:ClaimSelectionPyrCdCheck
+SetCursorPosition ClaimLineRowIterator 11
+Copy PyrCdCheck SCREEN ClaimLineRowIterator 11 3
+If PyrCd EQ PyrCdCheck Then 
+	Goto TotChgCheck
+Else
+	Let ClaimLineRowIterator = ClaimLineRowIterator - 1
+	Goto GetClaimLine
+EndIf
+
+:TotChgCheck
+SetCursorPosition ClaimLineRowIterator 47 
+Copy TotChgCheck SCREEN ClaimLineRowIterator 47 10
+Trim TotChgCheck TotChgCheck
+If TotChgAmt EQ TotChgCheck Then
+	Goto SetClaimLine
+Else
+	Let ClaimLineRowIterator = ClaimLineRowIterator - 1
+	Goto GetClaimLine
+EndIf
+
+:SetClaimLine
+' Enter Claim Line
+SetCursorPosition 19 54
+Paste ClaimLine 19 54
+Send s "[PF10]"
+
+' Check if on same page
+If Check s "NO OP PPS REIMBURSEMENT EXPECTED RESULTS DATA AVAILABLE" * then
+	Goto PF14
+Else
+	Goto ExpectedResultsPage
+EndIf
+
+:PF14
+Send s "[PF14]"
+Goto ReadData
+
+:ExpectedResultsPage
+Tell "Checking Expected Results Page"
+If CHECK s "OP PPS EXPECTED RESULTS (APG)" * THEN
+	SetCursorPosition 07 14
+	Copy TotClmPaymt Screen 07 14 12
+	Trim TotClmPaymt TotClmPaymt
+	Let TotClmPaymntNumeric = TotClmPaymt
+	Tell "Toal expaected claim payment is: " TotClmPaymntNumeric
+	
+	' Make sure TotClmPaymntNumericd is GT InsBalAmt
+	If TotClmPaymntNumeric GT InsBalAmt Then
+		SetListPosition ErorrAccountsKD 2 Set
+		PutListMember ErrorAccountsKD PtNo
+		Goto PF14
+	ElseIf TotClmPaymntNumeric EQ 0 Then
+		SetListPosition ErrorAccountsKD 2 Set
+		PutListMember ErrorAccountsKD PtNo
+		Goto PF14
+	EndIf
+
+	' Calculate Write Down Amount
+	Trim PyrCd PyrCd
+	If PyrCd EQ "I01" Then
+		Let WriteDownAmount = InsBalAmt - TotClmPaymntNumeric
+	Elseif PyrCd EQ "I04" Then
+		Let WriteDownAmount = InsBalAmt - TotClmPaymntNumeric
+	ElseIf ( (PyrCd EQ "I06") AND (EME_Flag EQ 1) ) Then
+		Let WriteDownAmount = (0.92 * TotClmPaymntNumeric)
+	ElseIf ( (PyrCd EQ "I06") And (EME_Flag EQ 0) ) Then
+		Let WriteDownAmount = InsBalAmt - TotClmPaymntNumeric
+	ElseIf PyrCd EQ "I07" Then
+		Let WriteDownAmount = InsBalAmt - TotClmPaymntNumeric
+	Elseif PyrCd EQ "I10" Then
+		Let WriteDownAmount = InsBalAmt - TotClmPaymntNumeric
+	Endif
+
+	Tell "The write down amount for " PtNo " is: " WriteDownAmount
+
+	' Put data in list
+	SetListPosition WriteDownList 2 Set
+	PutListMember WriteDownList PtNo PyrCd InsBalAmt TotClmPaymntNumeric WriteDownAmount WriteDownCode
+
+	' Get next record
+	Goto PF14
+Else
+	Goto LogMessage
+Endif
+
+:QuitScript
+Log "Log End" "\n\n\n\n"
+
+Exit
+
+:Exit_Label
+ 'Exit
+Exit
+
+:Exit_Error_Label
+ 'Exit Error
+ExitError

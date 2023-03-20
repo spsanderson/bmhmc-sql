@@ -1,0 +1,233 @@
+
+'-------------------------------------------------------------------------------------
+'MovieTrivia.EMUE
+'
+'This script gets a list of movie titles from an Excel file and searches the IMDB
+'website for a synopsis of each movie.  Once the information is collected from the 
+'website, the synposis is written to the log one word at a time.  To play the game,
+'make sure that you are viewing the "Log" tab at the bottom of the EMUE window.
+'The first person to guess the movie correctly wins that round!  Enter the winner's 
+'name into the pop-up window to keep score.  The next synposis will start to appear
+'in a few seconds. Once all of the movies have been displayed, the script will total
+'the scores and display the results on the log tab.
+'
+'Input required: Excel file (.xlsx) with movie titles in first column. No header.
+'
+'latchison@databound.com
+'-------------------------------------------------------------------------------------
+
+:SetStartups_Label
+ 'Gateway Connection Info
+SetStartUp RumbaInterfaceType "NoConnection"
+
+ 'Web Scripting
+SetStartUp OpenWebPageRetries "3" 
+SetStartUp WebElementTimeout "10000"
+SetStartUp WaitForWebPageCompletion "YES"
+SetStartUp CloseUnhandledDialogBoxes "Yes"
+SetStartUp WebTypingOptimization "TypeLastCharacter"
+SetStartUp IncludeNestedWebTablesInPositionCount "No"
+SetStartUp AutoValidateWebScreens "Yes"
+
+ 'Input File
+SetStartUp InputFile "C:\EMUE\IMDB\InputFiles\*.xlsx"
+SetStartUp MoveInputFile "C:\EMUE\IMDB\InputProcessing\"
+SetStartUp MoveInputFileAfterProcessing "C:\EMUE\IMDB\InputArchive\"
+SetStartUp InputFileSortOrder "Name_Ascending"
+SetStartUp WaitForInputFile "No" 'Not available for Express version of EMUE
+SetStartUp MaxFileWaitTime "0" 'Not available for Express version of EMUE
+SetStartUp WaitAgain "No"
+
+ 'Activity Log
+SetStartUp ActivityLogFile "C:\EMUE\IMDB\ActivityLogs\#ScriptFileName#_#today#_#time#.log"
+SetStartUp OverWriteActivityLog "No"
+SetStartUp VerboseLogInfo ""
+
+ 'Output Log
+SetStartUp LogFile "C:\EMUE\IMDB\OutputLogs\#ScriptFileName#_#today#_#time#.log"
+
+ 'Automation Settings
+SetStartUp SortLists "No"
+SetStartUp AutoClose "NO"
+SetStartUp AllowCompletionOptionsOnError "No"
+
+ 'Debugging Settings
+SetStartUp EnableDebugger "No" 'Change to "No" for Production
+SetStartUp ParseScriptOnLoad "Yes" 'Change to "No" for Production
+SetStartUp RequireVariableAssignmentBeforeRead "Yes"
+
+:Start_Of_Script_Label
+Let RetryCount = 0
+CreateList Players
+'Set up variables used to keep score.  If more than 7 players, add additionanal player score variables.
+Let Player1Score = 0
+Let Player2Score = 0
+Let Player3Score = 0
+Let Player4Score = 0
+Let Player5Score = 0
+Let Player6Score = 0
+Let Player7Score = 0
+GetExcelData Movies &FullInputFileName "Select * from [*worksheet1$]" "Excel2010" "WithoutHeader"
+OnError GOTO Recover
+SetListPosition Movies 1 SET
+CreateList Results
+:FirstTimeThrough
+'For the first movie, need to search from Google due to issue with IMDB main page.  
+openwebpage "www.google.com"
+WaitForWebElement 20 "Browser=Google::TextBox,title=Google Search,INDEX=1"
+If EndOfList Movies Goto PlayGame
+GetListMember Movies MovieName
+PasteWebValue MovieName "Browser=Google::TextBox,title=Google Search,INDEX=1"
+ClickWebElement "Browser=Google::Button,value=Google Search,INDEX=1"
+'Find the IMDB link from the Google results
+WaitForWebElement 10 "Browser=*Google Search::Link,innertext=*IMDb*,INDEX=1"
+ClickWebElement "Browser=*Google Search::Link,innertext=*IMDb*,INDEX=1"
+
+WaitForWebElement 20 "Browser=*IMDb::Paragraph,itemprop=description,INDEX=1"
+'Copy the movie synopsis and store to a list
+GetWebValue Description "Browser=*IMDb::Paragraph,itemprop=description,INDEX=1"
+PutListMember Results MovieName Description
+
+:GetRestOfMovies
+'Once we are on an IMDB movie page, the rest of the movies can be searched direcly from IMDB
+If EndOfList Movies Goto PlayGame
+GetListMember Movies MovieName
+UpdateStatus Movies
+TypeWebValue MovieName "Browser=*IMDb::TextBox,id=navbar-query,INDEX=1"
+ClickWebElement "Browser=*IMDb::Button,id=navbar-submit-button,INDEX=1"
+Concatenate Link "Browser=Find - IMDb::Link,innertext=*" MovieName "*,INDEX=1"
+WaitForWebElement 20 Link
+ClickWebElement Link
+WaitForWebElement 20 "Browser=*IMDb::Paragraph,itemprop=description,INDEX=1"
+GetWebValue Description "Browser=*IMDb::Paragraph,itemprop=description,INDEX=1"
+PutListMember Results MovieName Description
+Goto GetRestOfMovies
+
+:PlayGame
+CloseWebPage
+Pause "So you want to play my game?"
+'Debugger must be enabled for the text to appear on the Log tab
+SetRuntime EnableDebugger "YES"
+:PrintNext
+Let CharCount = 0
+If EndOfList Results Goto Game_Over
+GetListMember Results MovieName Description
+UpdateStatus Results
+'Write the synopsis to the output log one word at a time. Limit each line to 50 characters
+'Look at the "Log" tab, and you will see the synopsis being written
+For WordCount = 1 TO 50
+CopyField Word Description WordCount " "
+Length WordLength Word
+Let CharCount = CharCount + WordLength
+If Word EQ "" then
+	exitfor
+ElseIf CharCount GE 70 Then
+	LogLine ""
+	Let CharCount = 0
+endif
+Log Word " "
+'After 12 words, start writing the synposis faster (2 words at a time)
+If WordCount GT 12 Then
+	Let wordcount = WordCount + 1
+	CopyField Word Description WordCount " "
+	Length WordLength Word
+	Let CharCount = CharCount + WordLength
+	Log Word " "
+EndIf
+	
+Sleep 1
+Next WordCount
+Sleep 5
+LogLine ""
+LogLine ""
+LogLine MovieName
+Sleep 1
+'Enter the name of the person (or team) who guessed the movie first
+Copy Winner USERINPUT "Who won this round???"
+'Use the list of players to update the score. If the player name already exists, increment their score by 1. If it is a new player, create a new entry in the list.
+FindListPosition Players Winner 
+If EndOfList Players Then
+	PutListMember Players Winner
+	GetListCount NoPlayers Players
+	Let PlayerPos = NoPlayers
+Else
+	GetListPosition PlayerPos Players
+EndIf
+If PlayerPos EQ 1 Then
+	Let Player1Score = Player1Score + 1
+ElseIf PlayerPos EQ 2 Then
+	Let Player2Score = Player2Score + 1
+ElseIf PlayerPos EQ 3 Then
+	Let Player3Score = Player3Score + 1
+ElseIf PlayerPos EQ 4 Then
+	Let Player4Score = Player4Score + 1
+ElseIf PlayerPos EQ 5 Then
+	Let Player5Score = Player5Score + 1
+ElseIf PlayerPos EQ 6 Then
+	Let Player6Score = Player6Score + 1
+ElseIf PlayerPos EQ 5 Then
+	Let Player7Score = Player7Score + 1
+Endif
+Sleep 3
+LogLine ""
+LogLine ""
+LogLine "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
+Sleep 1
+LogLine ""
+LogLine ""
+Goto PrintNext
+
+:Game_Over
+'Display the final scores. If  more than 7 players, add additional PlayerScores here
+LogLine ""
+LogLine "GAME OVER. Here are the scores..."
+Sleep 2
+SetListPosition Players 1 SET
+If Player1Score GT 0 Then
+	GetListMember Players Name	
+	LogLine Name ": " Player1Score
+EndIf
+If Player2Score GT 0 Then
+	GetListMember Players Name
+	LogLine Name ": " Player2Score
+EndIf
+If Player3Score GT 0 Then
+	GetListMember Players Name
+	LogLine Name ": " Player3Score
+EndIf
+If Player4Score GT 0 Then
+	GetListMember Players Name
+	LogLine Name ": " Player4Score
+EndIf
+If Player5Score GT 0 Then
+	GetListMember Players Name
+	LogLine Name ": " Player5Score
+EndIf
+If Player6Score GT 0 Then
+	GetListMember Players Name
+	LogLine Name ": " Player6Score
+EndIf
+If Player7Score GT 0 Then
+	GetListMember Players Name
+	LogLine Name ": " Player7Score
+EndIf
+ 'Exit
+Pause "The End!"
+Exit
+
+:Recover
+CloseWebPage
+Let RetryCount = RetryCount + 1
+If EndOfList Movies Then
+	SetListPosition Movies 1 END
+ElseIf RetryCount LT 3 Then
+	SetListPosition Movies -1 CURRENT
+Else
+	Let RetryCount = 0
+Endif
+Resume FirstTimeThrough
+
+:ExitError_Label
+ 'Exit Error
+ExitError
+
