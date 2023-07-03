@@ -377,5 +377,5 @@ full_file_path <- paste0(file_path, file_name)
 
 # Write File ----
 query_tbl %>%
-  named_item_list(.grouping_var = usnwr_group) %>%
+  named_item_list(.group_col = usnwr_group) %>%
   write_xlsx(path = full_file_path)
