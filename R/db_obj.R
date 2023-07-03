@@ -49,7 +49,8 @@ db_connect <- function() {
 #' @param .connection The connection object returned from [db_connect()]
 #'
 #' @examples
-#' db_disconnect()
+#' db_con_obj <- db_connect()
+#' db_disconnect(.connection = db_con_obj)
 #'
 #' @return
 #' A SQL-SERVER DSS connection object
