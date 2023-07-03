@@ -60,6 +60,6 @@ db_connect <- function() {
 db_disconnect <- function(.connection) {
 
   DBI::dbDisconnect(
-    conn = db_connect()
+    conn = .connection
   )
 }
